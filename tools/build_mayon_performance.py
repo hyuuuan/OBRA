@@ -15,6 +15,10 @@ SOURCE = ROOT / 'LEVEL5_Mayon/authored'
 OUT = ROOT / 'game/assets/Level5'
 LOLA = ['back', 'paint', 'turn', 'front', 'flowers', 'remember', 'seated', 'seated_flowers']
 APO = ['raise', 'paint', 'failed', 'lower', 'seated', 'seated_paint', 'offer', 'pickup']
+# Cells the atlases still hold but the game no longer shows: the real room went when the run
+# began ending in the house (#182). The lists above stay whole because they name the atlas's
+# cells in order; these are only not written. frame_room.png is kept with the other originals.
+RETIRED = {'seated', 'seated_flowers', 'seated_paint', 'pickup'}
 
 
 def atlas(name, poses, height, cell):
@@ -45,7 +49,8 @@ def main():
         ('apo', 'apo_performance_atlas.png', APO, 96, (112, 112)),
     ]:
         for pose, image in atlas(source, poses, height, cell):
-            pictures.put(image, OUT / 'people' / f'{who}_{pose}.png')
+            if pose not in RETIRED:
+                pictures.put(image, OUT / 'people' / f'{who}_{pose}.png')
     sheet = Image.open(SOURCE / 'lola_atlas.png').convert('RGBA')
     portrait = sheet.crop((1152 + 52, 54, 1536 - 48, 405))
     # The same silhouette contract as the other dialogue speakers; this crop already
@@ -53,8 +58,6 @@ def main():
     portrait = outlined(portrait)
     portrait = portrait.resize((round(portrait.width * 220 / portrait.height), 220), Image.Resampling.NEAREST)
     pictures.put(portrait, OUT / 'people/lola_portrait.png')
-    room = Image.open(SOURCE / 'frame_room.png').convert('RGBA')
-    pictures.put(room.resize((1600, 900), Image.Resampling.NEAREST), OUT / 'frame/room.png')
     if pictures.stale:
         raise SystemExit('Stale performance assets: ' + ', '.join(pictures.stale))
 

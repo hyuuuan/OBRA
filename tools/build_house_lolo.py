@@ -9,10 +9,15 @@ he would always be somewhere (her first diary page says so), and once the apo ha
 places back, the house shows it: each painting on the wall with him standing in it, alive, in
 the painting's own scale.
 
-THE ART IS KENT'S: five character sheets of Lolo alive (game/assets/characters/lolo/LOLO1-5.png,
-2026-11-01), young in the first and old in the fifth, so he ages across her paintings in the
-order they hang -- LOLOn goes into painting n. The ghost (LOLOGHOST.png, and every sprite the
-game already had of him) is not used here: "not as a ghost" is the whole point.
+THE ART IS KENT'S: five character sheets of Lolo alive
+(game/assets/characters/lolo/source/LOLO1-5.png, 2026-11-01), young in the first and old in the
+fifth, so he ages across her paintings in the order they hang -- LOLOn goes into painting n. The
+ghost (HUD-assets-ideas/Lolo-Ghost.png, and every sprite the game already had of him) is not
+used here: "not as a ghost" is the whole point.
+
+⚠ THE SHEETS ARE ONLY READ HERE, so they sit in a `source/` folder with a `.gdignore`, as the
+apo's references do. In the imported folder Godot took all five in and shipped ~10 MB of
+1254 x 1254 sheets with the game, for a figure 18 px tall.
 
 CUTTING
 -------
@@ -46,7 +51,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 PAINTINGS = ROOT / "game" / "assets" / "hub" / "paintings"
-SHEETS = ROOT / "game" / "assets" / "characters" / "lolo"
+SHEETS = ROOT / "game" / "assets" / "characters" / "lolo" / "source"
 
 # His FRONT pose on every sheet (x0, y0, x1, y1), measured: the figure stands in 361..493 x
 # 94..325 on all five, with panel round it -- and stops above the word "FRONT" under him.
