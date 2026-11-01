@@ -320,11 +320,11 @@ func _swim_heading() -> float:
 ## whatever is held, while `surfacing`.
 func _swim(delta: float, direction: float) -> void:
 	_jump_buffered = 0.0
+	# Even out of breath she can steer clear of a hull or an overhang on the way up.
+	velocity.x = move_toward(velocity.x, direction * SWIM_SPEED, SWIM_ACCEL * delta)
 	if surfacing:
-		velocity.x = move_toward(velocity.x, 0.0, SWIM_ACCEL * delta)
 		velocity.y = move_toward(velocity.y, SURFACING_SPEED, 1600.0 * delta)
 		return
-	velocity.x = move_toward(velocity.x, direction * SWIM_SPEED, SWIM_ACCEL * delta)
 	var vertical := Input.get_axis(&"move_up", &"move_down")
 	if Input.is_action_pressed(&"jump"):
 		vertical = -1.0
