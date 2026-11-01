@@ -196,8 +196,9 @@ feeding, climbing/cutting, throwing, collecting and checkpoint restore in both a
 ## The supplied Alley 2 market loop — November 2026
 
 Alley 2 uses the four supplied sunset market frames, in filename-number order, held for
-0.45 seconds each (a 1.8-second loop). Originals are preserved in `level-2-assets/alley_2/`
-and copied unchanged into `game/assets/Level2/alley_2/`. `alley_2_room_2d.gd` draws them
+0.45 seconds each (a 1.8-second loop). They are used unchanged, so the supplied files live
+only in `game/assets/Level2/alley_2/`: a second copy in `level-2-assets/` was the same bytes
+twice. `alley_2_room_2d.gd` draws them
 at native pixel size and advances only while the room is occupied and the world is running.
 It inherits the same collision, openings, floor and route mechanics as before. Both supplied
 alley dressings use the room shell's shared street exit signs and closed-onward barrier.
