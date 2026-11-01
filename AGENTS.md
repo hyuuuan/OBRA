@@ -503,6 +503,15 @@ Traps found building it:
 - **Painting_Covers names lie**: "Mt Makiling Completed Look" is Dagat's storm; Dilim's forest is
   "Completed Look from Mayon".
 
+
+## Lola's diary (every level)
+
+Read **DIARY.md** before touching `diary.json` or a level's page. Every painting hides a page of
+her diary, each further into her forgetting; they are kept under the bag's fourth tab, DIARY, as
+a book whose pages turn. A level gives a page with `find_diary_page(id)` (kept first, then shown
+open in the book). `run_diary_probe` holds every page to naming no class (English or Filipino),
+fitting its page, and being given by some level's script.
+
 ## Gameplay Shape
 
 - Flow: a successful morph replaces the active player; a utility enters placement

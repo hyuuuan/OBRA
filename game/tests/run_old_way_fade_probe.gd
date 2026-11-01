@@ -16,7 +16,7 @@ const LEVELS := [
 	["res://level_3.tscn", "EnvironmentBaseplate/GameplayPlane/OldJetty"],
 	["res://level_4.tscn", "EnvironmentBaseplate/GameplayPlane/OldLog"],
 ]
-const CHECKS := 9 * 5
+const CHECKS := 8 * 5
 
 var checked := 0
 var failures := 0
@@ -60,10 +60,7 @@ func _level_fades_its_old_way(scene: String, path: NodePath) -> void:
 	var material := thing.material as ShaderMaterial
 	var paper: Color = material.get_shader_parameter("paper") if material != null else MAYON_PAPER
 	var wash: float = material.get_shader_parameter("wash") if material != null else 1.0
-	var painted: bool = material.get_shader_parameter("texture_in_colour") if material != null else false
-	# Godot 4's COLOR already carries the texture: sampling it again draws the old way darker
-	# than it was painted, from the very start (drain.gdshader).
-	_check(painted, "%s: it is drawn in its painted colours until it goes" % where)
+	# That it is drawn in its painted colours is the shader's, for every level: run_drain_probe.
 	# In a dark level it must be seen to be seen going, and not before: the dark stays dark
 	# until then. In a lit level it cuts no holes at all.
 	var dark := float(level.call("_darkness")) > 0.0

@@ -16,7 +16,7 @@ The thesis manuscript governs where it and the SRS disagree.
 1. **`AGENTS.md`**: the architecture contracts, notes on every level, the traps this project keeps re-learning, and the commands. It is long; read the Project Map, Stable Contracts, Building a level, your level's section, and **Traps** in full.
 2. **`LEVEL_TEMPLATE.md`**: the shape every level has, the gate rules R1–R9, the invariants to assert, the tests a level owes, and the build order.
 3. **`LEVEL_<N>.md`** for the level you are on. For Mayon that is **`LEVEL_5.md`**. Its "Decisions — do not re-litigate" table is settled; do not reopen it.
-4. As needed: `HUD_SKIN.md` (the UI look), `GATES.md`, `ART_PLACEHOLDERS.md` (every stand-in art piece, by name), `CONTENT_NEEDED.md`.
+4. As needed: `HUD_SKIN.md` (the UI look), `GATES.md`, `ART_PLACEHOLDERS.md` (every stand-in art piece, by name), `CONTENT_NEEDED.md`, `DIARY.md` (Lola's diary: a page in every level, the bag's DIARY tab).
 
 When code and docs disagree, trust the code and fix the doc in the same PR.
 

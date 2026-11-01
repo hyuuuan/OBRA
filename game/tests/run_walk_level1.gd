@@ -920,18 +920,15 @@ func _her_chest_opens() -> void:
 	_check(said == "OPEN", "holding something that can cut, F offers to OPEN it", "F %s" % said)
 	level.call("_use_equipped_utility")
 	await physics_frame
-	var card := level.get("memory_overlay") as Node
-	var title := ""
-	var body := ""
-	for label in card.find_children("*", "Label", true, false):
-		if (label as Label).text == "HER DIARY":
-			title = (label as Label).text
-		elif (label as Label).text.contains("while I still know the way"):
-			body = (label as Label).text
+	# The page opens in her diary, the book the bag keeps it in (DIARY.md), not a memory card.
+	var card := level.get("diary_overlay") as DiaryOverlay
+	var title := (card.find_child("Title", true, false) as Label).text
+	var pages := " ".join(card.book().page_texts())
 	_check(chest.is_opened(), "and F opens it", "the padlock comes off" if chest.is_opened() else "still locked")
-	_check(bool(card.call("is_open")) and not title.is_empty() and not body.is_empty(),
-		"and a page of her diary is inside",
-		"a memory card: \"%s\"" % title if not title.is_empty() else "no card")
+	_check(card.is_open() and title == "A PAGE OF HER DIARY" and pages.contains("while I still know the way")
+		and bool(root.get_node("PlayerProfile").call("has_diary_page", "payyo")),
+		"and a page of her diary is inside, kept in the bag",
+		"the diary open: \"%s\"" % title if card.is_open() else "no diary")
 	_check(int(level.call("_slot_holding", "axe")) < 0 and level.get("_equipped_utility") == null,
 		"and the axe is used up, as every tool is", "gone")
 	var reads := ""
