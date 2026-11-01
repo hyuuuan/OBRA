@@ -635,10 +635,11 @@ the gorge's ledges and the exit shelf: a thick grass fringe she stands in, the m
 retaining wall under it with its underside broken along the stones, darker repeats below, and
 the rounded stone-wall corner on every open end (enlarged over Ang Hagdan's 220 px riser). The
 kit is cut from `texturemap.png` by `tools/build_cliff_kits.py`; the segments keep their
-collision and stand their own wall and cap down. ⚠ Two earlier passes were rejected: procedural
-cobbles ("nothing close to level 5") and Mayon's own boulders regraded green ("mayon has those
-rocks since its setting is in a volcano place"). The construction is Mayon's; the material must
-be the level's. `run_cliff_dressing_probe` holds the contract.
+collision and stand their own wall and cap down. ⚠ Three earlier passes were rejected: procedural
+cobbles ("nothing close to level 5"), Mayon's own boulders regraded green ("mayon has those rocks
+since its setting is in a volcano place"), and the tileset enlarged 2x ("lower resolution like not
+hd"). The construction is Mayon's; the material is the level's, at the tileset's own resolution,
+and the cap is cut tall enough (396 px) never to be enlarged over a riser. `run_cliff_dressing_probe` holds the contract.
 
 ⚠ **The near plate's right edge is a straight cut, so it lives behind Ang Hagdan's wall**
 (2026-11-02). `terraces_near_background` is a hill of terraces cut off flat on the right, through

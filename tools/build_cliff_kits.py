@@ -44,9 +44,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pixelart  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-## The tilesets are painted about one pixel to a pixel; the ground is drawn at twice that, so
-## a stone is the size of Mayon's smaller rocks and of the apo's head.
-SCALE = 2
+## The tilesets are painted about one pixel to a pixel, and the ground is drawn at exactly that.
+## ⚠ NOT ENLARGED. At twice the size every painted stone went to blocks and the ground read as
+## low-resolution AI art beside its own crisp backdrop (Kent: "lower resolution like not hd").
+## Kept as a name so the test and the runtime numbers say where they come from.
+SCALE = 1
+## Wall courses stacked in the strip: one is too shallow at this size to cover the first darker
+## repeat 150 px down, and the strip's underside must always be below it.
+COURSES = 2
+## The cap is cut this tall, so it is never enlarged to cover a riser: enlarged, it blurs.
+EDGE_TALL = 380
 
 
 @dataclass
@@ -69,7 +76,7 @@ class Recipe:
     walk: int = 3
     ## The broken underside: how deep each chunk reaches, as a share of the tile height. Deep
     ## enough that the first darker repeat's top (150 px down) is always behind it.
-    reach: tuple[float, float] = (0.74, 0.98)
+    reach: tuple[float, float] = (0.78, 0.98)
     ## The largest painted stone, in tileset px: anything bigger is joints run together.
     biggest: int = 800
     ## Under the strip, before the repeats: the joints' own darkest earth.
@@ -141,6 +148,13 @@ def lay(tiles: list[np.ndarray], order: list[int], tall: int) -> np.ndarray:
     # the crossfade straight into the first tile, exactly as the tile itself runs on.
     first = tiles[order[0]].shape[1]
     return row[:, JOIN:row.shape[1] - first + JOIN].round().astype(np.uint8)
+
+
+def stack(upper: np.ndarray, lower: np.ndarray) -> np.ndarray:
+    """One course over another, the join crossfaded over JOIN rows."""
+    ramp = np.linspace(0.0, 1.0, JOIN + 2)[1:-1][:, None, None]
+    joined = upper[-JOIN:].astype(np.float32) * (1 - ramp) + lower[:JOIN].astype(np.float32) * ramp
+    return np.concatenate([upper[:-JOIN], joined.round().astype(np.uint8), lower[JOIN:]], axis=0)
 
 
 def chunks(width: int, depth: tuple[float, float], rng: np.random.Generator) -> np.ndarray:
@@ -254,11 +268,19 @@ def build_face(recipe: Recipe) -> Image.Image:
     atlas = Image.open(ROOT / recipe.atlas)
     tiles = [trim(cut(atlas, box)) for box in recipe.tiles]
     tall = min(t.shape[0] for t in tiles)
-    row = lay(tiles, recipe.order, tall)
-    width = row.shape[1]
-    canvas = np.zeros((recipe.above + tall, width, 4), dtype=np.uint8)
-    canvas[recipe.above:] = row
-    profile = recipe.above + chunks(width, (recipe.reach[0] * tall, recipe.reach[1] * tall), rng)
+    wall = lay(tiles, recipe.order, tall)
+    # Lower courses are the same stone without its grass fringe, laid in another order so the
+    # joins do not line up, and crossfaded into the course above.
+    bodies = [t[recipe.fringe + 2:] for t in tiles]
+    for course in range(1, COURSES):
+        turn = course * 3 % len(recipe.order)
+        below = lay(bodies, recipe.order[turn:] + recipe.order[:turn], tall - recipe.fringe - 2)
+        wall = stack(wall, below)
+    width = wall.shape[1]
+    deep = wall.shape[0]
+    canvas = np.zeros((recipe.above + deep, width, 4), dtype=np.uint8)
+    canvas[recipe.above:] = wall
+    profile = recipe.above + chunks(width, (recipe.reach[0] * deep, recipe.reach[1] * deep), rng)
     canvas = break_underside(canvas, recipe, recipe.above, profile, wrap=True)
     # ⚠ Blades, not the tileset's plants: stood along the lip at this scale its sprouts read as
     # a row of lollipops and its ferns as pineapple tops.
@@ -292,10 +314,9 @@ def build_edge(recipe: Recipe) -> Image.Image:
     corner = cut(atlas, recipe.corner)
     body = cut(atlas, recipe.tiles[0])[recipe.fringe + 2:]
     width = min(64, corner.shape[1])
-    stack = [corner[:, :width]]
-    while sum(part.shape[0] for part in stack) < 2.2 * corner.shape[0]:
-        stack.append(body[:, :width])
-    wall = np.concatenate(stack, axis=0)
+    wall = corner[:, :width]
+    while wall.shape[0] < EDGE_TALL:
+        wall = stack(wall, body[:, :width])
     height = recipe.above + wall.shape[0]
     canvas = np.zeros((height, width, 4), dtype=np.uint8)
     canvas[recipe.above:] = wall
@@ -329,7 +350,7 @@ RECIPES = [
         name="payyo", out="game/assets/Level1/cliff", atlas="game/assets/Level1/texturemap.png",
         # Inset three pixels from each side but the top: the atlas outlines every tile.
         tiles=[(220, 399, 359, 523), (380, 399, 520, 522), (539, 399, 675, 522)],
-        order=[0, 1, 2, 1, 0, 2, 0, 1, 2, 0],
+        order=[0, 1, 2, 1, 0, 2, 0, 1, 2, 0, 2, 1, 0, 1],
         corner=(1252, 341, 1334, 428),
         fringe=15, joint=0.28, seed=1101, deep="#1d160b",
         blades=["#395412", "#4e6f0d", "#729506", "#92b502", "#a1c503"],

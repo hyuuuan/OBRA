@@ -327,10 +327,10 @@ z_index = -5
 script = ExtResource("30_cliff")
 kit = "res://assets/Level1/cliff"
 ground_group = &"terrace_ground"
-lip = 30.0
+lip = 15.0
 deep = Color(0.114, 0.086, 0.043, 1)
 tile_overlap = 0.0
-depth_skip = 60.0
+depth_skip = 32.0
 
 [node name="Transitions" type="Node2D" parent="GameplayPlane" unique_id=345990059]
 
