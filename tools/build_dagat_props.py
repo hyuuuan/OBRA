@@ -430,12 +430,56 @@ def draw_land(name: str, phase: int | None = None) -> Image.Image:
             share = 0.18 - 0.03 * k
             out[y, x, :3] = (out[y, x, :3] * (1.0 - share) + wet * share).astype(np.uint8)
 
+    _lip_over_the_stones(out, wall, face_top, seed)
+
     # Down into the water's colour as the sea gets deep.
     start = face_top + 60
     for y in range(start, height):
         share = min(1.0, (y - start) / 520.0) ** 0.9 * 0.82
         out[y, :, :3] = (out[y, :, :3] * (1.0 - share) + DEEP_RGB * share).astype(np.uint8)
     return Image.fromarray(out, "RGBA")
+
+
+## MAYON'S LIP, ON THE SHORE (2026-11-02). The sand shades the stone under it, and the sea moss
+## along its foot hangs down over the top course in clumps, as Mayon's grass does and Payyo's and
+## Dilim's now do (tools/build_cliff_kits.py). Both stay inside the stones already there, so the
+## picture's silhouette -- what run_level3_audit holds to the collision -- does not move.
+LIP_SHADE_ROWS = 14
+## Where the wall's own moss line ends, rows under the face's top, and how far a clump hangs past it.
+MOSS_FROM, MOSS_HANG = 6, 22
+
+
+def _lip_over_the_stones(out: np.ndarray, wall: np.ndarray, face_top: int, seed: int) -> None:
+    height, width = out.shape[:2]
+    stone = out[..., 3] > 0
+    # On the stone below the moss line, not on the moss: shaded, the moss went to a dark rule.
+    for k in range(LIP_SHADE_ROWS):
+        row = face_top + MOSS_FROM + k
+        rock = stone[row] & ~(out[row, :, 1].astype(int) > out[row, :, 0].astype(int) + 6)
+        shade = 0.55 + 0.45 * k / LIP_SHADE_ROWS
+        out[row, rock, :3] = (out[row, rock, :3] * shade).astype(np.uint8)
+    # The moss's own colours, from the wall's moss line: dark to light by brightness.
+    line = wall[:MOSS_FROM + 4].reshape(-1, 4)
+    line = line[(line[:, 3] > 0) & (line[:, 1].astype(int) > line[:, 0].astype(int) + 6)][:, :3]
+    if line.size == 0:
+        return
+    light = line.astype(float) @ np.array([0.299, 0.587, 0.114])
+    steps = np.array([line[np.argmin(np.abs(light - np.percentile(light, q)))] for q in (8, 30, 55, 80, 95)])
+    rng = np.random.default_rng(seed + 7)
+    clump = np.convolve(np.concatenate([rng.random(width)] * 3), np.ones(13) / 13, "same")[width:2 * width]
+    # Spread to 0..1: a running mean of noise sits near a half, and almost nothing hung from it.
+    clump = (clump - clump.min()) / max(1e-6, clump.max() - clump.min())
+    for x in range(width):
+        hang = int(round(max(0.0, clump[x] - 0.35) / 0.65 * MOSS_HANG))
+        if hang > 1 and rng.random() < 0.3:
+            hang += int(rng.integers(1, 4))
+        for k in range(hang):
+            row = face_top + MOSS_FROM + k
+            if row >= height or not stone[row, x]:
+                break
+            t = k / max(1, hang - 1)
+            index = 0 if k == hang - 1 else int(round((1 - t) * 3 + (x + k) % 2))
+            out[row, x, :3] = steps[min(4, index)]
 
 
 def _edge_fit(name: str, image: Image.Image) -> tuple:
