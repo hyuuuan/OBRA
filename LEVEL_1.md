@@ -629,6 +629,14 @@ so the only thing on screen at full contrast is the playfield. The near scenery 
 offender: it scrolls at 0.72 and was drawn at almost foreground brightness, so a painted hut
 and a painted stone staircase read as things you could walk on.
 
+⚠ **The near plate's right edge is a straight cut, so it lives behind Ang Hagdan's wall**
+(2026-11-02). `terraces_near_background` is a hill of terraces cut off flat on the right, through
+its stone walls. At (520, 425) the cut stood at x 998, 182 short of Terrace1, and once the old
+steps faded it showed above the ground as a seam: "the background is cut off". `NearA` is at
+(720, 473) now: the cut starts behind the wall and only moves further right, behind the
+terraces, as she walks. `run_level1_backdrop_probe` walks the climb standing and at a jump's
+apex and fails if any point of the cut is in view and not behind solid terrace.
+
 **The level ENDS WITH HER PAINTING.** It used to end at the GoalMarker out on the Overlook, so
 finishing Payyo meant solving the hardest node in the level, climbing in, taking the canvas,
 climbing back out — and then walking to a spot that looks like every other spot on the
