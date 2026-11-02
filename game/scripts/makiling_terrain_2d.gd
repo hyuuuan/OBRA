@@ -40,9 +40,12 @@ var _body_texture: Texture2D
 var _leaf: Texture2D
 var _bark: Texture2D
 var _rims: Node2D
+## Worn by a CliffDressing2D: the platforms are drawn there, and only the branches here.
+var _dressed := false
 
 
 func _ready() -> void:
+	add_to_group(&"makiling_ground")
 	# The world layer, where every body stands and every tool looks.
 	collision_layer = 1
 	collision_mask = 0
@@ -97,6 +100,28 @@ func _draw_rims() -> void:
 				Color(RIM, RIM.a * glint))
 
 
+## What a CliffDressing2D needs: which kit this ground wears, and its platforms in world space.
+## Branches are not handed over -- they are logs, and stay drawn here.
+func ground_kind() -> String:
+	return body
+
+
+func ground_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for rect in platforms:
+		out.append(Rect2(global_transform * rect.position, rect.size))
+	return out
+
+
+## Dilim's `CliffDressing*` draw the platforms in Mayon's construction, in Makiling's own mud and
+## stone; the flat fill and the thin leaf strip here stand down. The rims stay: they are where
+## the ground is in the dark, whoever draws it.
+func dressed_ground() -> Array[Rect2]:
+	_dressed = true
+	queue_redraw()
+	return ground_rects()
+
+
 func _solid(rect: Rect2, one_way: bool) -> void:
 	var shape := CollisionShape2D.new()
 	var box := RectangleShape2D.new()
@@ -108,7 +133,7 @@ func _solid(rect: Rect2, one_way: bool) -> void:
 
 
 func _draw() -> void:
-	for rect in platforms:
+	for rect in platforms if not _dressed else []:
 		if _body_texture != null:
 			draw_texture_rect(_body_texture, rect, true)
 		if _leaf != null:
