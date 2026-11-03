@@ -156,6 +156,74 @@ class DeliveredStripsTest(unittest.TestCase):
                 self.assertGreater(np.nonzero(eye)[1].mean(), np.nonzero(skin)[1].mean(),
                                    f"{name}: should face right, including the mirrored hurt pose")
 
+    def test_wakwak_keeps_every_blue_feather_pixel_and_its_dark_wing_outline(self) -> None:
+        def blue_ink(px: np.ndarray) -> np.ndarray:
+            r, g, b = (px[..., c] for c in range(3))
+            return (g > r + 15) & (b > g + 8) & (b > 50)
+
+        source = delivered._sheet("wakwak")
+        before = sum(int(blue_ink(source[y0:y1, x0:x1]).sum())
+                     for x0, y0, x1, y1 in (row.box for row in delivered.ROWS["wakwak"]))
+        after = 0
+        for name, picture in delivered.poses("wakwak").items():
+            px = np.asarray(picture).astype(int)
+            opaque = px[..., 3] > 128
+            after += int((blue_ink(px) & opaque).sum())
+            _, count = delivered.ndimage.label(opaque, structure=np.ones((3, 3)))
+            self.assertEqual(count, 1, f"{name}: a stray label/mark remains")
+            red = opaque & (px[..., 0] > 150) & (px[..., 1] < 70) & (px[..., 2] < 70)
+            self.assertTrue(5 <= red.sum() <= 25, f"{name}: missing eyes or leftover hurt marks")
+            if not name.startswith("hover"):
+                self.assertGreater(np.nonzero(red)[1].mean(), np.nonzero(blue_ink(px) & opaque)[1].mean(),
+                                   f"{name}: should face right, including the mirrored hurt pose")
+        self.assertEqual(after, before, "removing the panel also deleted blue feather pixels")
+        hover = np.asarray(delivered.poses("wakwak")["hover2"])
+        self.assertEqual(int(hover[4, 122, 3]), 255, "a hole through the dark upper wing outline")
+        self.assertEqual(int(hover[60, 76, 3]), 0, "the real gap between its talons was filled")
+        self.assertEqual(delivered.poses("wakwak")["fly4"].height, 87,
+                         "the black feather tips below source row 418 were trimmed as a shadow")
+
+    def test_sigbin_keeps_its_brown_body_ears_tail_and_red_eyes(self) -> None:
+        def skin(px: np.ndarray) -> np.ndarray:
+            r, g, b = (px[..., c] for c in range(3))
+            return (r > g + 15) & (g > b + 10) & (g > 40)
+
+        before = after = 0
+        for row in delivered.ROWS["sigbin"]:
+            x0, y0, x1, y1 = row.box
+            original = skin(delivered._sheet("sigbin")[y0:y1, x0:x1])
+            if row.names[0] == "ready":
+                original[:18, :10] = False  # the gold corner decoration, not brown fur
+            before += int(original.sum())
+        for name, picture in delivered.poses("sigbin").items():
+            px = np.asarray(picture).astype(int)
+            a = px[..., 3] > 128
+            body = skin(px) & a
+            after += int(body.sum())
+            holes = delivered.ndimage.binary_fill_holes(a) & ~a
+            self.assertFalse(holes[:picture.height // 2].any(), f"{name}: hole in ears/body/tail")
+            _, pieces = delivered.ndimage.label(a, structure=np.ones((3, 3)))
+            self.assertEqual(pieces, 1, f"{name}: detached label, mark or shadow")
+            red = a & (px[..., 0] > 150) & (px[..., 1] < 70) & (px[..., 2] < 70)
+            self.assertTrue(5 <= red.sum() <= 35, f"{name}: missing eye or leftover hurt marks")
+            self.assertGreater(np.nonzero(red)[1].mean(), np.nonzero(body)[1].mean(),
+                               f"{name}: should face right for the runtime animator")
+        self.assertEqual(before, after, "background removal deleted brown body pixels")
+        idle = _frames(self.strips["sigbin_idle"])[0]
+        xs = np.nonzero((idle[..., 3] > 128).any(axis=0))[0]
+        self.assertTrue(70 <= xs.max() - xs.min() + 1 <= 90, "sigbin changed size")
+
+    def test_wakwak_stays_centred_at_play_scale_with_clear_frame_edges(self) -> None:
+        for frame in _frames(self.strips["wakwak_run"]):
+            xs = np.nonzero((frame[..., 3] > 128).any(axis=0))[0]
+            self.assertTrue(70 <= xs.max() - xs.min() + 1 <= 90, "flight is the wrong size")
+        for name in ("wakwak_idle", "wakwak_run", "wakwak_windup", "wakwak_attack", "wakwak_hurt"):
+            for frame in _frames(self.strips[name]):
+                a = frame[..., 3] > 128
+                ys, xs = np.nonzero(a)
+                self.assertLess(abs(xs.mean() - frame.shape[1] / 2), 2, f"{name}: off-centre")
+                self.assertLess(abs(ys.mean() - frame.shape[0] / 2), 2, f"{name}: off-centre")
+
     def test_bungisngis_stays_its_size_and_anchors_on_feet_instead_of_its_club(self) -> None:
         idle = [_height(f) for f in _frames(self.strips["bungisngis_idle"])]
         walk = [_height(f) for f in _frames(self.strips["bungisngis_run"])]

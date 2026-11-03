@@ -13,6 +13,8 @@ turnaround, walk or fly cycles, and a row of poses, on a near-black panel with g
     ASWANG/tikbalang.png     the supplied tikbalang sheet (2026-11-01), idle and race cycles
     ASWANG/tiyanak.png       crying infant, transformation, and transformed encounter poses
     ASWANG/bungisngis.png    supplied one-eyed giant with the repaired club arm (2026-11-04)
+    ASWANG/wakwak.png        supplied blue-black bird, flight, hover and talon strikes (2026-11-04)
+    ASWANG/sigbin.png        supplied long-eared brown beast, red eyes and curled tail (2026-11-04)
 They replace the sculpted strips of the same names (ART_PLACEHOLDERS.md: "a delivered strip of the
 same name replaces one with no code change"). build_dilim_creatures.py draws everything else and
 leaves these names alone (DELIVERED).
@@ -33,6 +35,8 @@ art is.
   bottom rows so does anything darker than the panel that is not an edge of the figure itself.
   Specks left apart from the figure (SPECK of it or less) go too, and a hole it closes round of
   HOLE px or less -- a nostril or a pupil near the panel's own colour -- is filled back in.
+  Wakwak's flight poses have no floor shadow: retain their black feather tips, explicitly remove
+  the nearby sheet decorations, and restore its dark upper-wing pocket from the source RGB.
 - The manananggal's poses carry its legs under it, joined on by a drip of blood or a shadow; for
   its upper half they are cut away by hand (LEGS_AT), leaving the drip at the waist.
 - One scale per creature (SCALE), premultiplied. The tiyanak's sheet draws its transformed poses
@@ -109,6 +113,24 @@ def _cycle(stem: str) -> tuple[str, ...]:
 
 
 ROWS = {
+    "sigbin": [
+        Row((345, 320, 900, 418), ("walk1", "walk2", "walk3", "walk4", "walk5")),
+        Row((350, 490, 900, 601), ("idle1", "idle2", "idle3", "idle4")),
+        Row((349, 656, 1068, 771), ("ready", "lunge1", "lunge2", "settle")),
+        Row((1130, 662, 1485, 772), ("hurt1", "hurt2"),
+            labels=((1268, 662, 1299, 698), (1448, 670, 1480, 700))),
+    ],
+    "wakwak": [
+        Row((340, 297, 900, 426), ("fly1", "fly2", "fly3", "fly4", "fly5"),
+            labels=((340, 277, 600, 299), (340, 299, 358, 316))),
+        Row((930, 459, 1511, 599), ("hover1", "hover2", "hover3", "hover4"),
+            edges=(930, 1075, 1226, 1368, 1511), inset=0,
+            labels=((930, 459, 1140, 475), (930, 475, 943, 494))),
+        Row((345, 632, 1070, 776), ("ready", "dive1", "dive2", "raised"),
+            labels=((345, 632, 621, 655),)),
+        Row((1118, 647, 1492, 776), ("hurt1", "hurt2"),
+            labels=((1258, 640, 1302, 680), (1426, 647, 1468, 679))),
+    ],
     "bungisngis": [
         Row((350, 304, 897, 430), ("walk1", "walk2", "walk3", "walk4", "walk5")),
         Row((365, 470, 885, 610), ("idle1", "idle2", "idle3", "idle4")),
@@ -227,14 +249,26 @@ TIKBALANG_MANE_AT = {
 ## apo (106 px), the kapre half again her height on its branch (Kent, 2026-10-22: "make the kapre
 ## bigger"; its sheet's "small in form" left it her size), the manananggal's wings ~140 px across.
 SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9, "aswang": 1.0, "tikbalang": 1.0,
-         "tiyanak": 0.4, "bungisngis": 1.1}
+         "tiyanak": 0.4, "bungisngis": 1.1, "wakwak": 0.75, "sigbin": 0.65}
 
 ## Poses drawn facing left.
 FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"},
-               "aswang": {"hurt2"}, "bungisngis": {"hurt2"}}
+               "aswang": {"hurt2"}, "bungisngis": {"hurt2"}, "wakwak": {"hurt2"}}
 
 ## The game's strips, each from one sheet's poses. A `_death` strip is its one pose fading out.
 STRIPS: dict[str, tuple[str, list[str]]] = {
+    "sigbin_idle": ("sigbin", ["idle1", "idle2", "idle3", "idle4"]),
+    "sigbin_run": ("sigbin", ["walk1", "walk2", "walk3", "walk4", "walk5"]),
+    "sigbin_windup": ("sigbin", ["ready"]),
+    "sigbin_attack": ("sigbin", ["lunge1", "lunge2", "settle"]),
+    "sigbin_hurt": ("sigbin", ["hurt1", "hurt2"]),
+    "sigbin_death": ("sigbin", ["hurt1"]),
+    "wakwak_idle": ("wakwak", ["hover1", "hover2", "hover3", "hover4"]),
+    "wakwak_run": ("wakwak", ["fly1", "fly2", "fly3", "fly4", "fly5"]),
+    "wakwak_windup": ("wakwak", ["raised"]),
+    "wakwak_attack": ("wakwak", ["dive1", "dive2"]),
+    "wakwak_hurt": ("wakwak", ["hurt1", "hurt2"]),
+    "wakwak_death": ("wakwak", ["hurt1"]),
     "bungisngis_idle": ("bungisngis", ["idle1", "idle2", "idle3", "idle4"]),
     "bungisngis_run": ("bungisngis", ["walk1", "walk2", "walk3", "walk4", "walk5"]),
     # Six frames cover its existing 0.9 s windup at 6 fps without lowering the raised club again.
@@ -282,7 +316,7 @@ STRIPS: dict[str, tuple[str, list[str]]] = {
 }
 DELIVERED = frozenset(STRIPS)
 
-FLYING = {"manananggal_upper"}
+FLYING = {"manananggal_upper", "wakwak"}
 
 ## The kapre in its tree, as Kapre2D stands it (its origin the balete's foot): the strip's
 ## bottom-centre -- its feet -- on top of the branch (dilim_small.PERCH 170 px up, its top 174 here,
@@ -395,6 +429,39 @@ def _restore_ink_pockets(own: np.ndarray, points: tuple[tuple[int, int], ...],
     return own | np.isin(lab, list(keep))
 
 
+def _intact_ink(own: np.ndarray) -> np.ndarray:
+    """Remove detached specks and tiny colour-key holes without shaving dark outlines."""
+    labels, count = ndimage.label(own, structure=np.ones((3, 3)))
+    sizes = ndimage.sum(own, labels, range(1, count + 1))
+    out = own & np.isin(labels, 1 + np.nonzero(sizes > SPECK * sizes.sum())[0])
+    holes, count = ndimage.label(ndimage.binary_fill_holes(out) & ~out)
+    sizes = ndimage.sum(holes > 0, holes, range(1, count + 1))
+    out |= np.isin(holes, 1 + np.nonzero(sizes <= HOLE)[0])
+    return out
+
+
+def _wakwak_ink(own: np.ndarray, pose: str, origin: tuple[int, int]) -> np.ndarray:
+    """Keep the bird's black feather tips: flight poses have no floor shadow to trim."""
+    out = _intact_ink(own)
+    # This one enclosed pocket is the dark upper wing outline, not the panel between talons.
+    if pose == "hover2":
+        out = _restore_ink_pockets(out, ((1198, 500),), origin, "wakwak upper wing")
+    return out
+
+
+def _sigbin_ink(band: np.ndarray, own: np.ndarray) -> np.ndarray:
+    """Remove the thin ground shadow while preserving two pixels of outline around its toes."""
+    out = _intact_ink(own)
+    r, g, b = (band[..., c] for c in range(3))
+    skin = own & (r > g + 15) & (g > b + 10) & (g > 40)
+    low = int(np.nonzero(skin.any(axis=1))[0].max())
+    out[low + 3:] = False
+    floor = slice(max(0, low - 3), low + 3)
+    outline = ndimage.binary_dilation(skin, structure=np.ones((3, 3)), iterations=2)
+    out[floor] &= outline[floor]
+    return _intact_ink(out)
+
+
 def _restore_aswang_hair(own: np.ndarray, pose: str, origin: tuple[int, int]) -> np.ndarray:
     out = _restore_ink_pockets(own, ASWANG_HAIR_AT[pose], origin, f"aswang {pose}")
     x0, y0 = origin
@@ -422,12 +489,21 @@ def poses(name: str) -> dict[str, Image.Image]:
         labels = [(lx0 - x0, ly0 - y0, lx1 - x0, ly1 - y0) for lx0, ly0, lx1, ly1 in row.labels]
         # Outside the explicit label boxes, these rows have no gold rules. The crawler's claws
         # and tikbalang's skin overlap the other sheets' gold ink: keep those character colours.
-        mask = _key(band, panel, labels, remove_gold=name not in {"aswang", "tikbalang", "tiyanak", "bungisngis"})
-        if name == "bungisngis":
+        mask = _key(band, panel, [] if name in {"wakwak", "sigbin"} else labels,
+                    remove_gold=name not in {"aswang", "tikbalang", "tiyanak", "bungisngis", "wakwak", "sigbin"})
+        if name in {"bungisngis", "wakwak", "sigbin"}:
             # These boxes contain only headings/impact marks, never character ink. Clear their
             # dark edging too, rather than leaving fragments attached to nearby hair or club.
             for lx0, ly0, lx1, ly1 in labels:
-                mask[max(0, ly0):ly1, max(0, lx0):lx1] = False
+                box = (slice(max(0, ly0), ly1), slice(max(0, lx0), lx1))
+                if name == "sigbin":
+                    # Hurt marks sit beside the ears. Preserve the brown ear and its outline
+                    # even where the rectangular decoration box crosses their silhouette.
+                    r, g, b = (band[..., c] for c in range(3))
+                    skin = (r > g + 15) & (g > b + 10) & (g > 40)
+                    mask[box] &= ndimage.binary_dilation(skin, structure=np.ones((3, 3)), iterations=2)[box]
+                else:
+                    mask[box] = False
         shapes = _shapes(mask, row, x0)
         assert len(shapes) == len(row.names), f"{name}: {len(shapes)} figures in a row of {len(row.names)}"
         for pose, own in zip(row.names, shapes):
@@ -435,7 +511,12 @@ def poses(name: str) -> dict[str, Image.Image]:
                 lx0, ly0, lx1, ly1 = LEGS_AT[(name, pose)]
                 own = own.copy()
                 own[ly0 - y0:ly1 - y0, lx0 - x0:lx1 - x0] = False
-            own = _unshadowed(band, own, panel)
+            if name == "wakwak":
+                own = _wakwak_ink(own, pose, (x0, y0))
+            elif name == "sigbin":
+                own = _sigbin_ink(band, own)
+            else:
+                own = _unshadowed(band, own, panel)
             if name == "aswang":
                 own = _restore_aswang_hair(own, pose, (x0, y0))
             elif name == "tikbalang":
@@ -507,7 +588,8 @@ def _framed(pictures: list[Image.Image], drops: list[int], flying: bool,
     for p, (ax, ay), drop in zip(pictures, anchors, drops):
         w, h = p.size
         reach = max(reach, ax, w - ax)
-        reach = max(reach, ay + drop, h - ay - drop) if flying else max(reach, (ay + drop) / 2)
+        # Dropping moves the lower edge farther from the origin, the upper edge nearer it.
+        reach = max(reach, ay - drop, h - ay + drop) if flying else max(reach, (ay + drop) / 2)
     size = 2 * int(np.ceil(reach)) + 2 * MARGIN
     frames = []
     for p, (ax, ay), drop in zip(pictures, anchors, drops):

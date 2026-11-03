@@ -11,8 +11,8 @@ WHAT IS DELIVERED NOW
 ---------------------
 The art team's sheets (LEVEL4_Creatures/, 2026-10-20) give the kapre, the manananggal (both halves)
 and the lean aswang -- a white lady. The crawling aswang sheet was supplied on 2026-11-01.
-The tikbalang and tiyanak sheets followed the same day; the bungisngis on 2026-11-04.
-tools/build_dilim_delivered.py cuts all seven.
+The tikbalang and tiyanak sheets followed the same day; the bungisngis, wakwak and sigbin on 2026-11-04.
+tools/build_dilim_delivered.py cuts all nine.
 Their strips (build_dilim_delivered.DELIVERED) are not drawn here; the kapre's tree, its smoke and its cigar
 still are.
 
@@ -20,9 +20,7 @@ HOW THEY ARE DRAWN
 ------------------
 In the delivered art's idiom (the apo, Lolo, the bakunawa): one art px to one screen px, five or
 six tones a material lit from the upper left, and selective coloured outlines -- see
-tools/creature_sculpt.py. The creatures themselves are in dilim_beasts.py (the sigbin),
-dilim_kapre.py (the
-kapre's smoke and its cigar), dilim_fliers.py (the wakwak, the tik-tik) and dilim_small.py (the
+tools/creature_sculpt.py. The remaining art is in dilim_kapre.py (the kapre's smoke and its cigar), dilim_fliers.py (the tik-tik) and dilim_small.py (the
 tiyanak's undergrowth, the santelmo, the nuno's mound, the kapre's balete); the last
 clearing's dead tree, drawn the same way, is in dilim_props.py.
 
@@ -48,7 +46,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from PIL import Image  # noqa: E402
 
-import dilim_beasts as beasts  # noqa: E402
 import dilim_fliers as fliers  # noqa: E402
 import dilim_kapre as kapre  # noqa: E402
 import dilim_props as props  # noqa: E402
@@ -60,20 +57,14 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "game" / "assets" / "Level4" / "creatures"
 
 # Which way each stands: on its feet at the bottom row, or centred (a flier).
-GROUND = ["sigbin", "kapre_tree", "tiyanak_undergrowth", "nuno_mound", "dead_tree"]
-FLYING = ["wakwak", "tiktik", "santelmo"]
-
-
-def _beast(b):
-    return {anim: [beasts.draw(b, p).render() for p in poses] for anim, poses in beasts.ANIMS.items()}
+GROUND = ["kapre_tree", "tiyanak_undergrowth", "nuno_mound", "dead_tree"]
+FLYING = ["tiktik", "santelmo"]
 
 
 def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
     return {
-        "sigbin": _beast(beasts.SIGBIN),
         "kapre_smoke": {"idle": kapre.smoke()},
         "kapre_cigar": {"idle": [kapre.cigar()]},
-        "wakwak": {a: [fliers.wakwak(l, d).render() for l, d in poses] for a, poses in fliers.WAKWAK_ANIMS.items()},
         "tiktik": {a: [fliers.tiktik(l).render() for l in poses] for a, poses in fliers.TIKTIK_ANIMS.items()},
         "tiyanak_undergrowth": {"idle": [small.undergrowth_picture()]},
         "santelmo": {
