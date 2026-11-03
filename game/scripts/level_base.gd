@@ -3305,7 +3305,8 @@ func _build_hud_frame() -> void:
 	hud_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hud_panel.offset_left = 24.0
 	hud_panel.offset_top = 20.0 + LevelMinimap.SIDE + 12.0
-	# The brush and map share an outer width and a 244px content width.
+	# The brush panel and map share an outer width.
+	hud_panel.custom_minimum_size.x = LevelMinimap.SIDE
 	hud_panel.offset_right = 24.0 + LevelMinimap.SIDE
 	$CanvasLayer.add_child(hud_panel)
 	var notice := HudNotice.new()

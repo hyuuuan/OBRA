@@ -22,11 +22,14 @@ extends Control
 signal turned(spread: int)
 
 const SHEET := preload("res://assets/hud/diary_book.png")
+## Rounded, loose handwriting like the supplied diary reference; bundled with its SIL OFL.
+const HANDWRITING := preload("res://ui/fonts/IndieFlower-Regular.ttf")
+const LETTER_SIZE := UISkin.FONT_CAPTION
 const FRAME := Vector2i(134, 112)
 ## Frames 0..6 are a page in flight from right to left; 7 is the book at rest.
 const REST := 7
 ## Six times: the most the bag's lining takes without growing past a 900-tall screen (the
-## lining is 667 tall; the book is 672), and enough for a page to hold her lines at 20 px.
+## lining is 667 tall; the book is 672).
 const SCALE := 6
 ## The paper of each page at rest, in the sheet's own pixels (measured off frame 7).
 const PAPER: Array[Rect2i] = [Rect2i(8, 10, 57, 89), Rect2i(70, 10, 59, 89)]
@@ -36,8 +39,7 @@ const MARGIN := [5, 4, 5, 13]
 ## Where the page number sits, up from the paper's bottom edge, in sheet pixels.
 const FOLIO_UP := 11
 
-## The bag's parchment ink and its painter's red and quiet brown (InventoryScreen), so the diary
-## reads as written in the same hand as the labels around it.
+## The bag's parchment ink and its painter's red and quiet brown (InventoryScreen).
 const INK := Color(0.227, 0.149, 0.094)        # 3A2618
 const DATE_INK := Color(0.604, 0.247, 0.133)   # 9A3F22
 const FOLIO_INK := Color(0.364, 0.276, 0.188)  # 5D4630
@@ -65,7 +67,6 @@ func _init() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	var font := ThemeDB.get_project_theme().default_font
 	for side in range(2):
 		var area := text_rect(side)
 		var page := RichTextLabel.new()
@@ -76,14 +77,14 @@ func _init() -> void:
 		page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		page.position = area.position
 		page.size = area.size
-		_letter(page, font)
+		_letter(page)
 		add_child(page)
 		_pages.append(page)
 		var folio := Label.new()
 		folio.name = "LeftNumber" if side == 0 else "RightNumber"
 		folio.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		folio.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		folio.add_theme_font_override(&"font", font)
+		folio.add_theme_font_override(&"font", HANDWRITING)
 		folio.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 		folio.add_theme_color_override(&"font_color", FOLIO_INK)
 		folio.add_theme_color_override(&"font_shadow_color", NO_SHADOW)
@@ -106,11 +107,11 @@ static func text_rect(side: int) -> Rect2:
 	return Rect2(left * SCALE, top * SCALE, (right - left) * SCALE, (bottom - top) * SCALE)
 
 
-## A label set in her hand: the game's pixel face at the caption size, ink with no shadow (ink on
-## paper casts none; the theme's shadow doubles every stroke on cream -- see InventoryScreen).
-static func _letter(page: RichTextLabel, font: Font) -> void:
-	page.add_theme_font_override(&"normal_font", font)
-	page.add_theme_font_size_override(&"normal_font_size", UISkin.FONT_CAPTION)
+## Her handwriting, ink with no shadow (the theme's shadow doubles every stroke on cream).
+## The live pages and the overflow measurement share these exact settings.
+static func _letter(page: RichTextLabel) -> void:
+	page.add_theme_font_override(&"normal_font", HANDWRITING)
+	page.add_theme_font_size_override(&"normal_font_size", LETTER_SIZE)
 	page.add_theme_color_override(&"default_color", INK)
 	page.add_theme_color_override(&"font_shadow_color", NO_SHADOW)
 	page.add_theme_constant_override(&"line_separation", LINE_GAP)
@@ -137,7 +138,7 @@ static func content_height(entry: Dictionary, index: int, side: int) -> int:
 	page.bbcode_enabled = true
 	page.scroll_active = false
 	page.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_letter(page, ThemeDB.get_project_theme().default_font)
+	_letter(page)
 	page.size = text_rect(side).size
 	page.text = page_bbcode(entry, index)
 	(Engine.get_main_loop() as SceneTree).root.add_child(page)

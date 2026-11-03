@@ -80,6 +80,10 @@ the day, of the way home, of the name.
   far more than "sun").
 - **Every page fits its page.** The book does not scroll; the probe lays each page out in the
   real font and fails the one that runs over (432 px of writing a page).
+- **Her handwriting uses Indie Flower** by Kimberly Geswein, matching the rounded, loose
+  handwritten reference (2026-11-04). The font and its SIL OFL are bundled in `game/ui/fonts/`.
+  Pages and folios use it locally in `DiaryBook`; page-fit measurements use the same face and
+  20 px caption size as the visible writing.
 - **Every entry is given by some level's script** — a page nobody can find is a page nobody wrote.
 - **An entry starts on a left page.** One with an odd number of pages leaves its right page blank.
 

@@ -7,7 +7,7 @@ extends PanelContainer
 ## motion: this corner sits over Payyo's SKY on nearly every frame, a large bright field,
 ## and a gold brush with a dark edge on pale blue is a gold brush you have to look for. An
 ## outline gives a glyph an edge. It does not give it a GROUND, and small type over moving
-## art needs a ground. So the rectangle is back, and the brush keeps the size it earned.
+## art needs a ground. So the rectangle is back.
 ##
 ## WHAT YOU ARE IS NOT HERE. The nameplate and the life bar used to sit above the brush;
 ## they are `MorphCard` in the opposite corner now, holding the drawing itself rather than
@@ -18,9 +18,9 @@ extends PanelContainer
 const GOLD := UISkin.GOLD
 const CREAM := UISkin.CREAM_TEXT
 
-## Four screen pixels per art pixel: 244px of brush inside the 256px map-width frame.
-const GAUGE_SCALE := 4
-const SIDE_PADDING := 6.0
+## Three screen pixels per art pixel leaves breathing room inside the 256px map-width frame.
+const GAUGE_SCALE := 3
+const SIDE_PADDING := 12.0
 
 var _value: Label
 var _gauge: InkBrush
@@ -30,7 +30,7 @@ var _whole_ink := -1
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_theme_stylebox_override(&"panel", UISkin.frame(SIDE_PADDING))
+	add_theme_stylebox_override(&"panel", UISkin.frame(SIDE_PADDING, SIDE_PADDING))
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
@@ -43,22 +43,18 @@ func _init() -> void:
 
 ## The brush, and the count under it.
 func _build_ink(column: VBoxContainer) -> void:
-	# Sized exactly and pinned left. A VBoxContainer stretches its children to its own
-	# width, which would leave InkBrush centring itself in whatever was left over and
-	# drifting sideways as the readings below it change.
+	# Keep the art on whole pixels and centre it inside the padded panel.
 	_gauge = InkBrush.new()
 	_gauge.name = "Gauge"
 	_gauge.custom_minimum_size = InkBrush.size_at(GAUGE_SCALE)
-	_gauge.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_gauge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(_gauge)
 
 	var heading := HBoxContainer.new()
 	heading.name = "Heading"
 	heading.add_theme_constant_override(&"separation", 7)
 	heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# The brush's own width, so the count lands under the bristles.
-	heading.custom_minimum_size = Vector2(InkBrush.size_at(GAUGE_SCALE).x, 0.0)
-	heading.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	# Use the padded panel width for both readings, independently of the smaller brush.
 	column.add_child(heading)
 
 	var drop := UIGlyph.new()
