@@ -34,6 +34,7 @@
 [ext_resource type="Texture2D" path="res://assets/Level1/props/stair_step.png" id="29_oldsteps"]
 [ext_resource type="Texture2D" path="res://assets/Level1/props/stair_riser.png" id="29_oldriser"]
 [ext_resource type="Texture2D" path="res://assets/Level1/props/hut_ladder.png" id="29_oldladder"]
+[ext_resource type="Script" path="res://scripts/cliff_dressing_2d.gd" id="30_cliff"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -239,9 +240,15 @@ depth = 1.0
 scroll_scale = 0.72
 z_index_base = -15
 
+; ⚠ THE PLATE'S RIGHT EDGE IS A STRAIGHT CUT through its stone terraces (columns opaque from
+; source row 268 down), and nothing in the painting hides it. At (520, 425) it stood at x 998,
+; 182 short of Ang Hagdan's wall: once the old steps faded, the cut showed in the gap above the
+; ground. It is now just past the wall (1198 at the spawn camera) and moves only further right,
+; behind the terraces, as she walks on; 48 lower keeps its top under Terrace1's grass while she
+; jumps there. run_level1_backdrop_probe walks the climb and checks the cut is never in view.
 [node name="NearA" type="Sprite2D" parent="NearSceneryLayer" unique_id=2109191667]
 use_parent_material = true
-position = Vector2(520, 425)
+position = Vector2(720, 473)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
@@ -308,6 +315,18 @@ position = Vector2(4340, 80)
 script = ExtResource("5_terrace")
 segment_size = Vector2(780, 600)
 surface_style = 3
+
+; MAYON'S CONSTRUCTION, PAYYO'S GROUND (tools/build_cliff_kits.py, recipe "payyo"): the mossy
+; river-stone terrace wall of texturemap.png under a thick lip of its own grass, darker going down,
+; and on every open end a straight shaded side, the grass overhanging and spilling down it, a fern. Draws every
+; terrace segment above, the gorge's ledges and the exit shelf as MayonTerrain2D draws Mayon. The
+; segments keep their collision and stand their own art down (TerraceSegment2D.dressed_ground).
+; Behind the bodies, in front of the gorge's inside (-6).
+[node name="CliffDressing" type="Node2D" parent="GameplayPlane/Terrain"]
+z_index = -5
+script = ExtResource("30_cliff")
+kit = "res://assets/Level1/cliff"
+ground_group = &"terrace_ground"
 
 [node name="Transitions" type="Node2D" parent="GameplayPlane" unique_id=345990059]
 
