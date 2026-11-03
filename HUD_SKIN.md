@@ -20,6 +20,10 @@ the skin, so a palette edit without a regeneration fails the suite instead of sh
 256px map at the top left, with the brush in a matching 256px-wide panel directly below it.
 The brush uses three screen pixels per art pixel (183px wide), centred inside the panel
 with 12px content padding so the artwork stays clear of the frame.
+In Dilim, the lantern sits beside a HEALTH caption and live flame state/count (Full 4/4
+through Guttering 1/4), making its purpose clear within the same panel.
+The lantern artwork dims to 80%, 60% and 40% brightness as health drops; its flame also
+shortens and its glow fades. Restoring health restores its brightness.
 The map renders the existing world
 at low resolution, follows the active player's physics anchor, reveals nearby terrain and
 keeps explored cells for the current run. Interiors use their own map scale. The morph card

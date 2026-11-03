@@ -108,17 +108,52 @@ func adopt_checkpoints(label: Label) -> void:
 	heading.add_child(label)
 
 
-## THE LANTERN, where a level counts it as her health: a row of its own under the ink, in the same
-## corner the thesis puts the things that are true whoever she currently is.
+## The lantern and its health reading share a row, so the lamp's purpose and flame stages
+## are readable without recognising the artwork alone.
 func adopt_lantern(health: PlayerHealth) -> LanternHud:
+	var row := HBoxContainer.new()
+	row.name = "Health"
+	row.add_theme_constant_override(&"separation", 12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var column := $Column as VBoxContainer
+	column.add_child(row)
+	column.move_child(row, ($Column/Heading as Control).get_index() + 1)
+
 	var lantern := LanternHud.new()
 	lantern.name = "Lantern"
 	lantern.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	lantern.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	lantern.bind(health)
-	var column := $Column as VBoxContainer
-	column.add_child(lantern)
-	column.move_child(lantern, ($Column/Heading as Control).get_index() + 1)
+	row.add_child(lantern)
+
+	var reading := VBoxContainer.new()
+	reading.name = "Reading"
+	reading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	reading.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	reading.add_theme_constant_override(&"separation", 0)
+	reading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(reading)
+
+	var caption := Label.new()
+	caption.name = "Caption"
+	caption.text = "HEALTH"
+	caption.theme_type_variation = &"HudCaption"
+	reading.add_child(caption)
+
+	var value := Label.new()
+	value.name = "Value"
+	value.theme_type_variation = &"HudValue"
+	value.text = _lantern_reading(health.stage)
+	reading.add_child(value)
+	health.stage_changed.connect(func(stage: int) -> void:
+		value.text = _lantern_reading(stage))
 	return lantern
+
+
+static func _lantern_reading(stage: int) -> String:
+	var names := ["", "Guttering", "Low", "Dim", "Full"]
+	return "%s  %d/%d" % [names[clampi(stage, PlayerHealth.GUTTERING, PlayerHealth.FULL)],
+		stage, PlayerHealth.FULL]
 
 
 ## Whole units. `remaining` is continuous, so it is floored -- a gauge that rounds up claims

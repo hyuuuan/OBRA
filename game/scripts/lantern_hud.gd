@@ -2,8 +2,8 @@ class_name LanternHud
 extends Control
 ## The lantern on the ink plate: the flame she has left, where a level counts it as her health.
 ##
-## The checkpoint lantern's own pixel rows, big enough to read at a glance, and nothing beside
-## it: the lantern IS the count. Its capiz shells warm from cold grey to lit gold with the stage,
+## The checkpoint lantern's own pixel rows, beside the health reading on the ink plate.
+## Its whole body dims as health falls, and its capiz shells warm from cold grey to lit gold,
 ## the pixel flame inside stands four rows tall when full and shortens a row each stage down, and
 ## a stepped pixel glow round it fades with it. (Kent, 2026-10-30: the old round pips were "not
 ## pixelated and designed well".) Three cues, kept apart on purpose:
@@ -137,6 +137,9 @@ func _draw() -> void:
 ## lamp the HUD does.
 static func paint(canvas: CanvasItem, origin: Vector2, scale: int, stage: int, flicker := 1.0) -> void:
 	var lit := float(stage) / float(PlayerHealth.FULL)
+	# 100%, 80%, 60%, 40%: even the remaining flame loses brightness as health falls.
+	# Keep the frame visible at the lowest stage, and leave full health's colours intact.
+	var brightness := lerpf(0.2, 1.0, clampf(lit, 0.0, 1.0))
 	var rows: Array = CheckpointLantern2D.LANTERN_ROWS
 	var cold: Dictionary = CheckpointLantern2D.LANTERN_PALETTE
 	var warm: Dictionary = CheckpointLantern2D.LANTERN_ALIGHT
@@ -149,13 +152,14 @@ static func paint(canvas: CanvasItem, origin: Vector2, scale: int, stage: int, f
 			var colour: Color = cold[key]
 			if warm.has(key):
 				colour = colour.lerp(warm[key], lit * flicker)
+			colour = colour.darkened(1.0 - brightness)
 			canvas.draw_rect(Rect2(origin + Vector2(x, y) * scale, Vector2.ONE * scale), colour)
 	var tall := mini(stage, FLAME_ROWS.size())
 	for index in range(tall):
 		var row: String = FLAME_ROWS[index]
 		for x in range(row.length()):
 			if FLAME_COLOURS.has(row[x]):
-				var colour: Color = FLAME_COLOURS[row[x]]
+				var colour: Color = (FLAME_COLOURS[row[x]] as Color).darkened(1.0 - brightness)
 				colour.a = flicker
 				canvas.draw_rect(Rect2(origin + (FLAME_BASE + Vector2(x, -index)) * scale,
 					Vector2.ONE * scale), colour)
