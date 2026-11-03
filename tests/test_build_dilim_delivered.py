@@ -132,6 +132,45 @@ class DeliveredStripsTest(unittest.TestCase):
             red_eye = (px[..., 3] > 128) & (px[..., 0] > 190) & (px[..., 1] < 60) & (px[..., 2] < 60)
             self.assertGreater(int(red_eye.sum()), 10, f"{name}: missing transformed red eyes")
 
+    def test_bungisngis_keeps_solid_ink_and_only_the_real_gap_between_its_legs(self) -> None:
+        for name, picture in delivered.poses("bungisngis").items():
+            px = np.asarray(picture).astype(int)
+            r, g, b, a = (px[..., c] for c in range(4))
+            opaque = a > 128
+            holes = delivered.ndimage.binary_fill_holes(opaque) & ~opaque
+            if name == "idle4":
+                # This is panel seen between its thighs, not an erased dark body detail.
+                self.assertTrue(holes.any())
+                self.assertFalse(holes[:int(picture.height * 0.8)].any())
+                self.assertLess(int(holes.sum()), 50)
+            else:
+                self.assertFalse(holes.any(), f"{name}: a transparent hole through the giant")
+            _, components = delivered.ndimage.label(opaque, structure=np.ones((3, 3)))
+            self.assertEqual(components, 1, f"{name}: stray sheet label or impact mark")
+            skin = opaque & (g > r) & (g > b + 15) & (g > 40)
+            self.assertGreater(int(skin.sum()), 2500, f"{name}: missing green skin")
+            # The raised forearm deliberately hides its face in the lift drawing.
+            if name != "lift":
+                eye = opaque & (r > 150) & (g > 70) & (g < 220) & (b < 60) & (r > g + 25)
+                self.assertGreater(int(eye.sum()), 20, f"{name}: missing golden eye")
+                self.assertGreater(np.nonzero(eye)[1].mean(), np.nonzero(skin)[1].mean(),
+                                   f"{name}: should face right, including the mirrored hurt pose")
+
+    def test_bungisngis_stays_its_size_and_anchors_on_feet_instead_of_its_club(self) -> None:
+        idle = [_height(f) for f in _frames(self.strips["bungisngis_idle"])]
+        walk = [_height(f) for f in _frames(self.strips["bungisngis_run"])]
+        self.assertTrue(140 <= np.mean(idle) <= 155)
+        self.assertLess(abs(np.mean(idle) - np.mean(walk)), 5, "walking shrinks the giant")
+        for name in ("bungisngis_attack", "bungisngis_aside"):
+            for frame in _frames(self.strips[name]):
+                px = frame.astype(int)
+                r, g, b, a = (px[..., c] for c in range(4))
+                skin = (a > 128) & (g > r) & (g > b + 15) & (g > 40)
+                ys, xs = np.nonzero(skin)
+                feet = ys >= ys.max() - max(2, (ys.max() - ys.min()) // 8)
+                self.assertLess(abs(xs[feet].mean() - frame.shape[1] / 2), 2,
+                                f"{name}: the club pulls its body sideways")
+
     def test_tiyanak_does_not_shrink_when_it_transforms_or_crawls(self) -> None:
         # Compare the rendered bodies, not the transparent square frames. The original sheet
         # draws the crawling form at less than half the swaddled baby's visible body area.

@@ -12,6 +12,7 @@ turnaround, walk or fly cycles, and a row of poses, on a near-black panel with g
                             the sculpted old/hulking aswang, `aswang_pig`
     ASWANG/tikbalang.png     the supplied tikbalang sheet (2026-11-01), idle and race cycles
     ASWANG/tiyanak.png       crying infant, transformation, and transformed encounter poses
+    ASWANG/bungisngis.png    supplied one-eyed giant with the repaired club arm (2026-11-04)
 They replace the sculpted strips of the same names (ART_PLACEHOLDERS.md: "a delivered strip of the
 same name replaces one with no code change"). build_dilim_creatures.py draws everything else and
 leaves these names alone (DELIVERED).
@@ -36,6 +37,8 @@ art is.
   its upper half they are cut away by hand (LEGS_AT), leaving the drip at the waist.
 - One scale per creature (SCALE), premultiplied. The tiyanak's sheet draws its transformed poses
   at different sizes: match their visible body area to its crying form before framing them.
+  Bungisngis's smaller walk cycle is matched to its standing height; its green feet anchor the
+  frames so the lowered club cannot pull its body sideways during the slam or crouch.
 - A pose drawn facing left is mirrored (FACING_LEFT): the game's strips face right, and
   PixelStripAnimator turns them.
 - Death, which no sheet draws, is the pose fading out -- and, for a flier, dropping as it fades.
@@ -106,6 +109,16 @@ def _cycle(stem: str) -> tuple[str, ...]:
 
 
 ROWS = {
+    "bungisngis": [
+        Row((350, 304, 897, 430), ("walk1", "walk2", "walk3", "walk4", "walk5")),
+        Row((365, 470, 885, 610), ("idle1", "idle2", "idle3", "idle4")),
+        Row((953, 464, 1500, 610), ("laugh1", "laugh2", "laugh3", "laugh4"),
+            labels=((953, 464, 1110, 473),)),
+        Row((365, 631, 1058, 779), ("ready", "lift", "overhead", "slam"),
+            labels=((365, 631, 541, 651), (1023, 700, 1058, 775))),
+        Row((1165, 644, 1481, 779), ("hurt1", "hurt2")),
+        Row((1064, 840, 1243, 968), ("crouch",)),
+    ],
     "tiyanak": [
         Row((375, 60, 1030, 193), ("cry1", "cry2", "cry3", "cry4")),
         Row((375, 250, 1510, 394), _cycle("change")),
@@ -214,14 +227,23 @@ TIKBALANG_MANE_AT = {
 ## apo (106 px), the kapre half again her height on its branch (Kent, 2026-10-22: "make the kapre
 ## bigger"; its sheet's "small in form" left it her size), the manananggal's wings ~140 px across.
 SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9, "aswang": 1.0, "tikbalang": 1.0,
-         "tiyanak": 0.4}
+         "tiyanak": 0.4, "bungisngis": 1.1}
 
 ## Poses drawn facing left.
 FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"},
-               "aswang": {"hurt2"}}
+               "aswang": {"hurt2"}, "bungisngis": {"hurt2"}}
 
 ## The game's strips, each from one sheet's poses. A `_death` strip is its one pose fading out.
 STRIPS: dict[str, tuple[str, list[str]]] = {
+    "bungisngis_idle": ("bungisngis", ["idle1", "idle2", "idle3", "idle4"]),
+    "bungisngis_run": ("bungisngis", ["walk1", "walk2", "walk3", "walk4", "walk5"]),
+    # Six frames cover its existing 0.9 s windup at 6 fps without lowering the raised club again.
+    "bungisngis_windup": ("bungisngis", ["ready", "lift"] + ["overhead"] * 4),
+    "bungisngis_attack": ("bungisngis", ["slam"]),
+    "bungisngis_hurt": ("bungisngis", ["hurt1", "hurt2"]),
+    "bungisngis_death": ("bungisngis", ["hurt1"]),
+    "bungisngis_laugh": ("bungisngis", ["laugh1", "laugh2", "laugh3", "laugh4"]),
+    "bungisngis_aside": ("bungisngis", ["crouch"]),
     "tiyanak_idle": ("tiyanak", ["cry1", "cry2", "cry3", "cry4"]),
     "tiyanak_transform": ("tiyanak", list(_cycle("change"))),
     "tiyanak_true": ("tiyanak", ["snarl1", "snarl2", "snarl3", "snarl4"]),
@@ -400,7 +422,13 @@ def poses(name: str) -> dict[str, Image.Image]:
         labels = [(lx0 - x0, ly0 - y0, lx1 - x0, ly1 - y0) for lx0, ly0, lx1, ly1 in row.labels]
         # Outside the explicit label boxes, these rows have no gold rules. The crawler's claws
         # and tikbalang's skin overlap the other sheets' gold ink: keep those character colours.
-        shapes = _shapes(_key(band, panel, labels, remove_gold=name not in {"aswang", "tikbalang", "tiyanak"}), row, x0)
+        mask = _key(band, panel, labels, remove_gold=name not in {"aswang", "tikbalang", "tiyanak", "bungisngis"})
+        if name == "bungisngis":
+            # These boxes contain only headings/impact marks, never character ink. Clear their
+            # dark edging too, rather than leaving fragments attached to nearby hair or club.
+            for lx0, ly0, lx1, ly1 in labels:
+                mask[max(0, ly0):ly1, max(0, lx0):lx1] = False
+        shapes = _shapes(mask, row, x0)
         assert len(shapes) == len(row.names), f"{name}: {len(shapes)} figures in a row of {len(row.names)}"
         for pose, own in zip(row.names, shapes):
             if (name, pose) in LEGS_AT:
@@ -435,6 +463,10 @@ def _scaled(picture: Image.Image, scale: float) -> Image.Image:
 def _figure(name: str, pose: str) -> Image.Image:
     picture = poses(name)[pose]
     scale = SCALE[name]
+    if name == "bungisngis" and pose.startswith("walk"):
+        standing = np.mean([poses(name)[f"idle{i}"].height for i in range(1, 5)])
+        walking = np.mean([poses(name)[f"walk{i}"].height for i in range(1, 6)])
+        scale *= float(standing / walking)
     if name == "tiyanak" and not pose.startswith("cry"):
         # Blank frame dimensions and pose height do not measure a body: the swaddled baby is
         # wide, the snarling form stands up, and the crawling drawings are much smaller on
@@ -457,8 +489,20 @@ def _anchor(picture: Image.Image, flying: bool) -> tuple[float, float]:
     return float(xs[feet].mean()), float(low + 1)
 
 
-def _framed(pictures: list[Image.Image], drops: list[int], flying: bool) -> Image.Image:
-    anchors = [_anchor(p, flying) for p in pictures]
+def _bungisngis_anchor(picture: Image.Image) -> tuple[float, float]:
+    """Anchor on the green feet, excluding the wooden club lying alongside them."""
+    px = np.asarray(picture).astype(int)
+    r, g, b, a = (px[..., c] for c in range(4))
+    skin = (a > 128) & (g > r) & (g > b + 15) & (g > 40)
+    ys, xs = np.nonzero(skin)
+    feet = ys >= ys.max() - max(2, (ys.max() - ys.min()) // 8)
+    return float(xs[feet].mean()), _anchor(picture, False)[1]
+
+
+def _framed(pictures: list[Image.Image], drops: list[int], flying: bool,
+            anchors: list[tuple[float, float]] | None = None) -> Image.Image:
+    if anchors is None:
+        anchors = [_anchor(p, flying) for p in pictures]
     reach = 0.0
     for p, (ax, ay), drop in zip(pictures, anchors, drops):
         w, h = p.size
@@ -490,11 +534,14 @@ def strip(name: str) -> Image.Image:
     kind = kind_of(name)
     flying = kind in FLYING
     pictures = [_figure(sheet, pose) for pose in pose_names]
+    anchors = [_bungisngis_anchor(p) for p in pictures] if kind == "bungisngis" else None
     drops = [0] * len(pictures)
     if name.endswith("_death"):
         pictures = [_faded(pictures[0], left) for left in FADE]
         drops = list(DROP["flying" if flying else "ground"])
-    return _framed(pictures, drops, flying)
+        if anchors is not None:
+            anchors = anchors * len(FADE)
+    return _framed(pictures, drops, flying, anchors)
 
 
 def strips() -> dict[str, Image.Image]:

@@ -40,7 +40,7 @@ in three waves until dawn.
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
 | Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
-| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- the kapre, the manananggal and a white lady as the lean aswang came in `Creatures.zip`; the crawling aswang, tikbalang and tiyanak sheets were supplied on 2026-11-01. All six are cut by `tools/build_dilim_delivered.py`. |
+| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- the kapre, the manananggal and a white lady as the lean aswang came in `Creatures.zip`; the crawling aswang, tikbalang and tiyanak sheets were supplied on 2026-11-01, and the repaired-arm bungisngis on 2026-11-04. All seven are cut by `tools/build_dilim_delivered.py`. |
 | Defaults taken | Shift = walk (the santelmo's rule needs one). The opening is design Draft A, naming the manananggal and the tikbalang, played as the level's intro. |
 
 ## Flow
@@ -161,9 +161,15 @@ What the build does that the design above does not say, and what it does not do 
   black-haired crawler with a long red tongue. The supplied `tikbalang.png` followed the same day,
   with four breathing and four race-running poses at its existing scale; its dark mane is kept
   opaque with source matte landmarks. `tiyanak.png` supplies the crying baby, six transformation
-  poses and the monster's crawl, snarl, leap, attack and hurt poses. Every other is a sculpted
+  poses and the monster's crawl, snarl, leap, attack and hurt poses. `bungisngis.png`
+  (2026-11-04, repaired-arm sheet) replaces the giant's eight strips: breathing, walking,
+  raised-club windup, slam, hurt, fading death, laughing and crouching aside. Its green skin,
+  dark outline and mouth stay opaque; explicit masks remove labels and impact marks without
+  deleting character colours. The real gap between its thighs stays transparent. Its walk
+  cycle matches its standing height and the green feet anchor it, so the grounded club does
+  not pull the body sideways. Every other is a sculpted
   strip a developer drew -- santelmo, nuno's mound, sigbin, the kapre's
-  balete (standing and felled), bungisngis, wakwak and tik-tik -- standing in for an
+  balete (standing and felled), wakwak and tik-tik -- standing in for an
   artist's (`ART_PLACEHOLDERS.md` names every strip; `run_visual_dilim_creatures` lays them side by
   side in her light). Each script's own code-drawn body is the fallback while a strip is missing. Her hurt
   and attack poses are placeholders made from the delivered sheet (the jump and wave frames,
