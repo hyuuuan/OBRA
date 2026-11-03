@@ -15,6 +15,7 @@ turnaround, walk or fly cycles, and a row of poses, on a near-black panel with g
     ASWANG/bungisngis.png    supplied one-eyed giant with the repaired club arm (2026-11-04)
     ASWANG/wakwak.png        supplied blue-black bird, flight, hover and talon strikes (2026-11-04)
     ASWANG/sigbin.png        supplied long-eared brown beast, red eyes and curled tail (2026-11-04)
+    ASWANG/nuno.png          mound, rice offering and the elder spirit (2026-11-04)
 They replace the sculpted strips of the same names (ART_PLACEHOLDERS.md: "a delivered strip of the
 same name replaces one with no code change"). build_dilim_creatures.py draws everything else and
 leaves these names alone (DELIVERED).
@@ -113,6 +114,17 @@ def _cycle(stem: str) -> tuple[str, ...]:
 
 
 ROWS = {
+    "nuno": [
+        Row((38, 868, 249, 947), ("mound",), edges=(38, 249), inset=0),
+        Row((285, 892, 362, 946), ("offering",), edges=(285, 362), inset=0),
+        Row((470, 470, 873, 540), ("idle1", "idle2", "idle3", "idle4"),
+            edges=(470, 555, 670, 784, 873), inset=0),
+        Row((480, 834, 566, 925), ("greet",), edges=(480, 566), inset=0,
+            labels=((533, 834, 566, 870),)),
+        Row((690, 850, 763, 925), ("point",), edges=(690, 763), inset=0),
+        Row((917, 850, 975, 925), ("angry",), edges=(917, 975), inset=0),
+        Row((1120, 850, 1188, 925), ("bless",), edges=(1120, 1188), inset=0),
+    ],
     "sigbin": [
         Row((345, 320, 900, 418), ("walk1", "walk2", "walk3", "walk4", "walk5")),
         Row((350, 490, 900, 601), ("idle1", "idle2", "idle3", "idle4")),
@@ -249,7 +261,7 @@ TIKBALANG_MANE_AT = {
 ## apo (106 px), the kapre half again her height on its branch (Kent, 2026-10-22: "make the kapre
 ## bigger"; its sheet's "small in form" left it her size), the manananggal's wings ~140 px across.
 SCALE = {"whitelady": 0.66, "kapre": 0.86, "manananggal": 0.9, "aswang": 1.0, "tikbalang": 1.0,
-         "tiyanak": 0.4, "bungisngis": 1.1, "wakwak": 0.75, "sigbin": 0.65}
+         "tiyanak": 0.4, "bungisngis": 1.1, "wakwak": 0.75, "sigbin": 0.65, "nuno": 0.6}
 
 ## Poses drawn facing left.
 FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"},
@@ -257,6 +269,13 @@ FACING_LEFT = {"whitelady": {"idle", "float", "look_up", "look_down", "reach"},
 
 ## The game's strips, each from one sheet's poses. A `_death` strip is its one pose fading out.
 STRIPS: dict[str, tuple[str, list[str]]] = {
+    "nuno_mound_idle": ("nuno", ["mound"]),
+    "nuno_offering_idle": ("nuno", ["offering"]),
+    "nuno_spirit_idle": ("nuno", ["idle1", "idle2", "idle3", "idle4"]),
+    "nuno_spirit_greet": ("nuno", ["greet"]),
+    "nuno_spirit_point": ("nuno", ["point"]),
+    "nuno_spirit_angry": ("nuno", ["angry"]),
+    "nuno_spirit_bless": ("nuno", ["bless"]),
     "sigbin_idle": ("sigbin", ["idle1", "idle2", "idle3", "idle4"]),
     "sigbin_run": ("sigbin", ["walk1", "walk2", "walk3", "walk4", "walk5"]),
     "sigbin_windup": ("sigbin", ["ready"]),
@@ -489,9 +508,9 @@ def poses(name: str) -> dict[str, Image.Image]:
         labels = [(lx0 - x0, ly0 - y0, lx1 - x0, ly1 - y0) for lx0, ly0, lx1, ly1 in row.labels]
         # Outside the explicit label boxes, these rows have no gold rules. The crawler's claws
         # and tikbalang's skin overlap the other sheets' gold ink: keep those character colours.
-        mask = _key(band, panel, [] if name in {"wakwak", "sigbin"} else labels,
-                    remove_gold=name not in {"aswang", "tikbalang", "tiyanak", "bungisngis", "wakwak", "sigbin"})
-        if name in {"bungisngis", "wakwak", "sigbin"}:
+        mask = _key(band, panel, [] if name in {"wakwak", "sigbin", "nuno"} else labels,
+                    remove_gold=name not in {"aswang", "tikbalang", "tiyanak", "bungisngis", "wakwak", "sigbin", "nuno"})
+        if name in {"bungisngis", "wakwak", "sigbin", "nuno"}:
             # These boxes contain only headings/impact marks, never character ink. Clear their
             # dark edging too, rather than leaving fragments attached to nearby hair or club.
             for lx0, ly0, lx1, ly1 in labels:
@@ -515,6 +534,8 @@ def poses(name: str) -> dict[str, Image.Image]:
                 own = _wakwak_ink(own, pose, (x0, y0))
             elif name == "sigbin":
                 own = _sigbin_ink(band, own)
+            elif name == "nuno":
+                own = _intact_ink(own)
             else:
                 own = _unshadowed(band, own, panel)
             if name == "aswang":
@@ -543,6 +564,9 @@ def _scaled(picture: Image.Image, scale: float) -> Image.Image:
 
 def _figure(name: str, pose: str) -> Image.Image:
     picture = poses(name)[pose]
+    if name == "nuno" and pose == "mound":
+        # The art must describe the existing 150 x 34 collision dome, not change its jump.
+        return picture.convert("RGBa").resize((150, 34), Image.Resampling.LANCZOS).convert("RGBA")
     scale = SCALE[name]
     if name == "bungisngis" and pose.startswith("walk"):
         standing = np.mean([poses(name)[f"idle{i}"].height for i in range(1, 5)])

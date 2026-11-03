@@ -64,6 +64,21 @@ def _height(frame: np.ndarray) -> int:
 
 
 class DeliveredStripsTest(unittest.TestCase):
+    def test_nuno_has_solid_faces_hats_beards_and_matches_the_collision_dome(self) -> None:
+        for name, picture in delivered.poses("nuno").items():
+            px = np.asarray(picture).astype(int)
+            opaque = px[..., 3] > 128
+            holes = delivered.ndimage.binary_fill_holes(opaque) & ~opaque
+            self.assertFalse(holes.any(), f"{name}: transparent body detail")
+            _, pieces = delivered.ndimage.label(opaque, structure=np.ones((3, 3)))
+            self.assertEqual(pieces, 1, f"{name}: stray decoration")
+            if name not in ("mound", "offering"):
+                r, g, b = (px[..., c] for c in range(3))
+                self.assertGreater(int((opaque & (r > 170) & (g > 100) & (b < 130)).sum()), 100)
+                self.assertGreater(int((opaque & (r > 160) & (g > 150) & (b > 125)).sum()), 60)
+        self.assertEqual(delivered._figure("nuno", "mound").size, (150, 34))
+        self.assertEqual(_height(_frames(self.strips["nuno_mound_idle"])[0]), 34)
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.strips = delivered.strips()

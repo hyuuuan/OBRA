@@ -285,8 +285,11 @@ func _asking_then_crossing_clean_gives_the_flower() -> void:
 	var said := (level.get("hint_bar") as HintBar).current_text()
 	var mound := level.get("_mound") as NunoMound2D
 	var found_before := bool(_profile().call("is_collectible_found", "L4_HF"))
+	_check(mound.spirit.visible and mound.spirit.anim() == "greet",
+		"the nuno greets her request with the supplied pose", mound.spirit.anim())
 	await _jump_the_mound(MOUND_X - MOUND_HALF - 120.0)
 	var director = level.get("director")
+	_check(mound.spirit.anim() == "bless", "a respectful clean crossing receives the blessing pose", mound.spirit.anim())
 	await _seconds(4.0)
 	_check(String(offer.get("verb", "")) == "SAY TABI-TABI PO" and mound.asked
 			and said.begins_with("Tabi-tabi po"),
@@ -340,6 +343,7 @@ func _standing_on_the_crown_answers_nothing() -> void:
 	(level.get("player") as Node2D).call("apply_morph_state",
 		{"position": Vector2(MOUND_X, GROUND_Y - NunoMound2D.HEIGHT - 6.0), "linear_velocity": Vector2.ZERO})
 	await _seconds(0.5)
+	_check(mound.spirit.anim() == "angry", "stepping on the mound shows the angry nuno", mound.spirit.anim())
 	Input.action_press(&"move_right")
 	await _seconds(2.0)
 	_release_all()

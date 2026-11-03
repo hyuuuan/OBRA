@@ -42,6 +42,13 @@ var crown: Area2D
 ## Its strips (tools/build_dilim_creatures.py, or drawn art under the same names); the code-drawn
 ## body below stands in only while there are none.
 var art: PixelStripAnimator
+var spirit: PixelStripAnimator
+const EMERGE_NEAR := 280.0
+const EMERGE_SECONDS := 0.65
+var _appeared := false
+var _emerging := 0.0
+var _reaction_left := 0.0
+var _blessed := false
 
 
 func _make_art(kind: String, anims: Array, centre: bool, at: Vector2) -> void:
@@ -56,6 +63,19 @@ func _make_art(kind: String, anims: Array, centre: bool, at: Vector2) -> void:
 
 func _ready() -> void:
 	_make_art("nuno_mound", ["idle"], false, Vector2.ZERO)
+	spirit = PixelStripAnimator.new()
+	spirit.name = "Nuno"
+	spirit.z_index = -1  # the mound covers his legs while he rises out of it
+	add_child(spirit)
+	spirit.load_kind(Enemy2D.ART, "nuno_spirit", ["idle", "greet", "point", "angry", "bless"])
+	spirit.play("idle")
+	spirit.visible = false
+	var offering := PixelStripAnimator.new()
+	offering.name = "RiceOffering"
+	offering.position = Vector2(WIDTH * 0.5 + 12.0, 0.0)
+	add_child(offering)
+	offering.load_kind(Enemy2D.ART, "nuno_offering", ["idle"])
+	offering.play("idle")
 	collision_layer = PhysicsLayers.WORLD
 	collision_mask = 0
 	var dome := CollisionPolygon2D.new()
@@ -77,23 +97,58 @@ func _ready() -> void:
 	queue_redraw()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	_animate_spirit(delta)
 	var hurtbox := _her_hurtbox()
 	if hurtbox == null:
 		return
 	var x := to_local(hurtbox.middle()).x
+	if not _appeared and hurtbox.middle().distance_to(global_position) <= EMERGE_NEAR:
+		_appeared = true
+		_emerging = EMERGE_SECONDS
+		spirit.visible = spirit.has_art()
 	if x < -WIDTH * 0.5 - CLEAR_OF:
 		if not _west:
 			_west = true
 			_touched = false
 	elif x > WIDTH * 0.5 + CLEAR_OF and _west:
 		_west = false
+		if not _touched and asked and not _blessed:
+			_blessed = true
+			_react("bless", 2.0)
 		crossed.emit(not _touched, asked)
+
+
+func _animate_spirit(delta: float) -> void:
+	if spirit == null:
+		return
+	spirit.advance(delta)
+	if _emerging > 0.0:
+		_emerging = maxf(0.0, _emerging - delta)
+		var progress := 1.0 - _emerging / EMERGE_SECONDS
+		spirit.position.y = lerpf(0.0, -HEIGHT + 2.0, 1.0 - pow(1.0 - progress, 2.0))
+	if _reaction_left > 0.0:
+		_reaction_left = maxf(0.0, _reaction_left - delta)
+		if _reaction_left <= 0.0:
+			spirit.play("idle")
+
+
+func _react(pose: String, seconds: float) -> void:
+	if spirit == null:
+		return
+	_appeared = true
+	_emerging = 0.0
+	spirit.visible = spirit.has_art()
+	spirit.position = Vector2(0.0, -HEIGHT + 2.0)
+	spirit.play(pose)
+	_reaction_left = seconds
 
 
 ## She stopped and asked to pass. Said once; it holds until she has crossed.
 func ask() -> void:
 	asked = true
+	if not _touched:
+		_react("greet", 1.2)
 
 
 func touched_this_crossing() -> bool:
@@ -105,11 +160,20 @@ func reset_for_restore() -> void:
 	asked = false
 	_touched = false
 	_west = false
+	_appeared = false
+	_emerging = 0.0
+	_reaction_left = 0.0
+	_blessed = false
+	if spirit != null:
+		spirit.play("idle")
+		spirit.visible = false
+		spirit.position = Vector2.ZERO
 
 
 func _on_crown_entered(area: Area2D) -> void:
 	if area is PlayerHurtbox2D:
 		_touched = true
+		_react("angry", 3.0)
 		crown_touched.emit()
 
 

@@ -40,7 +40,7 @@ in three waves until dawn.
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
 | Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
-| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- the kapre, the manananggal and a white lady as the lean aswang came in `Creatures.zip`; the crawling aswang, tikbalang and tiyanak sheets were supplied on 2026-11-01, and the repaired-arm bungisngis, wakwak and sigbin on 2026-11-04. All nine are cut by `tools/build_dilim_delivered.py`. |
+| Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- the kapre, the manananggal and a white lady as the lean aswang came in `Creatures.zip`; the crawling aswang, tikbalang and tiyanak sheets were supplied on 2026-11-01, and the repaired-arm bungisngis, wakwak, sigbin and nuno on 2026-11-04. All ten are cut by `tools/build_dilim_delivered.py`. |
 | Defaults taken | Shift = walk (the santelmo's rule needs one). The opening is design Draft A, naming the manananggal and the tikbalang, played as the level's intro. |
 
 ## Flow
@@ -176,12 +176,17 @@ What the build does that the design above does not say, and what it does not do 
   long ears and the curled tail are preserved; only the floor shadow and hurt marks go.
   Its existing shadow visibility, behind-the-player attacks and three resolutions stay the same.
   Every other is a sculpted
-  strip a developer drew -- santelmo, nuno's mound, the kapre's
+  strip a developer drew -- santelmo, the kapre's
   balete (standing and felled) and tik-tik -- standing in for an
   artist's (`ART_PLACEHOLDERS.md` names every strip; `run_visual_dilim_creatures` lays them side by
   side in her light). Each script's own code-drawn body is the fallback while a strip is missing. Her hurt
   and attack poses are placeholders made from the delivered sheet (the jump and wave frames,
   leaned).
+- **The nuno (4 November)** uses `nuno.png`: an orange hat, beard, earthen mound and rice
+  offering. He emerges as she approaches, greets tabi-tabi po, blesses a clean respectful
+  crossing and folds his arms angrily when the crown is touched. All are visual responses: the
+  150 x 34 collision, curse, three crossing outcomes and flower reward stay unchanged. Restore
+  hides him again. Explicit extraction preserves his hat, face and beard without body holes.
 - **The aswang is the thing itself, not a dog or a pig** (Kent, 2026-10-20: an aswang "if you search
   the internet is not like that"). The two kinds the waves send keep their names and settings:
   `aswang_dog` is now the art team's white lady -- long black hair, a pale face, a bloodied white
