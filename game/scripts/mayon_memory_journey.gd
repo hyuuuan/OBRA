@@ -49,6 +49,7 @@ func build(level: Node, data: Dictionary) -> void:
 		scene.name = String(spec.id)
 		scene.position = Vector2(float(spec.start), float(data.journey.floor_y))
 		scene.set("span", float(spec.length))
+		scene.set("staging",spec.get("staging",{}))
 		scene.visible = false
 		_storage.add_child(scene)
 		scenes.append(scene)
@@ -199,7 +200,7 @@ func sync() -> void:
 	if pair != next_pair: _mount_pair(next_pair)
 	for scene in scenes:
 		if scene.visible:
-			scene.call("frame", _camera.global_position, size / canvas.get_scale())
+			scene.call("frame", _camera.global_position, size / canvas.get_scale(), _owner_level.call("_player_anchor_position"))
 	var column_width := column_pixels / size.x
 	for mat in [_material, _column_material]:
 		mat.set_shader_parameter("divider", divider)

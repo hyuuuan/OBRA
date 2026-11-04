@@ -41,6 +41,8 @@ const RIM_BREATH := 2.4
 @export var landmark_width := 400.0
 var vignette_id := ""
 var _dance_frames: Array[Texture2D] = []
+var _landmark_frames: Array[Texture2D] = []
+var _landmark_frame_seconds := .18
 ## The classes that belong in it: drawing one, near it, saves it.
 @export var accepts: PackedStringArray = []
 ## Whether lolo is in it: saving it steadies him for a while.
@@ -69,6 +71,10 @@ func configure_memory(entry: Dictionary) -> void:
 	reach = float(entry.get("reach", reach))
 	needs_footing = bool(entry.get("needs_footing", needs_footing))
 	var landmark_tint: Array = entry.get("landmark_tint", [1,1,1,1])
+	_landmark_frames.clear()
+	for path: String in entry.get("landmark_frames",[]):
+		_landmark_frames.append(load(path) as Texture2D)
+	_landmark_frame_seconds = float(entry.get("landmark_frame_seconds",.18))
 	if landmark_mode and _sprite != null:
 		var offset: Array = entry.get("landmark_offset", [0,0])
 		_sprite.position = Vector2(float(offset[0]),float(offset[1])-_sprite.texture.get_height()*_sprite.scale.y*.5)
@@ -255,6 +261,8 @@ func _process(delta: float) -> void:
 	if landmark_mode:
 		if not _dance_frames.is_empty():
 			_sprite.texture = _dance_frames[[0, 1, 2, 1][int(_time / 0.24) % 4] if not Motion.reduced() else 0]
+		elif not _landmark_frames.is_empty():
+			_sprite.texture = _landmark_frames[int(_time/_landmark_frame_seconds)%_landmark_frames.size() if not Motion.reduced() else 0]
 		if _targeted:
 			_rim.position = _sprite.position
 			_rim.queue_redraw()

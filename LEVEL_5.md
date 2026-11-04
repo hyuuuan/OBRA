@@ -27,6 +27,31 @@ framing. Shallow rises and descents stay in the middle, with matching floor at t
 The flower footholds and Lolo's farewell fit inside the last clearing. All twelve can be
 crossed as the apo with no ink. These are scenery and local preservation landmarks, not instances of the earlier levels' quest hosts, combat or progression.
 
+## Remembered life
+
+The nine Payyo, Dagat and Dilim stops have authored scenery groups in each vignette's
+`staging.props`. They share the delivered art's proportions and follow the actual floor.
+Piyesta keeps its existing plaza, nave and alley composition.
+
+- **Payyo:** close rice stalks grow out of three retaining banks, with irrigation glints and
+  the village climbing the hillside behind them. Ang Tulay crosses a flowing river between
+  planted banks and fences. Ang Bale has a gate, storage pot, lamp and stored harvest around its
+  raised yard. Perched birds lift as the apo approaches; butterflies move between the beds.
+- **Dagat:** palms frame the beach, registered surf moves behind the bangka, and a paddle rests
+  beside it. The reef has distant ridges, coral, swaying kelp, fish schools, jellyfish and
+  bubbles. The preservation bakunawa uses thirteen original swimming frames, on one common
+  canvas so its scale and the saved strokes stay registered. The island has a landing, shells,
+  palms, passing gulls and an offshore bangka.
+- **Dilim:** the delivered canopy frames the path; ferns, vines and moss surround the landmarks.
+  Fireflies brighten near the apo. Water moves through the waterfall into its mist; that
+  detail fades with the preservation landmark. The canopy opens to warm shafts and butterflies
+  in the dawn clearing, around the existing flower detour.
+
+`mayon_memory_stage.gd` draws only scenery, light and wildlife. Its clocks run in the mounted
+pair, pause with drawing/dialogue, and hold decorative motion under Reduce Motion. It adds no
+physics, health, combat, pickups, UI prompts or sound. Scene spans, the shared collision route,
+ink, irreversible preservation outcomes and the ending stay unchanged.
+
 ## The moving foreground mask
 
 `MayonMemoryJourney` mounts only the current pair of visual scenes into two scenery-only
@@ -96,7 +121,9 @@ Mayon remains silent. No enemy, health, boss or required replay of an earlier qu
   checks actual movement and target access in all twelve places. Existing gate, ink, ending,
   dialogue, house and continuous-finish probes remain part of validation.
 - `run_visual_level5_crater` photographs every place, each shadow crossing at three positions,
-  the crater, and taller-window compositions. Import generated images before running it.
+  the crater, and taller-window compositions. It compares actual frames of paddy, reef and
+  waterfall motion. `run_level5_staging_probe` checks approach reactions, mounted-scene clocks,
+  registered animation, pause and Reduce Motion. Import generated images before running them.
 
 <details>
 <summary>Previous design and implementation record — superseded 5 November 2026</summary>

@@ -34,6 +34,7 @@ func _run() -> void:
 		var place: Dictionary = journey.places[index]
 		await _put(Vector2(float(place.start)+float(place.length)*.5,98))
 		await _shot("%02d_%s" % [index+1,place.id])
+		if index in [0,7,10]: await _check_life(String(place.id))
 		if index < 11:
 			for progress in [.25,.5,.75]:
 				var boundary := float(journey.places[index+1].start)
@@ -47,6 +48,13 @@ func _run() -> void:
 	await _shot("tall_church")
 	await _put(Vector2(10480,98))
 	await _shot("tall_wipe")
+	for index in [0,7,10]:
+		var place: Dictionary = journey.places[index]
+		# This is a second composition preview, rather than a replay of lost choices.
+		for fragment: MemoryFragment2D in journey.fragments:
+			if fragment.vignette_id == String(place.id): fragment.restore_to("whole")
+		await _put(Vector2(float(place.start)+float(place.length)*.5,98))
+		await _shot("tall_%s"%place.id)
 	print("OBRA_VISUAL_LEVEL5_CRATER_%s " % ("OK" if failures==0 else "FAILED"),output)
 	level.queue_free()
 	await process_frame
@@ -63,6 +71,9 @@ func _put(point: Vector2) -> void:
 
 func _shot(label: String) -> void:
 	await create_timer(.35).timeout
+	# This fixture deliberately starts no backend. Its reconnect status is not scenery.
+	level.get("status_label").text=""
+	level.get("status_label").hide()
 	await RenderingServer.frame_post_draw
 	var result := root.get_texture().get_image().save_png(output+"/"+label+".png")
 	if result != OK: push_error("Could not save "+label)
@@ -92,6 +103,29 @@ func _check_composite() -> void:
 
 func _distance(a: Color,b: Color) -> float:
 	return Vector3(a.r,a.g,a.b).distance_to(Vector3(b.r,b.g,b.b))
+
+func _check_life(id: String) -> void:
+	var camera: Camera2D = level.call("_world_camera")
+	var rendered_follow := camera.is_processing()
+	var physics_follow := camera.is_physics_processing()
+	camera.set_process(false)
+	camera.set_physics_process(false)
+	journey.sync()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var before: Image = journey.get_node("SceneryPass0").get_texture().get_image()
+	await create_timer(.65).timeout
+	await RenderingServer.frame_post_draw
+	var after: Image = journey.get_node("SceneryPass0").get_texture().get_image()
+	var changed := 0
+	for y in range(140,780,3):
+		for x in range(300,1350,3):
+			changed += int(_distance(before.get_pixel(x,y),after.get_pixel(x,y))>.06)
+	var ok := changed>12
+	failures+=int(not ok)
+	camera.set_process(rendered_follow)
+	camera.set_physics_process(physics_follow)
+	print("  %s visible memory life in %s: %d changed samples"%["OK" if ok else "FAIL",id,changed])
 
 func _check_lava() -> void:
 	await RenderingServer.frame_post_draw

@@ -11,6 +11,9 @@ var camera_position := Vector2.ZERO
 var view_size := Vector2(1600, 900)
 var _textures: Dictionary = {}
 var _ground: Node2D
+var _stage: Node2D
+var staging: Dictionary = {}
+const StageScript = preload("res://scripts/mayon_memory_stage.gd")
 
 const BACKDROPS := {
  "terraces": ["Level5/journey/payyo_sky.png"], "crossing": ["Level5/journey/payyo_sky.png"],
@@ -39,6 +42,12 @@ const SKY_COLOURS := {
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	z_index = -20
+	if kind not in ["plaza", "church", "alley", "summit"]:
+		_stage = StageScript.new()
+		_stage.name = "RememberedLife"
+		_stage.set("kind",kind)
+		_stage.set("props",staging.get("props",[]))
+		add_child(_stage)
 	_ground = Node2D.new()
 	_ground.name = "WalkSurface"
 	_ground.z_index = 1
@@ -46,9 +55,13 @@ func _ready() -> void:
 	add_child(_ground)
 
 
-func frame(camera: Vector2, extent: Vector2) -> void:
+func frame(camera: Vector2, extent: Vector2, player_position := Vector2.INF) -> void:
 	camera_position = camera
 	view_size = extent
+	if _stage != null:
+		_stage.set("visitor",player_position-global_position)
+		_stage.set("route",route)
+		_stage.set("world_origin",global_position)
 	queue_redraw()
 	_ground.queue_redraw()
 
@@ -103,6 +116,8 @@ func _draw() -> void:
 		var width := 310.0
 		var height := width * palms.get_height() / palms.get_width()
 		draw_texture_rect(palms, Rect2(span*.5-180, -height, width, height), false)
+	elif kind == "crossing":
+		draw_rect(Rect2(span*.5-210,0,420,1400),Color("182c25"))
 
 
 func _draw_walk_surface() -> void:
@@ -163,8 +178,6 @@ func _draw_ground(bounds: Rect2) -> void:
 			ground_rects.append(Rect2(rect.position,Vector2(crossing_left-rect.position.x,rect.size.y)))
 		if rect.end.x > crossing_right:
 			ground_rects.append(Rect2(crossing_right,rect.position.y,rect.end.x-crossing_right,rect.size.y))
-	if kind == "crossing":
-		_ground.draw_rect(Rect2(span*.5-210,0,420,1400),Color("182c25"))
 	for rect in ground_rects:
 		var local := Rect2(rect.position - global_position, rect.size)
 		if local.end.x < bounds.position.x or local.position.x > bounds.end.x: continue

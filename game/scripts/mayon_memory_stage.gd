@@ -1,0 +1,229 @@
+extends Node2D
+## Scenery only. Each stop has an authored composition and a small ambient phrase.
+## No bodies, pickups, dialogue, sounds or extra actors enter either scenery viewport.
+
+var kind := ""
+var props: Array = []
+var route: Array[Rect2] = []
+var world_origin := Vector2.ZERO
+var visitor := Vector2.INF
+var clock := 0.0
+var _time := 0.0
+var _scatter := 0.0
+var _textures := {}
+var _air: Node2D
+
+
+func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_air = Node2D.new()
+	_air.name = "WaterLightAndWildlife"
+	_air.z_index = 2
+	_air.draw.connect(_draw_air)
+	add_child(_air)
+
+
+func _process(delta: float) -> void:
+	if not is_visible_in_tree(): return
+	if not Motion.reduced():
+		clock += delta
+		if kind in ["terraces", "crossing", "bale"] and visitor.is_finite():
+			var distance_to_birds := visitor.distance_to(Vector2(980,_floor(980)-16))
+			if distance_to_birds < 250: _scatter = minf(1.0,_scatter+delta*.65)
+	_time = 0.0 if Motion.reduced() else floorf(clock*15.0)/15.0
+	queue_redraw()
+	_air.queue_redraw()
+
+
+func _art(path: String) -> Texture2D:
+	if not _textures.has(path): _textures[path] = load("res://assets/"+path)
+	return _textures[path] as Texture2D
+
+
+func _floor(x: float) -> float:
+	for rect in route:
+		if x+world_origin.x >= rect.position.x and x+world_origin.x < rect.end.x:
+			return rect.position.y-world_origin.y
+	return 0.0
+
+
+func _prop(canvas: Node2D, path: String, x: float, y: float, width: float,
+		tint: Color = Color.WHITE, mirror: bool = false, angle: float = 0.0) -> void:
+	var texture := _art(path)
+	var height := width*texture.get_height()/texture.get_width()
+	var point := Vector2(x-width*.5,y-height).round()
+	if mirror or not is_zero_approx(angle):
+		canvas.draw_set_transform(Vector2(x,y).round(),angle,Vector2(-1 if mirror else 1,1))
+		canvas.draw_texture_rect(texture,Rect2(-width*.5,-height,width,height),false,tint)
+		canvas.draw_set_transform(Vector2.ZERO)
+	else:
+		canvas.draw_texture_rect(texture,Rect2(point,Vector2(width,height)),false,tint)
+
+
+func _draw() -> void:
+	if kind in ["forest", "waterfall", "dawn"]:
+		var shade := Color(.62,.72,.82) if kind != "dawn" else Color(.94,.99,.78)
+		# The supplied tree frame encloses a clearing; it belongs to the same forest
+		# as the distant mountain plates, and is registered to the walk line.
+		_prop(self,"Level4/backdrop/frame.png",640,70,1900,shade)
+	for spec: Dictionary in props:
+		var tint := Color.WHITE
+		if spec.has("tint"):
+			var c: Array = spec.tint
+			tint = Color(float(c[0]),float(c[1]),float(c[2]),float(c[3]))
+		var x := float(spec.x)
+		var y := _floor(x)+float(spec.get("lift",0)) if bool(spec.get("floor",false)) else float(spec.get("y",0))
+		_prop(self,String(spec.art),x,y,float(spec.width),tint,bool(spec.get("mirror",false)),float(spec.get("rotation",0)))
+	match kind:
+		"terraces": _irrigation()
+		"crossing": _river()
+		"bale": _yard()
+		"shore", "island": _shore()
+		"sea": _reef()
+
+
+func _irrigation() -> void:
+	# Far paddy banks connect the foreground rice to the village on the hill.
+	for index in range(3):
+		var y := -58.0-index*81
+		var x := 230.0+index*100
+		var width := 800.0-index*200
+		draw_rect(Rect2(x,y,width,6),Color(.2,.4,.3,.4))
+		for glint in range(5):
+			var at := x+fposmod(glint*137.0+_time*13,width-30)
+			draw_line(Vector2(at,y+2),Vector2(at+13,y+2),Color(.68,.8,.5,.3),1)
+
+
+func _river() -> void:
+	# The stream continues through the gorge below the real, continuous bridge deck.
+	draw_colored_polygon(PackedVector2Array([Vector2(575,8),Vector2(703,8),Vector2(690,160),
+		Vector2(760,400),Vector2(650,760),Vector2(685,1400),Vector2(530,1400),
+		Vector2(500,760),Vector2(600,400),Vector2(540,160)]),Color(.2,.43,.38,.75))
+	for index in range(9):
+		var y := 24+fposmod(_time*60+index*39,280)
+		var x := 580+sin(y*.014)*20
+		draw_line(Vector2(x,y),Vector2(x+40+index%3*13,y),Color(.57,.76,.65,.25),2)
+
+
+func _yard() -> void:
+	# A warm lamp and the stored harvest make this a lived-in Bale yard.
+	var lamp := Vector2(410,_floor(410)-28)
+	for ring in range(4,0,-1): draw_circle(lamp,ring*11,Color(1,.72,.26,.018))
+	draw_circle(lamp,3,Color("ffd885"))
+
+
+func _shore() -> void:
+	var frame := int(_time/.32)%3
+	# These three waves share one cropped canvas: the water moves, never the shoreline.
+	_prop(self,"Level5/journey/surf_%02d.png"%frame,640,-42,1450,Color(1,1,1,.48))
+	if kind == "island":
+		_prop(self,"Level3/authored/bangka_afloat.png",210+sin(_time*.22)*7,-106,150,Color(.66,.79,.84))
+
+
+func _reef() -> void:
+	for spec in [[130.0,100.0,0.0],[330.0,65.0,1.0],[1125.0,105.0,2.0],[1215.0,70.0,1.0]]:
+		var frame := (int(_time/.36)+int(spec[2]))%3
+		_prop(self,"Level5/journey/kelp_long_%02d.png"%frame,float(spec[0]),_floor(float(spec[0])),float(spec[1]),Color(.58,.86,.73))
+	for spec in [[240.0,95.0,0.0],[1020.0,100.0,1.0]]:
+		var frame := (int(_time/.4)+int(spec[2]))%3
+		_prop(self,"Level5/journey/coral_red_%02d.png"%frame,float(spec[0]),_floor(float(spec[0])),float(spec[1]))
+	for x in [430.0,960.0]:
+		_prop(self,"Level5/journey/kelp_short_%02d.png"%(int(_time/.38)%3),x,_floor(x),48,Color(.64,.9,.73))
+	_prop(self,"Level5/journey/coral_orange_%02d.png"%(int(_time/.4)%3),1080,_floor(1080),64)
+	for index in range(2):
+		var x := -220.0+fposmod(_time*(22+index*8)+index*790,1740)
+		var y := -300.0-index*135+sin(_time*.35+index)*18
+		_prop(self,"Level5/journey/fish_school_%02d.png"%(int(_time/.22)%4),x,y,200+index*70,Color(.35,.69,.79,.65))
+	_prop(self,"Level3/authored/jelly_%d.png"%(int(_time/.34)%4),390+sin(_time*.3)*22,-180+sin(_time*.6)*15,42,Color(.72,.82,1,.72))
+
+
+func _landmark_colour(id: String) -> float:
+	for child in get_parent().get_children():
+		if child is MemoryFragment2D and child.fragment_id == id:
+			return 0.0 if child.state() == "lost" else 1.0-child.drain()
+	return 0.0
+
+
+func _draw_air() -> void:
+	match kind:
+		"terraces", "crossing", "bale":
+			_payyo_air()
+		"shore", "island":
+			for index in range(3):
+				var x := -150.0+fposmod(_time*(28+index*9)+index*480,1580)
+				var y := -470.0+index*55+sin(_time*.4+index)*16
+				_prop(_air,"Level3/authored/gull_%d.png"%(int(_time/.2+index)%4),x,y,39,Color(.92,.96,1,.8))
+		"sea": _bubbles()
+		"forest", "waterfall", "dawn": _forest_air()
+	if kind == "crossing":
+		# Water is behind the bridge and clipped to its opening, never a new floor.
+		for index in range(23):
+			var x := 470+fposmod(index*67.0,336)
+			var y := 28+fposmod(_time*110+index*43,240)
+			_air.draw_rect(Rect2(x,y,2,9+index%7),Color(.5,.73,.67,.3))
+	if kind == "waterfall": _falling_water()
+
+
+func _payyo_air() -> void:
+	for index in range(3):
+		var x := 900.0+index*42+_scatter*(180+index*35)
+		var y := _floor(980)-18.0-_scatter*(170+index*38)
+		var wing := sin(_time*(7+index)+index)*4
+		_air.draw_polyline(PackedVector2Array([Vector2(x-6,y-wing),Vector2(x,y+1),Vector2(x+6,y-wing)]),Color("483c24"),2)
+	if kind != "crossing":
+		for index in range(3):
+			var x := 230+index*310+sin(_time*.7+index*2)*48
+			var y := -90-index%2*85+cos(_time*.8+index)*22
+			_butterfly(Vector2(x,y),Color("f4cf69"),index)
+
+
+func _butterfly(point: Vector2, colour: Color, phase: int) -> void:
+	var wing := 2+int(absf(sin(_time*6+phase))*4)
+	_air.draw_rect(Rect2(point-Vector2(wing,3),Vector2(wing-1,5)),colour)
+	_air.draw_rect(Rect2(point+Vector2(1,-3),Vector2(wing-1,5)),colour)
+	_air.draw_rect(Rect2(point-Vector2(1,2),Vector2(2,5)),colour.darkened(.55))
+
+
+func _bubbles() -> void:
+	for index in range(18):
+		var x := 150+fposmod(index*179.0,1000)+sin(_time*.6+index)*6
+		var y := 30-fposmod(_time*(24+index%5*5)+index*47,620)
+		_air.draw_arc(Vector2(x,y),2+index%3,0,TAU,8,Color(.55,.88,.94,.32),1)
+
+
+func _forest_air() -> void:
+	if kind == "dawn":
+		# Light comes through the opening in the original canopy, toward the flower.
+		for index in range(4):
+			var x := 150+index*160
+			_air.draw_colored_polygon(PackedVector2Array([Vector2(x,-780),Vector2(x+22,-780),Vector2(x+500,0),Vector2(x+310,0)]),Color(1,.87,.5,.035))
+		for index in range(4):
+			_butterfly(Vector2(260+index*230+sin(_time*.5+index)*34,-90-index%2*65+cos(_time*.7+index)*18),Color("ffe3a0"),index)
+	else:
+		for index in range(16):
+			var x := 70+index*77+sin(_time*.35+index)*25
+			var y := -30-fposmod(index*59.0,230)+sin(_time*.5+index)*15
+			var near := 0.0 if not visitor.is_finite() else clampf(1.0-visitor.distance_to(Vector2(x,y))/330,0,1)
+			var alpha := .24+near*.45+sin(_time*1.4+index)*.1
+			_air.draw_circle(Vector2(x,y),7,Color(.72,.93,.43,alpha*.08))
+			_air.draw_rect(Rect2(x,y,2,2),Color(.83,1,.55,alpha))
+	# A low, broken mist follows the clearing, leaving the route and apo readable.
+	for index in range(5):
+		var x := -100+fposmod(index*330+_time*8,1550)
+		var y := -18-index%2*30
+		_air.draw_set_transform(Vector2(x+105,y+7),0,Vector2(1,.067))
+		_air.draw_circle(Vector2.ZERO,105,Color(.72,.86,.81,.035 if kind == "dawn" else .06))
+		_air.draw_set_transform(Vector2.ZERO)
+
+
+func _falling_water() -> void:
+	var strength := _landmark_colour("waterfall")
+	if strength <= 0: return
+	for index in range(34):
+		var x := 617+fposmod(index*23.0,94)
+		var y := -364+fposmod(_time*(100+index%4*15)+index*47,337)
+		_air.draw_rect(Rect2(x,y,2,7+index%6),Color(.74,.95,.95,.35*strength))
+	for index in range(7):
+		var x := 620+index*17+sin(_time*.9+index)*12
+		var y := 17-absf(sin(_time*1.5+index))*24
+		_air.draw_circle(Vector2(x,y),12+index%3*4,Color(.72,.94,.92,.035*strength))

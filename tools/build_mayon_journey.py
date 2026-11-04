@@ -42,6 +42,41 @@ def clean_alpha(image):
     return image
 
 
+def registered_frames(pattern, count):
+    """Keep the delivery's common canvas registration while removing its outside padding."""
+    frames=[clean_alpha(Image.open(ASSETS/pattern.format(i)).convert("RGBA")) for i in range(count)]
+    boxes=[frame.getchannel("A").getbbox() for frame in frames]
+    box=(min(b[0] for b in boxes),min(b[1] for b in boxes),
+         max(b[2] for b in boxes),max(b[3] for b in boxes))
+    return [frame.crop(box) for frame in frames]
+
+
+def rice_beds():
+    """Side-view rice grows out of three stone banks, in the delivery's own palette."""
+    result=Image.new("RGBA",(900,276))
+    stone=Image.open(ASSETS/"Level1/cliff/face.png").convert("RGBA")
+    for row,(x,y,width) in enumerate([(212,0,476),(104,86,692),(0,172,900)]):
+        field=Image.new("RGBA",(width//2,52))
+        draw=ImageDraw.Draw(field)
+        for clump in range(3,width//2-2,7):
+            root=27+(clump+row)%3
+            for stem in range(3):
+                height=14+(clump*13+stem*7+row*3)%11
+                lean=stem*3-3
+                tip=(clump+lean,root-height)
+                draw.line([(clump,root),tip],fill="#7a9b24",width=1)
+                draw.line([(clump,root-3),(clump-4,root-10)],fill="#a7b332",width=1)
+                draw.line([(clump+1,root-4),(clump+5,root-9)],fill="#c8c33f",width=1)
+                draw.line([tip,(tip[0]+2,tip[1]+4)],fill="#c79b24",width=2)
+                draw.line([(tip[0],tip[1]),(tip[0]+1,tip[1]+2)],fill="#e6ce53",width=1)
+        field=field.resize((width,104),Image.Resampling.NEAREST)
+        # Use the opaque interior stone under a shallow grass lip, never a paper border.
+        bank=stone.crop((0,8,width,54))
+        field.alpha_composite(bank,(0,58))
+        result.alpha_composite(field,(x,y))
+    return result
+
+
 def build():
     sky = Image.new("RGBA", (1920, 1080), (33, 142, 239, 255))
     for name in ["bg_withclouds", "mountains_furthest_background", "mountain_further_background"]:
@@ -108,7 +143,15 @@ def build():
     ImageDraw.Draw(mask).polygon([(130,0),(238,0),(280,28),(302,73),(347,112),(379,180),
                                   (365,266),(327,319),(28,319),(0,269),(24,211),(57,172),
                                   (83,123),(91,66)],fill=255)
-    falls.putalpha(ImageChops.multiply(falls.getchannel("A"),mask.filter(ImageFilter.GaussianBlur(4))))
+    alpha=ImageChops.multiply(falls.getchannel("A"),mask.filter(ImageFilter.GaussianBlur(4)))
+    # The upper crop is forest haze rather than a hard silhouette. Fade its registration
+    # edge into the live forest, so the waterfall never carries a rectangular patch of sky.
+    haze=Image.new("L",falls.size,255)
+    haze_draw=ImageDraw.Draw(haze)
+    for row in range(64):
+        t=row/63
+        haze_draw.line((0,row,falls.width,row),fill=round(255*t*t*(3-2*t)))
+    falls.putalpha(ImageChops.multiply(alpha,haze))
     outputs["waterfall.png"] = falls
     # Canvas margins belong to the original registration, not a prop's ground anchor.
     # The complete dance frames retain their shared canvas and are deliberately not cut.
@@ -121,6 +164,36 @@ def build():
     }.items():
         original = clean_alpha(Image.open(ASSETS/source).convert("RGBA"))
         outputs[ident+"_landmark.png"] = original.crop(original.getchannel("A").getbbox())
+    atlas=Image.open(ASSETS/"Level1/texturemap.png").convert("RGBA")
+    outputs["rice_beds.png"]=rice_beds()
+    # These pieces already belong together in the original Payyo atlas. Preserve their
+    # proportions and assemble the yard in world coordinates instead of scaling a collage.
+    for name,box in {
+        "fence":(738,912,818,959), "gate":(830,912,888,960),
+        "pot":(899,912,931,961), "bamboo":(946,907,988,963),
+        "stone_lamp":(996,906,1046,965),
+    }.items():
+        prop=clean_alpha(atlas.crop(box))
+        outputs["payyo_"+name+".png"]=prop.crop(prop.getchannel("A").getbbox())
+    for name,source in {
+        "payyo_bank":"Level1/terraces_near_background.png",
+        "shore_jetty":"Level3/authored/jetty.png",
+        "deep_terraces":"Level3/deep/terraces.png",
+        "deep_ridges":"Level3/deep/ridges.png",
+    }.items():
+        image=clean_alpha(Image.open(ASSETS/source).convert("RGBA"))
+        outputs[name+".png"]=image.crop(image.getchannel("A").getbbox())
+    for name,pattern,count in [
+        ("kelp_long","Level3/props/kelp_long_{}.png",3),
+        ("kelp_short","Level3/props/kelp_short_{}.png",3),
+        ("coral_red","Level3/props/coral_red_{}.png",3),
+        ("coral_orange","Level3/props/coral_orange_{}.png",3),
+        ("fish_school","Level3/ambience/school_{}.png",4),
+        ("bakunawa","Level3/bakunawa/searching_{}.png",13),
+        ("surf","Level3/shore/surf_{}.png",3),
+    ]:
+        for index,frame in enumerate(registered_frames(pattern,count)):
+            outputs[f"{name}_{index:02d}.png"]=frame
     return outputs
 
 
