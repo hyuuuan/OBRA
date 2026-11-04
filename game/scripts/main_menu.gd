@@ -505,9 +505,13 @@ func _build_new_game_button() -> void:
 	side_buttons.offset_right = 340.0
 
 
-## Both NEW GAME (on a fresh save) and CONTINUE go to the house, where the level is chosen.
+## CONTINUE goes to the house, where the level is chosen. NEW GAME on a fresh save goes into
+## Payyo, the tutorial, and the house comes after it (LevelManager.start_new_game).
 func _on_play_pressed() -> void:
-	LevelManager.open_house()
+	if PlayerProfile.has_progress():
+		LevelManager.open_house()
+	else:
+		LevelManager.start_new_game()
 
 
 func _ask_new_game() -> void:
@@ -535,7 +539,7 @@ func _on_confirmed() -> void:
 			_quit_to_desktop()
 		"new_game":
 			PlayerProfile.reset_progress()
-			LevelManager.open_house()
+			LevelManager.start_new_game()
 
 
 func _play_panel_rect() -> Rect2:
