@@ -250,6 +250,9 @@ What the build does that the design above does not say, and what it does not do 
   clears over 1.5 seconds. F off interrupts an unfinished clearing; a switched-off fan does
   not count as moving air. The segment probe presses the physical F key from that reachable
   approach, rather than teleporting beyond the smoke's turn-back line.
+- **A fan blows where it points** (2026-11-04). A switched-on fan shows its wind (`FanWind2D`)
+  and turns its blades, so it counts at the kapre only pointed at the smoke: facing east, the
+  way the smoke is blown, with the bank still ahead of it.
 - **A throw goes where it is clicked.** A boomerang flies out along the click, a shot is fired at
   it (aimed over by its fall); F throws straight ahead as before. Thrown level, nothing reached the
   kapre's cigar. And the use that chooses a "draw it, then do it" route is used: the first blow at

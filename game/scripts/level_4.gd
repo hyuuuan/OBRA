@@ -1485,6 +1485,13 @@ func _within_smoke_reach(x: float) -> bool:
 	return x >= span.x - FAN_REACH and x <= span.y + FAN_REACH
 
 
+## A fan's wind is drawn out of it (FanWind2D), so it moves the smoke only blowing AT it: facing
+## the way the smoke is blown (east, Kapre2D.BLOWN_AWAY), with the bank still ahead of it. It
+## cleared the smoke facing away from it, while the wind on screen went the other way.
+func _fan_points_at_the_smoke(fan: UtilityObject) -> bool:
+	return fan.wind_axis().x > 0.0 and fan.wind_origin().x <= _kapre.smoke_span().y
+
+
 func _level_use_verb(entity_id: String) -> String:
 	if _kapre != null and player != null and not director.is_solved("L4_KAPRE") \
 			and _within_smoke_reach(PlayerHurtbox2D.middle_of(player).x) \
@@ -1516,7 +1523,7 @@ func _moving_air() -> bool:
 	var held := _equipped_utility != null and is_instance_valid(_equipped_utility) \
 		and _equipped_utility.item_data != null and takes.has(_equipped_utility.item_data.entity_id)
 	if held and _equipped_utility.utility_behavior == "fan":
-		held = _equipped_utility.is_active()
+		held = _equipped_utility.is_blowing() and _fan_points_at_the_smoke(_equipped_utility)
 	return held or takes.has(_current_form_id)
 
 
