@@ -12,7 +12,8 @@ extends Control
 ## clicks through because their actions require holding a key.
 ##
 ## Two more indicators, MOVE and JUMP, can stand beside R and Q as a standing reminder of the
-## keys -- only where the level asks for them (LevelBase `_shows_movement_keys`; Payyo does).
+## keys -- only where the level asks for them (LevelBase `_shows_movement_keys`; Payyo does) --
+## and step out while placing, when the rotate and scale keys have that corner.
 
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
@@ -57,6 +58,8 @@ var _climb: Button
 ## The two standing reminders beside R -- walk and jump. See `show_movement_keys`.
 var _move: Button
 var _jump: Button
+## Whether the level asked for them. They also step out while placing; see set_placement_active.
+var _movement_wanted := false
 var _floating_row: HBoxContainer
 var _target: Node2D
 var _follow_position := Vector2.ZERO
@@ -175,6 +178,14 @@ func set_placement_active(active: bool) -> void:
 		if not active:
 			_states[prompt]["amount"] = 0.0
 			prompt.hide()
+	# ⚠ WALK AND JUMP STEP OUT TOO. They are laid out off R, which is hidden now, so they stood
+	# across ROTATE; and moved left of ROTATE and SCALE the row ran into the goal chip. While
+	# placing, the corner is the placement keys'; the reminders come back when it ends.
+	for reminder in [_move, _jump]:
+		_set_wanted(reminder, _movement_wanted and not active)
+		if active:
+			_states[reminder]["amount"] = 0.0
+			reminder.hide()
 	_place_bottom_actions()
 
 
@@ -250,8 +261,9 @@ func set_revert_available(available: bool) -> void:
 ## `_shows_movement_keys`). They always do something, which is the test the old keybind strip
 ## failed: it advertised verbs from the first frame that could do nothing.
 func show_movement_keys(shown: bool) -> void:
-	_set_wanted(_move, shown)
-	_set_wanted(_jump, shown)
+	_movement_wanted = shown
+	_set_wanted(_move, shown and not _placing)
+	_set_wanted(_jump, shown and not _placing)
 
 
 func movement_keys_shown() -> bool:
