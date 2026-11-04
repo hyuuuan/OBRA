@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 44
+const CHECKS := 46
 var level: Node
 
 
@@ -44,6 +44,7 @@ func _run() -> void:
 	await _frames(3)
 	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke,
 			_blowing_from_the_edge_works_while_walking, _stopping_the_fan_restores_the_smoke,
+			_a_fan_turned_away_does_not_clear_the_smoke,
 			_three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
 			_a_fan_tried_first_a_throw_still_knocks_the_cigar, _a_cloud_held_up_clears_the_smoke_too,
 			_as_a_butterfly_she_clears_the_smoke_too, _a_boomerang_clicked_at_the_cigar_knocks_it,
@@ -352,6 +353,27 @@ func _blowing_from_the_edge_works_while_walking() -> void:
 	_check(_kapre_solved() and _kapre_route() == "artist" and not turned and _her_x() > middle,
 		"walking while blowing clears the smoke without being sent back",
 		"solved %s, turned %s, at %.0f" % [_kapre_solved(), turned, _her_x()])
+
+
+## A fan blows where it points (its wind is drawn out of it, FanWind2D). Held up facing away from
+## the smoke its wind goes the other way and the smoke stays; turned to face it, it clears.
+func _a_fan_turned_away_does_not_clear_the_smoke() -> void:
+	await _stand_at(13250.0, &"move_left")
+	await _become("fan")
+	await _press_f()
+	await _seconds(2.0)
+	var fan := level.get("_equipped_utility") as UtilityObject
+	_check(fan != null and fan.is_blowing() and fan.wind_axis().x < 0.0 and not _kapre_solved()
+			and is_zero_approx(float(level.get("_fanned"))) and _kapre().smoke_offset() == Vector2.ZERO,
+		"a fan blowing away from the smoke does not move it", "blowing %s toward %s; fanned %.2f, moved %s"
+			% [fan != null and fan.is_blowing(), fan.wind_axis() if fan != null else Vector2.ZERO,
+				float(level.get("_fanned")), _kapre().smoke_offset()])
+	Input.action_press(&"move_right")
+	await _frames(2)
+	Input.action_release(&"move_right")
+	await _seconds(2.0)
+	_check(_kapre_solved() and _kapre_route() == "artist", "turned to face it, the same fan blows it clear",
+		"solved %s, route '%s'" % [_kapre_solved(), _kapre_route()])
 
 
 func _stopping_the_fan_restores_the_smoke() -> void:
