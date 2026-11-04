@@ -455,7 +455,8 @@ strips come from `tools/build_apo_swim.py`. Its suites -- `run_level3_audit`,
 Read **LEVEL_4.md** first: Kent's twelve decisions, the flow, and the build record (where every
 part lives, and how the build differs from the design). The dark forest on Mt. Makiling, where
 **Dilim fights by drawing**: the apo alone, the lantern as her health, drawn weapons that wear,
-folkloric encounters answered by what she does, then a 150 s night in three waves to dawn.
+folkloric encounters answered by what she does, then a 90 s night in three waves to dawn.
+The surroundings brighten from the 45 s midpoint to full morning at 90 s.
 It carries `ends_run` until Mayon is built.
 
 Traps it has sprung, kept so they are not sprung again:

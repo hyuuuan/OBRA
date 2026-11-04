@@ -3,7 +3,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_action_prompt_probe.gd
 
 ## Every check this probe makes, so a crash part-way cannot print OK.
-const CHECKS := 24
+const CHECKS := 37
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
 var failures: Array[String] = []
@@ -25,6 +25,7 @@ func _run() -> void:
 	level = packed.instantiate() as Node2D
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	var dialogue := level.get("dialogue_box") as DialogueBox
 	if dialogue != null:
 		dialogue.hide_line()
@@ -41,6 +42,7 @@ func _run() -> void:
 	_check(not prompts.pickup_is_available(), "E is hidden with no pickup in range")
 	_check(not prompts.use_is_available(), "F is hidden with no held tool")
 	_check(not prompts.revert_is_available(), "Q is hidden while the player is themselves")
+	await _placement_replaces_draw(draw)
 
 	var registry := level.get("registry") as EntityRegistry
 	var world_items := level.get("world_item_root") as Node2D
@@ -76,7 +78,7 @@ func _run() -> void:
 
 	placed.queue_free()
 	await process_frame
-	await physics_frame
+	await _physics_frames(2)
 	_check(not prompts.pickup_is_available(), "held tool does not advertise E after pickup leaves")
 	_check(prompts.use_is_available(), "F remains while the tool stays in hand")
 
@@ -190,6 +192,104 @@ func _movement_keys() -> void:
 		other.free()
 	_check(asked.is_empty(), "and no other level shows them (%s)"
 		% ("none" if asked.is_empty() else ", ".join(asked)))
+
+
+func _placement_replaces_draw(draw: Button) -> void:
+	var placement := level.get("placement_controller") as PlacementController
+	var inventory := level.get("inventory_manager") as InventoryManager
+	var panel := level.get("draw_panel") as DrawPanel
+	var item := DrawnItemData.new()
+	item.entity_id = "square"
+	item.display_name = "Square"
+	var slot := inventory.add_item(item)
+	level.call("_on_inventory_slot_pressed", slot)
+	_check(placement.is_placing(), "a bag drawing starts placement")
+	if not placement.is_placing():
+		return
+	placement.set_process(false)
+	# Clear ground beside the spawn; aiming and input routing are separate concerns here.
+	placement.update_target(_player_position() + Vector2(160.0, -30.0))
+	var preview := placement.get("_preview") as PhysicsShapeObject
+	await create_timer(0.2).timeout
+	_check(draw.disabled and not draw.visible, "Draw is disabled and hidden while holding a placeable")
+	var rotate := prompts.get_node("RotatePlacementPrompt") as Button
+	var resize := prompts.get_node("ScalePlacementPrompt") as Button
+	_check(rotate.is_visible_in_tree() and resize.is_visible_in_tree(),
+		"rotate and scale controls replace Draw")
+	_check((rotate.get_node("PromptKey").get_child(0) as Label).text == "Z / X"
+		and (resize.get_node("PromptKey").get_child(0) as Label).text == "C / V",
+		"placement controls show Z/X rotate and C/V scale")
+	_check(rotate.mouse_filter == Control.MOUSE_FILTER_IGNORE
+		and resize.mouse_filter == Control.MOUSE_FILTER_IGNORE,
+		"placement key indicators let clicks reach the world")
+	var screen := root.get_visible_rect()
+	_check(screen.encloses(rotate.get_global_rect()) and screen.encloses(resize.get_global_rect())
+		and rotate.get_global_rect().end.x < resize.get_global_rect().position.x
+		and resize.get_global_rect().end.y > screen.end.y - 80.0,
+		"placement controls fit side by side in the lower-right corner")
+	await _capture("holding")
+
+	await _press_key(KEY_R)
+	await _press_key(KEY_R)
+	_check(not panel.is_open() and placement.is_placing()
+		and placement.get("_preview") == preview and inventory.peek_item(slot) == null,
+		"pressing R leaves the held object intact and the canvas closed")
+	# Also exercise the button handler, guarding queued or programmatic button activation.
+	draw.pressed.emit()
+	_check(not panel.is_open() and placement.get("_preview") == preview,
+		"Draw activation cannot interrupt placement")
+
+	_check(placement.confirm_placement(), "the held object can still be placed after R")
+	preview.freeze = true
+	await create_timer(0.2).timeout
+	_check(not draw.disabled and draw.visible and not rotate.visible and not resize.visible,
+		"placing the object restores Draw and removes placement controls")
+	await _press_key(KEY_R)
+	_check(panel.is_open(), "R opens the canvas again after placement")
+	panel.close_panel()
+	preview.queue_free()
+	await create_timer(0.3).timeout
+
+	# A second hold ends by right-clicking, using the same input path as the player.
+	var second := DrawnItemData.new()
+	second.entity_id = "square"
+	second.display_name = "Square"
+	slot = inventory.add_item(second)
+	level.call("_on_inventory_slot_pressed", slot)
+	var cancel := InputEventMouseButton.new()
+	cancel.button_index = MOUSE_BUTTON_RIGHT
+	cancel.position = Vector2(1000.0, 500.0)
+	cancel.pressed = true
+	root.push_input(cancel, true)
+	cancel = cancel.duplicate() as InputEventMouseButton
+	cancel.pressed = false
+	root.push_input(cancel, true)
+	await create_timer(0.2).timeout
+	_check(not placement.is_placing() and inventory.peek_item(slot) == second
+		and not draw.disabled and draw.visible and not rotate.visible and not resize.visible,
+		"putting the object away restores Draw and removes placement controls")
+	await _press_key(KEY_R)
+	_check(panel.is_open(), "R opens the canvas again after storing the object")
+	panel.close_panel()
+	await create_timer(0.3).timeout
+	await _capture("released")
+	placement.set_process(true)
+
+
+func _press_key(code: Key) -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.physical_keycode = code
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+
+
+func _capture(state: String) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("/tmp/obra_placement_controls_%s.png" % state)
 
 
 func _player_position() -> Vector2:

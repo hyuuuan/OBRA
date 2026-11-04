@@ -1,17 +1,15 @@
 class_name ActionPromptHUD
 extends Control
-## Five verbs, five separate pieces of interface.
+## Contextual keys for drawing, placement and nearby actions.
 ##
-## R is a standing invitation at the bottom left. Q joins it only while the player is a
-## drawing. E, F and the climb exist only while their actions exist, and follow the current
+## R stands at the bottom right, replaced by rotate and scale keys while placing an object.
+## Q joins it only while the player is a drawing. E, F and the climb follow the current
 ## player in screen space with the same delayed ease Lolo uses in world space. Screen space
 ## is intentional: Ang Bale and the straw room change the camera zoom, but a readable key cap
 ## must not double or triple in size when the player walks indoors.
 ##
-## ⚠ THE CLIMB IS AN INDICATOR, NOT A BUTTON. The other four each emit a signal a mouse can
-## fire; you cannot click "hold up". It is built the same way so it sits in the same row and
-## reads as the same kind of thing, and then it is made unclickable, because a prompt that
-## depresses under the cursor and does nothing is worse than no prompt at all.
+## Climb and placement keys are indicators. They share the action buttons' style, but pass
+## clicks through because their actions require holding a key.
 ##
 ## Two more indicators, MOVE and JUMP, can stand beside R and Q as a standing reminder of the
 ## keys -- only where the level asks for them (LevelBase `_shows_movement_keys`; Payyo does).
@@ -49,6 +47,9 @@ const JUDGE_EVERY := 0.1
 const HEAD_GAP := 26.0
 
 var _draw: Button
+var _rotate: Button
+var _scale: Button
+var _placing := false
 var _revert: Button
 var _pickup: Button
 var _use: Button
@@ -84,6 +85,19 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	clip_contents = false
 	add_to_group(GROUP)
+
+	_rotate = _make_prompt(&"RotatePlacementPrompt", "%s / %s" % [
+		ControlsKeys.key_cap_for("rotate_left"), ControlsKeys.key_cap_for("rotate_right")],
+		"ROTATE", UISkin.GOLD, 218.0)
+	_scale = _make_prompt(&"ScalePlacementPrompt", "%s / %s" % [
+		ControlsKeys.key_cap_for("shrink_placement"), ControlsKeys.key_cap_for("grow_placement")],
+		"SCALE", UISkin.GOLD, 206.0)
+	for prompt in [_rotate, _scale]:
+		# Keyboard indicators: clicks pass through to placement in the world.
+		prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		prompt.mouse_default_cursor_shape = Control.CURSOR_ARROW
+		add_child(prompt)
+		_register(prompt, false, 0.022, UISkin.GOLD_PALE)
 
 	_revert = _make_prompt(&"ChangeBackPrompt", "Q", "CHANGE BACK", UISkin.RED_FILL, 198.0)
 	add_child(_revert)
@@ -140,6 +154,28 @@ func bind_draw_button(button: Button) -> void:
 	_style_prompt(_draw, "R", "DRAW", UISkin.GOLD, 138.0)
 	_register(_draw, true, 0.022, UISkin.GOLD_PALE)
 	_draw.visible = true
+
+
+func set_placement_active(active: bool) -> void:
+	if _placing == active:
+		return
+	_placing = active
+	_set_wanted(_draw, not active)
+	_draw.disabled = active
+	_draw.mouse_filter = Control.MOUSE_FILTER_IGNORE if active else Control.MOUSE_FILTER_STOP
+	# Draw occupies the same corner as the placement keys, so remove it immediately.
+	if active:
+		_states[_draw]["amount"] = 0.0
+		_draw.hide()
+		_set_wanted(_revert, false)
+		_states[_revert]["amount"] = 0.0
+		_revert.hide()
+	for prompt in [_rotate, _scale]:
+		_set_wanted(prompt, active)
+		if not active:
+			_states[prompt]["amount"] = 0.0
+			prompt.hide()
+	_place_bottom_actions()
 
 
 func follow(target: Node2D) -> void:
@@ -422,7 +458,7 @@ func _update_animations(delta: float) -> void:
 		button.modulate.a = reveal * _curtain_alpha
 
 
-## R and Q, bottom RIGHT.
+## Draw or placement keys, with Q beside Draw, bottom RIGHT.
 ##
 ## Thesis §4.5.3.5, on the gameplay wireframe: "the Draw button sits at the lower-right,
 ## within reach of the pointer that will be used to draw." They sat bottom-left, which put
@@ -431,7 +467,7 @@ func _update_animations(delta: float) -> void:
 ## the lower-left holds were stacked on each other.
 ##
 ## Q keeps its place beside R rather than moving to the far side: they are the two standing
-## verbs and they read as a pair. R is the outermost because it is the one always available.
+## verbs and they read as a pair.
 func _place_bottom_actions() -> void:
 	if _draw == null or not is_instance_valid(_draw):
 		return
@@ -440,6 +476,14 @@ func _place_bottom_actions() -> void:
 	_draw.position = Vector2(
 		view.x - BOTTOM_MARGIN.x - _draw.size.x,
 		view.y - BOTTOM_MARGIN.y - _draw.size.y)
+	_scale.size = _scale.get_combined_minimum_size()
+	_scale.position = Vector2(
+		view.x - BOTTOM_MARGIN.x - _scale.size.x,
+		view.y - BOTTOM_MARGIN.y - _scale.size.y)
+	_rotate.size = _rotate.get_combined_minimum_size()
+	_rotate.position = Vector2(
+		_scale.position.x - BOTTOM_GAP - _rotate.size.x,
+		view.y - BOTTOM_MARGIN.y - _rotate.size.y)
 	_revert.size = _revert.get_combined_minimum_size()
 	_revert.position = Vector2(
 		_draw.position.x - BOTTOM_GAP - _revert.size.x,

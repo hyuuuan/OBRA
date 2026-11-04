@@ -690,8 +690,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if placement_controller.is_placing():
 		if event.is_action_pressed("redraw"):
 			get_viewport().set_input_as_handled()
-			placement_controller.cancel_placement()
-			_open_the_page(false)
 		return
 	if event.is_action_pressed("redraw"):
 		get_viewport().set_input_as_handled()
@@ -744,8 +742,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_draw_button_pressed() -> void:
-	if placement_controller.is_placing():
-		placement_controller.cancel_placement()
 	_open_the_page(true)
 
 
@@ -754,6 +750,8 @@ func _on_draw_button_pressed() -> void:
 ## up (its hint tier would rise and its requirement strip would name what to draw), and no
 ## lesson about drawing on the page is waiting for it.
 func _open_the_page(tell_the_director: bool) -> void:
+	if placement_controller.is_placing():
+		return
 	var refusing := _brush_refuses_here()
 	draw_panel.set_refusing(refusing)
 	_prepare_drawing_page()
@@ -2841,6 +2839,8 @@ func _on_placement_changed(active: bool, valid: bool) -> void:
 	# Before the early return: the bar has to come back when the placement ends, and that
 	# is the call that arrives with active = false.
 	inventory_hud.set_click_through(active)
+	if action_prompts != null:
+		action_prompts.set_placement_active(active)
 	if not active:
 		return
 	# The mouse is all three halves of placement and the game never said so anywhere.
@@ -3188,8 +3188,7 @@ func _interact_verb(utility: PhysicsShapeObject) -> String:
 	return "BOARD"
 
 
-## Availability is refreshed from the same objects the actions use. R is intentionally
-## absent here because it is always available; the prompt controller keeps it standing.
+## Availability is refreshed from the same objects the actions use.
 func _refresh_action_prompts() -> void:
 	if action_prompts == null:
 		return

@@ -521,6 +521,8 @@ func _offer_the_climb() -> void:
 		var actor := _player_of(target)
 		if actor == null or not actor.has_method("begin_ladder"):
 			continue
+		if actor.has_method("can_reach_ladder") and not bool(actor.call("can_reach_ladder", self)):
+			continue
 		if actor.has_method("is_using_ladder") and bool(actor.call("is_using_ladder", self)):
 			return
 		actor.call("begin_ladder", self)
@@ -543,6 +545,8 @@ func _climb_reach() -> float:
 ## asks, answered by the object that owns the answer.
 func climb_reaches(actor: Node2D) -> bool:
 	if actor == null or not can_be_climbed():
+		return false
+	if actor.has_method("can_reach_ladder") and not bool(actor.call("can_reach_ladder", self)):
 		return false
 	for target in _reachable_targets(_climb_reach()):
 		if _player_of(target) == actor:

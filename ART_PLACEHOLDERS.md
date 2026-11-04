@@ -393,7 +393,7 @@ The darkness itself (`DarknessLayer`) is gameplay too: `LightField` decides what
 | **A loose page of her diary** | A 14 × 18 folded sheet with her lines on it, drawn pixel by pixel in the diary book's own five colours, shown at 2×, a little askew and bobbing. It has to say: *a page of a diary, dropped here, worth picking up*. | `game/assets/hud/diary_page.png` (`tools/build_diary_book.py`, `PAGE`), `game/scripts/diary_page_2d.gd` | A hand-drawn loose page of the same book; keep its foot at the bottom edge. |
 
 | **Lolo in her paintings** | Kent's own sheets of him alive (`game/assets/characters/lolo/source/LOLO1-5.png`, not imported), the FRONT pose cut and brought down to 18 px, standing in each painting's foreground -- young in Payyo, old in Mayon. At that size his eyes are lost. | `game/assets/hub/paintings/level_N_lolo.png` (`tools/build_house_lolo.py`), hung by `HouseEpilogue` once Mayon is done | A painter's figure of him drawn into each picture at its scale; keep it on the same foreground spot (`SPOTS`). |
-| **Lola walking** | Her side-on "turn" pose, flipped and stepping two pixels every quarter second -- there is no walk cycle. | `Lola2D.walk_to` | A walk cycle with the same foot registration as her other poses. |
+| **Lola walking** | Supplied six-frame walk cycle (5 November), mirrored leftward with a shared baseline. | `Lola2D.walk_to`, `people/lola_walk.png` | Done; replacement contract in the Mayon authored README. |
 | **The empty easel** | Drawn in code: three legs and a bare canvas at the house's scale (96 × 56). | `HouseEpilogue._draw_easel` | An easel sprite, its canvas bare; she paints at its left. |
 
 The book itself (`game/assets/hud/diary_book.png`) is not a placeholder: it is the delivered page
@@ -420,7 +420,7 @@ include.
 
 | | Now | Where | Replace with |
 |---|---|---|---|
-| **Lola** | Dedicated generated painting, turning, flower, returning, and seated poses; a separately cut and outlined portrait. | `game/assets/Level5/people/lola_*.png` (`tools/build_mayon_performance.py`) | Art-directed same-name poses with the same foot registration. |
+| **Lola** | Latest supplied board (5 November): turnaround, walk, two six-frame painting loops, six idle variations and large portrait. 108px world height. Front/back bouquet poses are generated adaptations of that design. | `game/assets/Level5/people/lola_*.png` (`tools/build_mayon_performance.py`) | Supplied character integrated; bouquet adaptations remain generated. Same-name replacements preserve foot registration. |
 | **The real room** | **Removed** (2026-11-01): the run ends in the house (`HouseEpilogue`), and `frame_return.gd` went with #182. The room, and Lola's and the apo's seated and pickup poses, are no longer cut into the game; the generated original stays in `LEVEL5_Mayon/authored/frame_room.png`. | -- | Nothing, unless the room comes back. |
 | **The apo's performance** | Generated raise, paint, failed, lower and offer poses. Quiet strokes fade over the actual scene. | `game/assets/Level5/people/apo_*.png`, `level_5.gd` | Art-directed poses or animation preserving actor scale and feet. |
 | **Memory fragments** | Torn boxes of the finished paintings; the flower's is a scrap of path tile with Payyo's hidden flower. | `game/assets/Level5/fragments/` (`tools/build_mayon_fragments.py`) | Hand-torn fragments; the flower's should look like nothing. |

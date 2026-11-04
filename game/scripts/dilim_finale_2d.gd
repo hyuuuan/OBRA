@@ -19,12 +19,12 @@ signal wave_opened(index: int)
 signal dawned
 
 const GROUP := &"dilim_encounters"
-const DAWN_SECONDS := 150.0
+const DAWN_SECONDS := 90.0
 ## When each wave opens, how many aswang it keeps on her, and what flies in with it.
 const WAVES := [
 	{"at": 0.0, "aswang": 2, "fliers": []},
-	{"at": 45.0, "aswang": 1, "fliers": ["manananggal_upper", "wakwak"]},
-	{"at": 100.0, "aswang": 1, "fliers": ["tiktik"]},
+	{"at": 27.0, "aswang": 1, "fliers": ["manananggal_upper", "wakwak"]},
+	{"at": 60.0, "aswang": 1, "fliers": ["tiktik"]},
 ]
 ## The first wave's aswang, in the forms they take in turn.
 const WAVE_KIND := "aswang_dog"
@@ -144,6 +144,11 @@ func progress() -> float:
 	return clampf(elapsed / DAWN_SECONDS, 0.0, 1.0)
 
 
+## The first half stays night; the second half eases into full morning on the same clock.
+func daylight_progress() -> float:
+	return smoothstep(0.5, 1.0, progress())
+
+
 ## The ones still after her.
 func alive() -> Array[Enemy2D]:
 	var out: Array[Enemy2D] = []
@@ -162,6 +167,7 @@ func reset_for_restore() -> void:
 	_waiting.clear()
 	elapsed = 0.0
 	_running = false
+	_done = false
 	_next_side = 1.0
 	_wave = -1
 	_forms = 0
