@@ -50,11 +50,11 @@
           "context": "world",
           "anchor": "player",
           "action": "jump",
-          "delay": 3.0,
+          "delay": 0.0,
           "seconds": 10.0,
           "caption": "Jump",
           "text": "{keys} to jump.",
-          "lead": "Mind the little walls between the paddies. Hop over them, the way the farmers do."
+          "lead": "Can you still jump, apo? Show me — the way up is never flat for long."
         },
         {
           "id": "draw",
@@ -496,6 +496,7 @@
         {
           "id": "no_more_ink",
           "at": "ink_spent",
+          "delay": 1.0,
           "mode": "look",
           "visual": "ink",
           "context": "world",

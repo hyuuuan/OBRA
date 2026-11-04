@@ -4,7 +4,7 @@ Generated on 31 October 2026 with the built-in OpenAI image_gen tool. The origin
 apo turnaround and delivered Mayon painting were style references. Full prompts
 are retained in `prompts.json`; no downloaded or third-party stock assets were used.
 
-- `lola_atlas.png`: eight equal cells, four columns by two rows. Back, painting,
+- `lola_atlas.png`: retired Lola source, eight equal cells, four columns by two rows. Back, painting,
   turning, front, receiving flowers, returning to the painting, seated listening,
   seated with flowers. This replaces the child's turnaround recoloured grey.
 - `apo_performance_atlas.png`: raise, paint, failed attempt, lower, seated,
@@ -17,6 +17,32 @@ resolution. Since the run ends in the house (#182) it no longer cuts the room, n
 the seated and pickup cells, which the game stopped showing; the originals stay here.
 One scale per atlas preserves head size across standing and seated poses. Original
 sources stay here; runtime paths stay under `game/assets/Level5/`.
+
+## Supplied Lola board — 5 November 2026
+
+`lola_supplied_board.png` is the latest user-supplied sheet, replacing the earlier
+Lola designs. `lola_supplied_sheet.png` is its transparent extraction prepared with
+the built-in image_gen tool; the exact prompt is `lola_supplied_sheet.prompt.txt`.
+The first two unused run figures were adapted into front/back bouquet poses for
+the existing flower ending. Turnaround, walking, painting and idle poses follow
+the supplied artwork, including the embroidered back of her blouse and tied hair.
+
+`build_mayon_performance.py` owns the measured cuts and writes 128x144 bottom-centred
+cells with a 108px standing height. Each animation row has a common scale; the
+board's different source row sizes are normalized separately. Connected silhouettes
+exclude neighbouring brush tips, dark shoe pixels stay intact, and planted feet
+register painting frames. Walk frames retain the source stride and a common baseline.
+The large hero supplies the outlined dialogue bust, cropped at the hands.
+
+Runtime `lola_painting_idle.png` contains 18 columns: six back-view painting frames,
+six three-quarter-back painting frames, then six pauses/idle variations. `Lola2D`
+plays both loops with longer rests, inspecting and leaning poses, pauses with the
+scene, and holds the first resting idle for Reduce Motion. Story turns, greetings
+and flower holding interrupt the animation. `lola_walk.png` supplies six walk frames,
+mirrored for leftward travel. The house uses the same replacement character.
+
+Run the builder with `--check` to compare without writing, and reimport in Godot
+after rebuilding. The original generated Lola atlas stays for provenance only.
 
 ## Art review and remaining provisional material
 

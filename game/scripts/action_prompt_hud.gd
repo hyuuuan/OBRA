@@ -10,6 +10,10 @@ extends Control
 ##
 ## Climb and placement keys are indicators. They share the action buttons' style, but pass
 ## clicks through because their actions require holding a key.
+##
+## Two more indicators, MOVE and JUMP, can stand beside R and Q as a standing reminder of the
+## keys -- only where the level asks for them (LevelBase `_shows_movement_keys`; Payyo does) --
+## and step out while placing, when the rotate and scale keys have that corner.
 
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
@@ -51,6 +55,11 @@ var _revert: Button
 var _pickup: Button
 var _use: Button
 var _climb: Button
+## The two standing reminders beside R -- walk and jump. See `show_movement_keys`.
+var _move: Button
+var _jump: Button
+## Whether the level asked for them. They also step out while placing; see set_placement_active.
+var _movement_wanted := false
 var _floating_row: HBoxContainer
 var _target: Node2D
 var _follow_position := Vector2.ZERO
@@ -124,6 +133,18 @@ func _ready() -> void:
 	_floating_row.add_child(_climb)
 	_register(_climb, false, 0.030, UISkin.CLIMB_LIT)
 
+	# WALK AND JUMP, BESIDE R. Kent: "the R at the button should also be paired with the WASD
+	# buttons for like guidance as well as the jump". Indicators, like the climb cap -- you cannot
+	# click a walk -- in MUTED rather than a verb's colour, and without R's pulse: they are a
+	# reminder of what the keys are, not an invitation. Off until the level asks for them.
+	_move = _make_indicator(&"MovePrompt",
+		[ControlsKeys.key_cap_for("move_left"), ControlsKeys.key_cap_for("move_right")], "MOVE")
+	add_child(_move)
+	_register(_move, false, 0.0, UISkin.MUTED)
+	_jump = _make_indicator(&"JumpPrompt", [ControlsKeys.key_cap_for("jump")], "JUMP")
+	add_child(_jump)
+	_register(_jump, false, 0.0, UISkin.MUTED)
+
 
 ## The authored DrawButton stays at CanvasLayer/DrawButton because mouse and regression
 ## tests address that stable path. This controller restyles and animates it in place.
@@ -157,6 +178,14 @@ func set_placement_active(active: bool) -> void:
 		if not active:
 			_states[prompt]["amount"] = 0.0
 			prompt.hide()
+	# ⚠ WALK AND JUMP STEP OUT TOO. They are laid out off R, which is hidden now, so they stood
+	# across ROTATE; and moved left of ROTATE and SCALE the row ran into the goal chip. While
+	# placing, the corner is the placement keys'; the reminders come back when it ends.
+	for reminder in [_move, _jump]:
+		_set_wanted(reminder, _movement_wanted and not active)
+		if active:
+			_states[reminder]["amount"] = 0.0
+			reminder.hide()
 	_place_bottom_actions()
 
 
@@ -228,6 +257,24 @@ func set_revert_available(available: bool) -> void:
 	_set_wanted(_revert, available)
 
 
+## Walk and jump, standing beside R for as long as the level wants them (LevelBase
+## `_shows_movement_keys`). They always do something, which is the test the old keybind strip
+## failed: it advertised verbs from the first frame that could do nothing.
+func show_movement_keys(shown: bool) -> void:
+	_movement_wanted = shown
+	_set_wanted(_move, shown and not _placing)
+	_set_wanted(_jump, shown and not _placing)
+
+
+func movement_keys_shown() -> bool:
+	return _wanted(_move) and _wanted(_jump)
+
+
+## What each reminder's caps read, for a probe: the live InputMap's, never typed here.
+func movement_key_caps() -> Dictionary:
+	return {"move": _caps_of(_move), "jump": _caps_of(_jump)}
+
+
 func pickup_is_available() -> bool:
 	return _wanted(_pickup)
 
@@ -268,7 +315,7 @@ func _process(delta: float) -> void:
 	_follow_player(delta)
 
 
-func _make_prompt(prompt_name: StringName, key: String, verb: String,
+static func _make_prompt(prompt_name: StringName, key: String, verb: String,
 		accent: Color, width: float) -> Button:
 	var button := Button.new()
 	button.name = prompt_name
@@ -276,7 +323,7 @@ func _make_prompt(prompt_name: StringName, key: String, verb: String,
 	return button
 
 
-func _style_prompt(button: Button, key: String, verb: String,
+static func _style_prompt(button: Button, key: String, verb: String,
 		accent: Color, width: float) -> void:
 	# ⚠ OUT OF THE TREE NOW, NOT AT THE END OF THE FRAME. A queued free leaves the old key cap
 	# standing until the frame is over, so a verb that changed twice before then -- USE, CUT,
@@ -302,10 +349,15 @@ func _style_prompt(button: Button, key: String, verb: String,
 	button.add_theme_stylebox_override(&"focus", StyleBoxEmpty.new())
 	button.add_theme_constant_override(&"outline_size", 0)
 
-	var badge := PanelContainer.new()
+	var badge := _key_badge(key, accent)
 	badge.name = "PromptKey"
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.position = Vector2(8.0, 7.0)
+	button.add_child(badge)
+
+
+static func _key_badge(key: String, accent: Color) -> PanelContainer:
+	var badge := PanelContainer.new()
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.add_theme_stylebox_override(&"panel", UISkin.action_key(accent))
 	var letter := Label.new()
 	letter.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -315,7 +367,62 @@ func _style_prompt(button: Button, key: String, verb: String,
 	letter.add_theme_constant_override(&"shadow_offset_x", 0)
 	letter.add_theme_constant_override(&"shadow_offset_y", 0)
 	badge.add_child(letter)
-	button.add_child(badge)
+	return badge
+
+
+## A reminder rather than a verb: one or more key caps and a word, built like the climb cap
+## (unclickable, no hover).
+func _make_indicator(prompt_name: StringName, keys: Array[String], verb: String) -> Button:
+	var button := make_key_chip(prompt_name, keys, verb, UISkin.MUTED)
+	button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	return button
+
+
+## One or more key caps and a word, in the HUD's key style, as wide as its caps make it. The
+## ring's left margin is what holds the caps, so it is widened by however many there are --
+## "Space" is five letters, and two caps side by side are two -- rather than letting the word
+## run under them. Static so the tutorial card's SKIP (TutorialSpotlight) is drawn the same way
+## as every other key on screen.
+static func make_key_chip(prompt_name: StringName, keys: Array[String], verb: String,
+		accent: Color) -> Button:
+	var button := _make_prompt(prompt_name, keys[0], verb, accent, 0.0)
+	for child in button.get_children():
+		if child.name == &"PromptKey":
+			button.remove_child(child)
+			child.queue_free()
+	var caps := HBoxContainer.new()
+	caps.name = "PromptKey"
+	caps.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caps.add_theme_constant_override(&"separation", 4)
+	caps.position = Vector2(8.0, 7.0)
+	var font := ThemeDB.get_project_theme().default_font
+	var caps_width := 0.0
+	for key in keys:
+		caps.add_child(_key_badge(key, accent))
+		var cap := UISkin.action_key(accent)
+		# Measured off the face rather than off the laid-out badge, which has no size until it is
+		# in the tree -- and the ring's margin has to be right on the first frame it is drawn.
+		caps_width += font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1.0,
+			UISkin.FONT_CAPTION).x + cap.content_margin_left + cap.content_margin_right + 2.0
+	caps_width += 4.0 * float(keys.size() - 1)
+	button.add_child(caps)
+	for state: String in ["normal", "hover", "pressed"]:
+		var ring := (button.get_theme_stylebox(StringName(state)) as StyleBoxFlat).duplicate() \
+			as StyleBoxFlat
+		ring.content_margin_left = maxf(ring.content_margin_left, 8.0 + ceilf(caps_width) + 10.0)
+		button.add_theme_stylebox_override(StringName(state), ring)
+	return button
+
+
+func _caps_of(button: Button) -> Array[String]:
+	var out: Array[String] = []
+	var holder := button.get_node_or_null(^"PromptKey") if button != null else null
+	if holder == null:
+		return out
+	for label in holder.find_children("*", "Label", true, false):
+		out.append((label as Label).text)
+	return out
 
 
 func _register(button: Button, shown: bool, pulse: float, accent: Color) -> void:
@@ -401,6 +508,19 @@ func _place_bottom_actions() -> void:
 	_revert.position = Vector2(
 		_draw.position.x - BOTTOM_GAP - _revert.size.x,
 		view.y - BOTTOM_MARGIN.y - _revert.size.y)
+	# ⚠ IN R'S ROW, TO THE LEFT OF Q'S PLACE -- NOT IN A ROW ABOVE R. Above it, the draw lesson's
+	# pointer (TutorialSpotlight, anchored on `draw_button`) came down straight through JUMP, and
+	# the lit hole round R took in the bottom of both. Q keeps its place beside R; walk and jump
+	# step aside as it comes in, on the same eased reveal it arrives on, so nothing jumps.
+	var q_room := (_revert.size.x + BOTTOM_GAP) * (1.0 - pow(1.0 - _amount(_revert), 3.0))
+	_jump.size = _jump.get_combined_minimum_size()
+	_jump.position = Vector2(
+		roundf(_draw.position.x - BOTTOM_GAP - q_room - _jump.size.x),
+		view.y - BOTTOM_MARGIN.y - _jump.size.y)
+	_move.size = _move.get_combined_minimum_size()
+	_move.position = Vector2(
+		_jump.position.x - BOTTOM_GAP - _move.size.x,
+		view.y - BOTTOM_MARGIN.y - _move.size.y)
 
 
 func _follow_player(delta: float) -> void:

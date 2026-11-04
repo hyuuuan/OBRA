@@ -53,6 +53,8 @@ const PATIENCE := 8.0
 signal lesson_taught(lesson_id: String)
 ## Emitted when a lesson is spent without being shown, because the player did it first.
 signal lesson_skipped(lesson_id: String)
+## Emitted when the player skips the rest of the tutorial, with how many lessons were left.
+signal tutorial_skipped(lessons_left: int)
 
 var _lessons: Array[Dictionary] = []
 ## lesson id -> "shown" or "skipped", once spent.
@@ -79,6 +81,8 @@ var _enabled := true
 ## because nothing is shown over anyone talking (_coast_is_clear).
 var _lead_speaker: Callable = Callable()
 var _led: Dictionary = {}
+## Which level's ledger is loaded, for the record a skip leaves.
+var _level_id := ""
 
 
 func _ready() -> void:
@@ -88,6 +92,7 @@ func _ready() -> void:
 
 
 func load_for(level_id: String) -> bool:
+	_level_id = level_id
 	_lessons.clear()
 	_by_event.clear()
 	_seen.clear()
@@ -130,6 +135,8 @@ func bind_spotlight(spotlight: TutorialSpotlight, finder: Callable, context: Cal
 	_in_context = context
 	if _spotlight != null and not _spotlight.finished.is_connected(_on_card_finished):
 		_spotlight.finished.connect(_on_card_finished)
+	if _spotlight != null and not _spotlight.skip_requested.is_connected(skip_rest):
+		_spotlight.skip_requested.connect(skip_rest)
 
 
 func bind_lead(speaker: Callable) -> void:
@@ -159,6 +166,31 @@ func set_enabled(on: bool) -> void:
 		_queue.clear()
 		if _spotlight != null and _spotlight.is_open():
 			_spotlight.finish("skipped")
+
+
+func is_enabled() -> bool:
+	return _enabled
+
+
+## SKIP TUTORIAL, from a card. Every lesson left in this level is spent unshown and nothing else
+## is taught here -- not this card's followers, not Lolo's tutorial lines on the hint bar. Cards
+## do not play on a return visit (LevelBase._play_opening), so in practice the level stays
+## skipped; the next level's lessons, which teach rules that level changes, still play.
+## Recorded locally, so a run finished without the tutorial can be told apart in the thesis data.
+func skip_rest() -> void:
+	if not _enabled:
+		return
+	var left := 0
+	for lesson in _lessons:
+		var id := String(lesson.get("id", ""))
+		if not _seen.has(id):
+			_seen[id] = "skipped"
+			left += 1
+	set_enabled(false)
+	var telemetry := get_node_or_null(^"/root/Telemetry")
+	if telemetry != null:
+		telemetry.call("record_event", "tutorial_skipped", {"level_id": _level_id, "lessons_left": left})
+	tutorial_skipped.emit(left)
 
 
 ## Spent: shown, or skipped because the player did it first.

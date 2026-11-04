@@ -1,5 +1,8 @@
 extends Node2D
-## The start of the game: Lolo and Lola's house, with the five paintings on the wall.
+## Lolo and Lola's house, with the five paintings on the wall: where the apo comes home to.
+##
+## NOT WHERE A NEW GAME STARTS. NEW GAME goes straight into Payyo, carrying the brush, and the
+## house is reached by finishing it (LevelManager.start_new_game). CONTINUE comes here.
 ##
 ## WHAT THIS REPLACES. Choosing a level was a grid of cards on the main menu. It is a room
 ## now -- you walk in as the apo, walk along the wall, and the level you pick is the picture

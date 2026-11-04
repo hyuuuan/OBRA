@@ -464,7 +464,7 @@ the drawing surface once it opens."
 | Top right | Morph card and brief action feedback | Current form and relevant action results |
 | Top centre | Level banner, which gains the current beat's name on arrival | Where you are, at two scales |
 | Bottom left | The six-slot toolbelt | What you HAVE |
-| Bottom right | R DRAW and Q CHANGE BACK; Z/X ROTATE and C/V SCALE replace Draw while placing | What you DO — and the mouse is already there |
+| Bottom right | R DRAW and Q CHANGE BACK, and in Payyo the MOVE and JUMP reminders to their left; Z/X ROTATE and C/V SCALE replace Draw (and the reminders) while placing | What you DO — and the mouse is already there |
 | Bottom centre | The goal chip | The journey, under the middle of the frame where the eye rests |
 | Beside the player | E, F and the climb cap | Verbs that exist only where they work |
 
@@ -473,6 +473,18 @@ readout used to sit in that corner. Moving R there put a tutorial callout -- whi
 ABOVE the draw button -- straight across it, so the first thing the game ever says about
 drawing was printed over the distance to the goal. If you put anything else in that corner,
 check it against `TutorialCallout` with a lesson anchored on `draw_button`.
+(The callout is `TutorialSpotlight` now; the rule stands. Its pointer comes down from ABOVE the
+lit control.)
+
+⚠ **MOVE and JUMP are reminders, and they stand in R's row, not above it.** Kent asked for the
+draw key to be "paired with the WASD buttons for like guidance as well as the jump", so a level
+can turn on `_shows_movement_keys` (Payyo does) and `ActionPromptHUD` puts `A D MOVE` and
+`Space JUMP` to the left of Q's place, caps read off the InputMap. They are indicators like the
+climb cap — `MUTED`, no pulse, not clickable — and they step aside on Q's own eased reveal when
+Q comes in. A row above R was tried first: the draw lesson's pointer came down straight through
+JUMP and its lit hole took in the bottom of both. With Q up the row reaches to about 25px of the
+goal chip at 1600; `run_action_prompt_probe` measures that gap, and so should anything that
+widens a chip in this row.
 
 ⚠ **The keybind strip is gone and the node is not.** `CanvasLayer/HintLabel` still exists in
 `game_level.tscn` and is hidden at build time; the live key caps replaced it. Do not revive

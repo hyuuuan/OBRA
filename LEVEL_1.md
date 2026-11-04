@@ -587,6 +587,35 @@ volume. And `LevelObstacle2D.story_sign_offset` puts the board at the water's ed
 on the leading edge of a volume that starts at the spawn. `hint_sign_offset` is the same
 lever for the hint board, and Node 2 uses it — see below.
 
+**Payyo is where a run starts (2026-11-04).** Kent: "when the game is played new game it should
+automatically start to the tutorial level rather than the lobby like Start>Level 1>lobby>Get
+paint>go to level 2". NEW GAME opens this level directly (`LevelManager.start_new_game`), with
+Lola's brush already carried — the opening's own line, "I picked up her brush, and the painting
+on the wall — it moved", is how she got it — and the house comes after, when her canvas takes her
+home. So the first thing a new player sees is this level's opening, and its order now is:
+
+1. the intro conversation;
+2. **Walk** (`move`), its lead and card;
+3. **Jump** (`jump`), on the bank before `B0_HAGDAN`: no delay, and a lead that does not
+   describe walls the bank does not have — the old one, "Mind the little walls between the
+   paddies", was said on flat ground, and its three-second wait meant a player who walked
+   straight on reached the stair's conversation first, and was taught to jump only after the
+   draw, the climb and the lantern, on Terrace 2;
+4. `B0_HAGDAN.enter`, then **Draw** at the wall.
+
+⚠ **The greeting is not said on a first visit** (`_greets_on_first_visit`). It came straight
+after the intro, at the spawn — "press R and draw", the first instruction in the game, with
+nothing in front of her to draw for — and the `draw` lesson's lead says the same thing at the
+wall. Return visits still hear it.
+
+⚠ **A `do` card gives way to a story line** (`TutorialSpotlight`, `talked_over`). A player who
+hesitates gets the Jump card on the bank and can walk into Ang Hagdan with it up; the stair's
+opening line was read through the card's dim. `run_opening_probe` walks it straight on;
+`run_tutorial_popup_probe` holds the card.
+
+**The keys stay on screen.** Payyo turns on `_shows_movement_keys`, so MOVE (A D) and JUMP
+(Space) stand in R's row, read off the InputMap, for the player who forgot — see HUD_SKIN.md.
+
 | Obstacle | Spans | What is in it |
 |---|---|---|
 | `B0_HAGDAN` | 700 – 1240 | the bank below Ang Hagdan, and the wall itself at 1180 |

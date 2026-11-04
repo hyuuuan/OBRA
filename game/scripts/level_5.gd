@@ -50,6 +50,16 @@ func _spawn_lolo() -> void:
 		lolo.set_thinness(0.25)
 
 
+## Who says the level's notes and hints. Lolo, while he climbs with her; the apo once he has gone,
+## as in Dilim. He goes mid-sentence, in a frame (_let_him_go), and a hint under his name after it
+## -- "There is no more ink for that one", the moment a player at an empty gauge draws below the
+## summit -- brought him back for a line.
+func _companion_speaker() -> String:
+	if lolo != null and is_instance_valid(lolo) and lolo.is_gone():
+		return APO_SPEAKER
+	return super()
+
+
 func _speaker_subject(speaker_id: String) -> Node2D:
 	if speaker_id == "lola":
 		return _lola()
@@ -768,6 +778,10 @@ func _tend_act_one(delta: float, her_x: float) -> void:
 const WHITE_SECONDS := 4.0
 ## How white: paper, not blank -- the ground she stands on stays.
 const WHITE := 0.85
+## Keep both people above the dialogue box while their saved places bloom above them.
+## Relative to the configured floor, so the crater journey and migrated layouts share the
+## incoming framing fix without reintroducing the old summit's world coordinates.
+const SUMMIT_EYE_HEIGHT := 80.0
 ## The brush refuses her this many times; the next, she lowers it herself.
 const REFUSALS := 2
 ## The beat after she lowers it, with nothing said over it.
@@ -820,8 +834,9 @@ func _tend_summit(delta: float, her_x: float) -> void:
 				var camera := _world_camera()
 				if camera != null:
 					camera.offset = Vector2.ZERO
-					camera.set_room_bounds(Rect2(_anchor("summit").x - 300, -680, 1800, 1000))
-					camera.vertical_pin_y = -180.0
+					var floor_y := _anchor("lola").y
+					camera.set_room_bounds(Rect2(_anchor("summit").x-300,floor_y-820,1800,1200))
+					camera.vertical_pin_y = floor_y-SUMMIT_EYE_HEIGHT
 				_whiten(WHITE, WHITE_SECONDS)
 				# And still at once: no ash left drifting over the white.
 				if _ash != null:
