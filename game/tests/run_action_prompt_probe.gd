@@ -2,7 +2,12 @@ extends SceneTree
 ## Isolated regression probe for the contextual action HUD:
 ##   godot --headless --path game --script res://tests/run_action_prompt_probe.gd
 
+## Every check this probe makes, so a crash part-way cannot print OK.
+const CHECKS := 39
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
+
 var failures: Array[String] = []
+var checked := 0
 var level: Node2D
 var prompts: ActionPromptHUD
 
@@ -103,7 +108,102 @@ func _run() -> void:
 				caps += 1
 	_check(caps == 1, "a verb changed three times in one frame wears one key cap (%d)" % caps)
 
+	prompts.set_use_available(false)
+	await _movement_keys()
 	_finish()
+
+
+## WALK AND JUMP STAND BESIDE R IN PAYYO. Kent: "the R at the button should also be paired with
+## the WASD buttons for like guidance as well as the jump".
+func _movement_keys() -> void:
+	# ⚠ NOTHING TALKING. Payyo's tutorial says its walk lead about now, and a line in the story
+	# box pauses the tree -- the row stops being laid out and every rect below goes stale.
+	level.get("tutorial").call("set_enabled", false)
+	call_group(TutorialSpotlight.GROUP, &"close")
+	(level.get("dialogue_box") as DialogueBox).hide_line()
+	await _physics_frames(30)
+	var move := prompts.find_child("MovePrompt", true, false) as Button
+	var jump := prompts.find_child("JumpPrompt", true, false) as Button
+	var draw := level.get_node("CanvasLayer/DrawButton") as Button
+	_check(prompts.movement_keys_shown() and move != null and move.visible and jump != null
+		and jump.visible, "walk and jump stand beside R in Payyo")
+	var caps: Dictionary = prompts.movement_key_caps()
+	var want_move: Array[String] = [ControlsKeys.key_cap_for("move_left"),
+		ControlsKeys.key_cap_for("move_right")]
+	_check(caps["move"] == want_move, "MOVE's caps are the InputMap's (%s)" % ", ".join(caps["move"]))
+	var want_jump: Array[String] = [ControlsKeys.key_cap_for("jump")]
+	_check(caps["jump"] == want_jump, "JUMP's cap is the InputMap's (%s)" % ", ".join(caps["jump"]))
+
+	# ⚠ READ OFF THE INPUTMAP, NOT TYPED. A cap that matched the default binding proves nothing,
+	# so jump is rebound to K and a fresh row has to say K.
+	var saved := InputMap.action_get_events(&"jump")
+	InputMap.action_erase_events(&"jump")
+	var rebound := InputEventKey.new()
+	rebound.physical_keycode = KEY_K
+	InputMap.action_add_event(&"jump", rebound)
+	var fresh := ActionPromptHUD.new()
+	root.add_child(fresh)
+	var fresh_caps: Array = fresh.movement_key_caps()["jump"]
+	_check(fresh_caps == ["K"], "a rebound jump key is what the cap says (%s)" % ", ".join(fresh_caps))
+	fresh.free()
+	InputMap.action_erase_events(&"jump")
+	for event in saved:
+		InputMap.action_add_event(&"jump", event)
+
+	var move_rect := move.get_global_rect()
+	var jump_rect := jump.get_global_rect()
+	var draw_rect := draw.get_global_rect()
+	# Within two pixels: R breathes (its pulse scales it about its centre) and the others do not.
+	_check(absf(move_rect.end.y - draw_rect.end.y) <= 2.0 and absf(jump_rect.end.y - draw_rect.end.y)
+		<= 2.0 and move_rect.end.x <= jump_rect.position.x
+		and jump_rect.end.x <= draw_rect.position.x + 2.0,
+		"in R's row, left of it, walk then jump (%s, %s, R %s)" % [move_rect, jump_rect, draw_rect])
+	_check(move.mouse_filter == Control.MOUSE_FILTER_IGNORE
+		and jump.mouse_filter == Control.MOUSE_FILTER_IGNORE, "and neither can be clicked")
+
+	# Q comes in between them and R, and they step aside rather than being stood on. The level is
+	# held still: its own refresh would take Q away again, the apo being herself.
+	level.set_physics_process(false)
+	prompts.set_revert_available(true)
+	await create_timer(0.6).timeout
+	var revert := prompts.find_child("ChangeBackPrompt", true, false) as Button
+	var row: Array[Rect2] = [move.get_global_rect(), jump.get_global_rect(),
+		revert.get_global_rect(), draw.get_global_rect()]
+	var in_order := true
+	for index in range(row.size() - 1):
+		in_order = in_order and row[index].end.x <= row[index + 1].position.x + 2.0
+	_check(prompts.revert_is_available() and revert.visible and in_order,
+		"Q comes in beside R and walk and jump step aside (%s)" % [row])
+	var goal := level.get("goal_label") as Control
+	var goal_panel := goal.get_parent() as Control if goal != null else null
+	var goal_rect := goal_panel.get_global_rect() if goal_panel != null else Rect2()
+	_check(goal_panel != null and goal_panel.is_visible_in_tree()
+		and row[0].position.x >= goal_rect.end.x,
+		"and MOVE stays clear of the goal readout (%s, goal %s)" % [row[0], goal_rect])
+	prompts.set_revert_available(false)
+
+	# PLACING: the rotate and scale keys take the corner, and walk and jump step out for them --
+	# laid out off R, they stood across ROTATE; moved left of it, they reached the goal chip.
+	prompts.set_placement_active(true)
+	await create_timer(0.4).timeout
+	var rotate := prompts.find_child("RotatePlacementPrompt", true, false) as Button
+	_check(rotate != null and rotate.visible and not move.visible and not jump.visible,
+		"while placing, walk and jump step out for the rotate and scale keys")
+	prompts.set_placement_active(false)
+	await create_timer(0.4).timeout
+	_check(move.visible and jump.visible and prompts.movement_keys_shown(),
+		"and come back when the placement ends")
+	level.set_physics_process(true)
+
+	# The other four do not ask for them.
+	var asked: Array[String] = []
+	for number in [2, 3, 4, 5]:
+		var other: Node = (load("res://scripts/level_%d.gd" % number) as GDScript).new()
+		if bool(other.call("_shows_movement_keys")):
+			asked.append("level_%d" % number)
+		other.free()
+	_check(asked.is_empty(), "and no other level shows them (%s)"
+		% ("none" if asked.is_empty() else ", ".join(asked)))
 
 
 func _placement_replaces_draw(draw: Button) -> void:
@@ -214,6 +314,7 @@ func _physics_frames(count: int) -> void:
 
 
 func _check(condition: bool, label: String) -> void:
+	checked += 1
 	print("  %s  %s" % ["OK" if condition else "FAIL", label])
 	if not condition:
 		failures.append(label)
@@ -222,6 +323,9 @@ func _check(condition: bool, label: String) -> void:
 func _finish() -> void:
 	if level != null and is_instance_valid(level):
 		level.free()
+	if checked != CHECKS:
+		failures.append("ran %d of %d checks" % [checked, CHECKS])
+		print("  FAIL  ran %d of %d checks -- something stopped the probe part-way" % [checked, CHECKS])
 	if failures.is_empty():
 		print("OBRA_ACTION_PROMPT_PROBE_OK")
 		quit(0)

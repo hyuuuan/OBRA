@@ -154,6 +154,13 @@ resolved by `_tutorial_target`; an unknown one push_errors, because **an anchor 
 nothing resolves to an empty rect exactly like a hidden one** and a typo would otherwise
 cost the pointing in silence. An unbuildable callout does **not** spend its lesson.
 
+⚠ **A `do` CARD GIVES WAY TO A STORY LINE, AND PAYYO TEACHES JUMP ON THE BANK.** The world runs
+under a `do` card, so the apo could walk into Ang Hagdan with the Jump card up and read the
+stair's opening line through its dim; `TutorialSpotlight` now finishes such a card
+(`talked_over`) the moment a line begins. Jump has no delay, so a player who walks straight on
+is taught it before `B0_HAGDAN`, and Payyo's first visit drops the "press R and draw" greeting
+(`_greets_on_first_visit`) -- the draw lesson says it at the wall. LEVEL_1.md has the order.
+
 ⚠ **`CanvasBriefing` IS THE ONE PLACE THE TUTORIAL MAY STOP THE WORLD**, and it does not
 contradict `TutorialDirector`'s rule against dialogue boxes. That rule is about cost, and
 the panel is already a modal — the world is stopped and the player asked to be shown this
@@ -722,6 +729,12 @@ fitting its page, and being given by some level's script.
   Hall UI fades in screen space; incoming UI fades in only afterward. `PlayerProfile.hall_position_x` remembers
   the hall's player position across visits and sessions; New Game clears it. A CanvasLayer
   marked `transition_world` is scenery (Mayon's ending room), so it stays in the captured world.
+- **NEW GAME starts in Payyo, not the house** (Kent: "Start>Level 1>lobby>Get paint>go to level
+  2"). `LevelManager.start_new_game()` grants Lola's brush and opens the first catalog level;
+  CONTINUE opens the house. ⚠ The brush is granted because `open_level` refuses without it and the
+  house's stand was the only other place to take it; Payyo's opening already says she picked it up
+  before the painting pulled her in. The stand still holds it for a save that never took it.
+  `run_new_game_probe` presses the menu's own buttons through to Piyesta.
 - Autoloads are `LevelManager`, `PlayerProfile`, `AbilityTags`, `Telemetry`,
   `AudioDirector`. Scripts
   that a tool might precompile should resolve them through the tree
@@ -939,6 +952,7 @@ fitting its page, and being given by some level's script.
 - Who stops the server: `godot --headless --path game --script res://tests/run_backend_ownership_probe.gd`
 - A real drawing through the real model (needs a window): `godot --path game --script res://tests/run_real_drawing_probe.gd`
 - The whole run, title to ending: `godot --headless --path game --script res://tests/run_journey_probe.gd`
+- New Game into Payyo, home, then Piyesta: `godot --headless --path game --script res://tests/run_new_game_probe.gd`
 - **Import after any fetch that changes art:** `godot --headless --path game --import`
   — `.godot/` is gitignored, and without it no `class_name` resolves. A game launched
   normally fixes this itself (ImportGuard imports and restarts), but a `--script` test run

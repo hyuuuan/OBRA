@@ -190,6 +190,12 @@ func _ink_always_visible() -> bool:
 	return false
 
 
+## Whether walk and jump stand beside R as key reminders (ActionPromptHUD.show_movement_keys).
+## Payyo's, the level that teaches them. Off everywhere else.
+func _shows_movement_keys() -> bool:
+	return false
+
+
 ## Whether the level ends with its own scene rather than the completion card -- and, for the
 ## level the run ends on, rather than the ending screen. True: the finish is recorded as ever and
 ## then _play_own_ending() has everything after it, including where the player goes next.
@@ -3587,6 +3593,7 @@ func _build_action_prompts() -> void:
 	action_prompts.name = "ActionPrompts"
 	$CanvasLayer.add_child(action_prompts)
 	action_prompts.bind_draw_button(draw_button)
+	action_prompts.show_movement_keys(_shows_movement_keys())
 	action_prompts.interact_requested.connect(func() -> void: _interact_with_nearest_utility())
 	action_prompts.use_requested.connect(_use_equipped_utility)
 	action_prompts.revert_requested.connect(_revert_to_base_form)
@@ -4449,6 +4456,8 @@ func _lolo_says(key: String, seconds: float = 0.0) -> void:
 ## belongs: no pause, no key, and it clears itself when the stair beat arrives. It is also
 ## the out-of-voice line the old dialogue.json still carries, which is a second reason not
 ## to give it the framed box that Payyo's own script is written for.
+## (Since then the `draw` lesson's lead says what the game is, at Ang Hagdan, so a first visit
+## to Payyo no longer hears this at all -- `_greets_on_first_visit`. Return visits do.)
 ## The full bag screen, and its place in the queue of things Escape backs out of.
 ##
 ## THE CHAIN IS DATA, NOT NODE ORDER (see UIRouter), and it is authored in game_level.tscn --
@@ -4618,7 +4627,16 @@ func _play_opening() -> void:
 		steps.append_array(_pick_return_conversation(level_id, visits, "fact"))
 	if not steps.is_empty():
 		await _run_conversation(steps)
+	if first_time and not _greets_on_first_visit():
+		return
 	_greet()
+
+
+## Whether the level's `greeting` hint follows the opening on a FIRST visit, as it follows every
+## return. Off in Payyo, whose greeting is "press R and draw" and whose first visit teaches that
+## at Ang Hagdan's wall, where there is something to draw for. On everywhere else.
+func _greets_on_first_visit() -> bool:
+	return true
 
 
 ## What a tutorial card's `lead` is said through: the story box, as Lolo, with the camera on
