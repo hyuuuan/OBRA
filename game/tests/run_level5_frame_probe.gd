@@ -8,7 +8,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_frame_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 7
+const CHECKS := 8
 const HUB := "res://levels/hub/hub.tscn"
 ## What is said in the house, and by whom, in order -- Kent's own words, near enough.
 const LINES := [
@@ -38,6 +38,8 @@ func _run() -> void:
 	profile.call("mark_level_completed", "level_5")
 	await _the_first_time_lola_mistakes_her_for_him(profile)
 	await _after_that_she_is_at_her_easel(profile)
+	profile.call("reset_progress")
+	await _lola_waits_for_the_way_home(profile)
 	profile.call("reset_progress")
 	if failures == 0 and checked == CHECKS:
 		print("OBRA_LEVEL5_FRAME_OK")
@@ -133,6 +135,41 @@ func _after_that_she_is_at_her_easel(_profile: Node) -> void:
 		"said %d, at the easel %s, turned %s, %d paintings" % [epilogue.said.size(), at_easel,
 			lola.is_turned(), lolo])
 	hub.queue_free()
+	await _frames(4)
+
+
+## THE WAY HOME, AS A PLAYER TAKES IT. Mayon shrinks back into its frame (LevelManager
+## _return_to_painting) while the house is built under it, with the interface held invisible until
+## that has played. Every check above opens the house directly, with no transition at all; this
+## one goes home the real way and asks whether Lola's first line waited for the house to be seen.
+func _lola_waits_for_the_way_home(profile: Node) -> void:
+	var manager := root.get_node("LevelManager")
+	var level := await _open_level()
+	current_scene = level
+	manager.set("current_level_id", "level_5")
+	profile.call("mark_level_completed", "level_5")
+	var went := bool(manager.call("return_to_house"))
+	var spoke_unseen := false
+	var spoke_after := false
+	var until := Time.get_ticks_msec() + 6000
+	while Time.get_ticks_msec() < until and not spoke_after:
+		await process_frame
+		var hub := current_scene
+		var epilogue: HouseEpilogue = hub.call("epilogue") \
+			if hub != null and hub != level and hub.has_method("epilogue") else null
+		if epilogue == null or epilogue.said.is_empty():
+			continue
+		if bool(manager.call("is_transitioning")):
+			spoke_unseen = true
+		else:
+			spoke_after = true
+	_check(went and spoke_after and not spoke_unseen,
+		"going home the real way, Lola's first line waits until the house can be seen",
+		"went %s, spoke during the way home %s, spoke after it %s" % [went, spoke_unseen, spoke_after])
+	call_group(DialogueBox.GROUP, &"hide_line")
+	await _frames(4)
+	if current_scene != null:
+		current_scene.queue_free()
 	await _frames(4)
 
 

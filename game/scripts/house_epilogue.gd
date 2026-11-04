@@ -116,6 +116,13 @@ func play() -> void:
 	# frame to place itself is stopped looking at the corner of the world.
 	await get_tree().process_frame
 	await get_tree().process_frame
+	# ⚠ NOR UNDER THE WAY HOME. The house is built while Mayon is still shrinking back into its
+	# frame, and the interface is held invisible until that has played (PaintingTransition
+	# hold_interface): a line started now was typed out where nobody could see it and came up
+	# already finished -- Lola's first words, which the player's next key then skipped.
+	var manager := get_node_or_null(^"/root/LevelManager")
+	if manager != null and bool(manager.call(&"is_transitioning")):
+		await manager.transition_finished
 	# The two of them in the frame together while they talk.
 	var apo := _hub.get_node_or_null(^"Apo") as Node2D
 	if apo != null:
