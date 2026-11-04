@@ -67,6 +67,7 @@ func _run() -> void:
 	_audit_the_ledger_matches_the_level()
 	await _audit_one_card_at_a_time()
 	await _audit_nothing_over_a_conversation()
+	await _audit_a_do_card_gives_way_to_a_story_line()
 	await _audit_a_player_who_already_did_it_is_not_told()
 	await _audit_a_do_card_ends_in_what_it_taught()
 	await _audit_a_look_card_stops_the_world()
@@ -181,6 +182,33 @@ func _audit_nothing_over_a_conversation() -> void:
 	await _wait(0.3)
 	_check(spot.lesson_id() == "checkpoint", "and it is shown once the menu closes",
 		"up '%s'" % spot.lesson_id())
+
+
+## AND NO CONVERSATION UNDER A CARD. A `do` card keeps the world running, so the apo can walk
+## into a beat with one still up -- Payyo's Jump card into Ang Hagdan's first line -- and the
+## story box, five layers down, was read through the card's dim for the whole conversation. The
+## card gives way the moment a line begins.
+func _audit_a_do_card_gives_way_to_a_story_line() -> void:
+	await _fresh()
+	_auto(false)
+	var result := {"how": ""}
+	var on_finished := func(_id: String, why: String) -> void:
+		result["how"] = why
+	spot.finished.connect(on_finished)
+	_show("jump")
+	await _wait(0.5)
+	var was_up := spot.is_open() and spot.lesson_id() == "jump" and spot.lesson_mode() == "do"
+	var box := level.get("dialogue_box") as DialogueBox
+	box.speak([{"text": "Her stair is just ahead.", "speaker": "lolo"}])
+	await _wait(0.6)
+	_check(was_up and result["how"] == "talked_over" and not spot.is_open() and box.is_open(),
+		"a do card gives way when a story line begins",
+		"card was up %s, went '%s', still up %s, line up %s"
+			% [was_up, result["how"], spot.is_open(), box.is_open()])
+	spot.finished.disconnect(on_finished)
+	box.hide_line()
+	_auto(true)
+	await _wait(0.3)
 
 
 ## NOT WHAT THEY ALREADY DID. Walking waits two seconds; a player who walks in that time is
