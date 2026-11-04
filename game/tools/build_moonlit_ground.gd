@@ -36,6 +36,15 @@ func _initialize() -> void:
 		push_error("Moonlit kit: could not save ground")
 		quit(1)
 		return
+	# Shallow floating shelves: keep native pixel size, using a shorter moss lip and one
+	# stone course from the same ground. Do not squeeze the whole cliff into a thin block.
+	var shelf := Image.create(face.get_width(), 32, false, Image.FORMAT_RGBA8)
+	shelf.blit_rect(face, Rect2i(0, 0, face.get_width(), 16), Vector2i.ZERO)
+	shelf.blit_rect(face, Rect2i(0, 80, face.get_width(), 16), Vector2i(0, 16))
+	if shelf.save_png(DEST + "platform.png") != OK:
+		push_error("Moonlit kit: could not save platform")
+		quit(1)
+		return
 	var plants: Array[Image] = []
 	var vines: Array[Image] = []
 	for entry: Dictionary in SPRITES:

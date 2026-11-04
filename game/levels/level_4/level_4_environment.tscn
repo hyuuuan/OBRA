@@ -25,6 +25,7 @@
 [ext_resource type="Script" path="res://scripts/dead_tree_2d.gd" id="22_tree"]
 [ext_resource type="Script" path="res://scripts/cliff_dressing_2d.gd" id="23_cliff"]
 [ext_resource type="Script" path="res://scripts/moonlit_foliage_2d.gd" id="24_foliage"]
+[ext_resource type="Texture2D" path="res://assets/Level4/ground_moonlit/platform.png" id="25_platform"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -150,8 +151,11 @@ platforms = Array[Rect2]([Rect2(8230, 560, 70, 40)])
 body = "stone"
 
 [node name="Fork" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+z_index = -3
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(8650, 520, 220, 18), Rect2(8950, 450, 260, 18), Rect2(9300, 470, 260, 18)])
+branch_texture = ExtResource("25_platform")
+tint = Color(1, 1, 1, 1)
 
 ; THE PATH OVER THE TIYANAK'S DROP (Kent's design: "stay on the path and do not approach"). Logs
 ; she steps up onto -- 70 then 65 px, each a jump -- and walks along over the drop, down again past

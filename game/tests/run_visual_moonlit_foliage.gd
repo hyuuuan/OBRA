@@ -1,7 +1,7 @@
 extends "res://tests/run_visual_dilim_creatures.gd"
 ## Windowed review of intact foliage and clear encounter art.
 ## open -n -a Godot --args --path game --script res://tests/run_visual_moonlit_foliage.gd
-## Writes /tmp/obra_moonlit_<foliage|nuno|aswang>.png; exits on an invalid capture premise.
+## Writes /tmp/obra_moonlit_<foliage|nuno|fork|aswang>.png; exits on an invalid capture premise.
 
 
 func _run() -> void:
@@ -27,6 +27,9 @@ func _run() -> void:
 	await _put_her(3310)
 	await _frames(50)
 	(await _capture()).save_png("/tmp/obra_moonlit_nuno.png")
+	await _put_her(8750)
+	await _frames(50)
+	(await _capture()).save_png("/tmp/obra_moonlit_fork.png")
 	await _put_her(21750)
 	var crawler := _send("aswang_pig", Vector2(125, 0))
 	var lady := _send("aswang_dog", Vector2(-130, 0))

@@ -18,6 +18,9 @@ Runtime ground: `game/assets/Level4/ground_moonlit/`.
 - `ground_tileset.tres`: 19 × 7 atlas of 64 × 64 cells. The top row forms a repeating sequence;
   its tiles are not interchangeable random variants.
 - `kit.json`: the moss lip and underground repeat, with zero plants or vines.
+- `platform.png`: a shallow 32 px shelf using the ground's first 16 px of moss and a
+  16 px stone course from row 80. Native pixels are cropped rather than compressed.
+  The tikbalang Fork uses this visual over its existing one-way collision.
 
 Separate foliage: `game/assets/Level4/foliage_moonlit/`.
 
