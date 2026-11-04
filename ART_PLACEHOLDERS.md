@@ -465,6 +465,8 @@ pixel-art gusts, four frames each. The logical atlas is
 `game/assets/Level5/weather/wind_streaks.png`; the full generation/revision prompts and
 replacement registration are in the authored README and `wind_streaks.prompts.json`.
 These are generated provisional sprites, with no glow or softened pixel edges.
+A drawn fan's wind (`FanWind2D`, every level) reuses this same sheet, so replacing it
+replaces both.
 
 Mayon upper-slope dressing (1 November): `LEVEL5_Mayon/authored/upper_ruins.png` adds six
 generated pixel-art props: broken wall, pillar, fallen masonry, boulder, loose rubble and
