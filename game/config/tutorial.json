@@ -496,6 +496,7 @@
         {
           "id": "no_more_ink",
           "at": "ink_spent",
+          "delay": 1.0,
           "mode": "look",
           "visual": "ink",
           "context": "world",
