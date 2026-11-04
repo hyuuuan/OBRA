@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 27
+const CHECKS := 30
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -45,6 +45,7 @@ func _run() -> void:
 	await _one_falls_and_another_comes()
 	await _never_more_than_two()
 	await _ash_and_salt_reach_the_night()
+	await _dawn_brightens_from_halfway()
 	await _a_knockout_starts_the_night_over()
 	await _the_waves_come_on_time()
 	await _a_sun_hurries_the_morning()
@@ -162,6 +163,31 @@ func _ash_and_salt_reach_the_night() -> void:
 	_check(foes[1].is_burning(), "and salt on one burns it", "burning %s" % foes[1].is_burning())
 
 
+func _dawn_brightens_from_halfway() -> void:
+	var dark := level.get("darkness_layer") as DarknessLayer
+	var band := level.get_node("EnvironmentBaseplate/ForestBand")
+	var art := band.get_child(0) as Sprite2D
+	finale.elapsed = 44.5
+	await _frames(2)
+	var night := dark.darkness
+	finale.elapsed = 45.0
+	await _frames(2)
+	_check(absf(finale.progress() - 0.5) < 0.002 and dark.darkness > 0.94,
+		"the 90 s night stays dark until its 45 s midpoint", "progress %.3f, dark %.3f" % [finale.progress(), dark.darkness])
+	finale.elapsed = 67.5
+	await _frames(3)
+	_check(absf(dark.darkness - night * 0.5) < 0.025
+		and art.modulate.r > 0.6 and art.modulate.r < 0.75,
+		"the second half gradually lifts darkness and the backdrop's night grade",
+		"dark %.3f of %.3f, backdrop %s" % [dark.darkness, night, art.modulate])
+	finale.elapsed = 89.5
+	await _frames(2)
+	_check(finale.is_running() and not finale.has_dawned() and dark.darkness < 0.002
+		and art.modulate.r > 0.99,
+		"the scene is already fully visible as the clock approaches 90 s",
+		"dark %.4f, backdrop %s" % [dark.darkness, art.modulate])
+
+
 func _a_knockout_starts_the_night_over() -> void:
 	var before := finale.elapsed
 	level.call("_knockout")
@@ -169,14 +195,17 @@ func _a_knockout_starts_the_night_over() -> void:
 	_grace()
 	await _seconds(0.5)
 	_check(before > 5.0 and finale.is_running() and finale.elapsed < 1.0
-			and finale.alive().size() == DilimFinale2D.WAVE_SIZE,
+			and finale.alive().size() == DilimFinale2D.WAVE_SIZE
+			and (level.get("darkness_layer") as DarknessLayer).darkness > 0.9
+			and (level.get_node("EnvironmentBaseplate/ForestBand").get_child(0) as Sprite2D).modulate
+				== level.get_node("EnvironmentBaseplate/ForestBand").tint,
 		"a knockout starts the night over", "%.1f s in, then %.1f s, %d alive"
 			% [before, finale.elapsed, finale.alive().size()])
 
 
-## The design's 45 s and 100 s, not the script's table, each to within half a second.
+## The shortened night's 27 s and 60 s, not the script's table, within half a second.
 func _the_waves_come_on_time() -> void:
-	finale.elapsed = 44.5
+	finale.elapsed = 26.5
 	await _frames(2)
 	var before_second := finale.current_wave()
 	await _seconds(1.0)
@@ -189,7 +218,7 @@ func _the_waves_come_on_time() -> void:
 	for foe in finale.alive():
 		if foe is FlyingEnemy2D:
 			fliers.append(foe)
-	finale.elapsed = 99.5
+	finale.elapsed = 59.5
 	await _frames(2)
 	var before_third := finale.current_wave()
 	await _seconds(1.0)
@@ -199,7 +228,7 @@ func _the_waves_come_on_time() -> void:
 		"and as each later wave comes she says what it is, on the hint bar and not the story box",
 		"\"%s\" / \"%s\", box open %s" % [said_second, said_third, boxed])
 	_check(before_second == 0 and second == 1 and before_third == 1 and finale.current_wave() == 2,
-		"the second wave comes at 45 s, the third at 100 s", "%d then %d, %d then %d"
+		"the second wave comes at 27 s, the third at 60 s", "%d then %d, %d then %d"
 			% [before_second, second, before_third, finale.current_wave()])
 	var kinds := []
 	var drive_off := 0
@@ -324,7 +353,7 @@ func _morning_ends_it() -> void:
 		set_meta(&"dawn_line", String(box.call("current_line"))))
 	# Lines left up for the dawn's to be read: the probe otherwise dismisses each as it comes.
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
-	finale.elapsed = DilimFinale2D.DAWN_SECONDS - 0.5
+	finale.elapsed = 89.5
 	await _seconds(0.8)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _seconds(DilimFinale2D.FLEE_FADE + 0.4)

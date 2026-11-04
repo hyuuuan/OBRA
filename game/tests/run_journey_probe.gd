@@ -3,8 +3,8 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_journey_probe.gd
 ##
 ## Every other suite opens one scene and stays in it. Nothing followed a player from the title
-## screen through the scene changes that make up a run -- PLAY into the house, the brush off its
-## stand, a painting into Payyo, her canvas home to the house where Piyesta's frame is unlocked in
+## screen through the scene changes that make up a run -- NEW GAME straight into Payyo with the
+## brush in her hand, her canvas home to the house where Piyesta's frame is unlocked in
 ## front of her, Piyesta's painting into Piyesta, the painting's last
 ## piece back to the house, Dagat's painting, the island back to the house, Dilim's painting,
 ## and Dilim's dawn into the ending -- and those
@@ -38,8 +38,7 @@ func _run() -> void:
 	var manager := root.get_node("LevelManager")
 	manager.set("transition_step_seconds", 0.0)
 
-	await _title_to_house(manager)
-	await _brush_and_payyo(manager)
+	await _new_game_to_payyo(manager)
 	await _restart_payyo_from_pause(manager)
 	await _payyo_to_piyesta(manager, profile)
 	await _piyesta_to_house(manager, profile)
@@ -100,61 +99,23 @@ func _arrived(manager: Node, expected: String, what: String) -> void:
 		"clear")
 
 
-func _title_to_house(manager: Node) -> void:
+## NEW GAME, on a fresh save, opens Payyo itself -- not the house. Kent: "Start>Level 1>lobby>Get
+## paint>go to level 2". The house comes after Payyo, and the brush the door asks for comes with
+## her (LevelManager.start_new_game); the stand that hands it over is run_hub_audit's.
+func _new_game_to_payyo(manager: Node) -> void:
 	change_scene_to_file("res://ui/main_menu.tscn")
 	await _settle(manager)
 	var menu := current_scene
 	_check(menu != null and menu.get("play_button") != null, "the title screen comes up", _scene_name())
-	(menu.get("play_button") as Button).pressed.emit()
-	await _wait_for_scene(manager, "hub.tscn")
-	await _arrived(manager, "hub.tscn", "PLAY")
-
-
-func _brush_and_payyo(manager: Node) -> void:
-	var hub := current_scene
-	var stand := hub.get("_stand") as Node2D
-	var apo := hub.get("_player") as Node2D
-	_check(stand != null and apo != null, "the house has a stand and an apo", "-")
-	if stand == null or apo == null:
-		return
-	# A painting refuses without the brush, and says so.
-	var paintings := get_nodes_in_group(&"paintings")
-	var payyo: Node2D = null
-	for node in paintings:
-		if String(node.get("level_id")) == "level_1":
-			payyo = node as Node2D
-	hub.call("_on_painting_chosen", "level_1")
-	await _settle(manager, 5)
-	_check(_scene_name() == "hub.tscn", "Payyo will not open without the brush", _scene_name())
-
-	apo.global_position = Vector2(stand.global_position.x, apo.global_position.y)
-	for _i in range(20):
-		await process_frame
-	_press(&"interact")
-	for _i in range(40):
-		await process_frame
-	_check(bool(root.get_node("PlayerProfile").call("has_brush")), "E at the stand takes the brush",
-		"carried")
-	# The card that says so takes the next key, whatever it is -- including an E pressed at a
-	# painting -- so the walk waits for it the way the player's does: the stand is at the far end
-	# of the hall and the card has gone by the time anyone reaches a picture.
-	var card := hub.get_node_or_null(^"AcquiredOverlay")
-	for _i in range(600):
-		if card == null or not bool(card.call("is_busy")):
-			break
-		await process_frame
-	_check(card == null or not bool(card.call("is_busy")), "and the card for it goes by itself",
-		"gone")
-
-	if payyo != null:
-		apo.global_position = Vector2(payyo.global_position.x, apo.global_position.y)
-	for _i in range(20):
-		await process_frame
-	_press(&"interact")
+	var play := menu.get("play_button") as Button
+	_check(play.text == "NEW GAME", "and a fresh save offers NEW GAME", play.text)
+	play.pressed.emit()
 	await _wait_for_scene(manager, "game_level.tscn")
-	await _arrived(manager, "game_level.tscn", "E at Payyo's painting")
+	await _arrived(manager, "game_level.tscn", "NEW GAME")
 	_check(String(manager.get("current_level_id")) == "level_1", "and the run knows it is in Payyo",
 		String(manager.get("current_level_id")))
+	_check(bool(root.get_node("PlayerProfile").call("has_brush")), "with Lola's brush in her hand",
+		"carried")
 	var level := current_scene
 	var badge := level.get("level_badge") as Label
 	_check(badge != null and badge.text.contains("PAYYO"), "and the badge says so",

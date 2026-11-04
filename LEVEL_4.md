@@ -223,8 +223,13 @@ What the build does that the design above does not say, and what it does not do 
   surprise hit. Later attacks keep their normal windup. The high path never triggers the
   ambush, a light exposes it and sends it away, and a checkpoint restore resets the disguise.
   A fight leaves no drops, as before.
-- **The finale's numbers.** The night is 150 s: waves at 0 / 45 / 100 s, dawn at 150. A drawn sun
-  brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8 in its wave.
+- **The finale's numbers (updated 2026-11-04).** The night is 90 s: waves at 0 / 27 / 60 s,
+  dawn at 90. The first 45 s stay dark; from halfway the darkness and background night tint
+  gradually lift together, reaching a fully visible, warm morning at the end. Retries restore
+  the night look. Morning is held for 2 s after her closing line before leaving the level.
+  A drawn sun still brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8.
+  `run_visual_level4_dawn.gd` samples the real lighting controller at 0 / 60 / 75 / 90 s;
+  the reviewed contact sheet is `docs/screenshots/dilim_dawn_progression.png`.
 - **The dead tree** is the woods' own, drawn in the balete's bark (Level 1's was standing in). It
   stands at the clearing's middle and falls east into a 64-px log that shuts the east side; a felled tree stays down through a knockout, so a retried night starts with it shut.
 - **The tik-tik** is shown by ash for the dust's 6 s and blinded for 1.5 s; inside 220 px of her

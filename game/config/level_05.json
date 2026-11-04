@@ -219,7 +219,7 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/bandaritas.png",
       "bloom_width": 1000,
-      "bloom_elevation": -380
+      "bloom_elevation": 25
     },
     {
       "id": "dancers",
@@ -246,7 +246,7 @@
       "holds_lolo": true,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/church.png",
-      "bloom_width": 500,
+      "bloom_width": 390,
       "bloom_elevation": 0
     },
     {
@@ -261,7 +261,7 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/storm.png",
       "bloom_width": 1300,
-      "bloom_elevation": -420
+      "bloom_elevation": 54
     },
     {
       "id": "bangka",
@@ -306,7 +306,7 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/bakunawa.png",
       "bloom_width": 1000,
-      "bloom_elevation": -140
+      "bloom_elevation": -34
     },
     {
       "id": "forest",
@@ -319,7 +319,7 @@
       "holds_lolo": false,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/forest.png",
-      "bloom_width": 1250,
+      "bloom_width": 1070,
       "bloom_elevation": 0,
       "bloom_tint": [
         0.42,

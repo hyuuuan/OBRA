@@ -203,7 +203,9 @@ reward's durable obstacle record prevents repeated Artist tally credit after a f
 ### What the ending actually does
 
 `DrawPanel` has normal, quiet-refusal, and free-paint modes. The two latter modes hide the frame,
-buttons, reference, and gauge, take a real stroke, and complete after the hand rests. Empty pages
+buttons, reference, and gauge, take a real stroke, and complete after the hand rests. They keep
+the page's lens, faint (`QUIET_DIM`), and it lifts with her lines (Kent, 5 November): with
+nothing on screen at all, a page that opened by itself read as the game hanging. Empty pages
 and cancellation never count. Free paint returns the vectors through its own signal rather than
 pretending to be another refusal. Both modes bypass live and submitted recognition entirely.
 
@@ -276,7 +278,12 @@ rectangular pictures. Each memory owns its width, elevation and optional tint in
 **`Motion.fade_in` calls `_show`, which resets Node2D scale to one.** A landscape's measured scale
 must be reapplied after that call; otherwise the church and terraces expand to their full source
 pixel dimensions and engulf the pair. The ending probe now measures the rendered widths. Summit
-narration keeps the wide composition, and the ordinary room fits pictures into its canvas while
+narration keeps the landscape's scale but not its old eye line (Kent, 5 November): the summit is
+framed at y -500 (`SUMMIT_EYE_Y`), so the pair stand above the dialogue box instead of behind
+it, and every place is sized to fit the frame above them (church 390 wide, forest 1070; the
+storm, flags and bakunawa set lower). `run_level5_endings_probe` blooms all twelve and checks
+both. In the house the eye drops 82 while Lola talks (`HouseEpilogue.EYE_DROP`), onto boards
+`HubRoom` draws past the ordinary frame (`floor_run_on`); `run_level5_frame_probe` checks it. The ordinary room fits pictures into its canvas while
 preserving their aspect ratios. Sources, exact generation prompts and replacement contracts are
 in the authored README. All newly generated landscape and prop art remains explicitly subject
 to art-direction review; the runtime contains the assets now.
@@ -338,6 +345,13 @@ used for this finishing pass; generated/provisional artwork remains listed
 in the authored README and `ART_PLACEHOLDERS.md`.
 
 ### Painted colours
+
+**Lola's supplied board (5 November 2026).** The latest user sheet replaces Lola at
+the summit and in the house, including the large dialogue portrait and walking cycle.
+Her world height is 108px. Both six-frame painting loops and all six idle variations
+play with planted feet and longer rests; Reduce Motion holds a resting pose. Story
+turns and the flower handoff take precedence. Source, transparency/bouquet adaptation
+prompt and rebuild contract are in `LEVEL5_Mayon/authored/README.md`.
 
 Until November 2026, `drain.gdshader` sampled the texture that Godot 4's `COLOR` already carries,
 squaring every colour. Whatever wore the drain therefore drew darker than painted from the start:

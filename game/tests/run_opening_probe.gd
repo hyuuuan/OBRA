@@ -12,7 +12,15 @@ extends SceneTree
 ## lines go through the dialogue box and the questions through the choice overlay, and this
 ## answers them the way a player would.
 
+## Every check this probe makes, so a crash part-way cannot print OK.
+const CHECKS := 23
+
 var failures := 0
+var checked := 0
+## The level whose hint bar is being listened to, and every sentence it has shown since.
+var _watched: Node2D
+var _hints_heard: Array[String] = []
+var _last_hint := ""
 
 
 func _initialize() -> void:
@@ -20,6 +28,7 @@ func _initialize() -> void:
 
 
 func _check(ok: bool, what: String, detail: String) -> void:
+	checked += 1
 	if not ok:
 		failures += 1
 	print("  %s  %-58s %s" % ["OK  " if ok else "FAIL", what, detail])
@@ -36,6 +45,62 @@ func _level() -> Node2D:
 	level.set("intro_enabled", true)
 	root.add_child(level)
 	return level
+
+
+## The hint bar goes up and comes down between frames this probe never stops on -- it stands
+## down under a story line -- so it is listened to every frame rather than looked at once.
+func _watch_the_bar(level: Node2D) -> void:
+	_watched = level
+	_hints_heard.clear()
+	_last_hint = ""
+	if not process_frame.is_connected(_note_the_bar):
+		process_frame.connect(_note_the_bar)
+
+
+func _note_the_bar() -> void:
+	if _watched == null or not is_instance_valid(_watched):
+		return
+	var bar := _watched.get("hint_bar") as Node
+	if bar == null:
+		return
+	var text := String(bar.call("current_text"))
+	if text != _last_hint and not text.is_empty():
+		_hints_heard.append(text)
+	_last_hint = text
+
+
+func _hold(action: StringName, down: bool) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = down
+	Input.parse_input_event(event)
+
+
+## WALK, THEN JUMP, THEN ANG HAGDAN. Played as a player who walks the moment the Walk card is up
+## and does not stop: they reached the stair's conversation before the jump lesson's three-second
+## wait was up, heard it, were taught to draw at the wall, and were told how to jump somewhere
+## past it. Jump is taught on the bank now, where nothing else is happening.
+func _walk_straight_on(level: Node2D) -> void:
+	var tutorial = level.get("tutorial")
+	var box := level.get("dialogue_box") as Node
+	var script_lines = level.get("script_lines")
+	var player := level.get("player") as Node2D
+	var stair := level.find_child("B0_HAGDAN", true, false) as Node2D
+	var bank_ends := stair.global_position.x - (stair.get("trigger_size") as Vector2).x * 0.5
+	_hold(&"move_right", true)
+	var waited := 0.0
+	while waited < 12.0 and not bool(tutorial.call("was_shown", "jump")):
+		if box.call("is_open"):
+			box.call("skip_all")
+		await _wait(0.05)
+		waited += 0.05
+	var taught_at := player.global_position.x
+	_hold(&"move_right", false)
+	var stair_first := bool(script_lines.call("has_heard", "B0_HAGDAN.enter"))
+	_check(bool(tutorial.call("was_shown", "jump")) and not stair_first and taught_at < bank_ends,
+		"walking straight on, jump is taught on the bank",
+		"at x %d, Ang Hagdan from %d%s" % [int(taught_at), int(bank_ends),
+			" -- AFTER ITS LINE" if stair_first else ""])
 
 
 ## The labels on the question the overlay is asking, or [] if none is up.
@@ -81,6 +146,7 @@ func _run() -> void:
 	var profile := root.get_node("PlayerProfile")
 	print("\n===== THE FIRST TIME =====")
 	var level := _level()
+	_watch_the_bar(level)
 	await _wait(0.3)
 	var tutorial = level.get("tutorial")
 	_check(not level.get("script_lines").call("has_heard", "INTRO.wake"),
@@ -125,6 +191,13 @@ func _run() -> void:
 	box.call("skip_all")
 	await _wait(1.0)
 	_check(tutorial.call("was_shown", "move"), "and the Walk card follows his line", "move")
+	# ⚠ NOT "PRESS R AND DRAW" BEFORE A STEP. The greeting used to follow the opening as a hint,
+	# telling her to draw with nothing in front of her to draw for; the wall teaches it now.
+	var greeting := String((level.get("_script_lines") as Dictionary).get("greeting", ""))
+	_check(not greeting.is_empty() and not _hints_heard.has(greeting),
+		"and no hint tells her to draw before she has walked",
+		"the bar said: %s" % (" | ".join(_hints_heard) if not _hints_heard.is_empty() else "nothing"))
+	await _walk_straight_on(level)
 	level.queue_free()
 	await _wait(0.3)
 
@@ -133,6 +206,7 @@ func _run() -> void:
 	profile.call("record_route", "level_1", "pragmatist")
 	profile.call("record_obstacle_route", "level_1", "L1_N1", "pragmatist")
 	level = _level()
+	_watch_the_bar(level)
 	await _wait(1.3)
 	script_lines = level.get("script_lines")
 	_check(not script_lines.call("has_heard", "INTRO.wake"), "a second visit does not wake up again",
@@ -140,6 +214,9 @@ func _run() -> void:
 	_check(script_lines.call("has_heard", "RETURN.pragmatist"),
 		"Lolo remembers the route they took, first", "RETURN.pragmatist")
 	await _play_through(level, func(_o: Array[String]) -> int: return 0)
+	var welcome := String((level.get("_script_lines") as Dictionary).get("greeting", ""))
+	_check(_hints_heard.has(welcome), "and a return visit still hears the greeting",
+		"the bar said: %s" % (" | ".join(_hints_heard) if not _hints_heard.is_empty() else "nothing"))
 
 	# At the fork: he says what they chose, and the buttons say which one it was.
 	# Not awaited here: the reminder waits for its line to be read, and reading it is ours.
@@ -204,5 +281,8 @@ func _run() -> void:
 	level.queue_free()
 	await _wait(0.3)
 
+	if checked != CHECKS:
+		failures += 1
+		print("  FAIL  ran %d of %d checks -- something stopped the probe part-way" % [checked, CHECKS])
 	print("OBRA_OPENING_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(failures)

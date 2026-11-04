@@ -19,7 +19,7 @@ class StubClient extends Node:
 
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 4
+const CHECKS := 5
 
 var failures := 0
 var checked := 0
@@ -67,6 +67,13 @@ func _a_refusing_page_takes_nothing_and_fades() -> void:
 	_draw_two_lines(panel)
 	await create_timer(1.0).timeout
 	var guess_text := panel.guess_label.text
+	# Kent, 2026-11-05: a quiet page that opened by itself showed nothing at all, and the world
+	# froze with nothing to say why. The dim stays, faint, and only the dim: no frame, no buttons.
+	var dim := panel.scrim.modulate.a
+	var bare := not panel.transform_button.is_visible_in_tree() and not panel.canvas_frame.is_visible_in_tree()
+	_check(panel.scrim.is_visible_in_tree() and dim >= 0.2 and dim <= 0.6 and bare,
+		"a refusing page dims the world, faintly, and shows nothing else",
+		"dim shown %s at %.2f, frame and buttons hidden %s" % [panel.scrim.is_visible_in_tree(), dim, bare])
 	_check(panel.is_open() and panel.is_refusing() and stub.live == 0 and panel.status.text == ""
 		and guess_text == "" and is_zero_approx(float(panel.get("_claim")))
 		and not panel.transform_button.disabled,

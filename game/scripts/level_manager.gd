@@ -14,8 +14,8 @@ signal transition_finished(destination: String)
 const CATALOG_PATH := "res://config/levels.json"
 const SELECTOR_SCENE := "res://ui/main_menu.tscn"
 ## Where levels are chosen: Lolo and Lola's house, with the paintings on the wall. This is
-## what PLAY opens and what leaving a level returns to -- the menu's card grid is no longer
-## the way in.
+## what CONTINUE opens and what leaving a level returns to -- the menu's card grid is no longer
+## the way in, and NEW GAME goes into the first painting instead (start_new_game).
 const HOUSE_SCENE := "res://levels/hub/hub.tscn"
 const ENDING_SCENE := "res://ui/ending_screen.tscn"
 ## The stroke's seconds each way: across to cover, and on past to show.
@@ -225,6 +225,29 @@ func restart_level() -> bool:
 		DirAccess.remove_absolute(saved)
 	_queue_transition(scene_path, current_level_id)
 	return true
+
+
+## NEW GAME, from the title screen: straight into the first painting, not the house.
+##
+## Kent: "when the game is played new game it should automatically start to the tutorial level
+## rather than the lobby like Start>Level 1>lobby>Get paint>go to level 2". The house is where
+## she comes home to with each painting; the run starts inside the first one. CONTINUE still
+## opens the house.
+##
+## ⚠ THE BRUSH COMES WITH HER. open_level refuses without it (has_brush), and the stand in the
+## house is the only other place it is taken, so a new game that skipped the house would be
+## refused at its own first door. Payyo's opening already tells it this way -- "I picked up her
+## brush, and the painting on the wall -- it moved. It pulled me in." (L1_IN_002) -- so the stand
+## is empty when she first comes home. It still holds the brush for a save that never took it.
+func start_new_game() -> bool:
+	if is_transitioning() or _levels.is_empty():
+		return false
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile == null:
+		return false
+	profile.call("record_brush_acquired")
+	# The first painting by number, not by name: _levels is sorted at load.
+	return open_level(String(_levels[0].get("id", "")))
 
 
 ## Into the house, from the menu.

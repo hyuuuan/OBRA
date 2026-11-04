@@ -40,6 +40,16 @@ func _spawn_lolo() -> void:
 		lolo.set_thinness(0.25)
 
 
+## Who says the level's notes and hints. Lolo, while he climbs with her; the apo once he has gone,
+## as in Dilim. He goes mid-sentence, in a frame (_let_him_go), and a hint under his name after it
+## -- "There is no more ink for that one", the moment a player at an empty gauge draws below the
+## summit -- brought him back for a line.
+func _companion_speaker() -> String:
+	if lolo != null and is_instance_valid(lolo) and lolo.is_gone():
+		return APO_SPEAKER
+	return super()
+
+
 func _speaker_subject(speaker_id: String) -> Node2D:
 	if speaker_id == "lola":
 		return _lola()
@@ -789,6 +799,14 @@ const SUMMIT_SPEAK := 12700.0
 const WHITE_SECONDS := 4.0
 ## How white: paper, not blank -- the ground she stands on stays.
 const WHITE := 0.85
+## HOW THE SUMMIT IS FRAMED: the pair stand above the dialogue box, and what she saved above them
+## (Kent, 2026-11-05: "do something about it so that it wont hide both figures"). Nearly every
+## moment up here has a line on screen, and the box's top edge is 344 px over the bottom of the
+## frame; at the old eye, -740, her floor sat at 770 and only their heads showed. At -500 it sits
+## at 530, at the landscape's scale -- the eye line lolo's last sentence takes too. The places are
+## sized to fit the frame above it (level_05.json; run_level5_endings_probe measures both).
+const SUMMIT_FRAME := Rect2(11900, -1240, 1800, 1200)
+const SUMMIT_EYE_Y := -500.0
 ## The brush refuses her this many times; the next, she lowers it herself.
 const REFUSALS := 2
 ## The beat after she lowers it, with nothing said over it.
@@ -840,8 +858,8 @@ func _tend_summit(delta: float, her_x: float) -> void:
 				var camera := _world_camera()
 				if camera != null:
 					camera.offset = Vector2.ZERO
-					camera.set_room_bounds(Rect2(11900, -1240, 1800, 1000))
-					camera.vertical_pin_y = -740.0
+					camera.set_room_bounds(SUMMIT_FRAME)
+					camera.vertical_pin_y = SUMMIT_EYE_Y
 				_whiten(WHITE, WHITE_SECONDS)
 				# And still at once: no ash left drifting over the white.
 				if _ash != null:

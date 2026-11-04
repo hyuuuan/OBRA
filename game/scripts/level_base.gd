@@ -190,6 +190,12 @@ func _ink_always_visible() -> bool:
 	return false
 
 
+## Whether walk and jump stand beside R as key reminders (ActionPromptHUD.show_movement_keys).
+## Payyo's, the level that teaches them. Off everywhere else.
+func _shows_movement_keys() -> bool:
+	return false
+
+
 ## Whether the level ends with its own scene rather than the completion card -- and, for the
 ## level the run ends on, rather than the ending screen. True: the finish is recorded as ever and
 ## then _play_own_ending() has everything after it, including where the player goes next.
@@ -684,8 +690,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if placement_controller.is_placing():
 		if event.is_action_pressed("redraw"):
 			get_viewport().set_input_as_handled()
-			placement_controller.cancel_placement()
-			_open_the_page(false)
 		return
 	if event.is_action_pressed("redraw"):
 		get_viewport().set_input_as_handled()
@@ -738,8 +742,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_draw_button_pressed() -> void:
-	if placement_controller.is_placing():
-		placement_controller.cancel_placement()
 	_open_the_page(true)
 
 
@@ -748,6 +750,8 @@ func _on_draw_button_pressed() -> void:
 ## up (its hint tier would rise and its requirement strip would name what to draw), and no
 ## lesson about drawing on the page is waiting for it.
 func _open_the_page(tell_the_director: bool) -> void:
+	if placement_controller.is_placing():
+		return
 	var refusing := _brush_refuses_here()
 	draw_panel.set_refusing(refusing)
 	_prepare_drawing_page()
@@ -2835,6 +2839,8 @@ func _on_placement_changed(active: bool, valid: bool) -> void:
 	# Before the early return: the bar has to come back when the placement ends, and that
 	# is the call that arrives with active = false.
 	inventory_hud.set_click_through(active)
+	if action_prompts != null:
+		action_prompts.set_placement_active(active)
 	if not active:
 		return
 	# The mouse is all three halves of placement and the game never said so anywhere.
@@ -3182,8 +3188,7 @@ func _interact_verb(utility: PhysicsShapeObject) -> String:
 	return "BOARD"
 
 
-## Availability is refreshed from the same objects the actions use. R is intentionally
-## absent here because it is always available; the prompt controller keeps it standing.
+## Availability is refreshed from the same objects the actions use.
 func _refresh_action_prompts() -> void:
 	if action_prompts == null:
 		return
@@ -3588,6 +3593,7 @@ func _build_action_prompts() -> void:
 	action_prompts.name = "ActionPrompts"
 	$CanvasLayer.add_child(action_prompts)
 	action_prompts.bind_draw_button(draw_button)
+	action_prompts.show_movement_keys(_shows_movement_keys())
 	action_prompts.interact_requested.connect(func() -> void: _interact_with_nearest_utility())
 	action_prompts.use_requested.connect(_use_equipped_utility)
 	action_prompts.revert_requested.connect(_revert_to_base_form)
@@ -4450,6 +4456,8 @@ func _lolo_says(key: String, seconds: float = 0.0) -> void:
 ## belongs: no pause, no key, and it clears itself when the stair beat arrives. It is also
 ## the out-of-voice line the old dialogue.json still carries, which is a second reason not
 ## to give it the framed box that Payyo's own script is written for.
+## (Since then the `draw` lesson's lead says what the game is, at Ang Hagdan, so a first visit
+## to Payyo no longer hears this at all -- `_greets_on_first_visit`. Return visits do.)
 ## The full bag screen, and its place in the queue of things Escape backs out of.
 ##
 ## THE CHAIN IS DATA, NOT NODE ORDER (see UIRouter), and it is authored in game_level.tscn --
@@ -4619,7 +4627,16 @@ func _play_opening() -> void:
 		steps.append_array(_pick_return_conversation(level_id, visits, "fact"))
 	if not steps.is_empty():
 		await _run_conversation(steps)
+	if first_time and not _greets_on_first_visit():
+		return
 	_greet()
+
+
+## Whether the level's `greeting` hint follows the opening on a FIRST visit, as it follows every
+## return. Off in Payyo, whose greeting is "press R and draw" and whose first visit teaches that
+## at Ang Hagdan's wall, where there is something to draw for. On everywhere else.
+func _greets_on_first_visit() -> bool:
+	return true
 
 
 ## What a tutorial card's `lead` is said through: the story box, as Lolo, with the camera on

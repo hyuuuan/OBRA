@@ -182,8 +182,11 @@ func _level_physics(anchor_position: Vector2) -> void:
 	if anchor_position.y > FOREST_FLOOR + FALL_BELOW:
 		_knockout()
 		return
-	# Once it is morning the dawn has the dark; the zones would only pull it back.
-	if darkness_layer != null and not (_finale != null and _finale.has_dawned()):
+	if _morning:
+		_apply_dawn_visuals(1.0)
+	elif _finale != null and _finale.is_running():
+		_apply_dawn_visuals(_finale.daylight_progress())
+	elif darkness_layer != null:
 		darkness_layer.darkness = move_toward(darkness_layer.darkness,
 			_darkness_at(anchor_position.x), DARKNESS_EASE * get_physics_process_delta_time())
 	_note_lesson_moments()
@@ -347,6 +350,8 @@ func _arm_player_health() -> void:
 func _restore_checkpoint() -> String:
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
+	_morning = false
+	_apply_dawn_visuals(0.0)
 	_went_to_the_cry = false
 	_absurd_near = 0.0
 	_lit_for = 0.0
@@ -820,9 +825,12 @@ func _rest_by_the_fire(clearing: String) -> void:
 
 # --- The last clearing --------------------------------------------------------------------------
 
-## How long the dark takes to lift at dawn, and how long the morning is held before the level ends.
-const DAWN_LIFT_SECONDS := 2.0
-const MORNING_HOLD := 1.0
+## Dawn arrives during the second half of the night; hold the finished morning before leaving.
+const MORNING_HOLD := 2.0
+const MORNING_SKY := Color(0.2, 0.58, 0.88, 1.0)
+var _morning := false
+var _night_sky := Color(0.039, 0.063, 0.141, 1.0)
+var _night_sky_saved := false
 
 var _finale: DilimFinale2D
 ## The night's clock on screen, under the quest card; shown only while the night runs.
@@ -830,6 +838,26 @@ var dawn_clock: DawnClockHud
 const DAWN_CLOCK_TOP := 104.0
 ## Clear air between the quest card's frame and the clock's strip.
 const DAWN_CLOCK_GAP := 10.0
+
+
+## Drive darkness and backdrop color from one clock, so zones and retries cannot fight dawn.
+func _apply_dawn_visuals(daylight: float) -> void:
+	daylight = clampf(daylight, 0.0, 1.0)
+	if darkness_layer != null:
+		var x := player.global_position.x if is_instance_valid(player) else 0.0
+		darkness_layer.darkness = _darkness_at(x) * (1.0 - daylight)
+	var world := get_node_or_null(^"EnvironmentBaseplate")
+	if world == null:
+		return
+	for band in world.get_children():
+		if band.has_method("set_daylight"):
+			band.call("set_daylight", daylight)
+	var sky := world.get_node_or_null(^"SkyFill") as Polygon2D
+	if sky != null:
+		if not _night_sky_saved:
+			_night_sky = sky.color
+			_night_sky_saved = true
+		sky.color = _night_sky.lerp(MORNING_SKY, daylight)
 
 
 ## UNDER THE QUEST CARD, NOT AGAINST IT. Seen in a window: placed at a fixed height the strip sat
@@ -918,15 +946,15 @@ func _drawn_suns() -> Array:
 	return suns
 
 
-## MORNING. The dark lifts -- on the dark layer's own clock, which runs while a line is up -- she says
+## MORNING. The transition is complete before the line opens -- she says
 ## the line the level was for, and the level is done: the majority route settled, the one point given.
 func _on_dawn() -> void:
+	_morning = true
+	_apply_dawn_visuals(1.0)
 	AudioDirector.play_sfx(&"dawn")
 	if dawn_clock != null:
 		dawn_clock.set_progress(1.0)
 		dawn_clock.hide_night()
-	if darkness_layer != null:
-		darkness_layer.create_tween().tween_property(darkness_layer, "darkness", 0.0, DAWN_LIFT_SECONDS)
 	await _speak_and_wait(script_lines.fire("L4_FINALE.solved"))
 	if not is_inside_tree():
 		return
