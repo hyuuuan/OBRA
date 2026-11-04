@@ -278,7 +278,11 @@ rectangular pictures. Each memory owns its width, elevation and optional tint in
 **`Motion.fade_in` calls `_show`, which resets Node2D scale to one.** A landscape's measured scale
 must be reapplied after that call; otherwise the church and terraces expand to their full source
 pixel dimensions and engulf the pair. The ending probe now measures the rendered widths. Summit
-narration keeps the wide composition, and the ordinary room fits pictures into its canvas while
+narration keeps the landscape's scale but not its old eye line (Kent, 5 November): the summit is
+framed at y -500 (`SUMMIT_EYE_Y`), so the pair stand above the dialogue box instead of behind
+it, and every place is sized to fit the frame above them (church 390 wide, forest 1070; the
+storm, flags and bakunawa set lower). `run_level5_endings_probe` blooms all twelve and checks
+both. The ordinary room fits pictures into its canvas while
 preserving their aspect ratios. Sources, exact generation prompts and replacement contracts are
 in the authored README. All newly generated landscape and prop art remains explicitly subject
 to art-direction review; the runtime contains the assets now.
