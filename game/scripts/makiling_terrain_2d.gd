@@ -14,17 +14,6 @@ const LIP := 6.0
 const COVER := 22.0
 ## A branch's height, drawn and solid.
 const BRANCH_THICKNESS := 18.0
-## WHERE THE GROUND IS, IN THE DARK. Past her lamp the woods were black right up to the lip of a
-## drop and the underside of a log (Kent, of Dilim: "where to go in the dark"). Every top edge she
-## can stand on catches a thread of moonlight, drawn over the dark, and a ledge's ends turn down so
-## a drop reads as an edge. A line, not light: nothing is lit by it and LightField never hears of it.
-const RIM_LAYER := DarknessLayer.LAYER + 1
-const RIM := Color(0.72, 0.78, 0.95, 0.42)
-## Glints, not a line: a 2 px fleck every RIM_STEP px along the edge, each as bright as a fixed hash
-## of where it is says -- moonlight on leaf tips. A line read as a rule drawn across the screen.
-const RIM_STEP := 6.0
-const RIM_PIXEL := 2.0
-const RIM_TURN := 14.0
 
 ## Solid ground, world rectangles in this node's space.
 @export var platforms: Array[Rect2] = []
@@ -41,7 +30,6 @@ const RIM_TURN := 14.0
 var _body_texture: Texture2D
 var _leaf: Texture2D
 var _bark: Texture2D
-var _rims: Node2D
 ## Worn by a CliffDressing2D: the platforms are drawn there, and only the branches here.
 var _dressed := false
 
@@ -61,46 +49,7 @@ func _ready() -> void:
 		_solid(rect, false)
 	for rect in branches:
 		_solid(Rect2(rect.position, Vector2(rect.size.x, BRANCH_THICKNESS)), true)
-	var layer := CanvasLayer.new()
-	layer.name = "Rims"
-	layer.layer = RIM_LAYER
-	layer.follow_viewport_enabled = true
-	add_child(layer)
-	_rims = Node2D.new()
-	layer.add_child(_rims)
-	_rims.draw.connect(_draw_rims)
 	queue_redraw()
-
-
-## Every thread of moonlight, as [from, to] in world px: each top edge where the leaves are, and a
-## platform's two ends turned down.
-func rim_segments() -> Array:
-	var out: Array = []
-	for rect in platforms:
-		var left := global_transform * (rect.position - Vector2(0.0, LIP))
-		var right := global_transform * (Vector2(rect.end.x, rect.position.y) - Vector2(0.0, LIP))
-		out.append([left, right])
-		out.append([left, left + Vector2(0.0, RIM_TURN)])
-		out.append([right, right + Vector2(0.0, RIM_TURN)])
-	for rect in branches:
-		var corner := 8.0 if branch_texture != null else 0.0
-		out.append([global_transform * (rect.position + Vector2(corner, -LIP)),
-			global_transform * (Vector2(rect.end.x - corner, rect.position.y) - Vector2(0.0, LIP))])
-	return out
-
-
-func _draw_rims() -> void:
-	for segment: Array in rim_segments():
-		var from: Vector2 = segment[0]
-		var to: Vector2 = segment[1]
-		var steps := maxi(1, int(from.distance_to(to) / RIM_STEP))
-		for index in range(steps + 1):
-			var at := from.lerp(to, float(index) / float(steps)).round()
-			var glint := fposmod(sin(at.x * 12.9898 + at.y * 78.233) * 43758.5453, 1.0)
-			if glint < 0.25:
-				continue
-			_rims.draw_rect(Rect2(at - Vector2.ONE * RIM_PIXEL * 0.5, Vector2.ONE * RIM_PIXEL),
-				Color(RIM, RIM.a * glint))
 
 
 ## What a CliffDressing2D needs: which kit this ground wears, and its platforms in world space.
@@ -117,8 +66,8 @@ func ground_rects() -> Array[Rect2]:
 
 
 ## Dilim's `CliffDressing*` draw the platforms in Mayon's construction, in Makiling's own mud and
-## stone; the flat fill and the thin leaf strip here stand down. The rims stay: they are where
-## the ground is in the dark, whoever draws it.
+## stone; the flat fill and the thin leaf strip here stand down. Moonlit edges belong to the
+## artwork itself, without a separate dotted overlay above the darkness.
 func dressed_ground() -> Array[Rect2]:
 	_dressed = true
 	queue_redraw()

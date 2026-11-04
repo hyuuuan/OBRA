@@ -194,7 +194,7 @@ body = "stone"
 ; Native pixels from the supplied moonlit ground, bushes and vines:
 ; LEVEL4_Mt.Makiling/authored/moonlit_ground. The repeat is cut through matching stone pixels.
 ; Moonlight is baked into this kit: white tint preserves its colors. The darkness layer still
-; controls visibility. Vines are inset decoration. The terrain keeps collision, branches and rims
+; controls visibility. Vines are inset decoration. The terrain keeps collision and branches
 ; (MakilingTerrain2D.dressed_ground). Behind the bodies, as Mayon's terrain is.
 [node name="CliffDressing" type="Node2D" parent="GameplayPlane/Terrain"]
 z_index = -5

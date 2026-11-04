@@ -328,13 +328,26 @@ from the source pixels, while keeping the outside transparent and the ground str
 `run_moonlit_foliage_probe` covers intact fern shadows, opaque ground, real decoration
 placement outside mechanic areas, and draw order against Nuno, placed foes and spawned aswang.
 
+The delivered forest frame and both terrace backdrop plates also had opaque white matte
+pockets between their leaves and pale resampling fringes. `build_dilim.py` now removes
+enclosed white matte on those three vegetation plates and unmattes nearby edge pixels before
+snapping alpha to opaque/clear. The cloud plates keep their grid-aware extraction; their
+white highlights are real art. Plate dimensions and parallax registration remain unchanged.
+`tests/test_build_dilim.py` covers closed matte pockets, real dark leaf shadows, white-composited
+edges and known problem pixels on the supplied plates.
+
 The tikbalang fork's three floating shelves now use `ground_moonlit/platform.png`, a
 native-pixel moss lip and stone course cut from the same ground texture by
 `build_moonlit_ground.gd`. `MakilingTerrain2D.branch_texture` is an optional visual override;
-the Fork keeps its three positions, widths, 18 px one-way bodies and moonlight rims.
+the Fork keeps its three positions, widths and 18 px one-way bodies.
 Only this Fork opts in, with white tint for the already moonlit art.
-Its upper corners are clipped in two small pixel steps for a gently rounded moss lip;
-the moonlight flecks are inset to follow the rounded top. Collision stays rectangular.
+Its upper corners are clipped in two small pixel steps for a gently rounded moss lip.
+Collision stays rectangular.
+
+**The dotted moonlight overlay was removed (2026-11-04, requested).** The white flecks
+across ground and floating shelves were drawn above the darkness by `MakilingTerrain2D`,
+not missing pixels in the artwork. Those extra rim layers are gone; the moonlit moss texture
+now supplies the continuous visible edge. Earlier build notes describing rims are historical.
 
 ## The old way over the ravine fades (2026-11-01)
 

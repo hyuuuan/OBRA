@@ -43,9 +43,15 @@ independent scene layers using `moonlit_foliage_2d.gd`. Bushes draw behind the g
 on the face, and both below Nuno's spirit and every creature. Placement checks the complete
 sprite bounds against existing encounter trigger volumes (including the finale), hazards,
 supplies and ink jars; those places stay free of decoration. Other levels retain their
-existing plant spacing and tints. Terrain collision, branches and moonlight rims retain
-their existing roles. `run_moonlit_foliage_probe` guards the export and visibility fixes.
+existing plant spacing and tints. Terrain collision and branches retain their existing roles.
+The dotted rim overlay has been removed: the moss artwork supplies its own continuous edge.
+`run_moonlit_foliage_probe` guards the export and visibility fixes.
 
 Windowed review: `res://tests/run_visual_moonlit_foliage.gd` photographs an intact quiet-path
 bush, Nuno at his mound, and two spawned aswang in the finale. Reviewed captures are saved as
 `foliage_fixed.png`, `nuno_clear.png` and `aswang_clear.png` beside this file.
+
+The background's own foliage is cleaned by `tools/build_dilim.py`, separately from this
+ground/plant cutter. Its three vegetation plates lose enclosed white matte and white edge
+contamination; mountain clouds retain their original extraction. `background_fixed.png`
+and `background_start.png` show that cleanup under the level's real lighting.

@@ -68,6 +68,46 @@ class FlatKeyTest(unittest.TestCase):
         self.assertFalse(background[85:115, 60:340].any())
 
 
+class VegetationMatteTest(unittest.TestCase):
+    def test_enclosed_white_matte_goes_but_dark_leaf_interiors_stay(self) -> None:
+        rgb = np.full((60, 120, 3), 249, np.int16)
+        rgb[10:50, 10:110] = (20, 80, 30)
+        rgb[25:35, 50:60] = 255  # background visible between fronds, enclosed by the plant
+        rgb[20:24, 30:40] = (0, 18, 22)  # genuine dark leaf shadow
+        flood = dilim.flat_key(rgb)
+        self.assertFalse(flood[30, 55], "fixture must reproduce a pocket the old flood missed")
+        result = dilim.vegetation_rgba(rgb, flood)
+        self.assertEqual(int(result[30, 55, 3]), 0)
+        self.assertEqual(result[21, 33].tolist(), [0, 18, 22, 255])
+        self.assertEqual(result[40, 90].tolist(), [20, 80, 30, 255])
+
+    def test_white_composited_edges_are_cleaned_without_blurring_the_leaf(self) -> None:
+        rgb = np.full((60, 120, 3), 255, np.int16)
+        leaf = np.array([20, 80, 30])
+        rgb[10:50, 10:110] = leaf
+        rgb[10:50, 9] = np.rint(leaf * 0.25 + 255 * 0.75)
+        rgb[10:50, 10] = np.rint(leaf * 0.75 + 255 * 0.25)
+        result = dilim.vegetation_rgba(rgb, dilim.flat_key(rgb))
+        self.assertEqual(int(result[30, 9, 3]), 0, "the mostly-white halo should not be solid")
+        self.assertEqual(int(result[30, 10, 3]), 255, "the leaf's edge must survive")
+        self.assertLessEqual(np.abs(result[30, 10, :3].astype(int) - leaf).max(), 2)
+        self.assertEqual(result[30, 11].tolist(), [20, 80, 30, 255])
+        self.assertEqual(set(np.unique(result[..., 3])), {0, 255}, "no soft alpha or blur")
+
+    def test_supplied_vegetation_no_longer_keeps_white_pockets(self) -> None:
+        for name, point in [("FG_Details.png", (1602, 146)), ("FG_Ground2.png", (752, 416)),
+                            ("FG_Ground.png", (820, 384))]:
+            picture = dilim.keyed(name, "checker" if name == "FG_Details.png" else "flat")
+            self.assertEqual(picture.getpixel(point)[3], 0, f"{name}: leftover matte at {point}")
+
+    def test_a_grey_stone_highlight_is_not_mistaken_for_white_matte(self) -> None:
+        rgb = np.full((60, 120, 3), 255, np.int16)
+        rgb[10:50, 10:110] = (40, 40, 40)
+        rgb[10:50, 10] = (150, 150, 150)
+        result = dilim.vegetation_rgba(rgb, dilim.flat_key(rgb))
+        self.assertEqual(result[30, 10].tolist(), [150, 150, 150, 255])
+
+
 class DeliveryTest(unittest.TestCase):
     def test_every_delivered_file_is_claimed(self) -> None:
         claimed = {source for source, _ in dilim.PLATES.values()} | dilim.REFERENCE_ONLY \

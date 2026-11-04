@@ -25,6 +25,10 @@ other colour beside it, and a cloud is not. So:
    pixels joined to the flood: whatever a mistake costs, it costs inside one cell.
 5. The pale fringe the checker leaves on dark edges is taken off.
 
+The vegetation-only plates then lose enclosed white matte pockets as well, and have their
+white-composited edge RGB recovered before alpha is snapped to clear/solid. This step is
+never used on the mountain plates: their white clouds are art.
+
 The flat-backed strips are keyed the same way without the grid: a pixel flood from the border
 through the page colour.
 
@@ -111,6 +115,9 @@ CRUMB = 24
 ## An opaque island this much flat checker grey is leftover checker, not art -- up to this size.
 ISLAND_GREY = 0.97
 ISLAND_MAX = 12000
+## These plates contain vegetation/earth, not white clouds. White pockets inside the foliage
+## are baked-in matte too; they need not connect to the outside of the image.
+VEGETATION = {"FG_Details.png", "FG_Ground.png", "FG_Ground2.png"}
 
 
 def load(name: str) -> np.ndarray:
@@ -325,6 +332,51 @@ def without_checker_islands(rgb: np.ndarray, background: np.ndarray, lo: int,
     return background | np.isin(islands, drop)
 
 
+def vegetation_rgba(rgb: np.ndarray, background: np.ndarray) -> np.ndarray:
+    """Remove enclosed white matte and recover leaf-edge RGB from its white composite.
+
+    A border flood alone leaves opaque white gaps between fronds. Deleting those gaps still
+    leaves a pale rim: the delivered RGB already mixed its edge pixels with that white page.
+    Estimate coverage against nearby solid art, undo the white mix, and snap coverage to
+    opaque/clear so the original pixel grid stays crisp. This is never used on cloud plates.
+    """
+    rgb = rgb.astype(np.int16)
+    white = (rgb.min(axis=-1) >= 225) & (np.ptp(rgb, axis=-1) <= 16)
+    background = background | white
+    out = np.dstack([rgb.astype(np.uint8), np.where(background, 0, 255).astype(np.uint8)])
+    # Saturated leaf colors and dark bark/stone are reliable foreground samples, including
+    # fine fronds too narrow for a geometric erosion to leave an interior.
+    distance = ndimage.distance_transform_edt(~background)
+    solid = ~background & (((distance > 2) & ((rgb.min(axis=-1) < 90)
+                                              | (rgb.max(axis=-1) < 180)))
+                            | ((rgb.min(axis=-1) < 35) & (np.ptp(rgb, axis=-1) > 30)))
+    if solid.any():
+        near = distance <= 3
+        ys, xs = np.nonzero(near & ~background & ~solid)
+        indices = ndimage.distance_transform_edt(~solid, return_distances=False,
+                                                return_indices=True)
+        fy, fx = indices[:, ys, xs]
+        close = (fy - ys) ** 2 + (fx - xs) ** 2 <= 16
+        ys, xs, fy, fx = ys[close], xs[close], fy[close], fx[close]
+        foreground = rgb[fy, fx].astype(float)
+        composite = rgb[ys, xs].astype(float)
+        direction = 255.0 - foreground
+        coverage = np.clip(np.sum(direction * (255.0 - composite), axis=-1)
+                           / np.maximum(np.sum(direction ** 2, axis=-1), 1), 0, 1)
+        predicted = 255.0 - coverage[:, None] * direction
+        fits = np.max(np.abs(predicted - composite), axis=-1) <= 20
+        # A grey stone highlight can fit the same white/dark line as matte. Keep dark
+        # authored pixels opaque rather than punching new holes in rocks or leaf shadows.
+        drop = fits & (coverage < 0.55) & (composite.max(axis=-1) >= 180)
+        out[ys[drop], xs[drop], 3] = 0
+        recover = fits & (coverage >= 0.55) & (coverage < 0.98)
+        alpha = coverage[recover, None]
+        unmixed = (composite[recover] - (1.0 - alpha) * 255.0) / alpha
+        out[ys[recover], xs[recover], :3] = np.clip(np.rint(unmixed), 0, 255).astype(np.uint8)
+    out[out[..., 3] == 0] = 0
+    return out
+
+
 def keyed(name: str, method: str) -> Image.Image:
     rgb = load(name)
     if rgb.shape[:2] != (PLATE[1], PLATE[0]):
@@ -338,6 +390,8 @@ def keyed(name: str, method: str) -> Image.Image:
     else:
         page = int(np.median(np.concatenate([rgb[:3].reshape(-1, 3), rgb[-3:].reshape(-1, 3)])))
         background = without_fringe(rgb, flat_key(rgb), [page])
+    if name in VEGETATION:
+        return Image.fromarray(vegetation_rgba(rgb, background), "RGBA")
     alpha = np.where(background, 0, 255).astype(np.uint8)
     out = np.dstack([rgb.astype(np.uint8), alpha])
     out[background] = 0

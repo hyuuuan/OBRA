@@ -10,6 +10,10 @@ func _run() -> void:
 	root.add_child(level)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _frames(40)
+	for spot: Dictionary in [{"at": 260.0, "name": "start"}, {"at": 1580.0, "name": "forest"}]:
+		await _put_her(float(spot["at"]))
+		await _frames(50)
+		(await _capture()).save_png("/tmp/obra_moonlit_background_%s.png" % spot["name"])
 	var bushes := level.get_node("EnvironmentBaseplate/GameplayPlane/BackgroundBushes")
 	var chosen: Sprite2D
 	for bush in bushes.get_children():
