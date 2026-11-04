@@ -60,6 +60,10 @@ extends Node2D
 @export var ceiling_depth: float = 72.0
 ## How deep the floorboards run toward the viewer before the frame ends.
 @export var floor_depth: float = 108.0
+## And on past it, out of the ordinary frame. The house's last scene drops the eye so the two
+## people talking stand above the dialogue box (HouseEpilogue.EYE_DROP); without these boards
+## that view looked down past the floor into nothing.
+@export var floor_run_on: float = 100.0
 ## How far up the wall the wainscot panelling reaches. A chair rail, at chest height on the
 ## apo and at the waist on the adult who fitted it.
 @export var wainscot_height: float = 68.0
@@ -477,10 +481,10 @@ func _diamond(centre: Vector2, half: Vector2, colour: Color) -> void:
 ## joints between boards are HAIRLINE and the boards are long, so the ends are rare and the
 ## eye follows the length instead of the courses.
 func _draw_floor() -> void:
-	draw_rect(Rect2(0.0, floor_y, room_width, floor_depth), FLOOR)
+	draw_rect(Rect2(0.0, floor_y, room_width, floor_depth + floor_run_on), FLOOR)
 	var y := floor_y
 	var course := 0
-	while y < floor_y + floor_depth:
+	while y < floor_y + floor_depth + floor_run_on:
 		var height := 20.0
 		# Each course a slightly different timber, because a floor is boards and not a
 		# painted surface.

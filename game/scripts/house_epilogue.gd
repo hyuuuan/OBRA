@@ -43,6 +43,12 @@ const BESIDE := 150.0
 const WALK_SPEED := 170.0
 ## How long the camera stays on her at the easel before it goes back to the apo.
 const HOLD_ON_HER := 1.5
+## HOW FAR THE EYE DROPS while the house talks (Kent, 2026-11-05: "do something about it so that
+## it wont hide both figures"). At the house's zoom of 2 the floor sat 702 px down a 900 px frame
+## and the dialogue box's top edge is at 556, so only their heads showed for the whole scene; 82
+## drops the floor to 538. HubRoom draws the boards on below the ordinary frame for it.
+const EYE_DROP := 82.0
+const EYE_SECONDS := 0.6
 const WOOD := Color(0.36, 0.24, 0.15)
 const CANVAS := Color(0.96, 0.94, 0.89)
 const CANVAS_EDGE := Color(0.78, 0.74, 0.66)
@@ -123,10 +129,14 @@ func play() -> void:
 	var manager := get_node_or_null(^"/root/LevelManager")
 	if manager != null and bool(manager.call(&"is_transitioning")):
 		await manager.transition_finished
-	# The two of them in the frame together while they talk.
+	# The two of them in the frame together while they talk, standing above the box.
 	var apo := _hub.get_node_or_null(^"Apo") as Node2D
 	if apo != null:
 		_hub.call(&"look_at_x", (apo.global_position.x + lola.global_position.x) * 0.5)
+	_drop_the_eye(EYE_DROP)
+	# ⚠ SETTLED BEFORE SHE SPEAKS. Her first line stops the tree, and the hub places its camera in
+	# _process: speaking at once froze the view on the apo, with the apo's portrait over Lola.
+	await get_tree().create_timer(EYE_SECONDS).timeout
 	await _say("HOUSE.home")
 	_following = true
 	await lola.walk_to(EASEL_X - AT_EASEL, WALK_SPEED)
@@ -140,12 +150,27 @@ func play() -> void:
 		profile.call(&"note_dialogue_heard", HEARD)
 	await get_tree().create_timer(HOLD_ON_HER).timeout
 	_hub.call(&"look_back")
+	_drop_the_eye(0.0)
 	finished.emit()
 
 
 func _process(_delta: float) -> void:
 	if _following and is_instance_valid(lola):
 		_hub.call(&"look_at_x", lola.global_position.x)
+
+
+## The house's camera, offset rather than moved: the hub places it every frame (_eye_on), and an
+## offset rides on top of that. Pause-immune, because her first line stops the tree as it glides.
+func _drop_the_eye(drop: float) -> void:
+	var camera := _hub.get_node_or_null(^"Camera") as Camera2D
+	if camera == null:
+		return
+	if Motion.reduced():
+		camera.offset.y = drop
+		return
+	var glide := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	glide.tween_property(camera, "offset:y", drop, EYE_SECONDS) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func _say(hook: String) -> void:

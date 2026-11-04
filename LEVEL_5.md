@@ -282,7 +282,8 @@ narration keeps the landscape's scale but not its old eye line (Kent, 5 November
 framed at y -500 (`SUMMIT_EYE_Y`), so the pair stand above the dialogue box instead of behind
 it, and every place is sized to fit the frame above them (church 390 wide, forest 1070; the
 storm, flags and bakunawa set lower). `run_level5_endings_probe` blooms all twelve and checks
-both. The ordinary room fits pictures into its canvas while
+both. In the house the eye drops 82 while Lola talks (`HouseEpilogue.EYE_DROP`), onto boards
+`HubRoom` draws past the ordinary frame (`floor_run_on`); `run_level5_frame_probe` checks it. The ordinary room fits pictures into its canvas while
 preserving their aspect ratios. Sources, exact generation prompts and replacement contracts are
 in the authored README. All newly generated landscape and prop art remains explicitly subject
 to art-direction review; the runtime contains the assets now.
