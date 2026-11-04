@@ -339,6 +339,13 @@ in the authored README and `ART_PLACEHOLDERS.md`.
 
 ### Painted colours
 
+**Lola's supplied board (5 November 2026).** The latest user sheet replaces Lola at
+the summit and in the house, including the large dialogue portrait and walking cycle.
+Her world height is 108px. Both six-frame painting loops and all six idle variations
+play with planted feet and longer rests; Reduce Motion holds a resting pose. Story
+turns and the flower handoff take precedence. Source, transparency/bouquet adaptation
+prompt and rebuild contract are in `LEVEL5_Mayon/authored/README.md`.
+
 Until November 2026, `drain.gdshader` sampled the texture that Godot 4's `COLOR` already carries,
 squaring every colour. Whatever wore the drain therefore drew darker than painted from the start:
 the old crossing, the old steps, the pale palm and all twelve memory fragments. After a
