@@ -783,6 +783,14 @@ func _shows_movement_keys() -> bool:
 	return true
 
 
+## ⚠ NOT "PRESS R AND DRAW" AT THE SPAWN. On a first visit the greeting came straight after the
+## opening, on the bank, before she had walked a step -- the first instruction in the game told
+## her to draw with nothing in front of her to draw for, and the Walk card followed it. The draw
+## lesson says the same thing at Ang Hagdan's wall. A return visit still hears it.
+func _greets_on_first_visit() -> bool:
+	return false
+
+
 ## Into the terraces' haze, not Mayon's ash paper.
 func _fade_paper() -> Color:
 	return Color(0.78, 0.88, 0.86)
