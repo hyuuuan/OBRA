@@ -3,7 +3,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_action_prompt_probe.gd
 
 ## Every check this probe makes, so a crash part-way cannot print OK.
-const CHECKS := 37
+const CHECKS := 39
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
 var failures: Array[String] = []
@@ -181,6 +181,18 @@ func _movement_keys() -> void:
 		and row[0].position.x >= goal_rect.end.x,
 		"and MOVE stays clear of the goal readout (%s, goal %s)" % [row[0], goal_rect])
 	prompts.set_revert_available(false)
+
+	# PLACING: the rotate and scale keys take the corner, and walk and jump step out for them --
+	# laid out off R, they stood across ROTATE; moved left of it, they reached the goal chip.
+	prompts.set_placement_active(true)
+	await create_timer(0.4).timeout
+	var rotate := prompts.find_child("RotatePlacementPrompt", true, false) as Button
+	_check(rotate != null and rotate.visible and not move.visible and not jump.visible,
+		"while placing, walk and jump step out for the rotate and scale keys")
+	prompts.set_placement_active(false)
+	await create_timer(0.4).timeout
+	_check(move.visible and jump.visible and prompts.movement_keys_shown(),
+		"and come back when the placement ends")
 	level.set_physics_process(true)
 
 	# The other four do not ask for them.
