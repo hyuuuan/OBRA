@@ -23,6 +23,7 @@ func _run() -> void:
 	# Lolo has gone by the time she reaches the top, as he must have.
 	(level.get("lolo") as Lolo).vanish()
 	level.set("_lolo_moment", "gone")
+	preload("res://tests/level5_journey_fixture.gd").summit(level)
 	_the_voice_and_the_ending_are_the_runs()
 	await _the_summit_waits_for_lolo_to_go()
 	await _the_summit_goes_white_and_still()
@@ -63,7 +64,7 @@ func _the_summit_waits_for_lolo_to_go() -> void:
 	var lolo := level.get("lolo") as Lolo
 	level.set("_lolo_moment", "waiting")
 	lolo.set("_vanished", false)
-	await _put(12300.0, -650.0)
+	await _put(21810.0, 98.0)
 	var held: String = level.call("summit_state")
 	lolo.vanish()
 	level.set("_lolo_moment", "gone")
@@ -74,7 +75,7 @@ func _the_summit_waits_for_lolo_to_go() -> void:
 
 
 func _the_summit_goes_white_and_still() -> void:
-	await _put(12300.0, -650.0)
+	await _put(21810.0, 98.0)
 	await create_timer(5.0).timeout
 	var sky := level.get_node("EnvironmentBaseplate/SkyBand/Drainable") as Drainable
 	var tremor := level.get_node("Eruption") as ScreenTremor
@@ -85,7 +86,7 @@ func _the_summit_goes_white_and_still() -> void:
 
 
 func _the_brush_refuses_her_twice_then_she_lowers_it() -> void:
-	await _put(12750.0, -500.0)
+	await _put(22110.0, 98.0)
 	var panel := level.get("draw_panel") as DrawPanel
 	var refused := 0
 	for attempt in range(2):

@@ -41,27 +41,27 @@ func _run() -> void:
 		return
 	await _clear_ui()
 	_check(await _place("stairs","climb"),"stairs are placed through the normal ink path",str(player.global_position))
-	if not await _travel(5840):
-		_fail("could not reach the first memory cluster")
+	if not await _travel(6640):
+		_fail("could not reach the first remembered place")
 		return
 	await _clear_ui()
 	await _save_memory("terraces","stairs")
 	await _photo("02_memories")
-	if not await _travel(7280):
-		_fail("could not reach the second memory cluster")
+	if not await _travel(11820):
+		_fail("could not reach the church")
 		return
 	await _clear_ui()
 	await _save_memory("church","door")
-	if not await _travel(8010):
-		_fail("could not cross the second memory cluster")
+	if not await _travel(14410):
+		_fail("could not cross the church")
 		return
 	await _clear_ui()
 	await _save_memory("bangka","sailboat")
-	if not await _travel(9440):
+	if not await _travel(20180):
 		_fail("could not reach the flower detour")
 		return
 	await _grounded()
-	if not await _travel(10200):
+	if not await _travel(20990):
 		_fail("could not climb the flower detour")
 		return
 	await _grounded()
@@ -69,7 +69,7 @@ func _run() -> void:
 	await _photo("03_flower")
 	await _save_memory("flower","sun")
 	_check(is_zero_approx(level.get("ink_manager").remaining()),"two gate drawings and four memories use exactly six visible units",str(level.get("ink_manager").remaining()))
-	if not await _travel(11550):
+	if not await _travel(21290):
 		_fail("could not leave the memories for Lolo's moment")
 		return
 	await _clear_ui()
@@ -82,7 +82,7 @@ func _run() -> void:
 	_check(level.get("lolo").is_gone(),"Lolo disappears in the actual dialogue sequence",str(level.get("_lolo_moment")))
 	await _photo("04_lolo_gone")
 	await _clear_ui()
-	if not await _travel(12710):
+	if not await _travel(22060):
 		_fail("could not approach Lola")
 		return
 	await _clear_ui()
@@ -166,7 +166,7 @@ func _clear_ui() -> void:
 
 func _travel(to_x: float) -> bool:
 	print("WALK ",to_x," from ",player.global_position)
-	var until := Time.get_ticks_msec()+40000
+	var until := Time.get_ticks_msec()+90000
 	var tick := 0
 	Input.action_press("move_right")
 	Input.action_press("move_up")

@@ -49,7 +49,7 @@ func _a_fragment_goes_white_once_seen() -> void:
 	var kubo := _fragment("kubo")
 	var far := _fragment("church")
 	var before := kubo.drain()
-	await _put(5600.0, 0.0)
+	await _put(_fragment("kubo").global_position.x, 98.0)
 	await create_timer(1.5).timeout
 	_check(is_zero_approx(before) and kubo.drain() > 0.0 and kubo.drain() < 0.2 and is_zero_approx(far.drain()),
 		"a fragment goes white once she has seen it, slowly, and one out of sight does not",
@@ -75,6 +75,7 @@ func _a_drawing_that_belongs_saves_it_for_one_unit() -> void:
 
 func _with_the_gauge_empty_the_reserve_does_not_pay() -> void:
 	var terraces := _fragment("terraces")
+	_fragment("terraces").restore_to("whole")
 	await _near("terraces")
 	_set_ink(0.0, 2.0)
 	_draw("stairs")
@@ -103,7 +104,9 @@ func _a_drawing_that_does_not_belong_is_handed_back() -> void:
 
 func _passed_by_it_is_lost_in_seconds() -> void:
 	var bandaritas := _fragment("bandaritas")
-	await _put(6860.0 + 690.0, 0.0)
+	bandaritas.restore_to("whole")
+	await _near("bandaritas")
+	await _put(13880.0, 98.0)
 	var lost := await _until(func() -> bool: return bandaritas.state() == "lost", 7.0)
 	_check(lost, "passed by, a fragment goes white and blank in seconds and is lost",
 		"bandaritas %s" % bandaritas.state())
@@ -113,7 +116,7 @@ func _the_flower_is_saved_only_from_its_ledge() -> void:
 	var flower := _fragment("flower")
 	var profile := root.get_node("PlayerProfile")
 	var artist_before: int = profile.call("route_count", "artist")
-	await _put(flower.global_position.x, -260.0)
+	await _put(flower.global_position.x, 98.0)
 	var from_the_path: bool = level.call("_fragment_here") == flower
 	await _near("flower")
 	var from_the_ledge: bool = level.call("_fragment_here") == flower
@@ -150,7 +153,7 @@ func _a_fall_gives_back_the_fragments_as_they_were() -> void:
 func _lolo_thins_by_where_she_is() -> void:
 	var lolo := level.get("lolo") as Lolo
 	level.set("_steady_left", 0.0)
-	await _put(10500.0, -100.0)
+	await _put(20280.0, 98.0)
 	var thinned := await _until(func() -> bool: return lolo.thinness() >= 0.65, 5.0)
 	_check(thinned, "away from his fragments lolo thins toward what the corridor leaves of him",
 		"thinness %.2f" % lolo.thinness())
@@ -166,9 +169,9 @@ func _at_the_top_the_brush_refuses_him_and_he_is_gone() -> void:
 	counts["pragmatist"] = 2
 	counts["protector"] = 5
 	var goes_at: float = level.call("lolo_goes_at")
-	# One of his fragments saved (the terraces): he goes 2 x 250 sooner than with all three.
-	var where_ok := is_equal_approx(goes_at, 11500.0 - 500.0)
-	await _put(goes_at + 40.0, -100.0)
+	# One of his fragments saved (the terraces): he goes 2 x 40 sooner than with all three.
+	var where_ok := is_equal_approx(goes_at, float(level.call("_anchor", "farewell").x) - 80.0)
+	await _put(goes_at + 40.0, 98.0)
 	var panel := level.get("draw_panel") as DrawPanel
 	var raised := await _until(func() -> bool: return panel.is_open() and panel.is_refusing(), 14.0)
 	# Before the brush is raised to him, she thinks she can still mend it -- and he has not gone yet.
@@ -219,7 +222,7 @@ func _draw(entity: String) -> void:
 
 func _put(x: float, y: float) -> void:
 	var player := level.get("player") as Node2D
-	player.call("apply_morph_state", {"position": Vector2(x, y), "linear_velocity": Vector2.ZERO})
+	preload("res://tests/level5_journey_fixture.gd").prepare(level,Vector2(x,y))
 	await _frames(30)
 	call_group(DialogueBox.GROUP, &"hide_line")
 	paused = false
@@ -264,7 +267,7 @@ func _check(ok: bool, what: String, detail: String) -> void:
 
 
 func _near(id: String) -> void:
-	var at := _fragment(id).global_position + Vector2(0, 80)
+	var at := _fragment(id).global_position + Vector2(0, -42)
 	if id == "flower":
 		var ledges: Array = level.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/FlowerLedge").get("platforms")
 		at = Vector2(_fragment(id).global_position.x, (ledges[-1] as Rect2).position.y - 30.0)

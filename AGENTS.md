@@ -487,7 +487,12 @@ Its suites: `run_level4_audit`, `run_level4_enablers_probe`, `run_level4_seg1/se
 
 ## Level 5 (Mayon)
 
-The last level and the run's ending; `LEVEL_5.md` has the design and the as-built record.
+The last level and the run's ending; read the CURRENT crater-journey design at the top of
+`LEVEL_5.md`. The old upper climb and floating pictures are archived there, not the live flow.
+Twelve walkable places are masked by a foreground column, using two scenery-only render canvases
+and ONE physics route. Their camera transform and their left/right interaction ownership must
+agree. `tools/build_mayon_journey.py --check` checks the reused art cuts. The level config owns
+the itinerary, preservation placements and story anchors; save layout is v5 (v4 long-journey checkpoints migrate by vignette ID).
 `level_5.gd` switches on: every drawing costs ink, a creature drains it, the hidden reserve (the
 two gates only), silent saves, the ink gauge always shown, the camera following her height, the
 brush refusing (at lolo, at lola, and the page that draws the places), and its own ending (no

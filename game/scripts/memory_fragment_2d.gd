@@ -35,6 +35,12 @@ const RIM_MARGIN := 7.0
 const RIM_BREATH := 2.4
 
 @export var fragment_id: String = ""
+## Live landmarks use the same preservation ledger and summit contract as legacy fragments.
+@export var landmark_mode := false
+@export var landmark_art := ""
+@export var landmark_width := 400.0
+var vignette_id := ""
+var _dance_frames: Array[Texture2D] = []
 ## The classes that belong in it: drawing one, near it, saves it.
 @export var accepts: PackedStringArray = []
 ## Whether lolo is in it: saving it steadies him for a while.
@@ -58,9 +64,15 @@ func configure_memory(entry: Dictionary) -> void:
 	accepts = PackedStringArray(entry.get("accepts", []))
 	holds_lolo = bool(entry.get("holds_lolo", false))
 	cluster_id = String(entry.get("cluster", ""))
-	cluster_managed = not cluster_id.is_empty()
+	vignette_id = String(entry.get("vignette", ""))
+	cluster_managed = not cluster_id.is_empty() or not vignette_id.is_empty()
 	reach = float(entry.get("reach", reach))
 	needs_footing = bool(entry.get("needs_footing", needs_footing))
+	var landmark_tint: Array = entry.get("landmark_tint", [1,1,1,1])
+	if landmark_mode and _sprite != null:
+		var offset: Array = entry.get("landmark_offset", [0,0])
+		_sprite.position = Vector2(float(offset[0]),float(offset[1])-_sprite.texture.get_height()*_sprite.scale.y*.5)
+		_sprite.self_modulate = Color(float(landmark_tint[0]),float(landmark_tint[1]),float(landmark_tint[2]),float(landmark_tint[3]))
 	summit_texture = load(String(entry.get("summit_art", FOLDER + fragment_id + ".png"))) as Texture2D
 	bloom_width = float(entry.get("bloom_width", 800.0))
 	bloom_elevation = float(entry.get("bloom_elevation", 0.0))
@@ -120,7 +132,13 @@ func _ready() -> void:
 	_rim_style.set_corner_radius_all(8)
 	_sprite = Sprite2D.new()
 	_sprite.name = "Picture"
-	_sprite.texture = load(FOLDER + fragment_id + ".png") as Texture2D
+	_sprite.texture = load(landmark_art if landmark_mode else FOLDER + fragment_id + ".png") as Texture2D
+	if landmark_mode and _sprite.texture != null:
+		_sprite.scale = Vector2.ONE * landmark_width / _sprite.texture.get_width()
+		_sprite.position.y = -_sprite.texture.get_height() * _sprite.scale.y * 0.5
+		if fragment_id == "dancers":
+			for frame in range(1, 4):
+				_dance_frames.append(load("res://assets/Level2/dancers/dance_frame_%02d.png" % frame))
 	add_child(_sprite)
 	_ink = Node2D.new()
 	_ink.name = "Ink"
@@ -234,6 +252,13 @@ func _on_blanked() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	# Loose: it bobs and drifts a little, never quite still.
+	if landmark_mode:
+		if not _dance_frames.is_empty():
+			_sprite.texture = _dance_frames[[0, 1, 2, 1][int(_time / 0.24) % 4] if not Motion.reduced() else 0]
+		if _targeted:
+			_rim.position = _sprite.position
+			_rim.queue_redraw()
+		return
 	_sprite.position = Vector2.ZERO if Motion.reduced() else Vector2(
 		sin(_time * 0.37 + _phase) * BOB * 1.5, sin(_time * 0.9 + _phase) * BOB).round()
 	if _targeted:
@@ -246,7 +271,7 @@ func _draw_rim() -> void:
 	if _sprite == null or _sprite.texture == null:
 		return
 	# Follow the torn silhouette. A rounded UI frame made these read as menu cards.
-	var size := _sprite.texture.get_size() + Vector2.ONE * RIM_MARGIN * 2.0
+	var size := _sprite.texture.get_size() * _sprite.scale + Vector2.ONE * RIM_MARGIN * 2.0
 	_rim.draw_texture_rect(_sprite.texture,Rect2(-size*.5+Vector2(0,3),size),false,
 		Color(0.12,0.08,0.04,.8))
 	_rim.draw_texture_rect(_sprite.texture,Rect2(-size*.5,size),false,

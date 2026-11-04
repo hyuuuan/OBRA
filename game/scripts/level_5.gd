@@ -11,9 +11,19 @@ extends "res://scripts/level_base.gd"
 ##     nothing on the mountain gives any back. The gauge never steps aside. Two units nobody sees
 ##     keep the climb's two gates always payable (`_may_use_hidden_ink`): a player locked out of
 ##     the climax by over-spending would be a disaster.
-##   * ONE CONTINUOUS ASCENT. The checkpoints are written without a word.
-##   * IT ENDS WITH ITS OWN SCENE. The summit and the frame's return are the ending (Kent,
-##     2026-10-25). Three clustered choices lead into the summit and the ordinary room.
+##   * THE CRATER OPENS INTO TWELVE WALKABLE MEMORIES. The checkpoints stay silent.
+##   * IT ENDS WITH ITS OWN SCENE. The summit and the return home are the ending (Kent,
+##     2026-10-25). A foreground shadow reveals each place; the summit leads home.
+
+
+const JourneyScript = preload("res://scripts/mayon_memory_journey.gd")
+const CraterScript = preload("res://scripts/mayon_crater_2d.gd")
+var _journey: Node
+var _ascent_camera_left := 0.0
+var _phase := "ascent"
+var _crater_cover: ColorRect
+var _crater_transition: Tween
+var _restored_camera: Array = []
 
 
 func level_config_path() -> String:
@@ -122,9 +132,9 @@ func _play_own_ending() -> void:
 func _checkpoint_place(checkpoint_id: String) -> String:
 	match checkpoint_id:
 		"CP1":
-			return "the mid slope"
+			return "among the remembered places"
 		"CP2":
-			return "below the summit"
+			return "below the white summit"
 	return super(checkpoint_id)
 
 
@@ -141,19 +151,31 @@ func _build_level_furniture() -> void:
 	var economy: Dictionary = director.level_data().get("ink_economy", {})
 	ink_manager.hidden_reserve = float(economy.get("hidden_reserve", 0.0))
 	_arm_the_drain()
+	_build_memory_journey()
 	_gather_fragments()
 	_gather_the_ash()
-	_cluster_data = director.level_data().get("memory_clusters", [])
 
 
 func _level_physics(anchor_position: Vector2) -> void:
+	var crater := _anchor("crater")
+	var far_rim := crater.x + CraterScript.WIDTH * 0.5
+	var over_mouth := anchor_position.x >= crater.x - CraterScript.WIDTH * 0.5 and anchor_position.x <= far_rim
+	var in_throat := over_mouth and anchor_position.y > crater.y + 120.0
+	# A flying drawing cannot bypass the journey by clearing the far lip.
+	if _phase == "ascent" and (in_throat or anchor_position.x > far_rim):
+		_enter_crater()
+		return
+	if _phase == "crater_drop": return
 	if anchor_position.y > _lowest_ground() + FALL_BELOW:
 		var words := _line("FELL")
 		_return_to_safety(words, words)
 		return
 	_hold_the_drain(get_physics_process_delta_time())
-	_tend_clusters(anchor_position.x)
-	_tend_act_one(get_physics_process_delta_time(), anchor_position.x)
+	if _phase == "ascent":
+		_tend_act_one(get_physics_process_delta_time(), anchor_position.x)
+	else:
+		_journey.sync()
+		_tend_clusters(anchor_position.x)
 	_tend_summit(get_physics_process_delta_time(), anchor_position.x)
 	_rescue_reserve_drawings()
 	if _summit.is_empty():
@@ -161,9 +183,6 @@ func _level_physics(anchor_position: Vector2) -> void:
 		if status_label.visible != status_visible:
 			status_label.visible = status_visible
 			hud_panel.reset_size()
-	for fragment in _fragments:
-		fragment.notice(anchor_position.x)
-	# The one a drawing would go into now is lit, and only it.
 	var target := _fragment_here()
 	for fragment in _fragments:
 		fragment.set_targeted(fragment == target)
@@ -172,14 +191,10 @@ func _level_physics(anchor_position: Vector2) -> void:
 		_tremor.amplitude = 0.0 if Motion.reduced() else 3.0
 	if not _summit.is_empty():
 		for child in $CanvasLayer.get_children():
-			if child is CanvasItem and child != hud_panel:
-				(child as CanvasItem).hide()
-		if action_prompts != null:
-			action_prompts.suppressed = true
+			if child is CanvasItem and child != hud_panel: (child as CanvasItem).hide()
+		if action_prompts != null: action_prompts.suppressed = true
 		status_label.hide()
-		if objective_marker != null:
-			objective_marker.clear()
-
+		if objective_marker != null: objective_marker.clear()
 
 func _on_ink_emptied() -> bool:
 	# His disappearance includes his voice; an optional late morph must not bring him back.
@@ -188,25 +203,17 @@ func _on_ink_emptied() -> bool:
 	return true
 
 
-## The banner: the gate she stands at, while it is open; the climb everywhere else.
+## The banner follows the current gate or journey phase.
 func _current_objective() -> Dictionary:
-	if not _summit.is_empty():
-		return {}
-	if director == null:
-		return {}
+	if not _summit.is_empty() or director == null: return {}
+	if _phase != "ascent":
+		return {"key": "farewell" if _phase == "farewell" else "memories"}
 	match String(director.current_obstacle()):
 		"L5_SPAN":
 			return {"key": "span"} if not director.is_solved("L5_SPAN") else {"key": "slope"}
 		"L5_CLIMB":
-			return {"key": "climb"} if not director.is_solved("L5_CLIMB") else {"key": "slope"}
-	if player != null and is_instance_valid(player):
-		var x := player.global_position.x
-		if x < 1400.0:
-			return {"key": "foot"}
-		if x >= CORRIDOR.x and x < CORRIDOR.y and _lolo_moment == "":
-			return {"key": "corridor"}
-	return {"key": "slope"}
-
+			return {"key": "climb"} if not director.is_solved("L5_CLIMB") else {"key": "crater"}
+	return {"key": "foot" if is_instance_valid(player) and player.global_position.x < 1400.0 else "crater"}
 
 func _lowest_ground() -> float:
 	return 600.0
@@ -256,17 +263,12 @@ func _hold_the_drain(delta: float) -> void:
 
 # --- Act Two: what she carries ------------------------------------------------------------
 
-## Where the fragments drift, along the slope.
-const CORRIDOR := Vector2(5300.0, 11000.0)
 ## How long a fragment with lolo in it steadies him.
 const STEADY_SECONDS := 60.0
-## How thin lolo is, by where she is: the foot and the treeline, the mid slope, the corridor.
-const THINNESS := [[4200.0, 0.25], [8800.0, 0.45], [INF, 0.7]]
 ## How fast his thinness follows where it should be, per second.
 const THINNING := 0.25
 ## Where lolo goes with all three of his fragments saved; each one let go brings it nearer.
-const LOLO_GOES_X := 11500.0
-const LOLO_GOES_SOONER := 250.0
+const LOLO_GOES_SOONER := 40.0
 ## How long she stands before raising the brush herself.
 const RAISE_AFTER := 8.0
 
@@ -280,7 +282,6 @@ var _saved_class := ""
 var _corridor_seen := false
 var _locked_fragment: MemoryFragment2D
 var _page_had_fragment := false
-var _cluster_data: Array = []
 var _clusters_seen: Array[String] = []
 var _clusters_left: Array[String] = []
 var _active_cluster := ""
@@ -298,13 +299,9 @@ func _handle_level_input(event: InputEvent) -> bool:
 
 
 func _gather_fragments() -> void:
-	_fragments.clear()
-	for node in get_tree().get_nodes_in_group(&"memory_fragments"):
-		var fragment := node as MemoryFragment2D
-		_fragments.append(fragment)
-		for entry: Dictionary in director.level_data().get("memories", []):
-			if String(entry.get("id", "")) == fragment.fragment_id:
-				fragment.configure_memory(entry)
+	# These landmarks belong to this run, including when another level is leaving the tree.
+	_fragments.assign(_journey.fragments)
+	for fragment in _fragments:
 		fragment.saved.connect(_on_fragment_saved)
 		fragment.lost.connect(_on_fragment_lost)
 
@@ -366,38 +363,22 @@ func _rescue_reserve_drawings() -> void:
 			_reserve_drawings.remove_at(index)
 
 
-func _tend_clusters(her_x: float) -> void:
-	var current := ""
-	for entry: Dictionary in _cluster_data:
-		var id := String(entry.id)
-		if her_x >= float(entry.entry) and her_x < float(entry.exit) and not _clusters_left.has(id):
-			current = id
-			if not _clusters_seen.has(id):
-				_clusters_seen.append(id)
-				for fragment in _fragments:
-					if fragment.cluster_id == id:
-						fragment.begin_whitening()
-		# ⚠ ONLY PAST THE FAR EDGE IS LEAVING. The entry sits mid-step with open ground below it,
-		# and stepping back a pixel used to blank all four memories and save her there.
-		if her_x >= float(entry.exit) and _clusters_seen.has(id) and not _clusters_left.has(id):
-			_clusters_left.append(id)
-			for fragment in _fragments:
-				if fragment.cluster_id == id:
-					fragment.leave_behind()
-			# The new floor is safe; changing scenes or falling never reopens a spent choice.
-			_write_checkpoint("CP1")
-	if current != _active_cluster:
-		_active_cluster = current
-		var camera := _world_camera()
-		if camera != null:
-			camera.set_room_bounds(Rect2())
-			camera.vertical_pin_y = NAN
-			for entry: Dictionary in _cluster_data:
-				if String(entry.id) == current:
-					var box: Array = entry.camera
-					camera.set_room_bounds(Rect2(float(box[0]), float(box[1]), float(box[2]), float(box[3])))
-					camera.vertical_pin_y = float(box[1]) + float(box[3]) * 0.5
-
+func _tend_clusters(_her_x: float) -> void:
+	if _journey == null or not _journey.enabled: return
+	var index: int = _journey.active_index(_player_anchor_position())
+	var current: String = _journey.places[index].id
+	if not _clusters_seen.has(current):
+		_clusters_seen.append(current)
+		for fragment in _fragments:
+			if fragment.vignette_id == current: fragment.begin_whitening()
+	for prior in range(index):
+		var id: String = _journey.places[prior].id
+		if _clusters_left.has(id): continue
+		_clusters_left.append(id)
+		for fragment in _fragments:
+			if fragment.vignette_id == id: fragment.leave_behind()
+		_write_checkpoint("CP1")
+	_active_cluster = current
 
 var _performance: Sprite2D
 
@@ -456,21 +437,19 @@ func _on_drawing_ready(entity_id: String, display_name: String, drawing: Image,
 
 ## The nearest fragment she could still save, if one is in reach.
 func _fragment_here() -> MemoryFragment2D:
-	if player == null or not is_instance_valid(player):
+	if not is_instance_valid(player) or _journey == null or not _journey.enabled or _phase not in ["memories", "farewell"]:
 		return null
+	var current: String = _journey.current_id(_player_anchor_position())
 	var best: MemoryFragment2D = null
 	var nearest := INF
-	# A drawn creature keeps plain reach: its flight is already paid for in ink.
 	var airborne := player is CharacterBody2D and not (player as CharacterBody2D).is_on_floor()
 	for fragment in _fragments:
+		if fragment.vignette_id != current or (fragment.needs_footing and airborne): continue
 		var away := fragment.global_position.distance_to(player.global_position)
-		if fragment.needs_footing and airborne:
-			continue
 		if fragment.is_open() and away <= fragment.reach and away < nearest:
 			best = fragment
 			nearest = away
 	return best
-
 
 func _fragment(fragment_id: String) -> MemoryFragment2D:
 	for fragment in _fragments:
@@ -483,6 +462,7 @@ func _on_fragment_saved(fragment_id: String) -> void:
 	AudioDirector.play_sfx(&"mayon_brush", 0.6)
 	Telemetry.record_event("fragment", {"id": fragment_id, "outcome": "saved", "class": _saved_class})
 	var fragment := _fragment(fragment_id)
+	var can_speak := is_instance_valid(lolo) and not lolo.is_gone()
 	if fragment_id == "flower" and not _flower_credited:
 		# The useless one, saved anyway: the fifth flower, and the artist's choice.
 		PlayerProfile.record_collectible("L5_HF")
@@ -490,10 +470,10 @@ func _on_fragment_saved(fragment_id: String) -> void:
 			PlayerProfile.record_route("level_5", "artist")
 			PlayerProfile.record_obstacle_route("level_5", "L5_HF", "artist")
 		_flower_credited = true
-		_speak(script_lines.fire("FLOWER.saved"))
+		if can_speak: _speak(script_lines.fire("FLOWER.saved"))
 	elif fragment != null and fragment.holds_lolo:
 		_steady_left = STEADY_SECONDS
-		_speak(script_lines.fire("LOLO.steadied." + fragment_id))
+		if can_speak: _speak(script_lines.fire("LOLO.steadied." + fragment_id))
 
 
 func _on_fragment_lost(fragment_id: String) -> void:
@@ -510,8 +490,7 @@ func _saved_lolo_fragments() -> int:
 
 ## Where he goes: sooner, the fewer of his fragments she saved. He goes either way.
 func lolo_goes_at() -> float:
-	return LOLO_GOES_X - LOLO_GOES_SOONER * (3 - _saved_lolo_fragments())
-
+	return _anchor("farewell").x - LOLO_GOES_SOONER * (3 - _saved_lolo_fragments())
 
 ## LOLO'S THREAD. He thins as the painting comes apart -- by where she is on the mountain -- and
 ## a fragment with him in it brings him back into focus for a while. Near the top he stops, and
@@ -524,21 +503,26 @@ func _tend_lolo(delta: float, her_x: float) -> void:
 		lolo.set_thinness(0.0)
 	else:
 		var want := 0.0
-		for band: Array in THINNESS:
-			if her_x < float(band[0]):
-				want = float(band[1])
-				break
+		want = 0.25 if _phase == "ascent" else minf(0.7, 0.35 + float(_journey.active_index(_player_anchor_position())) * 0.03)
 		lolo.set_thinness(move_toward(lolo.thinness(), want, THINNING * delta))
-	if not _corridor_seen and her_x >= CORRIDOR.x:
+	if not _corridor_seen and _phase == "memories":
 		# The painting stops being Mayon: the first sight of them.
 		_corridor_seen = true
 		# And she sees what it is: every one of hers, going at once.
 		_speak(script_lines.fire("L5_CORRIDOR.enter") + script_lines.fire("APO.why.3"))
 	match _lolo_moment:
 		"":
-			if her_x >= lolo_goes_at():
+			if _phase in ["memories", "farewell"] and her_x >= lolo_goes_at():
+				_phase = "farewell"
+				# The preservation journey is over. Its final choices must go with it,
+				# even if she walks back before the last foreground shadow clears.
+				for fragment in _fragments: fragment.leave_behind()
+				for index in range(_journey.places.size()-1):
+					var id: String = _journey.places[index].id
+					if not _clusters_left.has(id): _clusters_left.append(id)
 				_lolo_moment = "waiting"
 				_raise_left = RAISE_AFTER
+				_write_checkpoint("CP1")
 				# Before the brush is raised to him, she thinks she can still mend it (Kent,
 				# 2026-11-01): "wait i can fix this". It is what makes the refusal land.
 				_speak(script_lines.fire("LOLO.fading") + script_lines.fire("APO.fix"))
@@ -626,7 +610,8 @@ func _level_run_state() -> Dictionary:
 	for thing in _taken:
 		if bool(_going.get(thing, false)):
 			taken.append(String(thing.name))
-	return {"layout_version": 3, "fragments": fragments, "steady_left": _steady_left,
+	return {"layout_version": 5, "phase": _phase, "active_vignette": _active_cluster,
+		"camera_position": [_world_camera().global_position.x, _world_camera().global_position.y], "fragments": fragments, "steady_left": _steady_left,
 		"lolo_thinness": lolo.thinness() if is_instance_valid(lolo) else 1.0,
 		"taken": taken, "forgot": _forgot, "wondered": _wondered, "save_order": _save_order.duplicate(),
 		"clusters_seen": _clusters_seen.duplicate(), "clusters_left": _clusters_left.duplicate(),
@@ -635,6 +620,8 @@ func _level_run_state() -> Dictionary:
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
+	_restored_camera = state.get("camera_position", []) if int(state.get("layout_version", 1)) >= 5 else []
+	_restore_journey_phase(state)
 	var fragments: Dictionary = state.get("fragments", {})
 	for fragment in _fragments:
 		fragment.restore_snapshot(fragments.get(fragment.fragment_id, {}))
@@ -670,29 +657,24 @@ func _restore_level_run_state(state: Dictionary) -> void:
 
 
 func _checkpoint_landing(state: Dictionary) -> Vector2:
-	var level_state: Dictionary = state.get("level", {})
-	if int(level_state.get("layout_version", 1)) < 2:
+	var saved: Dictionary = state.get("level", {})
+	if int(saved.get("layout_version", 1)) < 4:
 		if checkpoints.latest_id() == "CP2":
 			_lolo_moment = "gone"
-			if lolo != null:
-				lolo.vanish()
-			return Vector2(11900, -500)
-		return Vector2(4800, 50) if checkpoints.latest_id() == "CP1" else Vector2(260, 510)
-	if int(level_state.get("layout_version", 1)) < 3:
-		# The old stacked shelves are gone. Resume above the new ground, beyond the last
-		# departed cluster, while retaining every memory outcome and its original strokes.
-		if checkpoints.latest_id() == "CP2":
-			return Vector2(11900, -500)
-		var left: Array = level_state.get("clusters_left", [])
-		if "memory_3" in left:
-			return Vector2(10500, -510)
-		if "memory_2" in left:
-			return Vector2(8700, -350)
-		if "memory_1" in left:
-			return Vector2(6900, -190)
-		return Vector2(4800, 50)
+			if lolo != null: lolo.vanish()
+			return _anchor("summit") + Vector2(-100, 0)
+		if checkpoints.latest_id() == "CP1": return _anchor("entry")
+		return spawn_point.global_position
+	if int(saved.get("layout_version", 1)) == 4 and String(saved.get("phase", "ascent")) != "ascent":
+		# The compact itinerary retains IDs and outcomes, but the old world coordinates
+		# no longer point to the same place. Resume at a safe entrance with a fresh camera.
+		if String(saved.get("phase")) in ["farewell", "summit"]:
+			return _anchor("summit") + Vector2(-100, 0) if _lolo_moment == "gone" else _anchor("farewell")
+		var index: int = _journey.index_of(String(saved.get("active_vignette", "")))
+		if index >= 0:
+			return Vector2(float(_journey.places[index].start)+170, _anchor("entry").y)
+		return _anchor("entry")
 	return super(state)
-
 
 func _give_back_what_cannot_come_back(_state: Dictionary) -> void:
 	# Mayon's checkpoints are beyond both gates. Their abandoned answers remain paid:
@@ -704,12 +686,11 @@ func _give_back_what_cannot_come_back(_state: Dictionary) -> void:
 
 ## The ash, by where she is: thin at the foot, thick on the cone and in the corridor, gone at the
 ## summit -- where there is no ash, no tremor and no sound.
-const ASH := [[1800.0, 0.2], [4200.0, 0.4], [5400.0, 0.6], [12200.0, 1.0], [INF, 0.0]]
+const ASH := [[1800.0, 0.2], [4200.0, 0.4], [5500.0, 0.6], [INF, 0.0]]
 ## How fast the ash thickens or thins toward where she is, per second.
 const ASH_EASE := 0.1
 ## The eruption, felt: every so often below the summit.
 const TREMOR_EVERY := 18.0
-const SUMMIT_X := 12200.0
 ## Lolo's forgetting on the way up, by where she is. Light at first; by the third it is not funny.
 const FORGETTING := [[1000.0, "LOLO.forget.1"], [2900.0, "LOLO.forget.2"], [4700.0, "LOLO.forget.3"]]
 ## And the apo working out why everything is going (Kent, 2026-11-01: "the apo should have dialogue
@@ -767,9 +748,9 @@ func _tend_act_one(delta: float, her_x: float) -> void:
 	if _ash != null:
 		_ash.density = move_toward(_ash.density, ash_at(her_x), ASH_EASE * delta)
 	if _wind != null:
-		_wind.set("enabled", her_x < SUMMIT_X)
+		_wind.set("enabled", _phase == "ascent")
 	if _tremor != null:
-		_tremor.enabled = her_x < SUMMIT_X
+		_tremor.enabled = _phase == "ascent"
 	if _forgot < FORGETTING.size() and her_x >= float(FORGETTING[_forgot][0]):
 		var hook := String(FORGETTING[_forgot][1])
 		_forgot += 1
@@ -783,8 +764,6 @@ func _tend_act_one(delta: float, her_x: float) -> void:
 # --- Act Three: the summit ----------------------------------------------------------------
 
 ## Where the summit begins (the world goes white and still), and where she speaks to lola.
-const SUMMIT_ARRIVE := 12200.0
-const SUMMIT_SPEAK := 12700.0
 ## How long the white takes to come over everything.
 const WHITE_SECONDS := 4.0
 ## How white: paper, not blank -- the ground she stands on stays.
@@ -824,7 +803,8 @@ func _tend_summit(delta: float, her_x: float) -> void:
 		"":
 			# Not before lolo has gone: the brush is raised to him first, wherever she has got to.
 			var gone := lolo == null or not is_instance_valid(lolo) or lolo.is_gone()
-			if her_x >= SUMMIT_ARRIVE and gone:
+			if _phase in ["memories", "farewell", "summit"] and her_x >= _anchor("summit").x and gone:
+				_phase = "summit"
 				_summit = "quiet"
 				if not _current_form_id.is_empty():
 					_revert_to_base_form()
@@ -840,14 +820,14 @@ func _tend_summit(delta: float, her_x: float) -> void:
 				var camera := _world_camera()
 				if camera != null:
 					camera.offset = Vector2.ZERO
-					camera.set_room_bounds(Rect2(11900, -1240, 1800, 1000))
-					camera.vertical_pin_y = -740.0
+					camera.set_room_bounds(Rect2(_anchor("summit").x - 300, -680, 1800, 1000))
+					camera.vertical_pin_y = -180.0
 				_whiten(WHITE, WHITE_SECONDS)
 				# And still at once: no ash left drifting over the white.
 				if _ash != null:
 					_ash.density = 0.0
 		"quiet":
-			if her_x >= SUMMIT_SPEAK:
+			if her_x >= _anchor("summit_speak").x:
 				_summit = "trying"
 				if not _current_form_id.is_empty():
 					_revert_to_base_form()
@@ -876,6 +856,15 @@ func _tend_summit(delta: float, her_x: float) -> void:
 
 ## White in every direction except what she saved.
 func _whiten(amount: float, seconds: float) -> void:
+	if _journey != null and _journey.enabled:
+		var scene: Node2D = _journey.scenes[-1]
+		var wash := scene.get_node_or_null("SummitDrain") as Drainable
+		if wash == null:
+			wash = Drainable.new()
+			wash.name = "SummitDrain"
+			scene.add_child(wash)
+		var tween := wash.drain_to(amount, seconds)
+		if tween != null: tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	for path: String in WHITENED:
 		var how_far := minf(amount, float(WHITENED[path])) if amount > 0.0 else 0.0
 		var thing := get_node_or_null(NodePath(path)) as CanvasItem
@@ -1067,3 +1056,109 @@ var _went_home := false
 
 func went_home() -> bool:
 	return _went_home
+
+
+# --- The crater and the continuous remembered route --------------------------------------
+
+func _anchor(key: String) -> Vector2:
+	return _journey.anchor(key)
+
+
+func journey_phase() -> String:
+	return _phase
+
+
+func _build_memory_journey() -> void:
+	_ascent_camera_left = _world_camera().outdoor_x_limits.x
+	_journey = JourneyScript.new()
+	_journey.name = "MemoryJourney"
+	add_child(_journey)
+	_journey.build(self, director.level_data())
+	_lola().position = _anchor("lola")
+	var plane := get_node("EnvironmentBaseplate/GameplayPlane")
+	var floor_y: float = director.level_data().journey.floor_y
+	plane.get_node("Obstacles/L5_SUMMIT").position = Vector2(_anchor("summit_speak").x,floor_y-230)
+	plane.get_node("Obstacles/CP2").position = Vector2(_anchor("summit").x-100,floor_y-230)
+	plane.get_node("Marks/LoloGoesMark").position = Vector2(_anchor("farewell").x,floor_y)
+	plane.get_node("Marks/SummitMark").position = Vector2(_anchor("lola").x,floor_y)
+	var crater := CraterScript.new()
+	crater.name = "Crater"
+	crater.position = _anchor("crater")
+	get_node("EnvironmentBaseplate/GameplayPlane").add_child(crater)
+	var veil := CanvasLayer.new()
+	veil.name = "CraterSmoke"
+	veil.layer = 2
+	veil.add_to_group(&"transition_world")
+	add_child(veil)
+	_crater_cover = ColorRect.new()
+	_crater_cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crater_cover.color = Color(0.035, 0.027, 0.04, 0)
+	_crater_cover.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	veil.add_child(_crater_cover)
+
+
+func _enter_crater() -> void:
+	_phase = "crater_drop"
+	if placement_controller.is_placing(): placement_controller.cancel_placement()
+	_crater_transition = create_tween()
+	_crater_transition.tween_property(_crater_cover, "color:a", 1.0, 0.25)
+	await _crater_transition.finished
+	if not is_instance_valid(player): return
+	player.call("apply_morph_state", {"position": _anchor("entry"), "linear_velocity": Vector2.ZERO})
+	if is_instance_valid(lolo): lolo.global_position = _anchor("entry") + Vector2(-95, 0)
+	_world_camera().snap_to_target()
+	_set_journey_visible(true)
+	_phase = "memories"
+	_write_checkpoint("CP1")
+	_crater_transition = create_tween()
+	_crater_transition.tween_property(_crater_cover, "color:a", 0.0, 0.4)
+
+
+func _set_journey_visible(on: bool) -> void:
+	# The compact entrance can show the existing far rim, but must not pan back into
+	# the hidden crater gap while the first memory fills the frame.
+	_world_camera().outdoor_x_limits.x = _anchor("crater").x+CraterScript.WIDTH*.5 if on else _ascent_camera_left
+	for path in ["SkyFill", "SkyBand", "GameplayPlane/Dressing", "GameplayPlane/UpperDressing",
+		"GameplayPlane/AshTakes", "GameplayPlane/Terrain/Slopes", "GameplayPlane/Terrain/Cone", "GameplayPlane/Crater"]:
+		var item := get_node_or_null("EnvironmentBaseplate/" + path) as CanvasItem
+		if item != null: item.visible = not on
+	# The optional flower's rocks must be visible inside its scenery pass, never over another place.
+	get_node("EnvironmentBaseplate/GameplayPlane/Terrain/FlowerLedge").visible = not on
+	_journey.activate(on)
+	if _ash != null: _ash.density = 0.0 if on else 0.25
+	if _wind != null: _wind.set("enabled", not on)
+	if _tremor != null: _tremor.enabled = not on
+	if not on and minimap != null:
+		minimap.get("_view").world_2d = get_viewport().find_world_2d()
+	_world_camera().set_room_bounds(Rect2())
+	_world_camera().vertical_pin_y = NAN
+
+
+func _restore_journey_phase(state: Dictionary) -> void:
+	if _crater_transition != null and _crater_transition.is_valid(): _crater_transition.kill()
+	_crater_cover.color.a = 0.0
+	_phase = String(state.get("phase", "ascent"))
+	if int(state.get("layout_version", 1)) < 4:
+		_phase = "farewell" if checkpoints.latest_id() == "CP2" else ("memories" if checkpoints.latest_id() == "CP1" else "ascent")
+	if _phase == "crater_drop": _phase = "memories"
+	_set_journey_visible(_phase != "ascent")
+
+
+func _minimap_region() -> Rect2:
+	if _journey != null and _journey.enabled: return _journey.region(_player_anchor_position())
+	return super()
+
+
+func _restore_checkpoint() -> String:
+	var result := super()
+	if result.is_empty(): return result
+	var camera := _world_camera()
+	if _restored_camera.size() == 2:
+		camera.global_position = Vector2(float(_restored_camera[0]),float(_restored_camera[1]))
+	else:
+		camera.snap_to_target()
+	camera.force_update_scroll()
+	if _journey.enabled:
+		_journey.travel_camera_x = camera.global_position.x
+		_journey.sync()
+	return result

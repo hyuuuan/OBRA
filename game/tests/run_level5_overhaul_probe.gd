@@ -34,14 +34,11 @@ func _run() -> void:
 	var church: MemoryFragment2D = level.call("_fragment", "church")
 	_put(kubo.global_position + Vector2(0, 60))
 	await _wait(.15)
-	var four := 0
-	for id in ["kubo", "terraces", "bandaritas", "dancers"]:
-		four += int((level.call("_fragment", id) as MemoryFragment2D).state() == "draining")
-	_check(four == 4 and church.state() == "whole", "one cluster starts together; remote memories wait")
+	_check(kubo.state() == "draining" and church.state() == "whole", "entering a place starts its live landmark; remote places wait")
 	# Back down below the entry, as a run-up or a misstep would take her: nothing is spent.
-	_put(Vector2(5200, 100))
+	_put(Vector2(8360, 98))
 	await _wait(.15)
-	_check(kubo.is_open() and not (level.get("_clusters_left") as Array).has("memory_1"),
+	_check(kubo.is_open() and not (level.get("_clusters_left") as Array).has("payyo_bale"),
 		"stepping back below a cluster does not leave it")
 	_put(kubo.global_position + Vector2(0, 60))
 	await _wait(.15)
@@ -68,18 +65,22 @@ func _run() -> void:
 	_check(kubo.strokes() == [[12.0, 19.0, 51.0, 89.0, 92.0, 21.0]] and level.get("_save_order") == ["kubo"]
 		and is_equal_approx(lolo.thinness(), .63),
 		"checkpoint restores exact ink, its outcome, and save order")
-	level.call("_tend_clusters", 7000.0)
+	_put(Vector2(11320,98))
+	level.call("_tend_clusters", 11320.0)
 	await _wait(4.2)
 	var lost: MemoryFragment2D = level.call("_fragment", "dancers")
 	var left: Dictionary = level.call("_level_run_state")
 	level.call("_restore_level_run_state", left)
-	_check(lost.state() == "lost" and "memory_1" in level.get("_clusters_left"), "departed choices stay lost on reload")
-	level.call("_tend_clusters", 7200.0)
-	level.call("_tend_clusters", 7000.0)
-	var stayed := church.is_open() and not (level.get("_clusters_left") as Array).has("memory_2")
-	level.call("_tend_clusters", 8600.0)
-	_check(stayed and church.state() == "passing" and "memory_2" in level.get("_clusters_left"),
-		"a cluster is left only past its far edge, never by stepping back downhill")
+	_check(lost.state() == "lost" and "piyesta_plaza" in level.get("_clusters_left"), "departed choices stay lost on reload")
+	_put(Vector2(11620,98))
+	level.call("_tend_clusters",11620.0)
+	_put(Vector2(11020,98))
+	level.call("_tend_clusters",11020.0)
+	var stayed := church.is_open() and not (level.get("_clusters_left") as Array).has("piyesta_church")
+	_put(Vector2(12700,98))
+	level.call("_tend_clusters",12700.0)
+	_check(stayed and church.state() == "passing" and "piyesta_church" in level.get("_clusters_left"),
+		"a place is left only through its forward shadow, never by stepping back")
 	var profile := root.get_node("PlayerProfile")
 	var routes_before: int = profile.call("route_count", "artist")
 	level.call("_on_fragment_saved", "flower")
@@ -149,7 +150,7 @@ func _run() -> void:
 
 
 func _put(at: Vector2) -> void:
-	level.get("player").call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})
+	preload("res://tests/level5_journey_fixture.gd").prepare(level,at)
 
 
 func _canvas_stroke(panel: DrawPanel) -> void:

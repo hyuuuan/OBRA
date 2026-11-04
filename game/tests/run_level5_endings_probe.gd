@@ -40,11 +40,12 @@ func _ending(perfect: bool, route: String) -> void:
 	await create_timer(.3).timeout
 	(level.get("lolo") as Lolo).vanish()
 	level.set("_lolo_moment", "gone")
+	preload("res://tests/level5_journey_fixture.gd").summit(level)
 	if perfect:
 		for id in ["church", "kubo"]:
 			(level.call("_fragment", id) as MemoryFragment2D).restore_to("saved", [[2.0, 3.0, 11.0, 17.0]])
 			(level.get("_save_order") as Array).append(id)
-	level.get("player").call("apply_morph_state", {"position": Vector2(12750, -420), "linear_velocity": Vector2.ZERO})
+	level.get("player").call("apply_morph_state", {"position": level.call("_anchor", "summit_speak") + Vector2(50,0), "linear_velocity": Vector2.ZERO})
 	level.set("_summit", "places")
 	if not perfect:
 		level.get("ink_manager").committed = level.get("ink_manager").capacity
@@ -104,7 +105,7 @@ func _ending(perfect: bool, route: String) -> void:
 		state.erase("layout_version")
 		level.get("checkpoints").call("write", "CP2", {"position": Vector2(15000, -100), "level": state})
 		var landing: Vector2 = level.call("_checkpoint_landing", {"position": Vector2(15000, -100), "level": state})
-		_check(landing == Vector2(11900, -500) and String(level.get("_lolo_moment")) == "gone",
+		_check(landing == level.call("_anchor", "summit") + Vector2(-100,0) and String(level.get("_lolo_moment")) == "gone",
 			"a legacy summit save lands safely and keeps Lolo gone")
 		var ink: InkManager = level.get("ink_manager")
 		ink.committed = 6.0

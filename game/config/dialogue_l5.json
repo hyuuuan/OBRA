@@ -3,7 +3,7 @@
     "LEVEL 5 -- MAYON. Lolo climbs with her, and he should not be here: he is lola's memory of",
     "him, and the painting coming apart is him coming apart (LEVEL_5.md). Play it light at first.",
     "",
-    "⚠ NO LINE MAY NAME A DRAWABLE CLASS. Here the traps are bridge, stairs, ladder, tree, sun,",
+    "\u26a0 NO LINE MAY NAME A DRAWABLE CLASS. Here the traps are bridge, stairs, ladder, tree, sun,",
     "cloud and door -- the very things the ash takes. The check is word-boundary and",
     "case-insensitive, and run_level5_audit.gd runs it.",
     "",
@@ -83,7 +83,7 @@
       "at": "INK.empty",
       "speaker": "lolo",
       "kind": "hint",
-      "text": "That is the last of it. Keep climbing."
+      "text": "That is the last of it. Keep going."
     },
     {
       "id": "L5_fell",
@@ -244,14 +244,14 @@
       "at": "LOLO.goes.pragmatist",
       "speaker": "lolo",
       "kind": "lore",
-      "text": "That is why she painted the places instead. You always find the way through, apo, like she did. Go on up to her. That is how she kept m"
+      "text": "That is why she painted the places instead. You always find the way through, apo, like she did. Go on to her. That is how she kept m"
     },
     {
       "id": "L5_goes_protector",
       "at": "LOLO.goes.protector",
       "speaker": "lolo",
       "kind": "lore",
-      "text": "That is why she painted the places instead. You kept us safe all the way up, apo. Keep them safe for her. That is how she kept m"
+      "text": "That is why she painted the places instead. You kept us safe all this way, apo. Keep them safe for her. That is how she kept m"
     },
     {
       "id": "L5_forget_1",

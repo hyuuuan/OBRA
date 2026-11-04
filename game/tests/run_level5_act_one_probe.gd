@@ -73,8 +73,8 @@ func _the_bridge_is_gone_before_she_can_reach_it() -> void:
 func _the_ash_thickens_as_she_climbs() -> void:
 	var foot: float = level.call("ash_at", 500.0)
 	var slope: float = level.call("ash_at", 3000.0)
-	var corridor: float = level.call("ash_at", 8000.0)
-	var summit: float = level.call("ash_at", 14000.0)
+	var corridor: float = level.call("ash_at", 4800.0)
+	var summit: float = level.call("ash_at", 30000.0)
 	_check(foot < slope and slope < corridor and is_zero_approx(summit),
 		"the ash thickens as she climbs and is gone at the summit",
 		"foot %.1f, slope %.1f, corridor %.1f, summit %.1f" % [foot, slope, corridor, summit])
@@ -86,7 +86,7 @@ func _the_eruption_rumbles_and_the_ash_surges() -> void:
 	tremor.tremble(1.0)
 	await _frames(2)
 	var surged := ash.pulse_left() > 0.0
-	await _put(14000.0, -400.0)
+	await _put(21810.0, 98.0)
 	_check(surged and not tremor.enabled,
 		"the eruption rumbles and the ash surges with it, and the summit is still",
 		"surged %s, rumbling at the summit %s" % [surged, tremor.enabled])
@@ -113,7 +113,7 @@ func _she_works_out_why_it_is_going_white() -> void:
 	level = await _open_level()
 	var lines: Object = level.get("script_lines")
 	var heard: Array[String] = []
-	for x: float in [1700.0, 2200.0, 3600.0, 5500.0, 2200.0]:
+	for x: float in [1700.0, 2200.0, 3600.0, 6200.0, 2200.0]:
 		await _put(x, 0.0)
 		var now := "%d%d%d" % [int(lines.call("has_heard", "APO.why.1")), int(lines.call("has_heard", "APO.why.2")),
 			int(lines.call("has_heard", "APO.why.3"))]
@@ -125,7 +125,7 @@ func _she_works_out_why_it_is_going_white() -> void:
 
 func _put(x: float, y: float) -> void:
 	var player := level.get("player") as Node2D
-	player.call("apply_morph_state", {"position": Vector2(x, y), "linear_velocity": Vector2.ZERO})
+	preload("res://tests/level5_journey_fixture.gd").prepare(level,Vector2(x,y))
 	await _frames(30)
 	call_group(DialogueBox.GROUP, &"hide_line")
 	paused = false

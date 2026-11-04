@@ -194,6 +194,9 @@ func _audit_gate_ground(scene: Node) -> void:
 		var gap := after.position.x - before.end.x
 		var rise := before.position.y - after.position.y
 		if gap > 1.0:
+			# The crater is an entrance, measured and driven by run_level5_crater_probe.
+			var crater: Vector2 = scene.call("_anchor", "crater")
+			if crater.x > before.end.x and crater.x < after.position.x: continue
 			gaps.append("%.0f wide after %.0f of floor" % [gap, before.size.x])
 			if gap <= RUNNING_JUMP or gap >= BRIDGE or before.size.x < FLOOR_BEFORE:
 				wrong.append("the gap at %.0f is %.0f across after %.0f of floor" % [before.end.x, gap, before.size.x])
@@ -282,7 +285,7 @@ func _audit_the_flower_is_off_the_path(scene: Node) -> void:
 	var below := 0.0
 	if flower != null:
 		var ground_y := 600.0
-		for ground: Rect2 in scene.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/Cone").get("platforms"):
+		for ground: Rect2 in scene.get("_journey").route:
 			if flower.global_position.x >= ground.position.x and flower.global_position.x < ground.end.x:
 				ground_y = ground.position.y
 		below = ground_y - flower.global_position.y
@@ -300,7 +303,7 @@ func _audit_the_flower_stair(scene: Node, flower: MemoryFragment2D) -> void:
 	rocks = rocks.duplicate()
 	rocks.sort_custom(func(a: Rect2, b: Rect2) -> bool: return a.position.y > b.position.y)
 	var step_from := 600.0
-	for ground: Rect2 in scene.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/Cone").get("platforms"):
+	for ground: Rect2 in scene.get("_journey").route:
 		if not rocks.is_empty() and (rocks[0] as Rect2).position.x >= ground.position.x \
 				and (rocks[0] as Rect2).position.x < ground.end.x:
 			step_from = ground.position.y
@@ -314,9 +317,14 @@ func _audit_the_flower_stair(scene: Node, flower: MemoryFragment2D) -> void:
 	if flower != null and rocks.size() >= 2:
 		top_gap = (rocks[-1] as Rect2).position.y - flower.global_position.y
 		next_gap = (rocks[-2] as Rect2).position.y - flower.global_position.y
-	_check(rocks.size() >= 2 and steep.is_empty() and flower != null
+	var planted := false
+	if flower != null and not rocks.is_empty():
+		var picture := flower.get_node("Picture") as Sprite2D
+		var foot := picture.global_position.y + picture.texture.get_height()*picture.global_scale.y*.5
+		planted = absf(foot-(rocks[-1] as Rect2).position.y) < .1
+	_check(rocks.size() >= 2 and steep.is_empty() and flower != null and planted
 			and top_gap <= flower.reach and next_gap > flower.reach,
-		"the flower stair rises at most 60px a step, and only its top rock reaches the flower",
+		"the flower stands on its top rock; each rise is at most 60px and only the top is in reach",
 		"rises %s, flower %.0f above the top rock and %.0f above the next" % [rises, top_gap, next_gap])
 
 

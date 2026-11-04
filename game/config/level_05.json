@@ -1,11 +1,11 @@
 {
-  "$comment": "Mayon: the final painting. Three memory clusters, silent saves, finite ink, and the summit/frame ending.",
+  "$comment": "Mayon: short ascent, active crater, twelve walkable memories, foreground shadow masks and the summit ending.",
   "schema_version": 1,
   "level_id": "level_5",
   "design_level_id": "L5_MAYON",
   "display_name": "Mayon",
   "order": 5,
-  "goal": "Climb Mayon while the painting comes apart, and carry what you can to the top.",
+  "goal": "Climb to the crater, walk through the places she remembers, and keep what you can.",
   "unlocks_on_complete": null,
   "unlocks_at_checkpoint": null,
   "tally": "majority",
@@ -15,13 +15,13 @@
       "id": "CP1",
       "at": "L5_CLIMB",
       "trigger": "area",
-      "$comment": "The mid slope, past the climb's last gate. Silent (_saves_silently): no lantern, no letterbox, no line, no count."
+      "$comment": "At the crater rim; later memory departures replace CP1 silently."
     },
     {
       "id": "CP2",
       "at": "L5_SUMMIT",
       "trigger": "area",
-      "$comment": "Below the summit. Silent."
+      "$comment": "Beyond the memories, below the white summit. Silent."
     }
   ],
   "restrictions": {},
@@ -40,9 +40,12 @@
     "foot": "Climb, apo. Mind the ink -- there is no more of it up here.",
     "span": "The way across is gone. Make one.",
     "climb": "The path has thinned to nothing. Make a way up.",
-    "slope": "Keep climbing.",
-    "summit": "Keep climbing.",
-    "corridor": "Keep what you can. There is not ink for all of it."
+    "slope": "Keep going.",
+    "summit": "Keep going.",
+    "corridor": "Keep what you can. There is not ink for all of it.",
+    "crater": "The way goes into the mountain.",
+    "memories": "Keep what you can. There is not ink for all of it.",
+    "farewell": "Stay with him."
   },
   "obstacles": [
     {
@@ -99,7 +102,7 @@
   "hidden_flowers": [
     {
       "id": "L5_HF",
-      "at": "L5_CORRIDOR",
+      "at": "dilim_dawn",
       "awarded_by": "artist",
       "not_a_fail_state": true,
       "$comment": "The fragment nobody needed: a flower lola painted for no reason. Saved by spending ink on its optional memory fragment."
@@ -123,64 +126,10 @@
     "no health and nothing that fights",
     "no dialogue line names a drawable class"
   ],
-  "layout_version": 3,
-  "memory_clusters": [
-    {
-      "id": "memory_1",
-      "members": [
-        "kubo",
-        "terraces",
-        "bandaritas",
-        "dancers"
-      ],
-      "entry": 5300,
-      "exit": 6800,
-      "camera": [
-        5250,
-        -650,
-        1600,
-        900
-      ]
-    },
-    {
-      "id": "memory_2",
-      "members": [
-        "church",
-        "storm",
-        "bangka",
-        "coral"
-      ],
-      "entry": 7100,
-      "exit": 8600,
-      "camera": [
-        7050,
-        -810,
-        1600,
-        900
-      ]
-    },
-    {
-      "id": "memory_3",
-      "members": [
-        "bakunawa",
-        "forest",
-        "waterfall",
-        "flower"
-      ],
-      "entry": 8900,
-      "exit": 10400,
-      "camera": [
-        8850,
-        -970,
-        1600,
-        900
-      ]
-    }
-  ],
+  "layout_version": 5,
   "memories": [
     {
       "id": "kubo",
-      "cluster": "memory_1",
       "accepts": [
         "ladder",
         "stairs",
@@ -190,11 +139,17 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/kubo.png",
       "bloom_width": 420,
-      "bloom_elevation": 0
+      "bloom_elevation": 0,
+      "vignette": "payyo_bale",
+      "landmark_art": "res://assets/Level5/journey/kubo_landmark.png",
+      "landmark_width": 330,
+      "landmark_position": [
+        650,
+        -60
+      ]
     },
     {
       "id": "terraces",
-      "cluster": "memory_1",
       "accepts": [
         "stairs",
         "ladder",
@@ -205,25 +160,37 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/terraces.png",
       "bloom_width": 1100,
-      "bloom_elevation": 0
+      "bloom_elevation": 0,
+      "vignette": "payyo_terraces",
+      "landmark_art": "res://assets/Level5/journey/terraces_landmark.png",
+      "landmark_width": 850,
+      "landmark_position": [
+        640,
+        0
+      ]
     },
     {
       "id": "bandaritas",
-      "cluster": "memory_1",
       "accepts": [
         "sun",
         "cloud",
         "butterfly"
       ],
       "holds_lolo": false,
-      "reach": 350,
+      "reach": 380,
       "summit_art": "res://assets/Level5/restoration/bandaritas.png",
       "bloom_width": 1000,
-      "bloom_elevation": -380
+      "bloom_elevation": -380,
+      "vignette": "piyesta_alley",
+      "landmark_art": "res://assets/Level5/journey/bandaritas_landmark.png",
+      "landmark_width": 1050,
+      "landmark_position": [
+        640,
+        -230
+      ]
     },
     {
       "id": "dancers",
-      "cluster": "memory_1",
       "accepts": [
         "fan",
         "butterfly",
@@ -233,11 +200,21 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/dancers.png",
       "bloom_width": 540,
-      "bloom_elevation": 0
+      "bloom_elevation": 0,
+      "vignette": "piyesta_plaza",
+      "landmark_art": "res://assets/Level2/dancers/dance_frame_01.png",
+      "landmark_width": 450,
+      "landmark_position": [
+        640,
+        0
+      ],
+      "landmark_offset": [
+        0,
+        5.801104972375691
+      ]
     },
     {
       "id": "church",
-      "cluster": "memory_2",
       "accepts": [
         "door",
         "key",
@@ -247,25 +224,37 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/church.png",
       "bloom_width": 500,
-      "bloom_elevation": 0
+      "bloom_elevation": 0,
+      "vignette": "piyesta_church",
+      "landmark_art": "res://assets/Level5/journey/church_landmark.png",
+      "landmark_width": 160,
+      "landmark_position": [
+        700,
+        0
+      ]
     },
     {
       "id": "storm",
-      "cluster": "memory_2",
       "accepts": [
         "cloud",
         "umbrella",
         "sailboat"
       ],
       "holds_lolo": false,
-      "reach": 350,
+      "reach": 410,
       "summit_art": "res://assets/Level5/restoration/storm.png",
       "bloom_width": 1300,
-      "bloom_elevation": -420
+      "bloom_elevation": -420,
+      "vignette": "dagat_shore",
+      "landmark_art": "res://assets/Level5/journey/storm_landmark.png",
+      "landmark_width": 720,
+      "landmark_position": [
+        350,
+        -250
+      ]
     },
     {
       "id": "bangka",
-      "cluster": "memory_2",
       "accepts": [
         "sailboat",
         "fish",
@@ -275,11 +264,17 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/bangka.png",
       "bloom_width": 480,
-      "bloom_elevation": 0
+      "bloom_elevation": 0,
+      "vignette": "dagat_shore",
+      "landmark_art": "res://assets/Level5/journey/bangka_landmark.png",
+      "landmark_width": 330,
+      "landmark_position": [
+        730,
+        40
+      ]
     },
     {
       "id": "coral",
-      "cluster": "memory_2",
       "accepts": [
         "crab",
         "fish",
@@ -291,11 +286,17 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/coral.png",
       "bloom_width": 480,
-      "bloom_elevation": 0
+      "bloom_elevation": 0,
+      "vignette": "dagat_sea",
+      "landmark_art": "res://assets/Level5/restoration/coral.png",
+      "landmark_width": 300,
+      "landmark_position": [
+        620,
+        60
+      ]
     },
     {
       "id": "bakunawa",
-      "cluster": "memory_3",
       "accepts": [
         "fish",
         "shark",
@@ -306,11 +307,17 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/bakunawa.png",
       "bloom_width": 1000,
-      "bloom_elevation": -140
+      "bloom_elevation": -140,
+      "vignette": "dagat_sea",
+      "landmark_art": "res://assets/Level5/restoration/bakunawa.png",
+      "landmark_width": 470,
+      "landmark_position": [
+        900,
+        -160
+      ]
     },
     {
       "id": "forest",
-      "cluster": "memory_3",
       "accepts": [
         "campfire",
         "flashlight",
@@ -326,11 +333,23 @@
         0.48,
         0.65,
         1
+      ],
+      "vignette": "dilim_forest",
+      "landmark_art": "res://assets/Level5/journey/forest_landmark.png",
+      "landmark_width": 390,
+      "landmark_position": [
+        650,
+        -60
+      ],
+      "landmark_tint": [
+        0.38,
+        0.45,
+        0.58,
+        1
       ]
     },
     {
       "id": "waterfall",
-      "cluster": "memory_3",
       "accepts": [
         "tree",
         "fan",
@@ -340,11 +359,17 @@
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/waterfall.png",
       "bloom_width": 1000,
-      "bloom_elevation": 0
+      "bloom_elevation": 0,
+      "vignette": "dilim_waterfall",
+      "landmark_art": "res://assets/Level5/journey/waterfall.png",
+      "landmark_width": 560,
+      "landmark_position": [
+        690,
+        40
+      ]
     },
     {
       "id": "flower",
-      "cluster": "memory_3",
       "accepts": [
         "sun",
         "cloud",
@@ -356,7 +381,360 @@
       "needs_footing": true,
       "summit_art": "res://assets/Level5/restoration/flower.png",
       "bloom_width": 100,
-      "bloom_elevation": 0
+      "bloom_elevation": 0,
+      "vignette": "dilim_dawn",
+      "landmark_art": "res://assets/Level5/journey/flower_landmark.png",
+      "landmark_width": 65,
+      "landmark_position": [
+        850,
+        -300
+      ],
+      "landmark_offset": [
+        0,
+        120
+      ]
     }
-  ]
+  ],
+  "journey": {
+    "parallax_factor": 2.2,
+    "column_pixels": 280,
+    "floor_y": 140,
+    "anchors": {
+      "crater": [
+        5250,
+        140
+      ],
+      "entry": [
+        6170,
+        98
+      ],
+      "farewell": [
+        21240,
+        98
+      ],
+      "summit": [
+        21710,
+        98
+      ],
+      "summit_speak": [
+        22060,
+        98
+      ],
+      "lola": [
+        22310,
+        140
+      ]
+    },
+    "vignettes": [
+      {
+        "id": "payyo_terraces",
+        "scene": "res://levels/level_5/memories/payyo_terraces.tscn",
+        "start": 6000,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            360,
+            0
+          ],
+          [
+            500,
+            -60
+          ],
+          [
+            640,
+            -120
+          ],
+          [
+            780,
+            -60
+          ],
+          [
+            920,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "payyo_crossing",
+        "scene": "res://levels/level_5/memories/payyo_crossing.tscn",
+        "start": 7280,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "payyo_bale",
+        "scene": "res://levels/level_5/memories/payyo_bale.tscn",
+        "start": 8560,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            360,
+            0
+          ],
+          [
+            500,
+            -60
+          ],
+          [
+            800,
+            -60
+          ],
+          [
+            940,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "piyesta_plaza",
+        "scene": "res://levels/level_5/memories/piyesta_plaza.tscn",
+        "start": 9840,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "piyesta_church",
+        "scene": "res://levels/level_5/memories/piyesta_church.tscn",
+        "start": 11120,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "piyesta_alley",
+        "scene": "res://levels/level_5/memories/piyesta_alley.tscn",
+        "start": 12400,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "dagat_shore",
+        "scene": "res://levels/level_5/memories/dagat_shore.tscn",
+        "start": 13680,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            380,
+            0
+          ],
+          [
+            460,
+            40
+          ],
+          [
+            920,
+            40
+          ],
+          [
+            1000,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "dagat_sea",
+        "scene": "res://levels/level_5/memories/dagat_sea.tscn",
+        "start": 14960,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            380,
+            0
+          ],
+          [
+            460,
+            60
+          ],
+          [
+            920,
+            60
+          ],
+          [
+            1000,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "dagat_island",
+        "scene": "res://levels/level_5/memories/dagat_island.tscn",
+        "start": 16240,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "dilim_forest",
+        "scene": "res://levels/level_5/memories/dilim_forest.tscn",
+        "start": 17520,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            360,
+            0
+          ],
+          [
+            500,
+            -60
+          ],
+          [
+            800,
+            -60
+          ],
+          [
+            940,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "dilim_waterfall",
+        "scene": "res://levels/level_5/memories/dilim_waterfall.tscn",
+        "start": 18800,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            380,
+            0
+          ],
+          [
+            460,
+            40
+          ],
+          [
+            920,
+            40
+          ],
+          [
+            1000,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "dilim_dawn",
+        "scene": "res://levels/level_5/memories/dilim_dawn.tscn",
+        "start": 20080,
+        "length": 1280,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            1280,
+            0
+          ]
+        ]
+      },
+      {
+        "id": "summit",
+        "scene": "res://levels/level_5/memories/summit.tscn",
+        "start": 21360,
+        "length": 1600,
+        "profile": [
+          [
+            0,
+            0
+          ],
+          [
+            1600,
+            0
+          ]
+        ]
+      }
+    ],
+    "column_softness_pixels": 360
+  }
 }

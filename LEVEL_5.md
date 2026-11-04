@@ -1,5 +1,108 @@
 # Level 5 — Mayon
 
+**Current design and build: 5 November 2026.** The crater journey replaces the long upper
+ascent and the three areas of floating memory pictures. The previous build record is archived
+below. Level 5 remains the last painting and leads into the existing summit and house ending.
+
+## The journey
+
+**Foot of Mayon → two drawing gates → active crater → jump inside → twelve walkable places
+→ Lolo's farewell → white summit → Lola → home.**
+
+The original lower slopes end at the crater near x5250. Its mouth is an actual 500px opening
+in the collision ground. Lava, embers and smoke are visible below its rim. Entering the throat
+with the player's physics anchor starts the drop; there is no E interaction, death, ink charge
+or health system. Smoke covers the transfer to the first remembered place.
+
+| Earlier painting | Short places, in order |
+|---|---|
+| Payyo | Terraces, Ang Tulay, Ang Bale |
+| Piyesta | Dancing plaza, church nave, bandarita alley |
+| Dagat | Shore and bangka, coral and bakunawa waters, island |
+| Dilim | Forest path, waterfall clearing, dawn clearing |
+
+Each memory has **1,280 world units** of forward travel, including the dawn clearing: about
+one screen at normal play, and less than one screen in both the 1600×900 and taller-window
+framing. Shallow rises and descents stay in the middle, with matching floor at the borders.
+The flower footholds and Lolo's farewell fit inside the last clearing. All twelve can be
+crossed as the apo with no ink. These are scenery and local preservation landmarks, not instances of the earlier levels' quest hosts, combat or progression.
+
+## The moving foreground mask
+
+`MayonMemoryJourney` mounts only the current pair of visual scenes into two scenery-only
+SubViewports. Their visual World2Ds contain no bodies or actors. Both use the main gameplay
+camera's canvas transform. Collision, the apo, Lolo and placed drawings exist once, in the main
+world. Two complementary masks show the old place left and the next place right.
+A black column with a **280px opaque center and 360px soft falloff on each side** covers their
+shared edge in front of the actors and below all HUD. Its outline stays slightly irregular.
+The opaque center hides the scenery seam and briefly occludes the actors; the blurred outside
+edges fade naturally into both places.
+
+The column advances from camera travel at **2.2×** ordinary scrolling. It stops with the camera
+and reverses on backtracking. It does not run on a timer. The divider also decides which place
+surrounds the player for preservation targeting. Both visual passes draw exactly the same
+collision rectangles at their shared boundary. Resize and camera zoom update both targets;
+paused gameplay freezes the travel parameter while the camera transform remains registered.
+Reduce Motion removes decorative eruption motion, while retaining this functional transition.
+
+The minimap borrows the current place's visual canvas; it never stacks the two scenery passes.
+The scene textures and the foreground column remain part of the world for painting transitions.
+
+## Ink, preservation and the ending
+
+Six visible units, no refills, one unit per accepted drawing, and continuous creature drain
+remain unchanged. The two-unit hidden reserve still funds only eligible placements at the
+ascent's Span and Climb gates. Every preservation choice uses visible ink alone.
+
+The twelve original preservation IDs, accepted classes and `holds_lolo` memberships stay
+stable. Targets now stand in the places themselves. The terraces and Bale belong to Payyo;
+the dancers, church and bunting to Piyesta; the storm and bangka to the shore, coral and
+bakunawa to the sea; the forest, waterfall and optional flower to Dilim. The church's votive
+rack is its local target. The complete authored troupe frames stay registered as one animation.
+
+A nearby target receives the highlight. Opening the page locks that target; its reference is
+outside the recognizer capture. Saving restores its colour and retains the player's original
+polylines. Whitening starts when its place is entered, pauses during modals, and takes 90s to
+paper. Leaving through the forward shadow takes unsaved landmarks to blank over four seconds.
+Backtracking can revisit scenery, but never reopens a lost choice. The farewell closes any
+remaining choices before Lolo goes; late or migrated rewards cannot bring his voice back.
+
+The flower remains off the main path, reached by three 60px one-way footholds. Its fifth-flower
+reward and Artist credit are durable and awarded once. Saving terraces, church or bangka still
+steadies Lolo. His fade follows journey progress, and his farewell begins after the last
+preservation choices. Saved memories still delay that moment. After he goes, the final shadow
+reveals the white summit. The brush refusals, free painting, saved places blooming with her
+ink, route-dependent voice, both flower endings, last diary page and return home are retained.
+
+Mayon remains silent. No enemy, health, boss or required replay of an earlier quest is added.
+
+## Implementation and checks
+
+- `level_05.json` owns the ordered vignette scenes, terrain profiles, landmark placements and
+  named crater/entry/farewell/summit anchors. `layout_version` is **5**.
+- `level_5.gd` owns the phases `ascent`, `crater_drop`, `memories`, `farewell`, and `summit`.
+  The old corridor and summit x thresholds no longer drive the story.
+- Checkpoints preserve outcomes, whitening, raw ink, save order, departed places, Lolo, phase,
+  camera position and flower credit. Version 1–3 CP1 resumes at the memory entrance; CP2
+  resumes below the new summit with Lolo gone. Version 4 resumes at the matching vignette
+  entrance or farewell/summit entrance, since the long itinerary used different coordinates.
+  Existing ink, landmark outcomes, strokes and collectible records survive.
+- `tools/build_mayon_journey.py` produces registered backgrounds, silhouette cuts and trimmed
+  landmarks from existing delivered art. `--check` verifies freshness. No source plate is edited. The church is cut at its painted
+  walk line, ocean registration margins are removed, grounded buildings share world motion,
+  and a foreground ground pass plants landmarks into the authoritative collision rectangles.
+- `run_level5_crater_probe` drives crater input, mask speed/reversal/pause/resize, target locking,
+  exact strokes, zero-ink traversal, the flower and legacy saves. `run_level5_memory_walk`
+  checks actual movement and target access in all twelve places. Existing gate, ink, ending,
+  dialogue, house and continuous-finish probes remain part of validation.
+- `run_visual_level5_crater` photographs every place, each shadow crossing at three positions,
+  the crater, and taller-window compositions. Import generated images before running it.
+
+<details>
+<summary>Previous design and implementation record — superseded 5 November 2026</summary>
+
+# Level 5 — Mayon
+
 **Status: BUILT, on the hub, and the level the run ends on.** Shipped in PRs #120-#132 (2026-10-25
 to 10-29). The design as decided is below, then [where it lives](#where-it-lives) and
 [how the build differs from the design](#as-built-against-the-design). Read `LEVEL_TEMPLATE.md` first; this file holds only what is
@@ -406,3 +509,5 @@ Validation: scenery freshness and `run_level5_audit` pass. A windowed tour check
 props against the actual floor rectangles, bottom registration, absence of colliders, and
 paper wash/reset; frames from the cone, all three memory areas, and upper approach were
 inspected. The audit retains its documented baseline shutdown resource diagnostics.
+
+</details>
