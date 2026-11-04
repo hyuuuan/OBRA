@@ -293,7 +293,8 @@ func close() -> void:
 
 ## Take the card down. `how` says why, for the director and for telemetry: "done" (they
 ## pressed what it showed), "seen" (a look card dismissed), "moved_on", "timeout", "gone"
-## (what it pointed at went away), "auto", "skipped".
+## (what it pointed at went away), "auto", "skipped", "talked_over" (a story line began under a
+## `do` card).
 func finish(how: String) -> void:
 	if not _open or _closing >= 0.0:
 		return
@@ -325,6 +326,15 @@ func _process(delta: float) -> void:
 			_teardown()
 		return
 	_set_fade(_ease_out(clampf(_age / FADE_SEC, 0.0, 1.0)))
+	# ⚠ A STORY LINE TAKES THE SCREEN FROM A `do` CARD. The world runs under one, so the apo can
+	# walk into a beat with it still up -- in Payyo, the Jump card into Ang Hagdan's opening line --
+	# and the story box (layer 8) was read through this card's dim for the whole conversation.
+	# The director already keeps a card from starting over a line; this is the other direction.
+	# Not on the canvas, whose card is about a modal that is meant to be up.
+	if _mode() == "do" and String(_lesson.get("context", "world")) != "canvas" \
+			and _someone_is_talking():
+		finish("talked_over")
+		return
 	var rect := _target_rect()
 	# What it pointed at is gone -- the placement ended, the prompt went away -- so the
 	# lesson has nothing left to show. A frame or two of nothing is a layout settling.
@@ -583,6 +593,13 @@ func _teardown() -> void:
 	_target = Callable()
 	pauses_game = false
 	UIRouter.refresh_pause(get_tree())
+
+
+func _someone_is_talking() -> bool:
+	for box in get_tree().get_nodes_in_group(DialogueBox.GROUP):
+		if box.has_method(&"is_open") and bool(box.call(&"is_open")):
+			return true
+	return false
 
 
 func _nobody_at_the_keys() -> bool:
