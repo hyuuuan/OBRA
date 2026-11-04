@@ -40,6 +40,16 @@ func _spawn_lolo() -> void:
 		lolo.set_thinness(0.25)
 
 
+## Who says the level's notes and hints. Lolo, while he climbs with her; the apo once he has gone,
+## as in Dilim. He goes mid-sentence, in a frame (_let_him_go), and a hint under his name after it
+## -- "There is no more ink for that one", the moment a player at an empty gauge draws below the
+## summit -- brought him back for a line.
+func _companion_speaker() -> String:
+	if lolo != null and is_instance_valid(lolo) and lolo.is_gone():
+		return APO_SPEAKER
+	return super()
+
+
 func _speaker_subject(speaker_id: String) -> Node2D:
 	if speaker_id == "lola":
 		return _lola()

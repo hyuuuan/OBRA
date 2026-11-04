@@ -8,7 +8,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_act_two_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 13
+const CHECKS := 14
 
 var failures := 0
 var checked := 0
@@ -196,6 +196,22 @@ func _at_the_top_the_brush_refuses_him_and_he_is_gone() -> void:
 		and not bool(lines.call("has_heard", "LOLO.goes.pragmatist"))
 	_check(his and cut == 3, "his last line is the one for the route the run leaned toward",
 		"protector's said %s, %d of 3 routes cut where he goes" % [his, cut])
+	await _once_he_is_gone_nothing_speaks_as_him()
+
+
+## Gone is gone: mid-sentence, in a frame. Every hint the level still gives below the summit --
+## the gauge is empty, here, as it is for most players by now -- is the apo's, not his.
+func _once_he_is_gone_nothing_speaks_as_him() -> void:
+	await _put(11950.0, -500.0)
+	_set_ink(0.0, 0.0)
+	_draw("bird")
+	await _frames(6)
+	var bar := level.get("hint_bar") as HintBar
+	var speaker := bar.current_speaker() if bar != null else ""
+	_check(bar != null and bar.is_showing() and not speaker.to_lower().contains("lolo")
+			and speaker.to_lower().contains("apo"),
+		"once he is gone, the hint that the ink has run out is the apo's, not his",
+		"hint %s: %s" % [speaker, bar.current_text() if bar != null else ""])
 
 
 # --- Helpers ----------------------------------------------------------------------------

@@ -60,6 +60,9 @@ const PAGE_ALLOWANCE := 8.0
 const OPEN_DURATION := 0.54
 ## How long a refused drawing takes to fade to the bare page.
 const REFUSAL_FADE := 1.2
+## How far a quiet page dims the world: the page's own lens, faint. Light enough that her black
+## lines still read on Mayon's white summit; enough to say the world has stopped for the brush.
+const QUIET_DIM := 0.4
 
 ## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
 ## gauge in the corner of the screen is hidden -- at exactly the moment ink matters most.
@@ -186,7 +189,10 @@ func set_memory_reference(picture: Texture2D) -> void:
 
 func _present_drawing_mode() -> void:
 	if _refusing:
-		for child in panel_root.get_children() + [scrim]:
+		# ⚠ THE DIM STAYS (Kent, 2026-11-05). With the scrim hidden too, a quiet page that opened
+		# by itself -- at lolo, at lola, the places after she lowers the brush -- stopped the world
+		# with nothing on screen to say so, and read as the game hanging. open_panel fades it in.
+		for child in panel_root.get_children():
 			if child is CanvasItem and child != canvas_viewport_container:
 				if not _quiet_visibility.has(child):
 					_quiet_visibility[child] = (child as CanvasItem).visible
@@ -254,6 +260,7 @@ func open_panel() -> void:
 	if _refusing:
 		panel_root.scale = Vector2.ONE
 		panel_root.modulate = Color.WHITE
+		_dim_quietly()
 	else:
 		_play_open_animation()
 
@@ -749,9 +756,11 @@ func _refuse_quietly() -> void:
 	var mode := drawing_mode
 	# ⚠ ALWAYS RUNS. The panel processes only while the tree is paused, and a refusal must not
 	# hang on the page if anything unpauses it mid-fade.
-	var fade := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	fade.tween_property(canvas, "modulate:a", 0.0,
-		0.35 if mode == DrawingMode.FREE_PAINT else REFUSAL_FADE)
+	var fade := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS).set_parallel(true)
+	var seconds := 0.35 if mode == DrawingMode.FREE_PAINT else REFUSAL_FADE
+	fade.tween_property(canvas, "modulate:a", 0.0, seconds)
+	# The dim lifts with her lines, rather than popping off when the page closes.
+	fade.tween_property(scrim, "modulate:a", 0.0, seconds)
 	await fade.finished
 	canvas.clear_canvas()
 	canvas.modulate.a = 1.0
@@ -760,6 +769,22 @@ func _refuse_quietly() -> void:
 		free_paint_completed.emit(strokes)
 	else:
 		quietly_refused.emit(strokes.size())
+
+
+## A quiet page's only sign: the lens, faint, with no opening burst -- the same at every quiet
+## page, so the two refusals still look alike. Held frames, like every other motion.
+func _dim_quietly() -> void:
+	if _open_tween != null:
+		_open_tween.kill()
+	if _scrim_material != null:
+		_scrim_material.set_shader_parameter(&"opening_burst", 0.0)
+	if Motion.reduced():
+		scrim.modulate.a = QUIET_DIM
+		return
+	scrim.modulate.a = 0.0
+	# ⚠ PAUSE_PROCESS: the panel processes only while the tree is paused (CLAUDE.md, Mayon traps).
+	_open_tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	Motion.step(_open_tween, scrim, "modulate:a", QUIET_DIM, 0.34, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 
 
 func _play_open_animation() -> void:
