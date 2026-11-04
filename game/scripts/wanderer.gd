@@ -48,6 +48,8 @@ const RUN_FRACTION := 0.72
 ## stepping off is deliberate rather than something that happens while aiming upward.
 const CLIMB_SPEED := 190.0
 const CLIMB_DRIFT := 0.35
+## Ease onto the ladder's centerline without teleporting through nearby terrain.
+const CLIMB_ALIGNMENT := 8.0
 ## How far from the ladder you can get before you are no longer on it.
 const CLIMB_RELEASE := 120.0
 ## How far past the top of a ladder the climb keeps working, so the player can get their
@@ -249,10 +251,15 @@ func _physics_process(delta: float) -> void:
 		return
 	if _climbing():
 		# On a ladder the whole point is that gravity is not the thing deciding where
-		# you go. Up and down drive directly; sideways is throttled so stepping off is
-		# something you mean rather than something that happens while aiming upward.
-		velocity.y = Input.get_axis(&"move_up", &"move_down") * CLIMB_SPEED
-		velocity.x = direction * SPEED * CLIMB_DRIFT
+		# you go. Up/down follow its placed angle; sideways still lets you step off.
+		var down := _ladder_down(_ladder)
+		var across := Vector2(down.y, -down.x)
+		velocity = down * Input.get_axis(&"move_up", &"move_down") * CLIMB_SPEED
+		if direction == 0.0:
+			var offset := (global_position - _ladder.global_position).dot(across)
+			velocity -= across * clampf(offset * CLIMB_ALIGNMENT, -CLIMB_SPEED, CLIMB_SPEED)
+		else:
+			velocity.x += direction * SPEED * CLIMB_DRIFT
 		if Input.is_action_just_pressed(&"jump"):
 			end_ladder()
 			_jump()
@@ -632,37 +639,47 @@ func _climbing() -> bool:
 	if _ladder == null or not is_instance_valid(_ladder):
 		_ladder = null
 		return false
-	# Measured HORIZONTALLY, and generously: a ladder is a tall thing whose origin sits
-	# at its middle, so a straight distance check released the player the moment they
-	# had climbed a bit of it -- which read as the ladder simply not working.
-	var ladder := _ladder as Node2D
-	if absf(global_position.x - ladder.global_position.x) > CLIMB_RELEASE:
-		end_ladder()
-		return false
-	# AND vertically, past its top. The horizontal-only check meant holding up on a ladder
-	# raised the player forever: place one anywhere, climb into the sky, walk over every
-	# gate in the level. A ladder reaches as far as a ladder reaches.
-	if global_position.y < ladder.global_position.y - _ladder_half_height - CLIMB_OVERSHOOT:
+	if not _within_ladder(_ladder, _ladder_half_height):
 		end_ladder()
 		return false
 	return true
 
 
-## The ladder's own vertical half-extent, from whatever collision it carries.
+## Both the climb offer and the HUD ask this before taking hold. A broad interaction
+## circle alone can reattach the player past the top and keep lifting them into the sky.
+func can_reach_ladder(ladder: Node2D) -> bool:
+	return ladder != null and is_instance_valid(ladder) \
+		and _within_ladder(ladder, _measure_half_height(ladder))
+
+
+func _within_ladder(ladder: Node2D, half_height: float) -> bool:
+	var down := _ladder_down(ladder)
+	var offset := global_position - ladder.global_position
+	var across := Vector2(down.y, -down.x)
+	return absf(offset.dot(across)) <= CLIMB_RELEASE \
+		and absf(offset.dot(down)) <= half_height + CLIMB_OVERSHOOT
+
+
+## Keep W pointing toward the higher end even when the object was placed upside down.
+func _ladder_down(ladder: Node2D) -> Vector2:
+	var down := ladder.global_transform.y.normalized()
+	return -down if down.y < 0.0 else down
+
+
+## Length along the ladder, measured from its actual collision in world units. Projecting
+## every shape's corners also handles rotation, resizing and stroke-built convex shapes.
 func _measure_half_height(ladder: Node2D) -> float:
 	var half := 0.0
+	var down := _ladder_down(ladder)
 	for child in ladder.get_children():
 		var collision := child as CollisionShape2D
 		if collision == null or collision.shape == null:
 			continue
-		var reach := absf(collision.position.y)
-		if collision.shape is RectangleShape2D:
-			reach += (collision.shape as RectangleShape2D).size.y * 0.5
-		elif collision.shape is CapsuleShape2D:
-			reach += (collision.shape as CapsuleShape2D).height * 0.5
-		else:
-			reach += CLIMB_RELEASE
-		half = maxf(half, reach)
+		var rect := collision.shape.get_rect()
+		for corner in [rect.position, Vector2(rect.end.x, rect.position.y),
+				Vector2(rect.position.x, rect.end.y), rect.end]:
+			var offset: Vector2 = collision.global_transform * corner - ladder.global_position
+			half = maxf(half, absf(offset.dot(down)))
 	return half if half > 0.0 else CLIMB_RELEASE
 
 

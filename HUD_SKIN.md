@@ -464,7 +464,7 @@ the drawing surface once it opens."
 | Top right | Morph card and brief action feedback | Current form and relevant action results |
 | Top centre | Level banner, which gains the current beat's name on arrival | Where you are, at two scales |
 | Bottom left | The six-slot toolbelt | What you HAVE |
-| Bottom right | R DRAW and Q CHANGE BACK | What you DO — and the mouse is already there |
+| Bottom right | R DRAW and Q CHANGE BACK; Z/X ROTATE and C/V SCALE replace Draw while placing | What you DO — and the mouse is already there |
 | Bottom centre | The goal chip | The journey, under the middle of the frame where the eye rests |
 | Beside the player | E, F and the climb cap | Verbs that exist only where they work |
 
