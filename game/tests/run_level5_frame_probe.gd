@@ -8,7 +8,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_frame_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 8
+const CHECKS := 9
 const HUB := "res://levels/hub/hub.tscn"
 ## What is said in the house, and by whom, in order -- Kent's own words, near enough.
 const LINES := [
@@ -40,6 +40,9 @@ func _run() -> void:
 	await _after_that_she_is_at_her_easel(profile)
 	profile.call("reset_progress")
 	await _lola_waits_for_the_way_home(profile)
+	profile.call("reset_progress")
+	profile.call("mark_level_completed", "level_5")
+	await _while_she_talks_both_stand_above_the_box()
 	profile.call("reset_progress")
 	if failures == 0 and checked == CHECKS:
 		print("OBRA_LEVEL5_FRAME_OK")
@@ -170,6 +173,35 @@ func _lola_waits_for_the_way_home(profile: Node) -> void:
 	await _frames(4)
 	if current_scene != null:
 		current_scene.queue_free()
+	await _frames(4)
+
+
+## Kent, 2026-11-05: "do something about it so that it wont hide both figures". The house talks
+## over the bottom of the frame, where the floor was: only their heads showed above the box for the
+## whole scene. While she talks, the eye drops so both stand above its top edge -- and the room is
+## still drawn to the bottom of that lower view, not open onto nothing under the floor.
+func _while_she_talks_both_stand_above_the_box() -> void:
+	var hub := await _open_hub(false)
+	var epilogue := hub.call("epilogue") as HouseEpilogue
+	var until := Time.get_ticks_msec() + 6000
+	while Time.get_ticks_msec() < until and (epilogue == null or epilogue.said.is_empty()):
+		await process_frame
+	# The eye takes a moment to drop; she is still talking, or walking under the same view.
+	await create_timer(HouseEpilogue.EYE_SECONDS + 0.3).timeout
+	var camera := hub.get_node("Camera") as Camera2D
+	var room := hub.get_node("Room")
+	var size := camera.get_viewport_rect().size
+	var centre := camera.get_screen_center_position()
+	var floor_y := float(room.call("ground_y"))
+	var feet := (floor_y - centre.y) * camera.zoom.y + size.y * 0.5
+	var box_top := (epilogue.get("_box") as DialogueBox).frame_rect().position.y
+	var drawn_to := floor_y + float(room.get("floor_depth")) + float(room.get("floor_run_on"))
+	var view_bottom := centre.y + size.y * 0.5 / camera.zoom.y
+	_check(not epilogue.said.is_empty() and feet < box_top and drawn_to >= view_bottom,
+		"while Lola talks in the house both of them stand above the dialogue box, on a floor drawn to the frame",
+		"their feet at %.0f px, the box's top edge at %.0f; floor drawn to %.0f, the view reaches %.0f" % [
+			feet, box_top, drawn_to, view_bottom])
+	hub.queue_free()
 	await _frames(4)
 
 

@@ -1,6 +1,6 @@
 extends SceneTree
 ## The actual summit state machine for both endings and all three voices, including no memories.
-const CHECKS := 11
+const CHECKS := 12
 var checked := 0
 var failures := 0
 
@@ -150,6 +150,9 @@ func _every_place_blooms_inside_the_frame() -> void:
 	var half := camera.get_viewport_rect().size / camera.zoom * 0.5
 	var view := Rect2(camera.get_screen_center_position() - half, half * 2.0)
 	var arrived := String(level.call("summit_state")) == "quiet"
+	# Where the dialogue box's top edge falls in the world, under this camera.
+	var box := get_first_node_in_group(DialogueBox.GROUP) as DialogueBox
+	var box_top := view.position.y + box.frame_rect().position.y / camera.zoom.y
 	level.set("_summit", "places")
 	level.call("_free_paint_completed", [{"points": PackedVector2Array([Vector2(3, 8), Vector2(19, 51)]), "width": 8.0, "color": Color.BLACK}])
 	var everything := (level.get("_fragments") as Array).size()
@@ -164,11 +167,18 @@ func _every_place_blooms_inside_the_frame() -> void:
 		var rows := _painted_rows(picture.texture.get_image())
 		var top := picture.global_position.y + (rows.x - picture.texture.get_height() * 0.5) * picture.global_scale.y
 		var bottom := picture.global_position.y + (rows.y - picture.texture.get_height() * 0.5) * picture.global_scale.y
-		if top < view.position.y or bottom > view.end.y:
+		if top < view.position.y or bottom > box_top:
 			outside.append("%s %.0f..%.0f" % [targets[index].fragment_id, top, bottom])
 	_check(arrived and scenery.size() == everything and outside.is_empty(),
-		"every place she could save blooms inside the summit's frame (y %.0f..%.0f); outside: %s" % [
-			view.position.y, view.end.y, outside])
+		"every place she could save blooms inside the summit's frame, over the dialogue box (y %.0f..%.0f); outside: %s" % [
+			view.position.y, box_top, outside])
+	# Kent, 2026-11-05: "do something about it so that it wont hide both figures". Nearly every
+	# moment up here has a line on screen; the two of them stand above its top edge.
+	var lola := level.call("_lola") as Node2D
+	var feet := maxf(lola.global_position.y, (level.get("player") as Node2D).global_position.y)
+	_check(arrived and feet < box_top,
+		"at the summit both of them stand above the dialogue box (their feet at y %.0f, its top edge at %.0f)" % [
+			feet, box_top])
 	level.queue_free()
 	for i in range(5):
 		await process_frame
