@@ -776,6 +776,13 @@ func _fades_the_old_way() -> bool:
 	return true
 
 
+## Payyo is the tutorial, so walk and jump stand beside R as reminders of their keys (Kent: "the
+## R at the button should also be paired with the WASD buttons for like guidance as well as the
+## jump"). The lessons teach them once; these stay for the player who forgot.
+func _shows_movement_keys() -> bool:
+	return true
+
+
 ## Into the terraces' haze, not Mayon's ash paper.
 func _fade_paper() -> Color:
 	return Color(0.78, 0.88, 0.86)

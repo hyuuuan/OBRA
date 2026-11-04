@@ -190,6 +190,12 @@ func _ink_always_visible() -> bool:
 	return false
 
 
+## Whether walk and jump stand beside R as key reminders (ActionPromptHUD.show_movement_keys).
+## Payyo's, the level that teaches them. Off everywhere else.
+func _shows_movement_keys() -> bool:
+	return false
+
+
 ## Whether the level ends with its own scene rather than the completion card -- and, for the
 ## level the run ends on, rather than the ending screen. True: the finish is recorded as ever and
 ## then _play_own_ending() has everything after it, including where the player goes next.
@@ -3588,6 +3594,7 @@ func _build_action_prompts() -> void:
 	action_prompts.name = "ActionPrompts"
 	$CanvasLayer.add_child(action_prompts)
 	action_prompts.bind_draw_button(draw_button)
+	action_prompts.show_movement_keys(_shows_movement_keys())
 	action_prompts.interact_requested.connect(func() -> void: _interact_with_nearest_utility())
 	action_prompts.use_requested.connect(_use_equipped_utility)
 	action_prompts.revert_requested.connect(_revert_to_base_form)
