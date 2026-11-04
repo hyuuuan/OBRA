@@ -41,6 +41,12 @@ extends CanvasLayer
 ## itself.
 
 signal finished(lesson_id: String, how: String)
+## The player asked to skip the rest of the tutorial, from the card's SKIP or its key. The
+## director answers it (TutorialDirector.skip_rest); the card goes either way.
+signal skip_requested
+
+## controls_overlay.gd declares no class_name; its static key lookup is reached through the script.
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
 const GROUP := &"tutorial_spotlight"
 const SHADER := preload("res://shaders/tutorial_spotlight.gdshader")
@@ -124,6 +130,7 @@ var _holder: Control
 var _card: PanelContainer
 var _visual: LessonVisual
 var _caption: Label
+var _skip: Button
 
 
 func _ready() -> void:
@@ -197,6 +204,24 @@ func _build() -> void:
 	_caption.add_theme_color_override(&"font_color", UISkin.CREAM_TEXT)
 	column.add_child(_caption)
 
+	# SKIP, for a player who already knows how to play. Kent: "There should be a skip button for
+	# tutorials that the players can use". In the card's own corner, so it stands beside every
+	# lesson it would end, drawn as the HUD draws a key (ActionPromptHUD.make_key_chip) with the
+	# key read off the InputMap. It ends every lesson left in the level, not just this card.
+	var footer := HBoxContainer.new()
+	footer.name = "Footer"
+	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	footer.alignment = BoxContainer.ALIGNMENT_END
+	column.add_child(footer)
+	_skip = ActionPromptHUD.make_key_chip(&"SkipTutorial",
+		[ControlsKeys.key_cap_for("skip_tutorial")], "SKIP TUTORIAL", UISkin.MUTED)
+	# STOP so the cursor and the hover answer it; the click itself is taken in `_input`, which
+	# runs before the GUI does and would otherwise spend it on the card.
+	_skip.mouse_filter = Control.MOUSE_FILTER_STOP
+	_skip.tooltip_text = "Skip the rest of the tutorial"
+	_skip.pressed.connect(_ask_to_skip)
+	footer.add_child(_skip)
+
 
 ## Put a lesson up. `lesson` is the director's resolved form of a `tutorial.json` entry:
 ## id, mode ("do" or "look"), visual, caps, caption, seconds, actions, mouse. `target`
@@ -262,6 +287,11 @@ func visual_kind() -> String:
 
 func card_rect() -> Rect2:
 	return _card.get_global_rect() if _open else Rect2()
+
+
+## Where the card's SKIP is on screen; empty while no card is up.
+func skip_rect() -> Rect2:
+	return _skip.get_global_rect() if is_open() and _skip.is_visible_in_tree() else Rect2()
 
 
 func hole_rect() -> Rect2:
@@ -357,6 +387,13 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion or event.is_echo() or not _is_press(event):
 		return
+	# ⚠ SKIP BEFORE ANYTHING ELSE. A `look` card spends every press on dismissing itself and a
+	# `do` card hands presses on to the world, so a click on SKIP was never SKIP's: it dismissed
+	# the one card, or set a drawing down behind it.
+	if _is_skip(event):
+		get_viewport().set_input_as_handled()
+		_ask_to_skip()
+		return
 	# Escape is the router's. The pause menu opens over a card, and the card is still there
 	# when it closes.
 	if event.is_action_pressed(&"pause"):
@@ -413,6 +450,21 @@ static func matches(lesson: Dictionary, event: InputEvent) -> bool:
 				if (turning or sideways) and held:
 					return true
 	return false
+
+
+func _is_skip(event: InputEvent) -> bool:
+	if InputMap.has_action(&"skip_tutorial") and event.is_action_pressed(&"skip_tutorial"):
+		return true
+	var click := event as InputEventMouseButton
+	return click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT \
+		and skip_rect().has_point(click.position)
+
+
+func _ask_to_skip() -> void:
+	if not is_open():
+		return
+	skip_requested.emit()
+	finish("skipped")
 
 
 func _is_press(event: InputEvent) -> bool:

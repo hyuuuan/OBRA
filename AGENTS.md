@@ -161,6 +161,16 @@ stair's opening line through its dim; `TutorialSpotlight` now finishes such a ca
 is taught it before `B0_HAGDAN`, and Payyo's first visit drops the "press R and draw" greeting
 (`_greets_on_first_visit`) -- the draw lesson says it at the wall. LEVEL_1.md has the order.
 
+⚠ **EVERY CARD CARRIES SKIP TUTORIAL** (Kent: "There should be a skip button for tutorials that
+the players can use"). `[Backspace] SKIP TUTORIAL` -- the `skip_tutorial` action, its cap read
+off the InputMap, drawn with `ActionPromptHUD.make_key_chip` -- sits in the card's footer. A
+click on it or the key ends the card and every lesson left in the level
+(`TutorialDirector.skip_rest`, telemetry `tutorial_skipped`). **The click is taken in
+`TutorialSpotlight._input`, before the GUI**: a look card spends every press on itself and a do
+card hands presses to the world, so the button's own `pressed` never saw it. Cards do not replay
+on a return visit, so a skipped level stays skipped; the next level's lessons still play. A probe
+clicking it headless must send the click in window pixels (`root.get_final_transform()`).
+
 ⚠ **`CanvasBriefing` IS THE ONE PLACE THE TUTORIAL MAY STOP THE WORLD**, and it does not
 contradict `TutorialDirector`'s rule against dialogue boxes. That rule is about cost, and
 the panel is already a modal — the world is stopped and the player asked to be shown this
