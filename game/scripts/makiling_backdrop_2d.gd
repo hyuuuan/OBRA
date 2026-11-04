@@ -31,6 +31,19 @@ var plate: String = "mountain_far"
 
 var _origin := Vector2.ZERO
 var _built := false
+var _daylight := 0.0
+const MORNING_TINT := Color(1.0, 0.98, 0.9, 1.0)
+
+
+## Restore the day-painted plates as dawn arrives; a white modulate alone cannot undo night.
+func set_daylight(share: float) -> void:
+	share = clampf(share, 0.0, 1.0)
+	if is_equal_approx(share, _daylight):
+		return
+	_daylight = share
+	for child in get_children():
+		if child is Sprite2D:
+			child.modulate = tint.lerp(MORNING_TINT, _daylight)
 
 
 func _ready() -> void:
@@ -74,5 +87,5 @@ func _build() -> void:
 		sprite.centered = false
 		sprite.position = Vector2(index * PLATE_WIDTH, plate_top)
 		sprite.flip_h = opaque and posmod(index, 2) == 1
-		sprite.modulate = tint
+		sprite.modulate = tint.lerp(MORNING_TINT, _daylight)
 		add_child(sprite)
