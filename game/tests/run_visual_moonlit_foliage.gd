@@ -34,6 +34,21 @@ func _run() -> void:
 	await _put_her(8750)
 	await _frames(50)
 	(await _capture()).save_png("/tmp/obra_moonlit_fork.png")
+	for spot: Dictionary in [
+		{"at": 16980.0, "y": 526.0, "name": "tiyanak_path"},
+		{"at": 19000.0, "y": 396.0, "name": "high_path"},
+		{"at": 20820.0, "name": "hollow_shelf"}]:
+		await _put_her(float(spot["at"]))
+		if spot.has("y"):
+			(level.get("player") as Node2D).call("apply_morph_state", {
+				"position": Vector2(float(spot["at"]), float(spot["y"])),
+				"linear_velocity": Vector2.ZERO})
+		await _frames(50)
+		if spot.has("y") and absf((level.get("player") as Node2D).global_position.y - float(spot["y"]) - 4.0) > 2.0:
+			push_error("HARNESS FAULT: player did not land on %s" % spot["name"])
+			quit(1)
+			return
+		(await _capture()).save_png("/tmp/obra_moonlit_%s.png" % spot["name"])
 	await _put_her(21750)
 	var crawler := _send("aswang_pig", Vector2(125, 0))
 	var lady := _send("aswang_dog", Vector2(-130, 0))

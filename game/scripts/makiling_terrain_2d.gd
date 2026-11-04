@@ -9,6 +9,7 @@ extends StaticBody2D
 ## her through, down onto it it holds.
 
 const TILES := "res://assets/Level4/tiles/"
+const ShelfArt = preload("res://scripts/moonlit_shelf_art.gd")
 ## How far the leaf cover is drawn above a platform's collision top, and how deep it runs into it.
 const LIP := 6.0
 const COVER := 22.0
@@ -53,7 +54,7 @@ func _ready() -> void:
 
 
 ## What a CliffDressing2D needs: which kit this ground wears, and its platforms in world space.
-## Branches are not handed over -- they are logs, and stay drawn here.
+## Branches are not handed over; their shelf art stays drawn here.
 func ground_kind() -> String:
 	return body
 
@@ -93,7 +94,7 @@ func _draw() -> void:
 				Vector2(rect.size.x, COVER + LIP)), true)
 	for rect in branches:
 		if branch_texture != null:
-			_draw_branch_shelf(rect)
+			ShelfArt.draw_on(self, branch_texture, rect)
 			continue
 		if _bark != null:
 			draw_texture_rect(_bark, Rect2(rect.position, Vector2(rect.size.x, BRANCH_THICKNESS)),
@@ -101,23 +102,3 @@ func _draw() -> void:
 		if _leaf != null:
 			draw_texture_rect(_leaf, Rect2(rect.position - Vector2(0.0, LIP), Vector2(rect.size.x,
 				LIP + 6.0)), true)
-
-
-## Small pixel steps round the upper corners while keeping the texture at native size.
-func _draw_branch_shelf(rect: Rect2) -> void:
-	var width := rect.size.x
-	var height := float(branch_texture.get_height())
-	var corner := minf(8.0, minf(width * 0.25, height * 0.5))
-	var step := corner * 0.5
-	var contour := PackedVector2Array([
-		Vector2(corner, 0), Vector2(width - corner, 0),
-		Vector2(width - corner, step), Vector2(width - step, step),
-		Vector2(width - step, corner), Vector2(width, corner),
-		Vector2(width, height), Vector2(0, height), Vector2(0, corner),
-		Vector2(step, corner), Vector2(step, step), Vector2(corner, step)])
-	var points := PackedVector2Array()
-	var uv := PackedVector2Array()
-	for point in contour:
-		points.append(rect.position - Vector2(0, 8) + point)
-		uv.append(point / branch_texture.get_size())
-	draw_polygon(points, PackedColorArray([Color.WHITE]), uv, branch_texture)

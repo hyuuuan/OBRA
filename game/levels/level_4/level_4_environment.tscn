@@ -161,8 +161,11 @@ tint = Color(1, 1, 1, 1)
 ; she steps up onto -- 70 then 65 px, each a jump -- and walks along over the drop, down again past
 ; it. Down on the ground under them is the cry, and the bushes run on over nothing.
 [node name="TiyanakPath" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+z_index = -3
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(16900, 530, 220, 18), Rect2(17080, 465, 600, 18)])
+branch_texture = ExtResource("25_platform")
+tint = Color(1, 1, 1, 1)
 
 ; THE CROSSING THE BUNGISNGIS STANDS IN (Kent's design: "Blocks a crossing"). The ravine's floor,
 ; 220 down -- a drop she takes and walks -- and two stones up its far side, 73 px each, to the rim.
@@ -180,8 +183,11 @@ body = "stone"
 ; onto it -- a ladder, stairs, a tree, a body that climbs -- and along it over the giant and the
 ; ravine both, down again on the far bank. Kent's design: "go over or around it entirely".
 [node name="HighPath" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+z_index = -3
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(18880, 400, 800, 18)])
+branch_texture = ExtResource("25_platform")
+tint = Color(1, 1, 1, 1)
 
 ; THE HOLLOW WHERE THE MANANANGGAL LEFT HER LOWER HALF: a rock leaning out over the ground, its
 ; underside 110 up -- room for her to walk in under it -- and dark in there. Kent's design: "The

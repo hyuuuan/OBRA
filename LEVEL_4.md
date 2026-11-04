@@ -340,7 +340,12 @@ The tikbalang fork's three floating shelves now use `ground_moonlit/platform.png
 native-pixel moss lip and stone course cut from the same ground texture by
 `build_moonlit_ground.gd`. `MakilingTerrain2D.branch_texture` is an optional visual override;
 the Fork keeps its three positions, widths and 18 px one-way bodies.
-Only this Fork opts in, with white tint for the already moonlit art.
+All raised paths now use that same artwork with white tint: the three Tikbalang shelves,
+the Tiyanak's two shelves and the long high path over the ravine. The floating solid shelf
+above the manananggal's hollow also uses it, through the ground kit's `shelf` setting.
+Both terrain renderers share `moonlit_shelf_art.gd` so the corner shape and native pixel
+scale stay identical. Grounded rocks such as the Tikbalang landmark keep their deeper art.
+The original solid/one-way collisions and all route geometry are retained.
 Its upper corners are clipped in two small pixel steps for a gently rounded moss lip.
 Collision stays rectangular.
 

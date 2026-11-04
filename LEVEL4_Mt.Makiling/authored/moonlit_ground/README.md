@@ -20,7 +20,10 @@ Runtime ground: `game/assets/Level4/ground_moonlit/`.
 - `kit.json`: the moss lip and underground repeat, with zero plants or vines.
 - `platform.png`: a shallow 32 px shelf using the ground's first 16 px of moss and a
   16 px stone course from row 80. Native pixels are cropped rather than compressed.
-  The tikbalang Fork uses this visual over its existing one-way collision.
+  All six raised one-way platforms and the floating hollow shelf use this visual over
+  their existing collisions. Both renderers share `moonlit_shelf_art.gd` for identical
+  rounded upper corners. The kit's `shelf` entry selects it for unsupported solid ledges;
+  grounded landmark rocks keep their deeper wall texture.
 
 Separate foliage: `game/assets/Level4/foliage_moonlit/`.
 
@@ -55,3 +58,7 @@ The background's own foliage is cleaned by `tools/build_dilim.py`, separately fr
 ground/plant cutter. Its three vegetation plates lose enclosed white matte and white edge
 contamination; mountain clouds retain their original extraction. `background_fixed.png`
 and `background_start.png` show that cleanup under the level's real lighting.
+
+The same visual review now visits the remaining raised paths: `tiyanak_platforms.png`,
+`ravine_platform.png` and `hollow_platform.png` show the shared Tikbalang-style shelves.
+The first two captures verify she actually lands on their original one-way surfaces.

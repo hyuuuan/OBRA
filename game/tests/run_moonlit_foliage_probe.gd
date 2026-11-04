@@ -27,6 +27,24 @@ func _run() -> void:
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await create_timer(0.5, true).timeout
 	var plane := level.get_node("EnvironmentBaseplate/GameplayPlane")
+	var platform_art := load("res://assets/Level4/ground_moonlit/platform.png") as Texture2D
+	var branches := 0
+	var inconsistent: Array[String] = []
+	for body in plane.get_node("Terrain").get_children():
+		if not body is MakilingTerrain2D or body.branches.is_empty():
+			continue
+		branches += body.branches.size()
+		if body.branch_texture != platform_art or body.modulate != Color.WHITE or body.z_index >= 0:
+			inconsistent.append(String(body.name))
+	_check(branches == 6 and inconsistent.is_empty(),
+		"all six one-way floating blocks share the Tikbalang art, tint and draw order: " + str(inconsistent))
+	var stone := plane.get_node("Terrain/CliffDressingStone")
+	var hollow := plane.get_node("Terrain/Hollow")
+	var landmark := plane.get_node("Terrain/LandmarkRock")
+	_check(stone.get("_shelf") == platform_art
+		and stone.call("uses_floating_shelf", hollow.platforms[0])
+		and not stone.call("uses_floating_shelf", landmark.platforms[0]),
+		"the floating hollow shelf shares that art; the grounded landmark keeps its rock depth")
 	for name: String in ["CliffDressing", "CliffDressingStone"]:
 		var dressing := plane.get_node(NodePath("Terrain/" + name))
 		_check(dressing.get("_plants").is_empty() and dressing.get("_vines").is_empty(),

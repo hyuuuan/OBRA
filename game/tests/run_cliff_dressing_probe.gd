@@ -168,7 +168,7 @@ func _payyo() -> void:
 
 
 ## Dilim: the mud and the rocks are two dressings over one group, each drawing its own kind and
-## closing its ends against the other's; the branches stay the terrain's own logs.
+## closing its ends against the other's; the one-way raised paths stay with the terrain.
 func _dilim() -> void:
 	var level := (load("res://level_4.tscn") as PackedScene).instantiate()
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
@@ -203,7 +203,7 @@ func _dilim() -> void:
 		"mud %d/%d, stone %d/%d, still drawing: %s" % [drawn.call(mud), counts["mud"],
 		drawn.call(stone), counts["stone"], undressed])
 	_check(branches > 0 and (mud.get("_neighbours") as Array).size() == counts["stone"],
-		"the branches stay logs, and the mud knows where the rocks are",
+		"the raised paths stay with the terrain, and the mud knows where the rocks are",
 		"%d branches, %d neighbours" % [branches, (mud.get("_neighbours") as Array).size()])
 	# The ravine's top step ends against the far bank's mud wall, which is higher: closed.
 	var open_against_mud := false

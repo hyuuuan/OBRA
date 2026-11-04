@@ -80,7 +80,7 @@ func _initialize() -> void:
 			if FileAccess.file_exists(old_path):
 				DirAccess.remove_absolute(ProjectSettings.globalize_path(old_path))
 	var config := {"lip": 8, "band": 64, "skip": 80, "deep": "#001b1e",
-		"overhang": 6, "edge": false, "plants": 0, "vines": 0}
+		"overhang": 6, "edge": false, "plants": 0, "vines": 0, "shelf": "platform.png"}
 	_write(DEST + "kit.json", JSON.stringify(config, "  ") + "\n")
 	_write(FOLIAGE + "foliage.json", JSON.stringify({"plants": 4, "vines": 2,
 		"plant_gap": [420, 860], "plant_margin": 140, "vine_offset": 22}, "  ") + "\n")

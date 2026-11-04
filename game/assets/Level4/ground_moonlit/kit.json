@@ -5,6 +5,7 @@
   "lip": 8,
   "overhang": 6,
   "plants": 0,
+  "shelf": "platform.png",
   "skip": 80,
   "vines": 0
 }

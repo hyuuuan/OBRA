@@ -24,6 +24,7 @@ extends Node2D
 ## The level's kit: face.png, edge.png, plant_N.png and kit.json, which says where the walk line,
 ## the lip's band and the stone are in face.png, so the scene restates none of it.
 @export_dir var kit := ""
+const ShelfArt = preload("res://scripts/moonlit_shelf_art.gd")
 ## The level's ground bodies, by group. Each answers `dressed_ground()` -- world rects this
 ## draws for it, standing its own art down -- and may answer `undressed_ground()`: ground that
 ## keeps its own top but whose face this draws, and which closes or lowers an end beside it.
@@ -65,6 +66,7 @@ var vine_offset := 0.0
 
 var _face: Texture2D
 var _edge: Texture2D
+var _shelf: Texture2D
 var _plants: Array[Texture2D] = []
 var _vines: Array[Texture2D] = []
 var _ground: Array[Rect2] = []
@@ -104,6 +106,9 @@ func _load_kit() -> void:
 	# Quiet block kits already carry their moss in the strip; they need no extra spill.
 	if bool(data.get("edge", true)):
 		_edge = load(kit.path_join("edge.png")) as Texture2D
+	var shelf_path := String(data.get("shelf", ""))
+	if not shelf_path.is_empty():
+		_shelf = load(kit.path_join(shelf_path)) as Texture2D
 	lip = float(data.get("lip", lip))
 	band = float(data.get("band", band))
 	var spacing: Array = data.get("plant_gap", [PLANT_GAP.x, PLANT_GAP.y])
@@ -288,6 +293,9 @@ func strip_uv(points: PackedVector2Array, top: float) -> PackedVector2Array:
 ## A shelf of stone: the strip cut to a broken underside. It starts `lip` above the walk line,
 ## as a wall's strip does, and reaches down far enough to show stone under its grass.
 func _draw_loose_rock(rect: Rect2) -> void:
+	if uses_floating_shelf(rect):
+		ShelfArt.draw_on(self, _shelf, rect)
+		return
 	var width := rect.size.x
 	var under := band + 12.0 - lip
 	var outline := PackedVector2Array([Vector2(0, -lip), Vector2(width, -lip), Vector2(width, 0),
@@ -299,6 +307,17 @@ func _draw_loose_rock(rect: Rect2) -> void:
 	draw_polygon(points, PackedColorArray([Color.WHITE]), strip_uv(points, rect.position.y - lip),
 		_face)
 	draw_polyline(points.slice(2) + PackedVector2Array([points[0] + Vector2(0, lip)]), OUTLINE, 1.0)
+
+
+## Grounded landmark rocks keep their depth; unsupported ledges share the raised path artwork.
+func uses_floating_shelf(rect: Rect2) -> bool:
+	if _shelf == null:
+		return false
+	for base: Rect2 in _ground + _others + _neighbours:
+		var overlaps := rect.position.x < base.end.x and rect.end.x > base.position.x
+		if overlaps and rect.end.y >= base.position.y - 0.5 and rect.end.y <= base.end.y:
+			return false
+	return true
 
 
 ## One open end: the side shading away from the light, its outline, and -- at a step down -- the
