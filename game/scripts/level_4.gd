@@ -1460,6 +1460,7 @@ func _tend_the_kapre(delta: float) -> void:
 	_smoke_last_x = x
 	var blowing := director.committed_route("L4_KAPRE") == "artist" and not director.is_solved("L4_KAPRE") \
 		and _moving_air() and _within_smoke_reach(x)
+	_carry_the_wind_to_the_smoke(blowing)
 	# Working air opens the way while it clears. Stop partway through, and the bank can still
 	# turn her back; merely carrying a switched-off fan does not bypass the smoke.
 	var stopped_inside := _fanned > 0.0 and not blowing and x >= middle
@@ -1490,6 +1491,23 @@ func _within_smoke_reach(x: float) -> bool:
 ## cleared the smoke facing away from it, while the wind on screen went the other way.
 func _fan_points_at_the_smoke(fan: UtilityObject) -> bool:
 	return fan.wind_axis().x > 0.0 and fan.wind_origin().x <= _kapre.smoke_span().y
+
+
+## How far into the bank its wind is drawn going, past the near edge.
+const SMOKE_WIND_INTO := 120.0
+
+
+## A fan's wind reaches WEATHER_RADIUS, and FAN_REACH lets her blow from further off than that:
+## from the edge of it the smoke moved while the wind stopped short of it -- the one thing the
+## wind on screen is there to explain. While it is blowing the smoke, it is drawn reaching in.
+func _carry_the_wind_to_the_smoke(blowing: bool) -> void:
+	var fan := _equipped_utility
+	if fan == null or not is_instance_valid(fan) or fan.utility_behavior != "fan":
+		return
+	var reach := UtilityObject.WEATHER_RADIUS
+	if blowing:
+		reach = maxf(reach, _kapre.smoke_span().x - fan.wind_origin().x + SMOKE_WIND_INTO)
+	fan.wind_reach = reach
 
 
 func _level_use_verb(entity_id: String) -> String:

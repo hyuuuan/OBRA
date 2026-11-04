@@ -252,7 +252,9 @@ What the build does that the design above does not say, and what it does not do 
   approach, rather than teleporting beyond the smoke's turn-back line.
 - **A fan blows where it points** (2026-11-04). A switched-on fan shows its wind (`FanWind2D`)
   and turns its blades, so it counts at the kapre only pointed at the smoke: facing east, the
-  way the smoke is blown, with the bank still ahead of it.
+  way the smoke is blown, with the bank still ahead of it. While it blows the smoke from past
+  its own 220 px, its wind is drawn reaching into the bank (`_carry_the_wind_to_the_smoke`),
+  so the smoke never moves with the wind visibly stopping short of it.
 - **A throw goes where it is clicked.** A boomerang flies out along the click, a shot is fired at
   it (aimed over by its fall); F throws straight ahead as before. Thrown level, nothing reached the
   kapre's cigar. And the use that chooses a "draw it, then do it" route is used: the first blow at
