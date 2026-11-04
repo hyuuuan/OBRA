@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 48
+const CHECKS := 50
 var level: Node
 
 
@@ -45,6 +45,7 @@ func _run() -> void:
 	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke,
 			_blowing_from_the_edge_works_while_walking, _stopping_the_fan_restores_the_smoke,
 			_a_fan_turned_away_does_not_clear_the_smoke, _its_wind_reaches_the_smoke_it_moves,
+			_blow_offered_off_its_ground_blows,
 			_three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
 			_a_fan_tried_first_a_throw_still_knocks_the_cigar, _a_cloud_held_up_clears_the_smoke_too,
 			_as_a_butterfly_she_clears_the_smoke_too, _a_boomerang_clicked_at_the_cigar_knocks_it,
@@ -399,6 +400,26 @@ func _its_wind_reaches_the_smoke_it_moves() -> void:
 	_check(is_equal_approx(fan.wind_reach, UtilityObject.WEATHER_RADIUS) and fan.wind().gusts().is_empty(),
 		"off, its wind is gone and its reach its own again", "reach %.0f, %d gusts"
 			% [fan.wind_reach, fan.wind().gusts().size()])
+
+
+## F reads BLOW from FAN_REACH of the smoke, further out than the kapre's own ground. Pressed out
+## there it used to switch the fan on and choose nothing, so the smoke never moved.
+func _blow_offered_off_its_ground_blows() -> void:
+	var span := _kapre().smoke_span()
+	await _stand_at(span.x - 300.0, &"move_right")
+	await _become("fan")
+	await _frames(4)
+	var said := ((level.get("action_prompts") as Node).get("_use") as Button).text
+	var off_its_ground := String(level.get("director").call("current_obstacle")) != "L4_KAPRE"
+	await _press_f()
+	await _seconds(0.3)
+	_check(said == "BLOW" and off_its_ground and _kapre_route() == "artist" and float(level.get("_fanned")) > 0.0,
+		"off the kapre's own ground, F BLOW chooses the route and the smoke moves",
+		"F said '%s', off its ground %s, route '%s', fanned %.2f"
+			% [said, off_its_ground, _kapre_route(), float(level.get("_fanned"))])
+	await _seconds(1.6)
+	_check(_kapre_solved() and _kapre_route() == "artist", "and blowing on from there clears it",
+		"solved %s, route '%s'" % [_kapre_solved(), _kapre_route()])
 
 
 func _stopping_the_fan_restores_the_smoke() -> void:
