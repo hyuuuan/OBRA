@@ -511,13 +511,17 @@ func _apply_held_effects(_delta: float) -> void:
 			_push_actor(_equipped_actor, Vector2(0.0, BALLOON_LIFT))
 		"fan":
 			# Wind: it pushes the world, not the holder -- so it moves what is in front
-			# of you rather than shoving you backwards.
+			# of you rather than shoving you backwards. Only what is in the stream drawn out
+			# of it (in_the_wind): it used to push everything within WEATHER_RADIUS, behind
+			# her too, which no wind on screen could account for.
 			_wind_facing = _facing_of(_equipped_actor)
-			for target in _reachable_targets(WEATHER_RADIUS):
+			var push := Vector2(_wind_facing, -FAN_LIFT) * FAN_PUSH
+			for target in _reachable_targets(wind_reach + _wind_base() + _target_size().length() * 0.5):
 				var body := target as RigidBody2D
-				if body == null or body == self or body.freeze or _is_player_body(body):
+				if body == null or body == self or body.freeze or _is_player_body(body) \
+						or not in_the_wind(body.global_position):
 					continue
-				body.apply_central_force(Vector2(_wind_facing, -FAN_LIFT) * FAN_PUSH * body.mass)
+				body.apply_central_force(push * body.mass)
 
 
 ## Whether this is a fan that is on in her hand -- the state it pushes in, so the state its
