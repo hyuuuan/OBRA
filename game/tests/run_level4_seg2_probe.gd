@@ -10,7 +10,7 @@ const GROUND_Y := 600.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 46
+const CHECKS := 48
 var level: Node
 
 
@@ -44,7 +44,7 @@ func _run() -> void:
 	await _frames(3)
 	for kapre_check in [_the_smoke_turns_her_round, _a_fan_clears_the_smoke,
 			_blowing_from_the_edge_works_while_walking, _stopping_the_fan_restores_the_smoke,
-			_a_fan_turned_away_does_not_clear_the_smoke,
+			_a_fan_turned_away_does_not_clear_the_smoke, _its_wind_reaches_the_smoke_it_moves,
 			_three_chops_fell_its_tree, _a_throw_knocks_its_cigar,
 			_a_fan_tried_first_a_throw_still_knocks_the_cigar, _a_cloud_held_up_clears_the_smoke_too,
 			_as_a_butterfly_she_clears_the_smoke_too, _a_boomerang_clicked_at_the_cigar_knocks_it,
@@ -374,6 +374,31 @@ func _a_fan_turned_away_does_not_clear_the_smoke() -> void:
 	await _seconds(2.0)
 	_check(_kapre_solved() and _kapre_route() == "artist", "turned to face it, the same fan blows it clear",
 		"solved %s, route '%s'" % [_kapre_solved(), _kapre_route()])
+
+
+## From the far edge of the fan's reach the smoke moves -- and the wind on screen goes all the way
+## to it, rather than stopping short at the fan's own length and the smoke moving anyway.
+func _its_wind_reaches_the_smoke_it_moves() -> void:
+	var span := _kapre().smoke_span()
+	# Switched on at the smoke, where using it chooses the route; then backed off, still blowing.
+	await _stand_at(13250.0, &"move_right")
+	await _become("fan")
+	await _press_f()
+	await _stand_at(span.x - 300.0, &"move_right")
+	await _seconds(0.2)
+	var fan := level.get("_equipped_utility") as UtilityObject
+	var origin := fan.wind_origin()
+	var axis := fan.wind_axis()
+	var into_the_bank := origin + axis * ((span.x - origin.x) / axis.x + 60.0)
+	_check(float(level.get("_fanned")) > 0.0 and fan.in_the_wind(into_the_bank) and not fan.wind().gusts().is_empty(),
+		"from the edge of its reach the smoke moves, and its wind is drawn reaching into the bank",
+		"fanned %.2f, reach %.0f from x %.0f to the bank at %.0f" % [float(level.get("_fanned")), fan.wind_reach,
+			origin.x, span.x])
+	await _press_f()
+	await _seconds(0.3)
+	_check(is_equal_approx(fan.wind_reach, UtilityObject.WEATHER_RADIUS) and fan.wind().gusts().is_empty(),
+		"off, its wind is gone and its reach its own again", "reach %.0f, %d gusts"
+			% [fan.wind_reach, fan.wind().gusts().size()])
 
 
 func _stopping_the_fan_restores_the_smoke() -> void:
