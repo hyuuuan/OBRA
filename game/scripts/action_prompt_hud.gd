@@ -315,7 +315,7 @@ func _process(delta: float) -> void:
 	_follow_player(delta)
 
 
-func _make_prompt(prompt_name: StringName, key: String, verb: String,
+static func _make_prompt(prompt_name: StringName, key: String, verb: String,
 		accent: Color, width: float) -> Button:
 	var button := Button.new()
 	button.name = prompt_name
@@ -323,7 +323,7 @@ func _make_prompt(prompt_name: StringName, key: String, verb: String,
 	return button
 
 
-func _style_prompt(button: Button, key: String, verb: String,
+static func _style_prompt(button: Button, key: String, verb: String,
 		accent: Color, width: float) -> void:
 	# ⚠ OUT OF THE TREE NOW, NOT AT THE END OF THE FRAME. A queued free leaves the old key cap
 	# standing until the frame is over, so a verb that changed twice before then -- USE, CUT,
@@ -355,7 +355,7 @@ func _style_prompt(button: Button, key: String, verb: String,
 	button.add_child(badge)
 
 
-func _key_badge(key: String, accent: Color) -> PanelContainer:
+static func _key_badge(key: String, accent: Color) -> PanelContainer:
 	var badge := PanelContainer.new()
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.add_theme_stylebox_override(&"panel", UISkin.action_key(accent))
@@ -371,11 +371,21 @@ func _key_badge(key: String, accent: Color) -> PanelContainer:
 
 
 ## A reminder rather than a verb: one or more key caps and a word, built like the climb cap
-## (unclickable, no hover), and as wide as its caps make it. The ring's left margin is what
-## holds the caps, so it is widened by however many there are -- "Space" is five letters, and
-## two caps side by side are two -- rather than letting the word run under them.
+## (unclickable, no hover).
 func _make_indicator(prompt_name: StringName, keys: Array[String], verb: String) -> Button:
-	var accent := UISkin.MUTED
+	var button := make_key_chip(prompt_name, keys, verb, UISkin.MUTED)
+	button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	return button
+
+
+## One or more key caps and a word, in the HUD's key style, as wide as its caps make it. The
+## ring's left margin is what holds the caps, so it is widened by however many there are --
+## "Space" is five letters, and two caps side by side are two -- rather than letting the word
+## run under them. Static so the tutorial card's SKIP (TutorialSpotlight) is drawn the same way
+## as every other key on screen.
+static func make_key_chip(prompt_name: StringName, keys: Array[String], verb: String,
+		accent: Color) -> Button:
 	var button := _make_prompt(prompt_name, keys[0], verb, accent, 0.0)
 	for child in button.get_children():
 		if child.name == &"PromptKey":
@@ -402,8 +412,6 @@ func _make_indicator(prompt_name: StringName, keys: Array[String], verb: String)
 			as StyleBoxFlat
 		ring.content_margin_left = maxf(ring.content_margin_left, 8.0 + ceilf(caps_width) + 10.0)
 		button.add_theme_stylebox_override(StringName(state), ring)
-	button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.mouse_default_cursor_shape = Control.CURSOR_ARROW
 	return button
 
 
