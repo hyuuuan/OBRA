@@ -1511,11 +1511,21 @@ func _carry_the_wind_to_the_smoke(blowing: bool) -> void:
 
 
 func _level_use_verb(entity_id: String) -> String:
-	if _kapre != null and player != null and not director.is_solved("L4_KAPRE") \
-			and _within_smoke_reach(PlayerHurtbox2D.middle_of(player).x) \
-			and String(registry.get_entity(entity_id).get("utility_behavior", "")) == "fan":
+	if _fan_offered_at_the_smoke(entity_id):
 		return "STOP" if _equipped_utility.is_active() else "BLOW"
 	return super(entity_id)
+
+
+## Whether F offers this held thing to the smoke as a fan, from anywhere within FAN_REACH of it.
+##
+## ⚠ OFFERED IS NOT DONE. FAN_REACH runs further out than the kapre's own ground, where F is
+## judged as an answer, and out there F BLOW only switched the fan on: nothing chose the artist
+## route, so the smoke -- the thing BLOW was about -- never moved. One question for the prompt
+## and the press, so the word on F and what F does cannot part again.
+func _fan_offered_at_the_smoke(entity_id: String) -> bool:
+	return _kapre != null and player != null and not director.is_solved("L4_KAPRE") \
+		and _within_smoke_reach(PlayerHurtbox2D.middle_of(player).x) \
+		and String(registry.get_entity(entity_id).get("utility_behavior", "")) == "fan"
 
 
 ## A blade swung at its tree is a chop -- the first one too, the swing that draws the route in.
@@ -1523,6 +1533,15 @@ func _level_use_verb(entity_id: String) -> String:
 func _use_equipped_utility() -> void:
 	var swung := _equipped_utility != null and is_instance_valid(_equipped_utility) \
 		and _equipped_utility.is_ready()
+	# F BLOW off the kapre's own ground chooses the route its press would choose on it: the one
+	# that switches the fan on, not the one that stops it.
+	var held_id := String(_equipped_utility.item_data.entity_id) \
+		if swung and _equipped_utility.item_data != null else ""
+	if not held_id.is_empty() and not _tool_answers_here(held_id) and _fan_offered_at_the_smoke(held_id) \
+			and not _equipped_utility.is_active():
+		if director.committed_route("L4_KAPRE").is_empty():
+			director.commit_route("L4_KAPRE", "artist")
+		director.switch_route("L4_KAPRE", "artist")
 	super()
 	if swung and _kapre != null and not _kapre.is_felled() and director != null \
 			and director.committed_route("L4_KAPRE") == "pragmatist" and not director.is_solved("L4_KAPRE") \
