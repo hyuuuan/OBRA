@@ -24,6 +24,7 @@
 [ext_resource type="Script" path="res://scripts/manananggal_lower_2d.gd" id="21_lower"]
 [ext_resource type="Script" path="res://scripts/dead_tree_2d.gd" id="22_tree"]
 [ext_resource type="Script" path="res://scripts/cliff_dressing_2d.gd" id="23_cliff"]
+[ext_resource type="Script" path="res://scripts/moonlit_foliage_2d.gd" id="24_foliage"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -106,6 +107,18 @@ script = ExtResource("3_depth")
 
 [node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
 
+; Bushes and vines are independent decorations, never a side effect of painting ground.
+; Both avoid encounter volumes and supplies; all creatures and Nuno draw above them.
+[node name="BackgroundBushes" type="Node2D" parent="GameplayPlane"]
+z_index = -10
+script = ExtResource("24_foliage")
+layer = 0
+
+[node name="GroundVines" type="Node2D" parent="GameplayPlane"]
+z_index = -4
+script = ExtResource("24_foliage")
+layer = 1
+
 [node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
 position = Vector2(260.0, 510.0)
 
@@ -174,26 +187,26 @@ script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(20780, 460, 180, 30)])
 body = "stone"
 
-; MAYON'S CONSTRUCTION, DILIM'S GROUND (tools/build_cliff_kits.py, recipes "dilim" and
-; "dilim_stone"): Makiling's mud wall, roots through its deeper courses, and its mossy stone for the
-; rocks, under a lip of its leaf cover crowned with its leaf trims; ferns and mushrooms on the lips.
-; Graded to the ground's night tint. The terrain keeps its collision, branches and moonlight rims
+; Native pixels from the supplied moonlit ground, bushes and vines:
+; LEVEL4_Mt.Makiling/authored/moonlit_ground. The repeat is cut through matching stone pixels.
+; Moonlight is baked into this kit: white tint preserves its colors. The darkness layer still
+; controls visibility. Vines are inset decoration. The terrain keeps collision, branches and rims
 ; (MakilingTerrain2D.dressed_ground). Behind the bodies, as Mayon's terrain is.
 [node name="CliffDressing" type="Node2D" parent="GameplayPlane/Terrain"]
 z_index = -5
 script = ExtResource("23_cliff")
-kit = "res://assets/Level4/cliff"
+kit = "res://assets/Level4/ground_moonlit"
 ground_group = &"makiling_ground"
 kind = "mud"
-tint = Color(0.62, 0.64, 0.78, 1)
+tint = Color(1, 1, 1, 1)
 
 [node name="CliffDressingStone" type="Node2D" parent="GameplayPlane/Terrain"]
 z_index = -5
 script = ExtResource("23_cliff")
-kit = "res://assets/Level4/cliff_stone"
+kit = "res://assets/Level4/ground_moonlit"
 ground_group = &"makiling_ground"
 kind = "stone"
-tint = Color(0.62, 0.64, 0.78, 1)
+tint = Color(1, 1, 1, 1)
 
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)

@@ -1,0 +1,40 @@
+{
+  "overlap": 34,
+  "scale": 1.0,
+  "sprite_box_preview_width": 2048,
+  "sprites": [
+    {
+      "name": "plant_1",
+      "rect": "[P: (136, 52), S: (228, 156)]"
+    },
+    {
+      "name": "plant_2",
+      "rect": "[P: (624, 50), S: (212, 158)]"
+    },
+    {
+      "name": "plant_3",
+      "rect": "[P: (1124, 80), S: (248, 128)]"
+    },
+    {
+      "name": "plant_0",
+      "rect": "[P: (1624, 112), S: (188, 96)]"
+    },
+    {
+      "name": "vine_0",
+      "rect": "[P: (348, 228), S: (120, 128)]"
+    },
+    {
+      "name": "vine_1",
+      "rect": "[P: (796, 228), S: (120, 132)]"
+    }
+  ],
+  "strip_width": 338,
+  "strip_x": [
+    0,
+    510,
+    968,
+    1442
+  ],
+  "wall_height": 448,
+  "wall_y": 220
+}

@@ -286,6 +286,48 @@ draws it. ⚠ Each dressing reads the other kind's ground through `ground_rects(
 ends against it; `dressed_ground()` would stand that ground's art down. ⚠ No long hanging vines or
 roots on a riser: the high path is a Climb gate. `run_cliff_dressing_probe` holds the contract.
 
+**The ground artwork was simplified on 2026-11-04.** Both dressings now use
+`assets/Level4/ground_mossy`: chunky shaded brown earth/stone blocks beneath a hanging moss cap,
+based on Kent's two supplied tile references. The first flat-earth version was too simple; this
+keeps readable block faces without the delivered tileset's tiny stones, roots and dense leaves.
+The generated source, references and exact prompt are kept in `LEVEL4_Mt.Makiling/authored/`;
+the game-sized repeat is 384 x 256. The kit disables extra edge foliage and plant stamps.
+`CliffDressing2D` still owns the world-anchored repeats, shaded ends and deeper layers, and
+`MakilingTerrain2D` still owns collision, branches and moonlight rims. The older `cliff` and
+`cliff_stone` build outputs remain available but are no longer the scene's ground artwork.
+
+**The darker reference-matched kit followed on 2026-11-04.** Both dressings now use
+`assets/Level4/ground_forest`: shaded brown blocks under deep forest-green moss, with
+matching bushes, a fern, mossy rocks and two short vine clusters. Sources, the supplied
+reference, exact built-in generation prompts and a three-repeat preview are in
+`LEVEL4_Mt.Makiling/authored/forest_ground_v2/`. Rebuild with
+`godot --headless --path game --script res://tools/build_forest_ground.gd`, then import.
+The 384 x 256 strip uses a minimum-error pixel seam for a continuous horizontal repeat;
+`ground_tileset.tres` also exposes its 24 cells at 64 x 64. Short vines are decorative,
+inset from ends, and never form a climbable riser. The prior `ground_mossy` kit stays separate.
+
+**The supplied moonlit artwork supersedes that kit (2026-11-04).** Both dressings now use
+`assets/Level4/ground_moonlit`. `tools/build_moonlit_ground.gd` cuts the user's moonlit
+reference directly: original pixel sizes, leaf silhouettes, stone facets and cool highlights,
+without resampling or a five-color reduction. Four clear wall sections are joined with pixel
+cuts into a 1216 x 448 horizontal repeat; four plants and two short vines are separate assets.
+The source, crop recipe, rebuild notes and repeat preview live in
+`LEVEL4_Mt.Makiling/authored/moonlit_ground/`. The 64 x 64 TileSet exposes 19 x 7 atlas cells.
+These already moonlit dressings use white tint, avoiding a second night grade; the darkness
+layer still controls visibility. Kit-specific plant spacing accommodates native-size bushes;
+other kits keep their old spacing. Vines remain inset face growth rather than climbable risers.
+
+**Ground and decoration are now separate (2026-11-04).** The ground kit has no plant/vine
+stamps; those assets live in `assets/Level4/foliage_moonlit`, painted by separate
+`BackgroundBushes` and `GroundVines` scene layers (`moonlit_foliage_2d.gd`). Their full
+bounds avoid the existing encounter trigger volumes, hazards and supplies. They draw below
+Nuno's emerging spirit and all creatures, including spawned aswang. This prevents both
+occlusion and a bush appearing to be part of an encounter. The cutout's old global navy key
+punched holes in leaf shadows: the cutter now closes the silhouette and fills interior holes
+from the source pixels, while keeping the outside transparent and the ground strip separate.
+`run_moonlit_foliage_probe` covers intact fern shadows, opaque ground, real decoration
+placement outside mechanic areas, and draw order against Nuno, placed foes and spawned aswang.
+
 ## The old way over the ravine fades (2026-11-01)
 
 A fallen log lay across the bungisngis's ravine: `GameplayPlane/OldLog`, Makiling's own mossy log

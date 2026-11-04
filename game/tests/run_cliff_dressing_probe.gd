@@ -211,8 +211,8 @@ func _dilim() -> void:
 		var rect: Rect2 = end.rect
 		open_against_mud = open_against_mud or (int(end.side) > 0 and is_equal_approx(rect.end.x, 19450.0))
 	_check(not open_against_mud, "a rock against a higher mud wall is closed, not an open end")
-	_check(mud.modulate.is_equal_approx(Color(0.62, 0.64, 0.78, 1.0)) and stone.modulate == mud.modulate,
-		"both are graded to Dilim's night", str(mud.modulate))
+	_check(mud.modulate.is_equal_approx(Color.WHITE) and stone.modulate == mud.modulate,
+		"both retain the supplied kit's baked moonlight without a second night tint", str(mud.modulate))
 	call_group(DialogueBox.GROUP, &"skip_all")
 	level.queue_free()
 	for _frame in range(4):

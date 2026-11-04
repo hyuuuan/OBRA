@@ -58,10 +58,15 @@ var skip := 59.0
 var overhang := 6.0
 var deep := Color(0.11, 0.09, 0.04)
 var corner_plant := 0
+## Large native-size kits can space their plants without changing the other levels.
+var plant_gap := PLANT_GAP
+var plant_margin := PLANT_MARGIN
+var vine_offset := 0.0
 
 var _face: Texture2D
 var _edge: Texture2D
 var _plants: Array[Texture2D] = []
+var _vines: Array[Texture2D] = []
 var _ground: Array[Rect2] = []
 var _ledges: Array[Rect2] = []
 var _others: Array[Rect2] = []
@@ -92,19 +97,27 @@ func _ready() -> void:
 
 func _load_kit() -> void:
 	_face = load(kit.path_join("face.png")) as Texture2D
-	_edge = load(kit.path_join("edge.png")) as Texture2D
 	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(kit.path_join("kit.json")))
 	if not data is Dictionary:
 		push_error("CliffDressing2D: %s has no readable kit.json" % kit)
 		return
+	# Quiet block kits already carry their moss in the strip; they need no extra spill.
+	if bool(data.get("edge", true)):
+		_edge = load(kit.path_join("edge.png")) as Texture2D
 	lip = float(data.get("lip", lip))
 	band = float(data.get("band", band))
+	var spacing: Array = data.get("plant_gap", [PLANT_GAP.x, PLANT_GAP.y])
+	plant_gap = Vector2(float(spacing[0]), float(spacing[1]))
+	plant_margin = float(data.get("plant_margin", PLANT_MARGIN))
+	vine_offset = float(data.get("vine_offset", band - 10.0))
 	skip = float(data.get("skip", skip))
 	overhang = float(data.get("overhang", overhang))
 	deep = Color.html(String(data.get("deep", deep.to_html(false))))
 	corner_plant = int(data.get("corner_plant", corner_plant))
 	for index in range(int(data.get("plants", 0))):
 		_plants.append(load(kit.path_join("plant_%d.png" % index)) as Texture2D)
+	for index in range(int(data.get("vines", 0))):
+		_vines.append(load(kit.path_join("vine_%d.png" % index)) as Texture2D)
 
 
 ## Hand over the ground, in this node's space. Thin pieces are drawn as loose shelves.
@@ -158,12 +171,12 @@ func plant_spots(rect: Rect2) -> Array[Vector2]:
 	if _plants.size() < 2:
 		return spots
 	var origin := global_position.x
-	var x := rect.position.x + PLANT_MARGIN
-	x += _hash(x + origin) * PLANT_GAP.x * 0.5
-	while x < rect.end.x - PLANT_MARGIN:
+	var x := rect.position.x + plant_margin
+	x += _hash(x + origin) * plant_gap.x * 0.5
+	while x < rect.end.x - plant_margin:
 		var which := 1 + int(_hash(x + origin + 17.0) * float(_plants.size() - 1)) % (_plants.size() - 1)
 		spots.append(Vector2(roundf(x), float(which)))
-		x += lerpf(PLANT_GAP.x, PLANT_GAP.y, _hash(x + origin + 31.0))
+		x += lerpf(plant_gap.x, plant_gap.y, _hash(x + origin + 31.0))
 	return spots
 
 
@@ -330,6 +343,13 @@ func _draw_caps() -> void:
 	for rect in _ground:
 		for spot in plant_spots(rect):
 			_draw_plant(int(spot.y), Vector2(spot.x, rect.position.y), 1)
+			if not _vines.is_empty():
+				# Short face growth, inset from the ends: never a hanging path up a riser.
+				var which := int(_hash(spot.x + 83.0) * _vines.size()) % _vines.size()
+				var vine := _vines[which]
+				if rect.size.y >= band + vine.get_height():
+					_caps.draw_texture(vine, Vector2(spot.x - floorf(vine.get_width() * 0.5),
+						rect.position.y - lip + vine_offset))
 	if _edge != null:
 		for end: Dictionary in _ends:
 			var rect: Rect2 = end.rect
