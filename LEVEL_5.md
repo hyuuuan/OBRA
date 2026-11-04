@@ -203,7 +203,9 @@ reward's durable obstacle record prevents repeated Artist tally credit after a f
 ### What the ending actually does
 
 `DrawPanel` has normal, quiet-refusal, and free-paint modes. The two latter modes hide the frame,
-buttons, reference, and gauge, take a real stroke, and complete after the hand rests. Empty pages
+buttons, reference, and gauge, take a real stroke, and complete after the hand rests. They keep
+the page's lens, faint (`QUIET_DIM`), and it lifts with her lines (Kent, 5 November): with
+nothing on screen at all, a page that opened by itself read as the game hanging. Empty pages
 and cancellation never count. Free paint returns the vectors through its own signal rather than
 pretending to be another refusal. Both modes bypass live and submitted recognition entirely.
 
