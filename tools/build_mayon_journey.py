@@ -4,8 +4,10 @@
 These are scenery, never screenshots of running levels. Original artist files stay untouched.
 """
 import argparse
+from collections import deque
 import math
 from pathlib import Path
+import random
 from PIL import Image, ImageDraw, ImageFilter, ImageChops
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -126,6 +128,101 @@ def plaza_backdrop():
     return town
 
 
+def plaza_masonry():
+    """Lift the bottom course out of Piyesta's wall, keeping its pixels and top-left light."""
+    with Image.open(ASSETS / "Level2/plaza/retaining.png") as image:
+        wall = image.convert("RGBA")
+    pixels = wall.load()
+    width, height = wall.size
+    # The wall ends in dark mortar. Start just above it and follow each brown stone
+    # up to its outline; a rectangular crop would also catch moss and cut stones in half.
+    foot = height - 6
+    visited = set()
+    rocks = []
+    for x in range(width):
+        pending = deque([(x, foot)])
+        rock = []
+        while pending:
+            point = pending.popleft()
+            px, py = point
+            if point in visited or not (0 <= px < width and 32 <= py < height):
+                continue
+            visited.add(point)
+            r, g, _, _ = pixels[point]
+            if r < 35 or r <= g:
+                continue
+            rock.append(point)
+            pending.extend([(px - 1, py), (px + 1, py), (px, py - 1), (px, py + 1)])
+        if rock:
+            rocks.append((min(px for px, _ in rock), max(px for px, _ in rock), rock))
+
+    top = min(py for _, _, rock in rocks for _, py in rock)
+    bottom = max(py for _, _, rock in rocks for _, py in rock)
+    fill = Image.new("RGBA", (width, bottom - top + 8))
+    result = fill.load()
+    for left, right, rock in rocks:
+        dx = 0
+        if left == 0 or right == width - 1:
+            # Carry a whole stone across the tile join rather than repeating a cut face.
+            replacement = min((r for r in rocks if 64 <= r[0] and r[1] < width - 64),
+                              key=lambda r: abs((r[1] - r[0]) - (right - left)))
+            dx = left - replacement[0] - 4
+            rock = replacement[2]
+        # Set some of the small stones higher in the gaps between the large ones.
+        # Leaving them all on the same baseline makes the courses read as stripes.
+        dy = 2 - top + (left // 19) % 5
+        if right - left < 28:
+            dy -= (left * 7) % 15
+        for px, py in rock:
+            result[(px + dx) % width, py + dy] = pixels[px, py]
+    return fill
+
+
+def alley_plate():
+    """Register the alley's original street and storefront to the memory walk row."""
+    source = ASSETS / "Level2/alley_1"
+    sky, street, store = [
+        clean_alpha(Image.open(source / f"{name}.png").convert("RGBA"))
+        for name in ("sky", "ground", "store")
+    ]
+    # Use the same walk row and facade setback as Alley 1. Shift the street so its
+    # vanishing point meets the gap between the houses. Reflect the cropped edge
+    # of the paving to fill the space left by that shift.
+    walk_row, store_foot, setback = 895, 800, 22
+    road_shift = 108
+    width = sky.width
+    wall_join = 1044  # The mortar just under the last full course with vines.
+    plate = Image.new("RGBA", (width, walk_row + 1230), (27, 25, 23, 255))
+    plate.alpha_composite(sky.crop((0, 0, width, wall_join)))
+    edge = street.crop((0, 0, road_shift, wall_join)).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    plate.alpha_composite(edge)
+    plate.alpha_composite(street.crop((0, 0, width - road_shift, wall_join)), (road_shift, 0))
+    plate.alpha_composite(store, (0, walk_row - store_foot - setback))
+
+    # Continue with whole bricks clipped at their mortar joints. Vines belong
+    # to the authored wall above; repeating a slice through them creates stripes.
+    joints = [(468, 535), (683, 748), (748, 804), (804, 868),
+              (931, 1000), (1106, 1170), (1288, 1351), (1351, 1413)]
+    course_top = 1003
+    bricks = [street.crop((left, course_top, right, wall_join)).convert("RGB")
+              for left, right in joints]
+    rng = random.Random(5)
+    for y in range(wall_join, plate.height, wall_join - course_top):
+        x = -rng.randrange(48)
+        while x < width:
+            brick = rng.choice(bricks)
+            plate.paste(brick, (x, y))
+            x += brick.width
+
+    shade = Image.new("RGBA", (width, plate.height - wall_join))
+    shadow = ImageDraw.Draw(shade)
+    for depth in range(shade.height):
+        alpha = round(134 * min(1.0, depth / 420))
+        shadow.line((0, depth, width - 1, depth), fill=(22, 19, 17, alpha))
+    plate.alpha_composite(shade, (0, wall_join))
+    return plate
+
+
 def rice_beds():
     """Side-view rice grows out of three stone banks, in the delivery's own palette."""
     result=Image.new("RGBA",(900,276))
@@ -197,18 +294,11 @@ def build():
     # The nave's lower plinth is not a second floor behind the player.
     nave = Image.open(ASSETS/"Level2/church/nave.png").convert("RGBA")
     outputs["church_sky.png"] = nave.crop((0, 0, nave.width, 734))
-    # The storefront delivery has 1-alpha noise below the painted buildings. Their real feet
-    # are row 806, not the canvas's last row. Align the short alley to those feet.
-    storefront=clean_alpha(Image.open(ASSETS/"Level2/alley_1/store.png").convert("RGBA"))
-    walk_line=storefront.getchannel("A").getbbox()[3]
-    alley=Image.new("RGBA",(1448,1087),(252,192,89,255))
-    for source in ["sky","store","ground"]:
-        part=clean_alpha(Image.open(ASSETS/f"Level2/alley_1/{source}.png").convert("RGBA"))
-        alley.alpha_composite(part)
-    outputs["alley_sky.png"]=alley.crop((0,0,alley.width,walk_line))
+    outputs["alley_plate.png"] = alley_plate()
     # Keep Dagat's own sand cap over its underwater stone; do not use the reef's bare floor.
     home=Image.open(ASSETS/"Level3/authored/land_home.png").convert("RGBA")
     outputs["sand_ground.png"]=home.crop((64,4,1400,244))
+    outputs["plaza_masonry.png"] = plaza_masonry()
     plate = Image.open(ROOT / "Painting_Covers/Level 4 Completed Look from Mayon.png").convert("RGBA")
     falls = plate.crop((1040, 440, 1420, 760))
     mask = Image.new("L",falls.size)

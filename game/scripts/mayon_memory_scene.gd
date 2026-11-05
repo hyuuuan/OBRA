@@ -19,11 +19,14 @@ const TERRACE_LIP := 8.0
 const TERRACE_ROUND := 34.0
 const TERRACE_JOIN_SCALE := 2048.0
 const CROSSING_HALF_WIDTH := 210.0
+# The assembled Alley 1 plate includes its road and wall below this source row.
+const ALLEY_WALK_ROW := 895.0
+const ALLEY_ART_SCALE := 1.14
 
 const BACKDROPS := {
  "terraces": ["Level5/journey/payyo_sky.png"], "crossing": ["Level5/journey/payyo_sky.png"],
  "bale": ["Level5/journey/payyo_sky.png"], "plaza": ["Level5/journey/plaza_sky.png"],
- "church": ["Level5/journey/church_sky.png"], "alley": ["Level5/journey/alley_sky.png"],
+ "church": ["Level5/journey/church_sky.png"], "alley": ["Level5/journey/alley_plate.png"],
  "shore": ["Level5/journey/shore_sky.png"], "sea": ["Level5/journey/sea_sky.png"],
  "island": ["Level5/journey/shore_sky.png"], "forest": ["Level5/journey/forest_sky.png"],
  "waterfall": ["Level5/journey/forest_sky.png"], "dawn": ["Level5/journey/dawn_sky.png"], "summit": [],
@@ -47,7 +50,10 @@ const SKY_COLOURS := {
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	z_index = -20
-	if kind not in ["plaza", "church", "alley", "summit"]:
+	if kind == "alley":
+		# The complete plate is registered to the same flat route as the player.
+		return
+	if kind not in ["plaza", "church", "summit"]:
 		_stage = StageScript.new()
 		_stage.name = "RememberedLife"
 		_stage.set("kind",kind)
@@ -65,6 +71,7 @@ func _ready() -> void:
 		# both sides of the transition into the neighbouring memories.
 		plaza.from_x = -240.0
 		plaza.to_x = span + 190.0
+		plaza.wall_extension = _art("Level5/journey/plaza_masonry.png")
 		_ground = plaza
 	else:
 		_ground = Node2D.new()
@@ -95,7 +102,7 @@ func frame(camera: Vector2, extent: Vector2, player_position := Vector2.INF) -> 
 		_stage.set("route",route)
 		_stage.set("world_origin",global_position)
 	queue_redraw()
-	if kind != "plaza":
+	if _ground != null and kind != "plaza":
 		_ground.queue_redraw()
 
 
@@ -133,8 +140,10 @@ func _draw() -> void:
 			x = span * .5 - width * .5
 			y = -height
 		elif kind == "alley":
-			# Grounded buildings share the walk line's world motion.
+			height = texture.get_height() * ALLEY_ART_SCALE
+			width = texture.get_width() * ALLEY_ART_SCALE
 			x = span * .5 - width * .5
+			y = -ALLEY_WALK_ROW * ALLEY_ART_SCALE
 		# Repeat only the authored sky/landscape, with mirrored neighbours at the ends.
 		for repeat_index in [-1, 0, 1]:
 			var rect := Rect2(x + repeat_index * width, y, width, height)
@@ -173,9 +182,6 @@ func _draw_ground(bounds: Rect2) -> void:
 	if kind == "church":
 		surface = "Level2/interiors/church_floor.png"
 		ground = Color("88785d")
-	elif kind == "alley":
-		surface = "Level2/plaza/retaining.png"
-		ground = Color("8a7660")
 	elif kind in ["shore", "island", "sea"]:
 		surface = "Level3/authored/seabed_floor.png" if kind == "sea" else "Level5/journey/sand_ground.png"
 		ground = Color("a08661") if kind != "sea" else Color("264c57")

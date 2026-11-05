@@ -32,6 +32,10 @@ crossed as the apo with no ink. These are scenery and local preservation landmar
 The nine Payyo, Dagat and Dilim stops have authored scenery groups in each vignette's
 `staging.props`. They share the delivered art's proportions and follow the actual floor.
 Piyesta keeps its existing plaza, nave and alley composition.
+The plaza memory continues its retaining wall down the frame with staggered courses cut
+from the original stones at their existing pixel scale. The paving and collision line stay aligned.
+The alley uses Alley 1's own paving and road on its painted walk row (895). The road meets
+the opening between the storefronts, and the wall continues in whole brick courses below the vines.
 
 - **Payyo:** the terraces' target is Payyo's own painted terraces and river (`terraces_landmark.png`),
   standing behind the walkable steps with the village climbing the hillside behind them. It replaced

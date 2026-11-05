@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cmgwsf2plmcgg"
-path="res://.godot/imported/alley_sky.png-c00771b120b4fa3fe00b1d013c963dcf.ctex"
+uid="uid://cux0pbwyg0l5m"
+path="res://.godot/imported/alley_plate.png-34f10a5cda09effc5bc83a1ed69f6cd6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Level5/journey/alley_sky.png"
-dest_files=["res://.godot/imported/alley_sky.png-c00771b120b4fa3fe00b1d013c963dcf.ctex"]
+source_file="res://assets/Level5/journey/alley_plate.png"
+dest_files=["res://.godot/imported/alley_plate.png-34f10a5cda09effc5bc83a1ed69f6cd6.ctex"]
 
 [params]
 

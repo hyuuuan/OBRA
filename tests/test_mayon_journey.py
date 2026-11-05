@@ -19,7 +19,8 @@ class MayonJourneyArtTests(unittest.TestCase):
                 self.assertEqual(actual.convert("RGBA").tobytes(),expected.tobytes())
 
     def test_scenery_backdrops_have_no_transparent_padding(self):
-        for path in (ROOT/"game/assets/Level5/journey").glob("*_sky.png"):
+        art = ROOT/"game/assets/Level5/journey"
+        for path in [*art.glob("*_sky.png"), art/"alley_plate.png"]:
             with self.subTest(name=path.name), Image.open(path) as image:
                 self.assertEqual(image.getchannel("A").getextrema(),(255,255))
 
