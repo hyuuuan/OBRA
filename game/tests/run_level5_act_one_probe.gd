@@ -8,7 +8,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_act_one_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 7
+const CHECKS := 8
 ## The apo's running speed (Wanderer), to time the bridge against.
 const RUN := 260.0
 
@@ -23,6 +23,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	level = await _open_level()
+	await _walk_and_jump_stand_beside_draw()
 	await _a_fall_gives_back_what_the_ash_had_not_taken()
 	await _the_bridge_is_gone_before_she_can_reach_it()
 	_the_ash_thickens_as_she_climbs()
@@ -167,6 +168,24 @@ func _the_ink_card_waits_for_lolo_at_the_span() -> void:
 	_check(placed and spoke and not together and taught,
 		"the ink is taught after lolo's line at the span, never over it",
 		"placed %s, he spoke %s, card over his line %s, card after it %s" % [placed, spoke, together, taught])
+
+
+## Kent, 2026-11-05: "the r draw at the bottom right is alone, i want to include there the
+## movements key". On the climb, walk and jump stand beside R in its corner, as in Payyo.
+func _walk_and_jump_stand_beside_draw() -> void:
+	await _frames(20)
+	var prompts := level.get("action_prompts") as Control
+	var draw := level.get("draw_button") as Button
+	var move := prompts.get("_move") as Control
+	var jump := prompts.get("_jump") as Control
+	var shown := move.is_visible_in_tree() and jump.is_visible_in_tree() and draw.is_visible_in_tree()
+	var one_row := absf(move.get_global_rect().end.y - draw.get_global_rect().end.y) < 2.0 \
+		and absf(jump.get_global_rect().end.y - draw.get_global_rect().end.y) < 2.0 \
+		and move.get_global_rect().end.x <= jump.position.x + 0.5 \
+		and jump.get_global_rect().end.x <= draw.get_global_rect().position.x + 0.5
+	_check(bool(prompts.call("movement_keys_shown")) and shown and one_row,
+		"on the climb, walk and jump stand beside R DRAW in its corner",
+		"wanted %s, all shown %s, one row left to right %s" % [prompts.call("movement_keys_shown"), shown, one_row])
 
 
 func _put(x: float, y: float) -> void:

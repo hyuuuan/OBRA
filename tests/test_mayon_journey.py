@@ -59,6 +59,17 @@ class MayonJourneyArtTests(unittest.TestCase):
                 self.assertLessEqual(scene["length"],1440)
                 self.assertEqual(scene["profile"][-1][0],scene["length"])
 
+    def test_the_terraces_target_is_payyos_own_painting(self):
+        # Kent, 2026-11-05: the first memory lane "has full of grass which looks weird". Its target
+        # was rice_beds.png, three slabs of stalks drawn by code and wider than the steps under them,
+        # where every other place's target is cut from delivered art. It is Payyo's terraces now.
+        data=json.loads((ROOT/"game/config/level_05.json").read_text())
+        terraces=next(m for m in data["memories"] if m["id"]=="terraces")
+        self.assertTrue(terraces["landmark_art"].endswith("/journey/terraces_landmark.png"))
+        for memory in data["memories"]:
+            with self.subTest(memory=memory["id"]):
+                self.assertNotIn("rice_beds", memory["landmark_art"])
+
     def test_grounded_preservation_landmarks_match_the_collision_surface(self):
         data=json.loads((ROOT/"game/config/level_05.json").read_text())
         scenes={s["id"]:s for s in data["journey"]["vignettes"]}

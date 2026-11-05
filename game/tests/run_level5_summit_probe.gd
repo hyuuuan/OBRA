@@ -7,7 +7,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_summit_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 7
+const CHECKS := 8
 
 var failures := 0
 var checked := 0
@@ -27,6 +27,7 @@ func _run() -> void:
 	_the_voice_and_the_ending_are_the_runs()
 	await _the_summit_waits_for_lolo_to_go()
 	await _the_summit_goes_white_and_still()
+	await _walked_up_to_lola_she_stands_and_the_brush_key_stays()
 	await _the_brush_refuses_her_twice_then_she_lowers_it()
 	await _she_draws_the_places_and_they_bloom()
 	await _lola_turns_and_the_level_is_finished()
@@ -83,6 +84,45 @@ func _the_summit_goes_white_and_still() -> void:
 		and level.call("summit_state") == "quiet",
 		"at the summit the world goes white and still",
 		"sky %.2f, rumbling %s, %s" % [sky.drain if sky != null else -1.0, tremor.enabled, level.call("summit_state")])
+
+
+## Kent, 2026-11-05: "when i approach lola the game freezes". She is stopped in front of Lola for
+## the beat, and her pose comes from her physics: she hung mid-stride or mid-jump, with every key
+## gone, for the seconds before the brush raised itself. Walked up with the keys, jumping as she
+## arrives, she stands, and Draw is still on screen.
+func _walked_up_to_lola_she_stands_and_the_brush_key_stays() -> void:
+	var player := level.get("player") as Node2D
+	var speak_x: float = (level.call("_anchor", "summit_speak") as Vector2).x
+	# The check above stood lolo at "waiting" by hand, which raises a page at once; put it down.
+	var page := level.get("draw_panel") as DrawPanel
+	if page.is_open():
+		page.close_panel()
+	await _frames(2)
+	Input.action_press("move_right")
+	var jumped := false
+	var until := Time.get_ticks_msec() + 8000
+	while String(level.call("summit_state")) == "quiet" and Time.get_ticks_msec() < until:
+		if not jumped and player.global_position.x > speak_x - 90.0:
+			Input.action_press("jump")
+			jumped = true
+		await physics_frame
+	Input.action_release("move_right")
+	Input.action_release("jump")
+	call_group(DialogueBox.GROUP, &"hide_line")
+	paused = false
+	await _frames(12)
+	var pose := String((player.get_node("Figure") as Node).get("pose"))
+	var draw := level.get("draw_button") as Button
+	var panel := level.get("draw_panel") as DrawPanel
+	# Walk and jump stand beside R elsewhere in Mayon; held here, they would do nothing.
+	var prompts := level.get("action_prompts") as Control
+	var walk_shown := (prompts.get("_move") as Control).is_visible_in_tree() \
+		or (prompts.get("_jump") as Control).is_visible_in_tree()
+	_check(String(level.call("summit_state")) == "trying" and jumped and pose == "idle"
+			and draw.is_visible_in_tree() and not walk_shown and not panel.is_open(),
+		"walked up to lola she stands still in front of her, and the brush's key alone stays on screen",
+		"%s, jumped on arrival %s, her pose %s, draw key shown %s, walk/jump shown %s, page open %s" % [
+			level.call("summit_state"), jumped, pose, draw.is_visible_in_tree(), walk_shown, panel.is_open()])
 
 
 func _the_brush_refuses_her_twice_then_she_lowers_it() -> void:

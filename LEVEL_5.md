@@ -33,8 +33,10 @@ The nine Payyo, Dagat and Dilim stops have authored scenery groups in each vigne
 `staging.props`. They share the delivered art's proportions and follow the actual floor.
 Piyesta keeps its existing plaza, nave and alley composition.
 
-- **Payyo:** close rice stalks grow out of three retaining banks, with irrigation glints and
-  the village climbing the hillside behind them. Ang Tulay crosses a flowing river between
+- **Payyo:** the terraces' target is Payyo's own painted terraces and river (`terraces_landmark.png`),
+  standing behind the walkable steps with the village climbing the hillside behind them. It replaced
+  `rice_beds.png`, three slabs of stalks drawn by code and wider than the steps, which Kent found
+  "full of grass" (5 November); the builder still writes that file, but no place uses it. Ang Tulay crosses a flowing river between
   planted banks and fences. Ang Bale has a gate, storage pot, lamp and stored harvest around its
   raised yard. Perched birds lift as the apo approaches; butterflies move between the beds.
 - **Dagat:** palms frame the beach, registered surf moves behind the bangka, and a paddle rests
