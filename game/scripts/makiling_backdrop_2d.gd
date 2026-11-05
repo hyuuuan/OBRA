@@ -16,6 +16,8 @@ const PLATE_WIDTH := 1672.0
 
 @export_enum("sky", "mountain_far", "mountain_near", "ground_far", "ground_near", "frame")
 var plate: String = "mountain_far"
+## Optional supplied replacement, with the same 1672 x 941 registration as the original plate.
+@export var plate_texture: Texture2D
 ## 0 holds still with the camera (infinitely far); 1 moves with the world; above 1 is in front.
 @export var scroll_scale: float = 0.08
 ## EnvironmentBaseplate sorts by this; higher is further back.
@@ -71,7 +73,7 @@ func repeats() -> int:
 ## The repeats needed so that every camera x across `span` sees plate, at this scroll rate.
 func _build() -> void:
 	_built = true
-	var texture := load(FOLDER + plate + ".png") as Texture2D
+	var texture := plate_texture if plate_texture != null else load(FOLDER + plate + ".png") as Texture2D
 	if texture == null:
 		push_warning("MakilingBackdrop2D: no plate %s" % plate)
 		return

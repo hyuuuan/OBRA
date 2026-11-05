@@ -280,8 +280,9 @@ func _the_dead_tree() -> void:
 	var standing := tree.get_node_or_null(^"Trunk/Art") as PixelStripAnimator
 	var half := tree.trunk_size.x * 0.4
 	_check(standing != null and standing.anim() == "idle"
-			and standing.texture.resource_path.ends_with("/dead_tree_idle.png")
-			and _drawn_at(standing, Vector2(0.0, -2.0)) and _drawn_at(standing, Vector2(-half, -120.0))
+			and standing.texture.resource_path == "res://assets/Level4/trees/dead_tree_idle.png"
+			# The supplied roots split at the bottom center; sample the wood just above that gap.
+			and _drawn_at(standing, Vector2(0.0, -8.0)) and _drawn_at(standing, Vector2(-half, -120.0))
 			and _drawn_at(standing, Vector2(half, -120.0)) and _drawn_at(standing, Vector2(0.0, -tree.trunk_size.y * 0.6)),
 		"and it is the woods' own dead tree, its trunk drawn where a swing finds it",
 		"%s" % (standing.texture.resource_path if standing != null else "no drawn art"))

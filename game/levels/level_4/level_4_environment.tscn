@@ -1,5 +1,7 @@
 [gd_scene format=3]
 
+[ext_resource type="Texture2D" path="res://assets/Level4/trees/forest_plate.png" id="26_trees"]
+
 [ext_resource type="Script" path="res://scripts/environment_baseplate.gd" id="1_environment"]
 [ext_resource type="Script" path="res://scripts/world_camera_controller.gd" id="2_camera"]
 [ext_resource type="Script" path="res://scripts/depth_layer_2d.gd" id="3_depth"]
@@ -98,10 +100,12 @@ plate_top = 260.0
 z_index = -60
 script = ExtResource("7_backdrop")
 plate = "frame"
+plate_texture = ExtResource("26_trees")
 scroll_scale = 0.62
 depth = 5.0
 span = Vector2(-200.0, 22600.0)
-plate_top = -160.0
+; Sink the flared roots 20 px into the moss instead of balancing their lowest tips on it.
+plate_top = -140.0
 
 [node name="GameplayPlane" type="Node2D" parent="."]
 script = ExtResource("3_depth")
@@ -324,6 +328,7 @@ span_length = 280.0
 span_height = 64.0
 stands_solid = false
 art_kind = "dead_tree"
+art_folder = "res://assets/Level4/trees/"
 blocked_hint = ""
 
 ; Lola's things, lying where she will find them. Aswang drop more as they fall.

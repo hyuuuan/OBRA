@@ -359,6 +359,16 @@ across ground and floating shelves were drawn above the darkness by `MakilingTer
 not missing pixels in the artwork. Those extra rim layers are gone; the moonlit moss texture
 now supplies the continuous visible edge. Earlier build notes describing rims are historical.
 
+**The supplied trees replace the standing tree art (2026-11-05).** The first reference is
+the Kapre's buttressed trunk, its branch aligned to his existing feet. The second is the
+clearing's hollow dead tree and the repeating forest trees, replacing the old vine-tree
+frame. Both felled trunks use the supplied bark. Sources and rebuild notes live in
+`LEVEL4_Mt.Makiling/authored/trees/`; `game/tools/build_dilim_trees.gd` exports to the separate
+`assets/Level4/trees/` folder. `ForestBand.plate_texture` replaces the scenery while keeping
+its parallax and dawn tint. Chopping, smoke, cigar targets, collision and encounter geometry
+keep their existing rules. The older sculpted tree outputs remain historical build outputs.
+`run_visual_dilim_trees.gd` captures all three replacements and both felled states.
+
 ## The old way over the ravine fades (2026-11-01)
 
 A fallen log lay across the bungisngis's ravine: `GameplayPlane/OldLog`, Makiling's own mossy log
