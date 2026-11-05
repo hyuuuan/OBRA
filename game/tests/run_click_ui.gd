@@ -126,6 +126,15 @@ func _mouse_reaches_the_gui() -> bool:
 	slot.pressed.connect(probe)
 	await _click(slot)
 	slot.pressed.disconnect(probe)
+	# ⚠ THE CANARY'S CLICK STARTS A PLACEMENT: a slot holding a drawing takes it out to set down.
+	# Clicking Draw used to cancel it, and since 72aadff6 Draw neither cancels one nor takes a
+	# click while one is up -- the rotate and scale keys have its corner -- so the Draw checks
+	# below found it disabled, and their click fell through to the world and set the square
+	# down. Put back, the way a player backing out would, before anything else is clicked.
+	var placement := level.get("placement_controller") as Node
+	if placement != null and bool(placement.call("is_placing")):
+		placement.call("cancel_placement")
+		await process_frame
 	return landed[0]
 
 
