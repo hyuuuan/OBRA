@@ -7,7 +7,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_summit_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 8
+const CHECKS := 9
 
 var failures := 0
 var checked := 0
@@ -23,6 +23,8 @@ func _run() -> void:
 	# Lolo has gone by the time she reaches the top, as he must have.
 	(level.get("lolo") as Lolo).vanish()
 	level.set("_lolo_moment", "gone")
+	# Before she is up there: Lola paints on her own, and the summit must not begin meanwhile.
+	await _her_canvas_fills_in_as_she_paints()
 	preload("res://tests/level5_journey_fixture.gd").summit(level)
 	_the_voice_and_the_ending_are_the_runs()
 	await _the_summit_waits_for_lolo_to_go()
@@ -58,6 +60,40 @@ func _the_voice_and_the_ending_are_the_runs() -> void:
 		and four == "ENDING.standard" and five == "ENDING.perfect",
 		"her voice is the run's leaning, and five flowers are the perfect ending",
 		"nobody %s, leaned %s; four flowers %s, five %s" % [nobody, leaned, four, five])
+
+
+## Kent, 2026-11-05: "where the lola paints ... there is no proper animation to the painting". Her
+## canvas held the finished Mayon and nothing on it changed. It fills in, a little each time her
+## brush reaches it and only then, and stops short of finished; under Reduce Motion it holds still.
+func _her_canvas_fills_in_as_she_paints() -> void:
+	var lola := level.call("_lola") as Lola2D
+	var canvas := lola.get_node_or_null(^"Canvas") as Sprite2D
+	var figure := lola.get_node(^"Lola") as Sprite2D
+	var before := lola.painted()
+	var on_canvas_only := true
+	var last_frame := figure.frame
+	var last_paint := before
+	var until := Time.get_ticks_msec() + 9000
+	while Time.get_ticks_msec() < until:
+		await process_frame
+		if lola.painted() > last_paint and figure.frame not in Lola2D.BRUSH_ON_CANVAS:
+			on_canvas_only = false
+		last_paint = lola.painted()
+		last_frame = figure.frame
+	var after := lola.painted()
+	var shown := canvas != null and is_equal_approx(float((canvas.material as ShaderMaterial).get_shader_parameter(&"reveal")), after)
+	var clear_of_her := lola.canvas_rect().position.x >= -2.0
+	var profile := root.get_node("PlayerProfile")
+	profile.call("set_setting", "reduce_motion", true)
+	var held := lola.painted()
+	await create_timer(4.0).timeout
+	var still := is_equal_approx(lola.painted(), held)
+	profile.call("set_setting", "reduce_motion", false)
+	_check(after > before + Lola2D.PAINT_STEP * 1.5 and after <= Lola2D.PAINT_NEARLY and on_canvas_only and shown
+			and clear_of_her and still,
+		"her canvas fills in only as her brush reaches it, stops short of finished, and holds under Reduce Motion",
+		"painted %.2f -> %.2f, only on the brush's frames %s, shown %s, canvas clear of her %s, still under Reduce Motion %s" % [
+			before, after, on_canvas_only, shown, clear_of_her, still])
 
 
 func _the_summit_waits_for_lolo_to_go() -> void:
