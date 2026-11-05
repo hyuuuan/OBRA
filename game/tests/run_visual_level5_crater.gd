@@ -35,6 +35,7 @@ func _run() -> void:
 		await _put(Vector2(float(place.start)+float(place.length)*.5,98))
 		await _shot("%02d_%s" % [index+1,place.id])
 		if index in [0,7,10]: await _check_life(String(place.id))
+		if String(place.id) == "piyesta_church": await _check_painted("the church floor down to the frame", Rect2(.25,.9,.4,.08))
 		if index < 11:
 			for progress in [.25,.5,.75]:
 				var boundary := float(journey.places[index+1].start)
@@ -100,6 +101,22 @@ func _check_composite() -> void:
 	failures += int(not ok)
 	print("  %s actual rendered mask: old left, new right, distinct places, foreground occlusion, soft edge %s" %
 		["OK" if ok else "FAIL",[old_matches,new_matches,distinct,covers,feathered]])
+
+## Kent, 2026-11-05: parts of the runway "not rendering properly". Under the bridge was one flat dark
+## box, and under the church floor one flat brown band. A painted surface has many colours; a fill
+## has one or two. `area` is a fraction of the frame.
+func _check_painted(what: String, area: Rect2) -> void:
+	await RenderingServer.frame_post_draw
+	var frame := root.get_texture().get_image()
+	var size := Vector2(frame.get_size())
+	var colours := {}
+	for y in range(int(area.position.y*size.y), int(area.end.y*size.y), 3):
+		for x in range(int(area.position.x*size.x), int(area.end.x*size.x), 3):
+			var c := frame.get_pixel(x, y)
+			colours[Vector3i(int(c.r*15), int(c.g*15), int(c.b*15))] = true
+	var ok := colours.size() >= 12
+	failures += int(not ok)
+	print("  %s %s is painted, not a flat fill: %d colours" % ["OK" if ok else "FAIL", what, colours.size()])
 
 func _distance(a: Color,b: Color) -> float:
 	return Vector3(a.r,a.g,a.b).distance_to(Vector3(b.r,b.g,b.b))

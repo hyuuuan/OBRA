@@ -186,7 +186,19 @@ func _draw_ground(bounds: Rect2) -> void:
 			var left := maxf(local.position.x, x_index * tile_width)
 			var right := minf(local.end.x, (x_index + 1) * tile_width)
 			# Continue the rock face below high steps; never expose a flat fill under a cliff.
-			if kind != "church":
+			if kind == "church":
+				# ⚠ THE NAVE'S FLOOR GOES DOWN TO THE FRAME TOO. It was one 64px row of tiles over a
+				# flat fill, and the bottom of every church frame was a plain brown band (Kent: parts of
+				# the runway "not rendering properly"). Whole tiles, darker course by course: the floor
+				# is tiles all the way down, with no ragged edge to hide.
+				for depth in range(7,0,-1):
+					var shade := pow(.86,float(depth))
+					_ground.draw_texture_rect_region(texture,
+						Rect2(left,local.position.y-4+depth*height,right-left,height),
+						Rect2((left-x_index*tile_width)/tile_width*texture.get_width(),0,
+							(right-left)/tile_width*texture.get_width(),texture.get_height()),
+						Color(shade,shade,shade))
+			else:
 				for depth in range(7,0,-1):
 					var depth_y := local.position.y-4+height*.55+(depth-1)*height*.44
 					var light := pow(.87,float(depth))
