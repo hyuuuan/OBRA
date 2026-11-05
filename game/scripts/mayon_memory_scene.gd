@@ -18,6 +18,7 @@ const TERRACE_GROUND := preload("res://shaders/mayon_terrace_ground.gdshader")
 const TERRACE_LIP := 8.0
 const TERRACE_ROUND := 34.0
 const TERRACE_JOIN_SCALE := 2048.0
+const CROSSING_HALF_WIDTH := 210.0
 
 const BACKDROPS := {
  "terraces": ["Level5/journey/payyo_sky.png"], "crossing": ["Level5/journey/payyo_sky.png"],
@@ -51,6 +52,11 @@ func _ready() -> void:
 		_stage.name = "RememberedLife"
 		_stage.set("kind",kind)
 		_stage.set("props",staging.get("props",[]))
+		if kind == "crossing":
+			var opening := Rect2(span * 0.5 - CROSSING_HALF_WIDTH, 0.0,
+				CROSSING_HALF_WIDTH * 2.0, 1400.0)
+			# Tuck the water under the rounded turf lips so no sky peeks through.
+			_stage.set("river_bounds", opening.grow_individual(16.0, 0.0, 16.0, 0.0))
 		add_child(_stage)
 	_ground = Node2D.new()
 	_ground.name = "WalkSurface"
@@ -133,8 +139,6 @@ func _draw() -> void:
 		var width := 310.0
 		var height := width * palms.get_height() / palms.get_width()
 		draw_texture_rect(palms, Rect2(span*.5-180, -height, width, height), false)
-	elif kind == "crossing":
-		draw_rect(Rect2(span*.5-210,0,420,1400),Color("182c25"))
 
 
 func _draw_walk_surface() -> void:
@@ -178,8 +182,8 @@ func _draw_ground(bounds: Rect2) -> void:
 	var texture := _art(surface)
 	# The same world rectangles feed collision and BOTH scene passes, including overlaps.
 	var ground_rects: Array[Rect2] = []
-	var crossing_left := global_position.x+span*.5-210
-	var crossing_right := crossing_left+420
+	var crossing_left := global_position.x + span * 0.5 - CROSSING_HALF_WIDTH
+	var crossing_right := crossing_left + CROSSING_HALF_WIDTH * 2.0
 	for rect in route:
 		if kind != "crossing" or rect.end.x <= crossing_left or rect.position.x >= crossing_right:
 			ground_rects.append(rect)
