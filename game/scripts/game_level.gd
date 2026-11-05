@@ -776,13 +776,6 @@ func _fades_the_old_way() -> bool:
 	return true
 
 
-## Payyo is the tutorial, so walk and jump stand beside R as reminders of their keys (Kent: "the
-## R at the button should also be paired with the WASD buttons for like guidance as well as the
-## jump"). The lessons teach them once; these stay for the player who forgot.
-func _shows_movement_keys() -> bool:
-	return true
-
-
 ## ⚠ NOT "PRESS R AND DRAW" AT THE SPAWN. On a first visit the greeting came straight after the
 ## opening, on the bank, before she had walked a step -- the first instruction in the game told
 ## her to draw with nothing in front of her to draw for, and the Walk card followed it. The draw

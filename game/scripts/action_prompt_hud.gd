@@ -11,9 +11,9 @@ extends Control
 ## Climb and placement keys are indicators. They share the action buttons' style, but pass
 ## clicks through because their actions require holding a key.
 ##
-## Two more indicators, MOVE and JUMP, can stand beside R and Q as a standing reminder of the
-## keys -- only where the level asks for them (LevelBase `_shows_movement_keys`; Payyo does) --
-## and step out while placing, when the rotate and scale keys have that corner.
+## Two more indicators, MOVE and JUMP, stand beside R and Q as a standing reminder of the keys --
+## in every level (LevelBase `_shows_movement_keys`) -- and step out while placing, when the rotate
+## and scale keys have that corner, and while a performance holds her still (`suppressed`).
 
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 

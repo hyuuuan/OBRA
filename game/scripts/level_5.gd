@@ -120,13 +120,6 @@ func _ink_always_visible() -> bool:
 	return true
 
 
-## Walk and jump stand beside R, as in Payyo (Kent, 2026-11-05: "the r draw at the bottom right is
-## alone, i want to include there the movements key"). Wherever she is held still -- in front of
-## Lola -- they step out with the rest, and R stays alone: it is the one key that does anything.
-func _shows_movement_keys() -> bool:
-	return true
-
-
 ## A climb as tall as it is wide: the camera centres on her rather than pinning the ground.
 func _camera_follows_height() -> bool:
 	return true

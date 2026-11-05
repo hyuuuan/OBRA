@@ -191,9 +191,11 @@ func _ink_always_visible() -> bool:
 
 
 ## Whether walk and jump stand beside R as key reminders (ActionPromptHUD.show_movement_keys).
-## Payyo's, the level that teaches them. Off everywhere else.
+## Every level's. They began as Payyo's (Kent: "the R at the button should also be paired with the
+## WASD buttons for like guidance as well as the jump"), then Mayon's; Kent, 2026-11-05: "it shouldb
+## e all levels". A level where they would do nothing turns them off.
 func _shows_movement_keys() -> bool:
-	return false
+	return true
 
 
 ## Whether the level ends with its own scene rather than the completion card -- and, for the
