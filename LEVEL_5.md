@@ -260,7 +260,8 @@ Act Two.**
 - **Lolo:** thinner by the act (0.25 / 0.45 / 0.7 of the way gone); a fragment with him in it
   steadies him for 60 s. He goes either way.
 - **Refusals:** if she does not raise the brush herself, the apo does after 8 s; a refused stroke
-  fades over 1.2 s.
+  fades over 1.2 s. A quiet page left untouched for 4 s plays on without her lines (the refusal, or
+  the places blooming) -- Kent, 5 November: with nothing on the page to say "draw", it read as a hang.
 
 ## Gate classes clear BR-7 (held-out recall, `model/metrics.json`)
 

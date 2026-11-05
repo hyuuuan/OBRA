@@ -63,6 +63,8 @@ const REFUSAL_FADE := 1.2
 ## How far a quiet page dims the world: the page's own lens, faint. Light enough that her black
 ## lines still read on Mayon's white summit; enough to say the world has stopped for the brush.
 const QUIET_DIM := 0.4
+## How long a quiet page waits, untouched, before the attempt plays on without her lines.
+const QUIET_UNTOUCHED := 4.0
 
 ## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
 ## gauge in the corner of the screen is hidden -- at exactly the moment ink matters most.
@@ -321,6 +323,15 @@ func _process(delta: float) -> void:
 			_quiet_idle += delta
 			if _quiet_idle >= 1.4:
 				_on_transform_pressed()
+		else:
+			# ⚠ AN UNTOUCHED PAGE DOES NOT WAIT FOREVER (Kent, 2026-11-05: "this screen ... takes soo
+			# long i dont know what to do ... i cant play the game like this"). Nothing on a quiet
+			# page says to draw, by design, so a player who did not try found the world stopped for
+			# good. The attempt plays on without her lines. A Paint press or Escape on an empty page
+			# still counts for nothing; only the wait does.
+			_quiet_idle += delta
+			if _quiet_idle >= QUIET_UNTOUCHED:
+				_refuse_quietly()
 		return
 	_live_cooldown = maxf(0.0, _live_cooldown - delta)
 	var revision: int = canvas.content_revision()

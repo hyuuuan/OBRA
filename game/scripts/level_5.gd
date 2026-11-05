@@ -341,8 +341,10 @@ func _raise_into_paint() -> void:
 		_set_performance("paint")
 
 
+## Her last drawing blooms the places -- and so does a page she left untouched (DrawPanel
+## QUIET_UNTOUCHED): the climax cannot fail, and it cannot stall either.
 func _free_paint_completed(strokes: Array) -> void:
-	if _summit != "places" or strokes.is_empty():
+	if _summit != "places":
 		return
 	_places_strokes = DrawnItemData.copy_strokes(strokes)
 	_summit = "blooming"
