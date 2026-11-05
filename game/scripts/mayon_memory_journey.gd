@@ -62,6 +62,7 @@ func build(level: Node, data: Dictionary) -> void:
 	for scene in scenes: scene.set("route", scenery_route)
 	_build_landmarks(data.memories)
 	_build_collision()
+	_build_reef_swim()
 	_build_views()
 	set_process(true)
 
@@ -119,6 +120,37 @@ func _build_collision() -> void:
 	# The optional rocks' authored colliders are also the visual source of truth.
 	var flower := _owner_level.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/FlowerLedge")
 	scenes[index_of("dilim_dawn")].set("ledges",flower.get("platforms"))
+
+
+func _build_reef_swim() -> void:
+	var reef: Dictionary = places[index_of("dagat_sea")]
+	var floor_y := float(_data.journey.floor_y)
+	# The water is in the gameplay world, so the apo uses the same swim controller
+	# and underwater lighting as Dagat. Its top sits above the playable swim band.
+	var water := WaterArea2D.new()
+	water.name = "ReefWater"
+	water.surface_size = Vector2(float(reef.length), 520.0)
+	water.position = Vector2(float(reef.start) + water.surface_size.x * 0.5,
+		floor_y - 350.0 + water.surface_size.y * 0.5)
+	water.swim_ceiling_depth = 100.0
+	water.draws_itself = false
+	water.water_color = Color(0.11, 0.482, 0.663, 0.62)
+	water.deep_color = Color(0.031, 0.157, 0.29, 0.86)
+	water.highlight_color = Color(0.702, 0.925, 0.925, 0.85)
+	_owner_level.get_node("EnvironmentBaseplate/GameplayPlane").add_child(water)
+
+	var bubbles := DagatLife2D.new()
+	bubbles.name = "ReefBreathBubbles"
+	bubbles.player_bubbles_only = true
+	bubbles.waterline_y = water.surface_y()
+	bubbles.player_swimming = func() -> bool:
+		var apo := _owner_level.get("player") as Wanderer
+		return enabled and is_instance_valid(apo) and apo.is_in_water() \
+			and apo.get_meta(&"water_area", null) == water
+	bubbles.player_anchor = func() -> Vector2:
+		var apo := _owner_level.get("player") as Wanderer
+		return apo.global_position + Vector2(apo.facing_direction() * 22.0, -26.0)
+	water.add_child(bubbles)
 
 
 func _build_views() -> void:

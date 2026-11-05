@@ -25,6 +25,8 @@ extends Area2D
 ## ruins and a seabed in it, and these bands sit on top of that as a flat blue rectangle with
 ## a dashed line across it. A pool that somebody has painted turns its own drawing off.
 @export var draws_itself := true
+## An enclosed underwater scene keeps the apo this far below its hidden surface.
+@export var swim_ceiling_depth := 0.0
 
 var _ripple_phase := 0.0
 ## A morph is several physics bodies but one visible player. Count those bodies here so
@@ -151,7 +153,7 @@ func _on_body_entered(body: Node2D) -> void:
 	# the apo simply became a character in a blue rectangle. Rings on the surface, scaled by
 	# how hard the thing arrived. Only on the FIRST overlap: a body straddling two of this
 	# area's shapes would otherwise splash twice.
-	if count == 0:
+	if count == 0 and swim_ceiling_depth <= 0.0:
 		_splash_for(body)
 	_track_player_body(body, 1)
 

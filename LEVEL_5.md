@@ -46,7 +46,9 @@ the opening between the storefronts, and the wall continues in whole brick cours
 - **Dagat:** palms frame the beach, surf spans the visible water behind the bangka, and a paddle
   rests beside it. Painted water continues into the inlet, where the sand curves down to the
   original collision step. The reef has distant ridges, coral, swaying kelp, fish schools, jellyfish and
-  bubbles. The preservation bakunawa uses thirteen original swimming frames, on one common
+  bubbles. The apo uses Dagat's swim controls and breath bubbles in the reef. The memory is
+  fully underwater, so the apo stays submerged and can swim through without a breath timer.
+  The preservation bakunawa uses thirteen original swimming frames, on one common
   canvas so its scale and the saved strokes stay registered. The island has a landing, shells,
   palms, passing gulls and an offshore bangka.
 - **Dilim:** the delivered canopy frames the path; ferns, vines and moss surround the landmarks.

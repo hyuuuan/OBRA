@@ -278,6 +278,13 @@ func movement_keys_shown() -> bool:
 	return _wanted(_move) and _wanted(_jump)
 
 
+func set_swimming(swimming: bool) -> void:
+	var verb := "SWIM UP" if swimming else "JUMP"
+	if _jump.text != verb:
+		_jump.text = verb
+		_place_bottom_actions()
+
+
 ## What each reminder's caps read, for a probe: the live InputMap's, never typed here.
 func movement_key_caps() -> Dictionary:
 	return {"move": _caps_of(_move), "jump": _caps_of(_jump)}

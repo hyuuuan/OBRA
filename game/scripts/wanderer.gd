@@ -266,6 +266,11 @@ func _physics_process(delta: float) -> void:
 	elif is_in_water() and can_swim:
 		velocity.x = carried_x
 		_swim(delta, direction)
+		var water := get_meta(&"water_area", null) as WaterArea2D
+		if water != null and water.swim_ceiling_depth > 0.0:
+			var ceiling := water.surface_y() + water.swim_ceiling_depth
+			var toward_limit := (ceiling - global_position.y) / delta
+			velocity.y = maxf(velocity.y, minf(toward_limit, SWIM_VERTICAL))
 	elif is_in_water():
 		# WADING, NOT WALKING. Water used to be scenery you strolled through at full
 		# speed, which made a drawn boat pointless and a swimmer morph a novelty. It

@@ -16,6 +16,7 @@ var staging: Dictionary = {}
 const StageScript = preload("res://scripts/mayon_memory_stage.gd")
 const TERRACE_GROUND := preload("res://shaders/mayon_terrace_ground.gdshader")
 const SHORE_GROUND := preload("res://shaders/mayon_shore_ground.gdshader")
+const SEABED_GROUND := preload("res://shaders/mayon_seabed_ground.gdshader")
 const TERRACE_LIP := 8.0
 const TERRACE_ROUND := 34.0
 const TERRACE_JOIN_SCALE := 2048.0
@@ -78,9 +79,12 @@ func _ready() -> void:
 		_ground = Node2D.new()
 		_ground.draw.connect(_draw_walk_surface)
 	_ground.name = "WalkSurface"
-	if kind in ["terraces", "crossing", "bale", "shore"]:
+	if kind in ["terraces", "crossing", "bale", "shore", "sea"]:
 		var material := ShaderMaterial.new()
-		material.shader = SHORE_GROUND if kind == "shore" else TERRACE_GROUND
+		match kind:
+			"shore": material.shader = SHORE_GROUND
+			"sea": material.shader = SEABED_GROUND
+			_: material.shader = TERRACE_GROUND
 		_ground.material = material
 	add_child(_ground)
 	_ground.z_index = 1
@@ -149,9 +153,9 @@ func _draw() -> void:
 		# Repeat only the authored sky/landscape, with mirrored neighbours at the ends.
 		for repeat_index in [-1, 0, 1]:
 			var rect := Rect2(x + repeat_index * width, y, width, height)
-			# The shore's inlet is lower than the plate's walk line. Reflect its
-			# last stretch of ocean below the edge so the cut never exposes SkyFill.
-			if kind == "shore":
+			# The inlet and reef dip below the plate. Continue the painted water
+			# behind the low ground to keep the backdrop joined at the walk line.
+			if kind in ["shore", "sea"]:
 				var ocean_depth := 90.0
 				var rows := ocean_depth * texture.get_height() / height
 				var origin_x := rect.position.x if repeat_index == 0 else rect.end.x
@@ -177,16 +181,6 @@ func _draw_walk_surface() -> void:
 		var rock := _art("Level5/terrain/basalt.png")
 		for ledge in ledges:
 			_ground.draw_texture_rect(rock,Rect2(ledge.position-global_position,ledge.size),false)
-	if kind == "sea":
-		var water := Color(.12,.47,.63,.3)
-		for rect in route:
-			var local := Rect2(rect.position-global_position,rect.size)
-			if local.position.x < 0 or local.position.x >= span or local.position.y <= 0: continue
-			# The visible shallows end on the actual seabed, including every lowered step.
-			_ground.draw_rect(Rect2(local.position.x,0,local.size.x,local.position.y),water)
-			for ripple in range(floori(local.size.x/70.0)):
-				var x := local.position.x+15+ripple*70
-				_ground.draw_line(Vector2(x,12),Vector2(x+37,12),Color(.65,.88,.91,.6),2)
 
 
 func _draw_ground(bounds: Rect2) -> void:
@@ -197,7 +191,7 @@ func _draw_ground(bounds: Rect2) -> void:
 		ground = Color("88785d")
 	elif kind in ["shore", "island", "sea"]:
 		surface = "Level3/authored/seabed_floor.png" if kind == "sea" else "Level5/journey/sand_ground.png"
-		ground = Color("a08661") if kind != "sea" else Color("264c57")
+		ground = Color("a08661")
 	elif kind in ["forest", "waterfall", "dawn"]:
 		surface = "Level4/ground_forest/face.png"
 		ground = Color("35463a")
@@ -222,7 +216,7 @@ func _draw_ground(bounds: Rect2) -> void:
 	for rect in ground_rects:
 		var local := Rect2(rect.position - global_position, rect.size)
 		if local.end.x < bounds.position.x or local.position.x > bounds.end.x: continue
-		if kind in ["terraces", "crossing", "bale", "shore"]:
+		if kind in ["terraces", "crossing", "bale", "shore", "sea"]:
 			_draw_rounded_bank(rect, local, ground_rects, texture)
 			continue
 		_ground.draw_rect(local, ground)
@@ -260,13 +254,17 @@ func _draw_ground(bounds: Rect2) -> void:
 
 
 func _draw_rounded_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], texture: Texture2D) -> void:
-	var beach := kind == "shore"
-	var top := local.position.y if beach else local.position.y - TERRACE_LIP
+	var curved_face := kind in ["shore", "sea"]
+	var top := local.position.y if curved_face else local.position.y - TERRACE_LIP
+	var max_radius := TERRACE_ROUND
+	match kind:
+		"shore": max_radius = 40.0
+		"sea": max_radius = 60.0
 	var outline := PackedVector2Array()
 	var meets_higher := [false, false]
 	for side in [-1, 1]:
 		var edge := world.position.x if side == -1 else world.end.x
-		var radius := minf(40.0 if beach else TERRACE_ROUND, local.size.x * 0.5)
+		var radius := minf(max_radius, local.size.x * 0.5)
 		for other in neighbours:
 			var contact := other.end.x if side == -1 else other.position.x
 			if is_equal_approx(edge, contact):
@@ -279,11 +277,20 @@ func _draw_rounded_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], te
 			outline.append(Vector2(x, top))
 			continue
 		var centre := Vector2(x - side * radius, top + radius)
+		if kind == "sea":
+			# Ease into the basin floor as well as out of the high bank. Keep
+			# most of the visible drop close to the collision step.
+			for step in range(9):
+				var t := float(step) / 8.0
+				var from_high := t if side == 1 else 1.0 - t
+				var slope := smoothstep(0.0, 1.0, pow(from_high, 2.4))
+				outline.append(Vector2(lerpf(centre.x, x, from_high), top + radius * slope))
+			continue
 		var start := PI if side == -1 else 1.5 * PI
 		for step in range(9):
 			outline.append(centre + Vector2.from_angle(start + step * PI / 16.0) * radius)
-	if beach:
-		_draw_shore_face(outline, local.end.y, texture)
+	if curved_face:
+		_draw_curved_face(outline, local.end.y, texture)
 		return
 	outline.append(Vector2(local.end.x, local.end.y))
 	outline.append(Vector2(local.position.x, local.end.y))
@@ -299,9 +306,8 @@ func _draw_rounded_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], te
 	_ground.draw_polygon(outline, joins, uv, texture)
 
 
-func _draw_shore_face(outline: PackedVector2Array, bottom: float, texture: Texture2D) -> void:
-	# Each slice measures depth from the curved sand surface, so the sand wraps
-	# down the rounded bank instead of ending in a straight stripe across it.
+func _draw_curved_face(outline: PackedVector2Array, bottom: float, texture: Texture2D) -> void:
+	# The UVs measure depth from the curved surface and keep the texture on the bank.
 	for index in range(outline.size() - 1):
 		var a := outline[index]
 		var b := outline[index + 1]

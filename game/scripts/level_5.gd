@@ -38,6 +38,11 @@ func _on_backend_ready() -> void:
 	status_label.text = ""
 
 
+func _apo_can_swim() -> bool:
+	# Mayon's only water volume is the submerged reef memory.
+	return true
+
+
 func _on_backend_failed(message: String) -> void:
 	if _brush_refuses_here() or _lolo_moment == "going" or not _summit.is_empty():
 		return
@@ -171,6 +176,8 @@ func _build_level_furniture() -> void:
 
 
 func _level_physics(anchor_position: Vector2) -> void:
+	if action_prompts != null:
+		action_prompts.set_swimming(player is Wanderer and (player as Wanderer).is_in_water())
 	var crater := _anchor("crater")
 	var far_rim := crater.x + CraterScript.WIDTH * 0.5
 	var over_mouth := anchor_position.x >= crater.x - CraterScript.WIDTH * 0.5 and anchor_position.x <= far_rim
