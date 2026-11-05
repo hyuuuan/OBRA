@@ -29,10 +29,9 @@ const RECOVER_SECONDS := 1.2
 ## The drift and the bob, in px and per second.
 const BOB := 6.0
 const INK := Color(0.12, 0.1, 0.09, 0.95)
-## The rim on the fragment a drawing would go into: the interface's gold, soft-cornered, breathing.
-## It sits behind the picture and outside it, so the drain never whitens it.
-const RIM_MARGIN := 7.0
-const RIM_BREATH := 2.4
+## Draw the glow outside the picture in world pixels, independent of its texture size.
+const GLOW_SHADER := preload("res://shaders/mayon_memory_glow.gdshader")
+const GLOW_RADIUS := 12.0
 
 @export var fragment_id: String = ""
 ## Live landmarks use the same preservation ledger and summit contract as legacy fragments.
@@ -92,6 +91,7 @@ func begin_whitening() -> void:
 func leave_behind() -> void:
 	if is_open():
 		_state = "passing"
+		set_targeted(false)
 		_drainable.drain_to(1.0, PASSED_SECONDS)
 
 
@@ -117,7 +117,7 @@ var _time := 0.0
 var _phase := 0.0
 var _targeted := false
 var _rim: Node2D
-var _rim_style: StyleBoxFlat
+var _rim_material: ShaderMaterial
 
 
 func _ready() -> void:
@@ -126,13 +126,11 @@ func _ready() -> void:
 	_rim = Node2D.new()
 	_rim.name = "Rim"
 	_rim.visible = false
+	_rim_material = ShaderMaterial.new()
+	_rim_material.shader = GLOW_SHADER
+	_rim.material = _rim_material
 	_rim.draw.connect(_draw_rim)
 	add_child(_rim)
-	_rim_style = StyleBoxFlat.new()
-	_rim_style.bg_color = Color(UISkin.GOLD_PALE, 0.22)
-	_rim_style.border_color = UISkin.GOLD
-	_rim_style.set_border_width_all(3)
-	_rim_style.set_corner_radius_all(8)
 	_sprite = Sprite2D.new()
 	_sprite.name = "Picture"
 	_sprite.texture = load(landmark_art if landmark_mode else FOLDER + fragment_id + ".png") as Texture2D
@@ -170,6 +168,9 @@ func set_targeted(on: bool) -> void:
 		return
 	_targeted = lit
 	_rim.visible = lit
+	if lit:
+		_rim.position = _sprite.position
+		_rim.queue_redraw()
 
 
 func is_targeted() -> bool:
@@ -194,6 +195,7 @@ func notice(her_x: float) -> void:
 		_drainable.drain_to(PAPER, FADE_SECONDS * (1.0 - drain() / PAPER))
 	if _state == "draining" and -ahead >= PASSED_BY:
 		_state = "passing"
+		set_targeted(false)
 		_drainable.drain_to(1.0, PASSED_SECONDS * (1.0 - drain()))
 
 
@@ -211,6 +213,7 @@ func save(strokes: Array) -> void:
 
 ## For a checkpoint: as it was when the checkpoint was written.
 func restore_to(state_name: String, plain_strokes: Array = []) -> void:
+	set_targeted(false)
 	_strokes = plain_strokes.duplicate(true)
 	_ink.queue_redraw()
 	_drainable.restore()
@@ -245,6 +248,7 @@ func _on_blanked() -> void:
 	if _state == "saved":
 		return
 	_state = "lost"
+	set_targeted(false)
 	lost.emit(fragment_id)
 
 
@@ -252,31 +256,27 @@ func _process(delta: float) -> void:
 	_time += delta
 	# Loose: it bobs and drifts a little, never quite still.
 	if landmark_mode:
+		var previous_frame := _sprite.texture
 		if not _dance_frames.is_empty():
 			_sprite.texture = _dance_frames[[0, 1, 2, 1][int(_time / 0.24) % 4] if not Motion.reduced() else 0]
 		elif not _landmark_frames.is_empty():
 			_sprite.texture = _landmark_frames[int(_time/_landmark_frame_seconds)%_landmark_frames.size() if not Motion.reduced() else 0]
-		if _targeted:
-			_rim.position = _sprite.position
+		if _targeted and _sprite.texture != previous_frame:
 			_rim.queue_redraw()
 		return
 	_sprite.position = Vector2.ZERO if Motion.reduced() else Vector2(
 		sin(_time * 0.37 + _phase) * BOB * 1.5, sin(_time * 0.9 + _phase) * BOB).round()
 	if _targeted:
 		_rim.position = _sprite.position
-		_rim.modulate.a = 0.9 if Motion.reduced() else 0.7 + 0.3 * sin(_time * TAU / RIM_BREATH)
-		_rim.queue_redraw()
 
 
 func _draw_rim() -> void:
 	if _sprite == null or _sprite.texture == null:
 		return
-	# Follow the torn silhouette. A rounded UI frame made these read as menu cards.
-	var size := _sprite.texture.get_size() * _sprite.scale + Vector2.ONE * RIM_MARGIN * 2.0
-	_rim.draw_texture_rect(_sprite.texture,Rect2(-size*.5+Vector2(0,3),size),false,
-		Color(0.12,0.08,0.04,.8))
-	_rim.draw_texture_rect(_sprite.texture,Rect2(-size*.5,size),false,
-		Color(UISkin.GOLD_PALE,.65))
+	var size := _sprite.texture.get_size() * _sprite.scale
+	_rim_material.set_shader_parameter(&"landmark_alpha", _sprite.texture)
+	_rim_material.set_shader_parameter(&"padding_uv", Vector2.ONE * GLOW_RADIUS / size)
+	_rim.draw_texture_rect(_sprite.texture, Rect2(-size * 0.5, size).grow(GLOW_RADIUS), false)
 
 
 ## Her lines, fitted into the middle of the picture, in the ink she drew them in.
