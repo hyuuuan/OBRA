@@ -29,6 +29,13 @@ func _run() -> void:
 		props = props and stage.get("props").size()>=4
 		pure = pure and stage.find_children("*","CollisionObject2D",true,false).is_empty()
 	_check(stages==9 and props and pure,"nine authored memories contain scenery and wildlife without extra physics hosts")
+	# Kent, 2026-11-05: parts of the runway "not rendering properly". The surf was drawn last, at
+	# half alpha, over the shore's and the island's palms and rocks; it is behind them now.
+	var surf_behind := true
+	for index in [6, 8]:
+		var shore: Node = journey.scenes[index].get_node_or_null("RememberedLife")
+		surf_behind = surf_behind and shore != null and bool(shore.call("draws_surf_behind_scenery"))
+	_check(surf_behind,"the shore's and the island's surf is drawn behind their palms and rocks")
 	_check(journey.scenes[3].get_node_or_null("RememberedLife")==null
 		and journey.scenes[4].get_node_or_null("RememberedLife")==null
 		and journey.scenes[5].get_node_or_null("RememberedLife")==null,
@@ -50,6 +57,10 @@ func _run() -> void:
 	initial=field.get("clock")
 	await create_timer(.2,true).timeout
 	_check(is_equal_approx(float(field.get("clock")),initial),"the drawing page pauses wildlife and water clocks")
+	# Beside a memory the page is the freehand sketch now (MemorySketch), not the draw panel: put
+	# down whichever opened, or the world stays stopped for every check below.
+	if level.get("memory_sketch").is_open():
+		level.get("memory_sketch").close()
 	level.get("draw_panel").close_panel()
 	var profile := root.get_node("PlayerProfile")
 	profile.call("set_setting","reduce_motion",true)

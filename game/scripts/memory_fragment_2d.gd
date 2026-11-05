@@ -57,6 +57,9 @@ var summit_texture: Texture2D
 var bloom_width := 800.0
 var bloom_elevation := 0.0
 var bloom_tint := Color.WHITE
+## "sky" hangs across the top of the summit's frame behind the places on the ground (the storm,
+## the fiesta flags); "ground" stands on the summit floor.
+var bloom_layer := "ground"
 
 
 func configure_memory(entry: Dictionary) -> void:
@@ -83,6 +86,7 @@ func configure_memory(entry: Dictionary) -> void:
 	summit_texture = load(String(entry.get("summit_art", FOLDER + fragment_id + ".png"))) as Texture2D
 	bloom_width = float(entry.get("bloom_width", 800.0))
 	bloom_elevation = float(entry.get("bloom_elevation", 0.0))
+	bloom_layer = String(entry.get("bloom_layer", "ground"))
 	var shade: Array = entry.get("bloom_tint", [1,1,1,1])
 	bloom_tint = Color(float(shade[0]),float(shade[1]),float(shade[2]),float(shade[3]))
 

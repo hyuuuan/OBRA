@@ -131,6 +131,21 @@ incoming summit framing fix to the crater journey's coordinates. The house keeps
 82-unit eye drop while Lola speaks. Ending bloom sizes and elevations do not move the journey's
 preservation landmarks.
 
+## The summit, looked at again (5 November)
+
+Kent: where Lola paints, "stuff do not make sense like it is not pleasing to the eye, there is no
+proper animation to the painting".
+
+- **Her painting is being painted.** The canvas starts as a pale underdrawing with the sky blocked
+  in. Each time her brush reaches it, more is painted, a row at a time from the sky down
+  (`Lola2D.BRUSH_ON_CANVAS`, `paint_reveal.gdshader`). It stops short of finished (0.94), so it is
+  "nearly finished" when she turns. The easel stands clear of her body, and Reduce Motion shows
+  the canvas most of the way done.
+- **What she saved stands apart** (`bloom_layout`). Places on the ground share the frame's width,
+  with the largest at the edges and the smallest behind the pair. The storm and the fiesta flags
+  (`bloom_layer: "sky"`) hang across the top behind them. The endings probe fails if a place runs
+  off the frame or is more than half hidden.
+
 ## Implementation and checks
 
 - `level_05.json` owns the ordered vignette scenes, terrain profiles, landmark placements and

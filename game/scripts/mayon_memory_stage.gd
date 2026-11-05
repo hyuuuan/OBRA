@@ -21,6 +21,11 @@ var _time := 0.0
 var _scatter := 0.0
 var _textures := {}
 var _air: Node2D
+## How long the place is. Its landmark palms stand at its middle.
+var span := 1280.0
+## The sea's moving surf, drawn BEHIND every prop on the shore and the island. It was drawn last, at
+## half alpha over the palms and their rocks, and laid see-through wave bands and boxes across them.
+var _water: Node2D
 var _crossing_waterfall: Sprite2D
 
 
@@ -44,6 +49,12 @@ func _ready() -> void:
 	_air.z_index = 2
 	_air.draw.connect(_draw_air)
 	add_child(_air)
+	_water = Node2D.new()
+	_water.name = "Surf"
+	_water.show_behind_parent = true
+	_water.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_water.draw.connect(_draw_water)
+	add_child(_water)
 
 
 func _process(delta: float) -> void:
@@ -60,6 +71,7 @@ func _process(delta: float) -> void:
 		_crossing_waterfall.texture = _art(CROSSING_WATER_FRAMES[frame])
 	queue_redraw()
 	_air.queue_redraw()
+	_water.queue_redraw()
 
 
 func _art(path: String) -> Texture2D:
@@ -88,6 +100,11 @@ func _prop(canvas: Node2D, path: String, x: float, y: float, width: float,
 
 
 func _draw() -> void:
+	if kind == "island":
+		var palms := _art("Level5/journey/palms_landmark.png")
+		var width := 310.0
+		var height := width * palms.get_height() / palms.get_width()
+		draw_texture_rect(palms, Rect2(span*.5-180, -height, width, height), false)
 	if kind in ["forest", "waterfall", "dawn"]:
 		var shade := Color(.62,.72,.82) if kind != "dawn" else Color(.94,.99,.78)
 		# The supplied tree frame encloses a clearing; it belongs to the same forest
@@ -103,7 +120,6 @@ func _draw() -> void:
 		_prop(self,String(spec.art),x,y,float(spec.width),tint,bool(spec.get("mirror",false)),float(spec.get("rotation",0)))
 	match kind:
 		"bale": _yard()
-		"shore", "island": _shore()
 		"sea": _reef()
 
 
@@ -114,12 +130,19 @@ func _yard() -> void:
 	draw_circle(lamp,3,Color("ffd885"))
 
 
-func _shore() -> void:
+func _draw_water() -> void:
+	if kind not in ["shore", "island"]:
+		return
 	var frame := int(_time/.32)%3
 	# These three waves share one cropped canvas: the water moves, never the shoreline.
-	_prop(self,"Level5/journey/surf_%02d.png"%frame,640,-42,1450,Color(1,1,1,.48))
+	_prop(_water,"Level5/journey/surf_%02d.png"%frame,640,-42,1450,Color(1,1,1,.48))
 	if kind == "island":
-		_prop(self,"Level3/authored/bangka_afloat.png",210+sin(_time*.22)*7,-106,150,Color(.66,.79,.84))
+		_prop(_water,"Level3/authored/bangka_afloat.png",210+sin(_time*.22)*7,-106,150,Color(.66,.79,.84))
+
+
+## The shore and island's surf, behind everything standing on them (see _water).
+func draws_surf_behind_scenery() -> bool:
+	return _water != null and _water.show_behind_parent and kind in ["shore", "island"]
 
 
 func _reef() -> void:

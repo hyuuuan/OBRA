@@ -35,6 +35,8 @@ func _run() -> void:
 		await _put(Vector2(float(place.start)+float(place.length)*.5,98))
 		await _shot("%02d_%s" % [index+1,place.id])
 		if index in [0,7,10]: await _check_life(String(place.id))
+		if String(place.id) == "payyo_crossing": await _check_painted("the gorge wall beside the river", Rect2(.385,.87,.06,.09))
+		if String(place.id) == "piyesta_church": await _check_painted("the church floor down to the frame", Rect2(.25,.9,.4,.08))
 		if index < 11:
 			for progress in [.25,.5,.75]:
 				var boundary := float(journey.places[index+1].start)
@@ -83,23 +85,53 @@ func _check_composite() -> void:
 	var rendered := root.get_texture().get_image()
 	var outgoing: Image = journey.get_node("SceneryPass0").get_texture().get_image()
 	var incoming: Image = journey.get_node("SceneryPass1").get_texture().get_image()
-	var edge := int(journey.divider*rendered.get_width())
-	var clear_offset := int(journey.column_pixels*.5+journey.column_softness_pixels+20)
-	var left := Vector2i(edge-clear_offset,450)
-	var right := Vector2i(edge+clear_offset,450)
-	var old_matches := _distance(rendered.get_pixelv(left),outgoing.get_pixelv(left)) < .04
-	var new_matches := _distance(rendered.get_pixelv(right),incoming.get_pixelv(right)) < .04
-	var distinct := _distance(outgoing.get_pixelv(left),incoming.get_pixelv(left)) > .08
-	var covers := rendered.get_pixel(edge,450).get_luminance()<.04 \
-		and rendered.get_pixel(edge,650).get_luminance()<.04
-	var soft_x := edge+int(journey.column_pixels*.5+journey.column_softness_pixels*.5)
-	var soft := rendered.get_pixel(soft_x,450).get_luminance()
-	var clear := incoming.get_pixel(soft_x,450).get_luminance()
+	# ⚠ IN THE VIEW'S OWN UNITS. On a Retina display the window's texture is ~2.1x the 1600x900 view
+	# while the scenery passes are not, so a pixel index taken off one read a different place in
+	# the other, and this check failed on a correct mask.
+	var view := root.get_visible_rect().size
+	var on_screen := float(rendered.get_width())/view.x
+	var on_pass := float(outgoing.get_width())/view.x
+	var edge: float = journey.divider*view.x
+	var clear_offset: float = journey.column_pixels*.5+journey.column_softness_pixels+20
+	var left := Vector2(edge-clear_offset,450)
+	var right := Vector2(edge+clear_offset,450)
+	var old_matches := _distance(rendered.get_pixelv(Vector2i(left*on_screen)),outgoing.get_pixelv(Vector2i(left*on_pass))) < .04
+	var new_matches := _distance(rendered.get_pixelv(Vector2i(right*on_screen)),incoming.get_pixelv(Vector2i(right*on_pass))) < .04
+	var distinct := _distance(outgoing.get_pixelv(Vector2i(left*on_pass)),incoming.get_pixelv(Vector2i(left*on_pass))) > .08
+	var covers := rendered.get_pixelv(Vector2i(Vector2(edge,450)*on_screen)).get_luminance()<.04 \
+		and rendered.get_pixelv(Vector2i(Vector2(edge,650)*on_screen)).get_luminance()<.04
+	var soft_x: float = edge+journey.column_pixels*.5+journey.column_softness_pixels*.5
+	var soft := rendered.get_pixelv(Vector2i(Vector2(soft_x,450)*on_screen)).get_luminance()
+	var clear := incoming.get_pixelv(Vector2i(Vector2(soft_x,450)*on_pass)).get_luminance()
 	var feathered := soft>.01 and soft<clear*.85
 	var ok := old_matches and new_matches and distinct and covers and feathered
 	failures += int(not ok)
 	print("  %s actual rendered mask: old left, new right, distinct places, foreground occlusion, soft edge %s" %
 		["OK" if ok else "FAIL",[old_matches,new_matches,distinct,covers,feathered]])
+
+## Kent, 2026-11-05: parts of the runway "not rendering properly". Under the bridge was one flat dark
+## box, and under the church floor one flat brown band. In a painted surface no one colour covers
+## much of it; in a fill, one colour is nearly all of it. `area` is a fraction of the frame.
+func _check_painted(what: String, area: Rect2) -> void:
+	await RenderingServer.frame_post_draw
+	var frame := root.get_texture().get_image()
+	var size := Vector2(frame.get_size())
+	var counts := {}
+	var samples := 0
+	for y in range(int(area.position.y*size.y), int(area.end.y*size.y), 3):
+		for x in range(int(area.position.x*size.x), int(area.end.x*size.x), 3):
+			var c := frame.get_pixel(x, y)
+			var key := Vector3i(int(c.r*31), int(c.g*31), int(c.b*31))
+			counts[key] = int(counts.get(key, 0))+1
+			samples += 1
+	var commonest := 0
+	for key: Vector3i in counts:
+		commonest = maxi(commonest, int(counts[key]))
+	var share := float(commonest)/maxf(1.0, float(samples))
+	var ok := share < 0.35
+	failures += int(not ok)
+	print("  %s %s is painted, not a flat fill: its commonest colour covers %d%%" % [
+		"OK" if ok else "FAIL", what, int(share*100.0)])
 
 func _distance(a: Color,b: Color) -> float:
 	return Vector3(a.r,a.g,a.b).distance_to(Vector3(b.r,b.g,b.b))

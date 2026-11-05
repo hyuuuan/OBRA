@@ -52,6 +52,7 @@ func _ready() -> void:
 		_stage.name = "RememberedLife"
 		_stage.set("kind",kind)
 		_stage.set("props",staging.get("props",[]))
+		_stage.set("span",span)
 		if kind == "crossing":
 			var opening := Rect2(span * 0.5 - CROSSING_HALF_WIDTH, 0.0,
 				CROSSING_HALF_WIDTH * 2.0, 1400.0)
@@ -143,11 +144,7 @@ func _draw() -> void:
 				draw_set_transform(Vector2(rect.end.x,rect.position.y),0.0,Vector2(-1,1))
 				draw_texture_rect(texture,Rect2(Vector2.ZERO,rect.size),false,tint)
 				draw_set_transform(Vector2.ZERO)
-	if kind == "island":
-		var palms := _art("Level5/journey/palms_landmark.png")
-		var width := 310.0
-		var height := width * palms.get_height() / palms.get_width()
-		draw_texture_rect(palms, Rect2(span*.5-180, -height, width, height), false)
+	# The island's palms are the stage's now: the surf passes behind them (RememberedLife).
 
 
 func _draw_walk_surface() -> void:
@@ -217,7 +214,19 @@ func _draw_ground(bounds: Rect2) -> void:
 			var left := maxf(local.position.x, x_index * tile_width)
 			var right := minf(local.end.x, (x_index + 1) * tile_width)
 			# Continue the rock face below high steps; never expose a flat fill under a cliff.
-			if kind != "church":
+			if kind == "church":
+				# ⚠ THE NAVE'S FLOOR GOES DOWN TO THE FRAME TOO. It was one 64px row of tiles over a
+				# flat fill, and the bottom of every church frame was a plain brown band (Kent: parts of
+				# the runway "not rendering properly"). Whole tiles, darker course by course: the floor
+				# is tiles all the way down, with no ragged edge to hide.
+				for depth in range(7,0,-1):
+					var shade := pow(.86,float(depth))
+					_ground.draw_texture_rect_region(texture,
+						Rect2(left,local.position.y-4+depth*height,right-left,height),
+						Rect2((left-x_index*tile_width)/tile_width*texture.get_width(),0,
+							(right-left)/tile_width*texture.get_width(),texture.get_height()),
+						Color(shade,shade,shade))
+			else:
 				for depth in range(7,0,-1):
 					var depth_y := local.position.y-4+height*.55+(depth-1)*height*.44
 					var light := pow(.87,float(depth))

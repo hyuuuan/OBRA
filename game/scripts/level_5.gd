@@ -1014,6 +1014,69 @@ func ending_hook() -> String:
 	return "ENDING.perfect" if PlayerProfile.flower_count() >= ALL_FLOWERS else "ENDING.standard"
 
 
+## WHERE WHAT SHE SAVED STANDS, relative to Lola's feet, inside what the summit's camera shows
+## (SUMMIT_EYE_HEIGHT; its room in _tend_summit). They were spaced at fixed points whatever their
+## sizes, so the terraces buried the church, the storm sat behind both and the bangka ran off the
+## frame (Kent, 2026-11-05: "not pleasing to the eye"). Places on the ground share the frame's width,
+## each reaching a little into its neighbour's share; the sky's hang across the top, behind them.
+const BLOOM_LEFT := -880.0
+const BLOOM_RIGHT := 680.0
+const BLOOM_TOP := -510.0
+const BLOOM_SPREAD := 1.3
+
+
+## `pieces`: {width, height, sky, elevation} each, in bloom order. Returns {x, y, width, z} each:
+## the centre of each place, its drawn width, and its depth -- the bigger a place on the ground, the
+## further back it stands, so nothing small is buried behind something large; the sky behind all.
+static func bloom_layout(pieces: Array) -> Array:
+	var out: Array = []
+	out.resize(pieces.size())
+	var ground: Array[int] = []
+	for layer_is_sky: bool in [false, true]:
+		var members: Array[int] = []
+		for index in range(pieces.size()):
+			if bool(pieces[index].sky) == layer_is_sky:
+				members.append(index)
+		if members.is_empty():
+			continue
+		var share := (BLOOM_RIGHT - BLOOM_LEFT) / members.size()
+		# The pair stand mid-frame: the smallest place stands behind them, the largest at the edges.
+		var by_size := members.duplicate()
+		by_size.sort_custom(func(a: int, b: int) -> bool:
+			return float(pieces[a].width) * float(pieces[a].height) > float(pieces[b].width) * float(pieces[b].height))
+		var slots: Array[int] = []
+		var outer := 0
+		var inner := members.size() - 1
+		for rank in range(by_size.size()):
+			slots.append(outer if rank % 2 == 0 else inner)
+			if rank % 2 == 0:
+				outer += 1
+			else:
+				inner -= 1
+		for rank in range(by_size.size()):
+			var index: int = by_size[rank]
+			var slot := slots[rank]
+			var piece: Dictionary = pieces[index]
+			var width := minf(float(piece.width), share * BLOOM_SPREAD)
+			var height := float(piece.height) * width / float(piece.width)
+			if not layer_is_sky and height > -BLOOM_TOP:
+				width *= -BLOOM_TOP / height
+				height = -BLOOM_TOP
+			var x := clampf(BLOOM_LEFT + share * (slot + 0.5), BLOOM_LEFT + width * 0.5,
+				BLOOM_RIGHT - width * 0.5)
+			var y := BLOOM_TOP + height * 0.5 if layer_is_sky \
+				else -height * 0.5 + float(piece.elevation)
+			out[index] = {"x": x, "y": y, "width": width, "z": -40 - slot if layer_is_sky else 0}
+			if not layer_is_sky:
+				ground.append(index)
+	ground.sort_custom(func(a: int, b: int) -> bool:
+		return float(out[a].width) * float(pieces[a].height) / float(pieces[a].width) * float(out[a].width) \
+			> float(out[b].width) * float(pieces[b].height) / float(pieces[b].width) * float(out[b].width))
+	for depth in range(ground.size()):
+		out[ground[depth]].z = -4 - (ground.size() - 1 - depth)
+	return out
+
+
 ## Everything she saved blooms into the white around them, one by one; each with what she says
 ## of it; then her monologue; then lola turns around.
 func _bloom_the_places() -> void:
@@ -1038,6 +1101,15 @@ func _bloom_the_places() -> void:
 			ink.add_child(line)
 		ink.scale = Vector2.ONE * 0.55
 		ink.position -= Vector2(156, 156)
+	var pieces: Array = []
+	for fragment in targets:
+		var art := fragment.summit_texture
+		if art == null:
+			art = (fragment.get_node(^"Picture") as Sprite2D).texture
+		pieces.append({"width": fragment.bloom_width,
+			"height": fragment.bloom_width * art.get_height() / art.get_width(),
+			"sky": fragment.bloom_layer == "sky", "elevation": fragment.bloom_elevation})
+	var layout := bloom_layout(pieces)
 	for index in range(targets.size()):
 		var picture := Sprite2D.new()
 		picture.set_script(preload("res://scripts/memory_bloom_2d.gd"))
@@ -1046,15 +1118,14 @@ func _bloom_the_places() -> void:
 		if picture.texture == null:
 			picture.texture = (targets[index].get_node(^"Picture") as Sprite2D).texture
 		picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		var share := (float(index) + 0.5) / maxf(1.0, float(targets.size()))
+		var place: Dictionary = layout[index]
 		# A landscape planted on the ground, not a row of little collectible cards.
-		var fit := targets[index].bloom_width / picture.texture.get_width()
+		var fit := float(place.width) / picture.texture.get_width()
 		picture.scale = Vector2.ONE * fit
 		picture.set("world_scale", fit)
 		picture.self_modulate = targets[index].bloom_tint
-		picture.position = centre + Vector2(lerpf(-720, 520, share),
-			-picture.texture.get_height() * fit * 0.5 + targets[index].bloom_elevation)
-		picture.z_index = -4 - index
+		picture.position = centre + Vector2(float(place.x), float(place.y))
+		picture.z_index = int(place.z)
 		plane.add_child(picture)
 		_bloomed.append(picture)
 		Motion.fade_in(picture, 1.0)

@@ -4,6 +4,7 @@
 These are scenery, never screenshots of running levels. Original artist files stay untouched.
 """
 import argparse
+import math
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageChops
 
@@ -40,6 +41,30 @@ def extend_own_ground(layer):
 def clean_alpha(image):
     image.putalpha(image.getchannel("A").point(lambda alpha: alpha if alpha>=24 else 0))
     return image
+
+
+def dissolve_sides(image, reach=0.14, cell=8):
+    """Clouds that ran to their canvas edges end in a straight cut wherever they stand. Round both
+    ends off in lobes, a block of the art's own pixel size at a time, so the clouds end in a cloud's
+    silhouette rather than a ruler line."""
+    width, height = image.size
+    ramp = max(cell, int(width*reach))
+    alpha = image.getchannel("A")
+    pixels = alpha.load()
+    for side in (0, 1):
+        for row in range(0, height, cell):
+            t = row/max(1, height-1)
+            # Two slow swells over the height: a few broad lobes, never a regular pattern.
+            swell = 0.5+0.5*math.sin(t*math.tau*1.3+side*2.1)
+            ripple = 0.5+0.5*math.sin(t*math.tau*3.7+side*0.7)
+            cut = int((0.35+0.65*(0.65*swell+0.35*ripple))*ramp)//cell*cell
+            for y in range(row, min(row+cell, height)):
+                for edge in range(cut):
+                    x = edge if side == 0 else width-1-edge
+                    pixels[x, y] = 0
+    image.putalpha(alpha)
+    # Its feet stay registered to its canvas (no outside padding), as every landmark's are.
+    return image.crop(image.getchannel("A").getbbox())
 
 
 def registered_frames(pattern, count):
@@ -210,7 +235,9 @@ def build():
         "palms": "Level3/authored/palms_island.png",
     }.items():
         original = clean_alpha(Image.open(ASSETS/source).convert("RGBA"))
-        outputs[ident+"_landmark.png"] = original.crop(original.getchannel("A").getbbox())
+        original = original.crop(original.getchannel("A").getbbox())
+        # The storm's clouds fill their canvas side to side (Kent: parts of the runway "cut off").
+        outputs[ident+"_landmark.png"] = dissolve_sides(original) if ident == "storm" else original
     atlas=Image.open(ASSETS/"Level1/texturemap.png").convert("RGBA")
     outputs["rice_beds.png"]=rice_beds()
     # These pieces already belong together in the original Payyo atlas. Preserve their

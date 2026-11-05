@@ -24,6 +24,26 @@ const WOOD := Color(0.36, 0.24, 0.15)
 ## Her easel and Mayon on it, drawn at her right hand. Off in the house after the run, where her
 ## easel stands across the room before she does and she walks to it (HouseEpilogue).
 @export var with_easel := true
+## Where the easel stands from her feet. Clear of her: at 80 the canvas began behind her own body,
+## and her head sat over its corner.
+const EASEL_AT := Vector2(100, 0)
+const CANVAS_SIZE := Vector2(200, 112)
+## THE PAINTING IS BEING PAINTED (Kent, 2026-11-05: "there is no proper animation to the painting").
+## She worked at a canvas that already held the finished Mayon, and nothing on it changed. It starts
+## as an underdrawing with the sky blocked in, and each time her brush reaches it -- these frames of
+## the supplied painting cycle, the arm raised furthest -- a little more of it is painted
+## (paint_reveal.gdshader). It is nearly finished by the time she turns: "I think it is nearly
+## finished."
+const BRUSH_ON_CANVAS := [2, 3, 8, 9, 15]
+const PAINT_START := 0.12
+const PAINT_STEP := 0.035
+const PAINT_NEARLY := 0.94
+## Under Reduce Motion her brush stays still, so the canvas is shown most of the way there.
+const PAINT_STILL := 0.85
+const PAINT_SHADER := preload("res://shaders/paint_reveal.gdshader")
+var _canvas: Sprite2D
+var _painted := PAINT_START
+var _last_frame := -1
 var _sprite: Sprite2D
 var _walking := false
 var _turned := false
@@ -34,6 +54,18 @@ var _painting := true
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if with_easel:
+		# Before her sprite, so she stands in front of her work.
+		_canvas = Sprite2D.new()
+		_canvas.name = "Canvas"
+		_canvas.texture = PAINTING
+		_canvas.scale = CANVAS_SIZE / PAINTING.get_size()
+		_canvas.position = EASEL_AT + Vector2(0, -170 + CANVAS_SIZE.y * 0.5)
+		var material := ShaderMaterial.new()
+		material.shader = PAINT_SHADER
+		_canvas.material = material
+		add_child(_canvas)
+		_set_painted(PAINT_STILL if Motion.reduced() else PAINT_START)
 	_sprite = Sprite2D.new()
 	_sprite.name = "Lola"
 	_sprite.position = Vector2(0, -72)
@@ -71,7 +103,26 @@ func _show_painting_idle() -> void:
 				frame = PAINTING_FRAMES[i]
 				break
 			within -= PAINTING_HOLDS[i]
+	if frame != _last_frame and frame in BRUSH_ON_CANVAS and _canvas != null:
+		_set_painted(minf(PAINT_NEARLY, _painted + PAINT_STEP))
+	_last_frame = frame
 	_sprite.frame = frame
+
+
+func _set_painted(amount: float) -> void:
+	_painted = amount
+	if _canvas != null:
+		(_canvas.material as ShaderMaterial).set_shader_parameter(&"reveal", amount)
+
+
+## How much of the canvas she has painted, 0 to 1.
+func painted() -> float:
+	return _painted
+
+
+## Where her canvas is, in her own coordinates: for a probe, and for anyone standing beside it.
+func canvas_rect() -> Rect2:
+	return Rect2(EASEL_AT + Vector2(-CANVAS_SIZE.x * 0.5, -170), CANVAS_SIZE)
 
 
 ## Facing whoever she is talking to: away from the painting, her face to them.
@@ -153,9 +204,8 @@ func has_flowers() -> bool:
 func _draw() -> void:
 	if not with_easel:
 		return
-	var at := Vector2(80, 0)
+	var at := EASEL_AT
 	draw_line(at + Vector2(-30, 0), at + Vector2(0, -150), WOOD, 5)
 	draw_line(at + Vector2(30, 0), at + Vector2(0, -150), WOOD, 5)
-	var size := Vector2(200, 112)
-	draw_rect(Rect2(at + Vector2(-104, -174), size + Vector2(8, 8)), WOOD)
-	draw_texture_rect(PAINTING, Rect2(at + Vector2(-100, -170), size), false)
+	draw_rect(Rect2(at + Vector2(-104, -174), CANVAS_SIZE + Vector2(8, 8)), WOOD)
+	# The canvas itself is the Canvas sprite, painted in as she works (paint_reveal.gdshader).
