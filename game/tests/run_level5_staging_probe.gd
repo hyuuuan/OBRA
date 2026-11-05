@@ -57,6 +57,10 @@ func _run() -> void:
 	initial=field.get("clock")
 	await create_timer(.2,true).timeout
 	_check(is_equal_approx(float(field.get("clock")),initial),"the drawing page pauses wildlife and water clocks")
+	# Beside a memory the page is the freehand sketch now (MemorySketch), not the draw panel: put
+	# down whichever opened, or the world stays stopped for every check below.
+	if level.get("memory_sketch").is_open():
+		level.get("memory_sketch").close()
 	level.get("draw_panel").close_panel()
 	var profile := root.get_node("PlayerProfile")
 	profile.call("set_setting","reduce_motion",true)
