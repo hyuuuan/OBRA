@@ -200,9 +200,14 @@ func _level_physics(anchor_position: Vector2) -> void:
 	if _tremor != null:
 		_tremor.amplitude = 0.0 if Motion.reduced() else 3.0
 	if not _summit.is_empty():
+		# The brush is the one thing she can still do up here, so its key stays while it is.
+		var brush_up := _summit in ["trying", "places"]
 		for child in $CanvasLayer.get_children():
-			if child is CanvasItem and child != hud_panel: (child as CanvasItem).hide()
-		if action_prompts != null: action_prompts.suppressed = true
+			if child is CanvasItem and child != hud_panel and not (brush_up and child == draw_button):
+				(child as CanvasItem).hide()
+		if action_prompts != null:
+			action_prompts.suppressed = true
+			action_prompts.keeps_draw = brush_up
 		status_label.hide()
 		if objective_marker != null: objective_marker.clear()
 
@@ -851,6 +856,7 @@ func _tend_summit(delta: float, her_x: float) -> void:
 					player.call("apply_morph_state", {"position": lola.global_position + Vector2(-250, 0),
 						"linear_velocity": Vector2.ZERO})
 				player.set_physics_process(false)
+				_stand_before(lola)
 				_attempts = 0
 				_raise_left = RAISE_AFTER
 				_speak(script_lines.fire("SUMMIT.speaks"))
@@ -867,6 +873,23 @@ func _tend_summit(delta: float, her_x: float) -> void:
 				# She does what lolo told her: the page opens for the places.
 				_summit = "places"
 				_raise_left = 0.0
+
+
+## ⚠ STANDING, NOT STOPPED. Her physics stops in front of Lola, and her pose is set by her physics:
+## she hung in whatever frame she arrived in, mid-stride or mid-jump above the floor, with every
+## key gone, for the whole beat -- Kent: "when i approach lola the game freezes". She stands, facing
+## Lola, and the brush's key stays on screen (_level_physics) while the brush can be raised.
+func _stand_before(lola: Node2D) -> void:
+	if player is CharacterBody2D:
+		(player as CharacterBody2D).velocity = Vector2.ZERO
+	if lola != null and player.has_method("face_toward"):
+		player.call("face_toward", lola.global_position.x)
+	var figure := player.get_node_or_null(^"Figure")
+	if figure != null:
+		figure.set(&"pose", &"idle")
+		figure.set(&"stride", 0.0)
+		if figure.has_method(&"refresh"):
+			figure.call(&"refresh")
 
 
 ## White in every direction except what she saved.
@@ -1048,6 +1071,7 @@ func _reset_summit() -> void:
 		camera.offset = Vector2.ZERO
 	if action_prompts != null:
 		action_prompts.suppressed = false
+		action_prompts.keeps_draw = false
 	status_label.show()
 	if is_instance_valid(player):
 		player.set_physics_process(true)

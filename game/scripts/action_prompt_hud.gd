@@ -75,6 +75,9 @@ var _states: Dictionary = {}
 var _curtain_alpha := 1.0
 ## A level-owned performance can put every verb away, including the externally owned Draw.
 var suppressed := false
+## Except Draw, while the performance still answers the brush (Mayon's summit): with every key
+## gone and her feet stopped, a player had nothing on screen to try, and read it as a freeze.
+var keeps_draw := false
 ## Whether the row has gone under the player's feet. See `_follow_player`.
 var _under := false
 var _judge_in := 0.0
@@ -306,6 +309,10 @@ func revert_is_available() -> bool:
 func _process(delta: float) -> void:
 	if suppressed:
 		for button: Button in _states:
+			if keeps_draw and button == _draw:
+				button.show()
+				button.mouse_filter = Control.MOUSE_FILTER_STOP
+				continue
 			button.hide()
 			button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		return
