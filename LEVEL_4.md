@@ -76,7 +76,8 @@ CP3        FINAL CLEARING — aswang waves until dawn
   an edge ripple that shrinks as it nears, then the lantern leans and gutters when it is nearly on
   her — a positive tell, never an absence. The tiyanak's cry is an amber ripple plus a rustle in
   the undergrowth.
-- **The canopy blocks flight physically** (a ceiling ~440 px up), not by a rule.
+- **The canopy blocks flight physically** with an invisible ceiling 440 px up. The forest
+  backdrop supplies the visible trees.
 - **No damage numbers.** Hit flashes and knockback.
 - **Cultural guardrails:** the nuno's mound gets nothing — no hurtbox, no protector route. The
   tiyanak fight earns nothing — no drops. The aswangs are authored encounters, not drawable

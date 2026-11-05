@@ -10,7 +10,6 @@
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
 [ext_resource type="Script" path="res://scripts/makiling_backdrop_2d.gd" id="7_backdrop"]
 [ext_resource type="Script" path="res://scripts/makiling_terrain_2d.gd" id="8_terrain"]
-[ext_resource type="Texture2D" path="res://assets/Level4/tiles/leaf.png" id="9_leaf"]
 [ext_resource type="Script" path="res://scripts/santelmo_2d.gd" id="10_santelmo"]
 [ext_resource type="Texture2D" path="res://assets/Level4/props/fallen_log.png" id="11_oldlog"]
 [ext_resource type="Script" path="res://scripts/nuno_mound_2d.gd" id="11_mound"]
@@ -137,9 +136,6 @@ position = Vector2(260.0, 510.0)
 script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(-200, 600, 17450, 800), Rect2(17550, 600, 1600, 800), Rect2(19450, 600, 3150, 800)])
 
-; ⚠ THE CANOPY IS A CEILING, NOT A RULE (Kent's design: 'the canopy block flight physically').
-; 440 up: higher than a drawn tree reaches (362), so every way over the ground still fits under
-; it, and a flier meets leaves instead of a refusal. run_level4_audit holds it over every beat.
 ; A rock in the sigbin's ground, waist-high: she can jump it (94 px), it cannot climb it (48), so
 ; with her back to it nothing can get behind her.
 [node name="SigbinRock" type="StaticBody2D" parent="GameplayPlane/Terrain"]
@@ -222,19 +218,13 @@ ground_group = &"makiling_ground"
 kind = "stone"
 tint = Color(1, 1, 1, 1)
 
+; Invisible flight ceiling, 440 px above the ground and above the 362 px drawing reach.
+; ForestBand supplies the visible trees. run_level4_audit checks the ceiling over every beat.
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/Canopy"]
 shape = SubResource("Rect_Canopy")
-
-; The canopy's underside, drawn from the same leaf cover the ground wears and graded darker.
-[node name="Leaves" type="Polygon2D" parent="GameplayPlane/Terrain/Canopy"]
-texture_filter = 1
-texture_repeat = 2
-color = Color(0.26, 0.32, 0.3, 1)
-texture = ExtResource("9_leaf")
-polygon = PackedVector2Array(-11400, -680, 11400, -680, 11400, 694, -11400, 694)
 
 [node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(-20.0, 100.0)
