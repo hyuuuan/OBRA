@@ -211,19 +211,24 @@ func _audit_nothing_stands_on_a_checkpoint() -> void:
 ## A sprite's node can be on the right terrace while its visible pixels still hover above it.
 ## Measure the imported alpha bounds, not just the texture rectangle, so transparent padding
 ## at the foot of an asset cannot reintroduce the gap this check exists for.
+##
+## EVERY DECOR SPRITE, not only the bushes. It was written for the two flowering bushes, and
+## when they were taken out of Payyo (ba44b864, which regrounded the rock by its foot instead)
+## it measured nothing and failed on "0 grounded" -- while the rock it should have been
+## watching went unmeasured. Anything in Decor stands on the terrain under it.
 func _audit_decor_stands_on_terrain() -> void:
 	var decor := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/Decor") as Node2D
 	var terrain := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/Terrain") as Node2D
 	if decor == null or terrain == null:
-		_check(false, "bushes sit in the grass", "decor or terrain is missing")
+		_check(false, "decor sits on the ground", "decor or terrain is missing")
 		return
 	var measured := 0
 	var floating: Array[String] = []
 	for child in decor.get_children():
 		var sprite := child as Sprite2D
-		if sprite == null or sprite.texture == null or not String(sprite.name).contains("Bush"):
+		if sprite == null or sprite.texture == null:
 			continue
 		measured += 1
 		var image := sprite.texture.get_image()
@@ -244,7 +249,7 @@ func _audit_decor_stands_on_terrain() -> void:
 		if surface == INF or absf(visible_bottom - surface) > 1.1:
 			floating.append("%s bottom %.0f vs ground %.0f"
 				% [sprite.name, visible_bottom, surface])
-	_check(measured > 0 and floating.is_empty(), "bushes sit in the grass",
+	_check(measured > 0 and floating.is_empty(), "decor sits on the ground",
 		"%d grounded" % measured if floating.is_empty() else ", ".join(floating))
 
 
