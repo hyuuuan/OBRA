@@ -51,6 +51,56 @@ def registered_frames(pattern, count):
     return [frame.crop(box) for frame in frames]
 
 
+def plaza_people(source):
+    """Keep the clear figures and arch from Piyesta, with continuous pillar stems."""
+    original = Image.open(source / "mg_people.png").convert("RGBA")
+    people = Image.open(source / "mg_people_nodancers.png").convert("RGBA")
+    join, bottom = 634, 818
+    overlap = 8
+    for start, end, left, right, period in [
+        (685, 807, 696, 782, 49),
+        (1162, 1272, 1184, 1263, 45),
+    ]:
+        # The pillars curve above the dancers. Align each clean row to the
+        # upright, keeping some of the original variation in its silhouette.
+        rows = []
+        for y in range(join - period - overlap, join):
+            row = original.crop((start, y, end, y + 1))
+            edge = row.getchannel("A").point(lambda value: 255 if value > 24 else 0).getbbox()
+            row = row.crop((edge[0] - 1, 0, edge[2] + 1, 1))
+            width = round((right - left) * 0.75 + row.width * 0.25)
+            aligned = Image.new("RGBA", (end - start, 1))
+            aligned.paste(row.resize((width, 1), Image.Resampling.NEAREST),
+                          ((left + right - width) // 2 - start, 0))
+            rows.append(aligned)
+
+        for y in range(join - overlap, bottom):
+            phase = (y - join + overlap) % period
+            row = rows[phase]
+            if phase < overlap:
+                previous = original.crop((start, y, end, y + 1)) if y < join else rows[period + phase]
+                row = Image.blend(previous, row, (phase + 1) / overlap)
+            people.paste(row, (start, y))
+    return people
+
+
+def plaza_backdrop():
+    """Composite Piyesta's registered plates at the same walk line as Level 2."""
+    source = ASSETS / "Level2"
+    with Image.open(source / "plaza_backdrop.png") as plate:
+        width, height = plate.size
+        sky_column = plate.crop((0, 0, 1, height)).convert("RGBA")
+    town = Image.new("RGBA", (width, height), (0, 136, 253, 255))
+    town.alpha_composite(sky_column.resize(town.size, Image.Resampling.NEAREST))
+
+    with Image.open(source / "bg_sky.png") as sky:
+        top = sky.getchannel("A").point(lambda value: 255 if value > 8 else 0).getbbox()[1]
+    for name in ["bg_sky", "bg_clouds", "mg_church", "mg_people", "fg_huts"]:
+        layer = plaza_people(source) if name == "mg_people" else Image.open(source / f"{name}.png").convert("RGBA")
+        town.alpha_composite(layer.crop((0, top, layer.width, top + height)), ((width - layer.width) // 2, 0))
+    return town
+
+
 def rice_beds():
     """Side-view rice grows out of three stone banks, in the delivery's own palette."""
     result=Image.new("RGBA",(900,276))
@@ -88,8 +138,8 @@ def build():
         sky.alpha_composite(layer)
     # Paper-margin padding in the delivery must not repeat as vertical sky-coloured bars.
     sky = sky.crop((150, 80, 1770, 880))
-    outputs = {"payyo_sky.png": sky}
-    for name in ["shore", "sea", "forest", "dawn", "plaza"]:
+    outputs = {"payyo_sky.png": sky, "plaza_sky.png": plaza_backdrop()}
+    for name in ["shore", "sea", "forest", "dawn"]:
         base = Image.new("RGBA", (1672, 941), (22, 49, 64, 255))
         if name == "shore":
             base.paste((86, 179, 222, 255), (0, 0, 1672, 941))
@@ -99,9 +149,6 @@ def build():
         elif name in ["forest", "dawn"]:
             sources = ["Level4/backdrop/mountain_far.png", "Level4/backdrop/mountain_near.png"]
             base.paste((31, 45, 58, 255), (0, 0, 1672, 941))
-        else:
-            base = Image.new("RGBA", (5760, 761), (0, 136, 253, 255))
-            sources = ["Level2/plaza_backdrop.png"]
         for source in sources:
             layer = Image.open(ASSETS / source).convert("RGBA")
             if source == "Level3/shore/ocean.png":
