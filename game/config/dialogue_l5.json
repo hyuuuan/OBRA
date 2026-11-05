@@ -48,7 +48,7 @@
       "at": "INTRO.ink",
       "speaker": "lolo",
       "kind": "lore",
-      "text": "Listen. The brush has what it has, and nothing on this mountain gives any back. Spend it like you mean it."
+      "text": "We have six drops of ink, apo, and nowhere to refill. Save some for the places you want to remember."
     },
     {
       "id": "L5_span_enter",
@@ -100,18 +100,18 @@
       "text": "Apo. Look. Those are ours. Those are -- I know that one. I know all of them."
     },
     {
-      "id": "L5_not_this",
-      "at": "FRAGMENT.not_this",
+      "id": "L5_preserve",
+      "at": "L5_CORRIDOR.enter",
       "speaker": "lolo",
-      "kind": "hint",
-      "text": "Not that. Something that was in it."
+      "kind": "lore",
+      "text": "When a place glows, draw something that reminds you of it, apo. It takes one drop of ink to keep the memory from fading."
     },
     {
       "id": "L5_no_ink",
       "at": "FRAGMENT.no_ink",
       "speaker": "lolo",
       "kind": "hint",
-      "text": "There is no more ink for that one."
+      "text": "You need one ink to keep a memory. You can still walk on."
     },
     {
       "id": "L5_flower",

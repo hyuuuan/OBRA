@@ -36,16 +36,27 @@
     ]
   },
   "objectives": {
-    "$comment": "In Lolo's voice while he climbs with her, short enough for the banner (720 px), naming no class.",
-    "foot": "Climb, apo. Mind the ink -- there is no more of it up here.",
-    "span": "The way across is gone. Make one.",
-    "climb": "The path has thinned to nothing. Make a way up.",
-    "slope": "Keep going.",
-    "summit": "Keep going.",
+    "$comment": "Persistent, state-derived instructions. Key caps follow the current InputMap; no drawable answers are named.",
+    "foot": "Head right. You have six ink and no refills.",
+    "span": "{key:redraw}: draw a way across, then place it.",
+    "climb": "{key:redraw}: draw a way up, then use it.",
+    "slope": "Head right to the next rise.",
+    "summit": "Walk right toward Lola and her painting.",
     "corridor": "Keep what you can. There is not ink for all of it.",
-    "crater": "The way goes into the mountain.",
-    "memories": "Keep what you can. There is not ink for all of it.",
-    "farewell": "Stay with him."
+    "crater": "Jump into the crater to enter the memories.",
+    "memories": "Get close to a memory you want to keep.",
+    "farewell": "{key:redraw}: raise the brush to Lolo.",
+    "memory_near": "{key:redraw} to sketch and preserve this memory.",
+    "memory_saved": "Memory preserved. Keep walking right when ready.",
+    "memory_lost": "This memory is gone. Keep walking right.",
+    "memory_empty": "No ink left. You can still walk right to the ending.",
+    "farewell_going": "Stay with Lolo until his words end.",
+    "summit_try": "{key:redraw}: draw Lola on the page.",
+    "summit_again": "{key:redraw}: try drawing Lola once more.",
+    "summit_lowering": "Let the brush rest for a moment.",
+    "summit_places": "{key:redraw}: draw a place you remember. Any drawing works.",
+    "summit_blooming": "Your drawing is finished. Watch the places return.",
+    "complete": "Mayon complete. Progress saved. Returning home."
   },
   "obstacles": [
     {
@@ -130,11 +141,6 @@
   "memories": [
     {
       "id": "kubo",
-      "accepts": [
-        "ladder",
-        "stairs",
-        "door"
-      ],
       "holds_lolo": false,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/kubo.png",
@@ -150,12 +156,6 @@
     },
     {
       "id": "terraces",
-      "accepts": [
-        "stairs",
-        "ladder",
-        "tree",
-        "rake"
-      ],
       "holds_lolo": true,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/terraces.png",
@@ -171,11 +171,6 @@
     },
     {
       "id": "bandaritas",
-      "accepts": [
-        "sun",
-        "cloud",
-        "butterfly"
-      ],
       "holds_lolo": false,
       "reach": 380,
       "summit_art": "res://assets/Level5/restoration/bandaritas.png",
@@ -191,11 +186,6 @@
     },
     {
       "id": "dancers",
-      "accepts": [
-        "fan",
-        "butterfly",
-        "umbrella"
-      ],
       "holds_lolo": false,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/dancers.png",
@@ -215,11 +205,6 @@
     },
     {
       "id": "church",
-      "accepts": [
-        "door",
-        "key",
-        "clock"
-      ],
       "holds_lolo": true,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/church.png",
@@ -235,11 +220,6 @@
     },
     {
       "id": "storm",
-      "accepts": [
-        "cloud",
-        "umbrella",
-        "sailboat"
-      ],
       "holds_lolo": false,
       "reach": 410,
       "summit_art": "res://assets/Level5/restoration/storm.png",
@@ -255,11 +235,6 @@
     },
     {
       "id": "bangka",
-      "accepts": [
-        "sailboat",
-        "fish",
-        "sun"
-      ],
       "holds_lolo": true,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/bangka.png",
@@ -275,13 +250,6 @@
     },
     {
       "id": "coral",
-      "accepts": [
-        "crab",
-        "fish",
-        "sea_turtle",
-        "snail",
-        "octopus"
-      ],
       "holds_lolo": false,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/coral.png",
@@ -297,12 +265,6 @@
     },
     {
       "id": "bakunawa",
-      "accepts": [
-        "fish",
-        "shark",
-        "octopus",
-        "sea_turtle"
-      ],
       "holds_lolo": false,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/bakunawa.png",
@@ -334,11 +296,6 @@
     },
     {
       "id": "forest",
-      "accepts": [
-        "campfire",
-        "flashlight",
-        "sun"
-      ],
       "holds_lolo": false,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/forest.png",
@@ -366,11 +323,6 @@
     },
     {
       "id": "waterfall",
-      "accepts": [
-        "tree",
-        "fan",
-        "bucket"
-      ],
       "holds_lolo": false,
       "reach": 350,
       "summit_art": "res://assets/Level5/restoration/waterfall.png",
@@ -386,12 +338,6 @@
     },
     {
       "id": "flower",
-      "accepts": [
-        "sun",
-        "cloud",
-        "bucket",
-        "butterfly"
-      ],
       "holds_lolo": false,
       "reach": 160,
       "needs_footing": true,
@@ -1272,5 +1218,35 @@
       }
     ],
     "column_softness_pixels": 360
+  },
+  "guidance": {
+    "memory_names": {
+      "terraces": "The terraces",
+      "kubo": "Ang Bale",
+      "dancers": "The dancers",
+      "church": "The church",
+      "bandaritas": "The festival decorations",
+      "storm": "The storm",
+      "bangka": "The bangka",
+      "coral": "The reef",
+      "bakunawa": "The bakunawa",
+      "forest": "The forest",
+      "waterfall": "The falls",
+      "flower": "The flower"
+    },
+    "lolo_page": {
+      "title": "Draw Lolo",
+      "text": "Try to capture the person in front of you. This drawing is free."
+    },
+    "lola_page": {
+      "title": "Draw Lola",
+      "text": "Try to capture the person in front of you. This drawing is free."
+    },
+    "places_page": {
+      "title": "Draw the places you remember",
+      "text": "Sketch any place you remember. Your preserved memories will return around Lola. This drawing is free."
+    },
+    "saved": "{memory} — preserved. Your drawing will return at the summit.",
+    "lost": "{memory} — left behind. You can still finish the journey."
   }
 }

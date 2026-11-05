@@ -28,9 +28,13 @@ enum DrawingMode { NORMAL, QUIET_REFUSAL, FREE_PAINT }
 var drawing_mode: DrawingMode = DrawingMode.NORMAL
 var _quiet_idle := 0.0
 var _quiet_revision := -1
-var _reference: TextureRect
-var _reference_texture: Texture2D
 var _quiet_visibility := {}
+## Optional task instructions, outside the captured ink. Mayon's guided pages use an
+## explicit Paint button rather than treating a pause between strokes as completion.
+var _context_card: PanelContainer
+var _context_heading: Label
+var _context_body: Label
+var _context_title := ""
 
 @export var debug_timing_logs: bool = false
 
@@ -170,21 +174,54 @@ func set_drawing_mode(mode: DrawingMode) -> void:
 	_quiet_revision = -1
 
 
-## Sibling of the capture viewport: reference pixels NEVER reach the recognizer.
-func set_memory_reference(picture: Texture2D) -> void:
-	_reference_texture = picture
-	if _reference == null:
-		_reference = TextureRect.new()
-		_reference.name = "MemoryReference"
-		_reference.position = Vector2(-250, 150)
-		_reference.size = Vector2(260, 220)
-		_reference.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		_reference.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		_reference.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_reference.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		panel_root.add_child(_reference)
-	_reference.texture = picture
-	_reference.visible = picture != null and not _refusing
+func set_drawing_context(title: String, instructions: String) -> void:
+	_context_title = title
+	if _context_card == null:
+		if title.is_empty(): return
+		_context_card = PanelContainer.new()
+		_context_card.name = "DrawingInstructions"
+		_context_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_context_card.add_theme_stylebox_override(&"panel", UISkin.frame())
+		add_child(_context_card)
+		var column := VBoxContainer.new()
+		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		column.add_theme_constant_override(&"separation", 12)
+		_context_card.add_child(column)
+		_context_heading = Label.new()
+		_context_heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_context_heading.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
+		_context_heading.add_theme_color_override(&"font_color", UISkin.GOLD_PALE)
+		column.add_child(_context_heading)
+		_context_body = Label.new()
+		_context_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_context_body.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+		_context_body.add_theme_color_override(&"font_color", UISkin.CREAM_TEXT)
+		column.add_child(_context_body)
+		get_viewport().size_changed.connect(_layout_drawing_context)
+	_context_heading.text = title
+	_context_body.text = instructions
+	_context_card.visible = not title.is_empty()
+	_layout_drawing_context()
+	_fit_drawing_context.call_deferred()
+
+
+func _layout_drawing_context() -> void:
+	if _context_card == null: return
+	_context_card.custom_minimum_size.x = 360.0
+	_context_heading.custom_minimum_size.x = 320.0
+	_context_body.custom_minimum_size.x = 320.0
+	_context_card.size.x = 360.0
+	_context_card.reset_size()
+	_context_card.position = Vector2(maxf(24.0, panel_root.position.x - 400.0),
+		maxf(110.0, panel_root.position.y + 110.0))
+
+
+func _fit_drawing_context() -> void:
+	# Container sorting first supplies the labels' wrapping width. Their first
+	# height can be measured at zero width, and must not become the card's height.
+	await get_tree().process_frame
+	if is_instance_valid(_context_card):
+		_context_card.size = Vector2(360.0, _context_card.get_combined_minimum_size().y)
 
 
 func _present_drawing_mode() -> void:
@@ -197,15 +234,20 @@ func _present_drawing_mode() -> void:
 				if not _quiet_visibility.has(child):
 					_quiet_visibility[child] = (child as CanvasItem).visible
 				(child as CanvasItem).hide()
+		if not _context_title.is_empty():
+			# A visible drawing surface and an explicit submit action. Both people still
+			# receive the same quiet fade, without recognition or decline feedback.
+			panel_root.get_node("CanvasPaper").show()
+			canvas_frame.show()
+			transform_button.show()
+			clear_button.show()
 	else:
 		# Normal callers keep their authored visibility, including tutorial-owned children.
 		for child in _quiet_visibility:
 			if is_instance_valid(child):
 				(child as CanvasItem).visible = bool(_quiet_visibility[child])
 		_quiet_visibility.clear()
-	if _reference != null:
-		_reference.visible = not _refusing and _reference_texture != null
-	canvas.call("set_drawable_bounds", Rect2() if _refusing else canvas_frame.opening())
+	canvas.call("set_drawable_bounds", Rect2() if _refusing and _context_title.is_empty() else canvas_frame.opening())
 
 
 func is_refusing() -> bool:
@@ -252,6 +294,8 @@ func open_panel() -> void:
 		# Nothing on the page says what will happen. It is the drawing that has to find out.
 		status.text = ""
 		guess_label.text = ""
+	if not _context_title.is_empty():
+		status.text = ""
 	# Nothing has been drawn yet, so there is nothing to transform.
 	transform_button.disabled = true
 	_refresh_ink_row()
@@ -293,6 +337,7 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 	if release_ink and ink_manager != null:
 		ink_manager.release_attempt()
 	UIRouter.refresh_pause(get_tree())
+	set_drawing_context("", "")
 	if emit_closed:
 		panel_closed.emit()
 
@@ -313,6 +358,8 @@ func _process(delta: float) -> void:
 	if _submitting:
 		return
 	if _refusing:
+		if not _context_title.is_empty():
+			return
 		var changed: int = canvas.content_revision()
 		if changed != _quiet_revision or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			_quiet_revision = changed

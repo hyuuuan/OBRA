@@ -133,6 +133,8 @@ func _ends_with_its_own_scene() -> bool:
 ## home -- in the house, where Lolo is in every painting and Lola is waiting (HouseEpilogue). It
 ## replaced the frame's return, a separate painted room with an ordinary brush in it.
 func _play_own_ending() -> void:
+	refresh_objective()
+	objective_banner.show()
 	await _speak_and_wait(script_lines.fire("APO.home"))
 	AudioDirector.stop_music()
 	_went_home = true
@@ -163,6 +165,8 @@ func _build_level_furniture() -> void:
 	_arm_the_drain()
 	_build_memory_journey()
 	_gather_fragments()
+	memory_sketch.submitted.connect(_preserve_memory)
+	memory_sketch.closed.connect(func() -> void: _locked_fragment = null)
 	_gather_the_ash()
 
 
@@ -200,16 +204,18 @@ func _level_physics(anchor_position: Vector2) -> void:
 	if _tremor != null:
 		_tremor.amplitude = 0.0 if Motion.reduced() else 3.0
 	if not _summit.is_empty():
-		# The brush is the one thing she can still do up here, so its key stays while it is.
+		# Keep the next objective visible, with Draw as the only action during the performance.
 		var brush_up := _summit in ["trying", "places"]
 		for child in $CanvasLayer.get_children():
-			if child is CanvasItem and child != hud_panel and not (brush_up and child == draw_button):
+			if child is CanvasItem and child not in [hud_panel, objective_banner, objective_marker, draw_button]:
 				(child as CanvasItem).hide()
+		objective_banner.show()
+		draw_button.visible = brush_up
 		if action_prompts != null:
 			action_prompts.suppressed = true
 			action_prompts.keeps_draw = brush_up
 		status_label.hide()
-		if objective_marker != null: objective_marker.clear()
+		if objective_marker != null and _summit != "quiet": objective_marker.clear()
 
 func _on_ink_emptied() -> bool:
 	# His disappearance includes his voice; an optional late morph must not bring him back.
@@ -220,9 +226,32 @@ func _on_ink_emptied() -> bool:
 
 ## The banner follows the current gate or journey phase.
 func _current_objective() -> Dictionary:
-	if not _summit.is_empty() or director == null: return {}
+	if director == null: return {}
+	match _summit:
+		"quiet": return {"key": "summit", "target": _anchor("summit_speak")}
+		"trying": return {"key": "summit_try" if _attempts == 0 else "summit_again"}
+		"lowering": return {"key": "summit_lowering"}
+		"places": return {"key": "summit_places"}
+		"blooming": return {"key": "summit_blooming"}
+		"done": return {"key": "complete"}
+	if _lolo_moment == "waiting": return {"key": "farewell"}
+	if _lolo_moment == "going": return {"key": "farewell_going"}
+	if _lolo_moment == "gone": return {"key": "summit", "target": _anchor("summit_speak")}
 	if _phase != "ascent":
-		return {"key": "farewell" if _phase == "farewell" else "memories"}
+		if ink_manager.remaining() < InkManager.UNIT: return {"key": "memory_empty"}
+		if _fragment_here() != null: return {"key": "memory_near"}
+		var here: String = _journey.current_id(_player_anchor_position())
+		var saved_here := false
+		var open_here := false
+		var had_memory := false
+		for fragment in _fragments:
+			if fragment.vignette_id != here: continue
+			had_memory = true
+			open_here = open_here or fragment.is_open()
+			saved_here = saved_here or fragment.state() == "saved"
+		if not open_here and had_memory:
+			return {"key": "memory_saved" if saved_here else "memory_lost"}
+		return {"key": "memories"}
 	match String(director.current_obstacle()):
 		"L5_SPAN":
 			return {"key": "span"} if not director.is_solved("L5_SPAN") else {"key": "slope"}
@@ -293,10 +322,9 @@ var _steady_left := 0.0
 var _lolo_moment := ""
 var _framing_lolo := false
 var _raise_left := 0.0
-var _saved_class := ""
 var _corridor_seen := false
+@onready var memory_sketch = $MemorySketch
 var _locked_fragment: MemoryFragment2D
-var _page_had_fragment := false
 var _clusters_seen: Array[String] = []
 var _clusters_left: Array[String] = []
 var _active_cluster := ""
@@ -321,18 +349,34 @@ func _gather_fragments() -> void:
 		fragment.lost.connect(_on_fragment_lost)
 
 
+func _open_the_page(tell_the_director: bool) -> void:
+	if placement_controller.is_placing() or memory_sketch.is_open() or draw_panel.is_open():
+		return
+	var fragment := _fragment_here() if not _brush_refuses_here() else null
+	if fragment == null:
+		super(tell_the_director)
+		return
+	if ink_manager.remaining() < InkManager.UNIT:
+		_say_why(_line("FRAGMENT.no_ink"))
+		return
+	_locked_fragment = fragment
+	var reference := fragment.get_node("Picture") as Sprite2D
+	memory_sketch.present(_memory_name(fragment.fragment_id), reference.texture)
+
+
 func _prepare_drawing_page() -> void:
-	_locked_fragment = null if _brush_refuses_here() else _fragment_here()
-	_page_had_fragment = _locked_fragment != null
-	if _page_had_fragment or _brush_refuses_here():
-		status_label.text = ""
-	draw_panel.set_memory_reference(
-		(_locked_fragment.get_node("Picture") as Sprite2D).texture if _page_had_fragment else null)
 	if _summit == "places":
 		draw_panel.set_drawing_mode(DrawPanel.DrawingMode.FREE_PAINT)
 	if _brush_refuses_here():
+		status_label.text = ""
 		_set_performance("raise")
 		_raise_into_paint()
+	var context := ""
+	if _lolo_moment == "waiting": context = "lolo_page"
+	elif _summit == "trying": context = "lola_page"
+	elif _summit == "places": context = "places_page"
+	var words: Dictionary = director.level_data().get("guidance", {}).get(context, {})
+	draw_panel.set_drawing_context(String(words.get("title", "")), String(words.get("text", "")))
 
 
 func _raise_into_paint() -> void:
@@ -346,6 +390,7 @@ func _free_paint_completed(strokes: Array) -> void:
 		return
 	_places_strokes = DrawnItemData.copy_strokes(strokes)
 	_summit = "blooming"
+	refresh_objective()
 	_set_performance("lower")
 	_bloom_the_places()
 
@@ -424,30 +469,20 @@ func _set_performance(pose: String) -> void:
 	_performance.visible = true
 
 
-## A DRAWING NEAR A FRAGMENT GOES INTO IT -- not into the bag, the hand or a body. One unit of ink,
-## never the hidden reserve (that is the gates'), and it is saved. A drawing that does not belong
-## is handed back free, with one quiet line and no class named. Away from any fragment, a drawing
-## is a drawing.
-func _on_drawing_ready(entity_id: String, display_name: String, drawing: Image,
-		response: Dictionary, strokes: Array, ink_cost: float) -> void:
-	var fragment := _locked_fragment if _page_had_fragment else _fragment_here()
-	if _page_had_fragment and (not is_instance_valid(fragment) or not fragment.is_open()):
-		ink_manager.release_attempt()
+## The sketchbook submits raw strokes to the landmark that opened it.
+func _preserve_memory(strokes: Array) -> void:
+	if not memory_sketch.is_open() or strokes.is_empty():
 		return
-	if fragment == null:
-		super(entity_id, display_name, drawing, response, strokes, ink_cost)
-		return
-	ink_manager.release_attempt()
-	if not fragment.belongs(entity_id):
-		_say_why(_line("FRAGMENT.not_this"))
+	var fragment := _locked_fragment
+	memory_sketch.close()
+	if not is_instance_valid(fragment) or not fragment.is_open():
 		return
 	if not ink_manager.spend_unit():
 		_say_why(_line("FRAGMENT.no_ink"))
 		return
-	_saved_class = entity_id
-	status_label.text = ""
 	_save_order.append(fragment.fragment_id)
 	fragment.save(strokes)
+	refresh_objective()
 
 
 ## The nearest fragment she could still save, if one is in reach.
@@ -474,8 +509,9 @@ func _fragment(fragment_id: String) -> MemoryFragment2D:
 
 
 func _on_fragment_saved(fragment_id: String) -> void:
+	_memory_feedback("saved", fragment_id)
 	AudioDirector.play_sfx(&"mayon_brush", 0.6)
-	Telemetry.record_event("fragment", {"id": fragment_id, "outcome": "saved", "class": _saved_class})
+	Telemetry.record_event("fragment", {"id": fragment_id, "outcome": "saved", "method": "freehand"})
 	var fragment := _fragment(fragment_id)
 	var can_speak := is_instance_valid(lolo) and not lolo.is_gone()
 	if fragment_id == "flower" and not _flower_credited:
@@ -493,6 +529,21 @@ func _on_fragment_saved(fragment_id: String) -> void:
 
 func _on_fragment_lost(fragment_id: String) -> void:
 	Telemetry.record_event("fragment", {"id": fragment_id, "outcome": "lost"})
+	_memory_feedback("lost", fragment_id)
+
+
+func _memory_feedback(outcome: String, fragment_id: String) -> void:
+	if not _summit.is_empty() or _lolo_moment in ["waiting", "going", "gone"]: return
+	var guidance: Dictionary = director.level_data().get("guidance", {})
+	# HudNotice is independent of standing hints, so a successful save cannot be
+	# swallowed by Lolo's teaching line. It remains until gameplay resumes.
+	status_label.text = String(guidance.get(outcome, "")).replace("{memory}", _memory_name(fragment_id))
+	status_label.show()
+
+
+func _memory_name(fragment_id: String) -> String:
+	var guidance: Dictionary = director.level_data().get("guidance", {})
+	return String(guidance.get("memory_names", {}).get(fragment_id, "This memory"))
 
 
 func _saved_lolo_fragments() -> int:
@@ -537,6 +588,7 @@ func _tend_lolo(delta: float, her_x: float) -> void:
 					if not _clusters_left.has(id): _clusters_left.append(id)
 				_lolo_moment = "waiting"
 				_raise_left = RAISE_AFTER
+				refresh_objective()
 				_write_checkpoint("CP1")
 				# Before the brush is raised to him, she thinks she can still mend it (Kent,
 				# 2026-11-01): "wait i can fix this". It is what makes the refusal land.
@@ -569,6 +621,7 @@ func _brush_refused(_strokes: int) -> void:
 			_summit = "lowering"
 			_beat_left = LOWERING_BEAT
 			_set_performance("lower")
+	refresh_objective()
 
 
 ## He understands before she does, and says so -- and mid-sentence he is not there. No farewell,
@@ -612,6 +665,7 @@ func _vanish_lolo() -> void:
 	dialogue_box.hide_speaker()
 	status_label.text = ""
 	_lolo_moment = "gone"
+	refresh_objective()
 	Telemetry.record_event("lolo_gone", {"steadied_by": _saved_lolo_fragments()})
 
 
@@ -635,6 +689,7 @@ func _level_run_state() -> Dictionary:
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
+	memory_sketch.close()
 	_restored_camera = state.get("camera_position", []) if int(state.get("layout_version", 1)) >= 5 else []
 	_restore_journey_phase(state)
 	var fragments: Dictionary = state.get("fragments", {})
@@ -849,6 +904,7 @@ func _tend_summit(delta: float, her_x: float) -> void:
 		"quiet":
 			if her_x >= _anchor("summit_speak").x:
 				_summit = "trying"
+				refresh_objective()
 				if not _current_form_id.is_empty():
 					_revert_to_base_form()
 				var lola := _lola()
@@ -873,6 +929,7 @@ func _tend_summit(delta: float, her_x: float) -> void:
 				# She does what lolo told her: the page opens for the places.
 				_summit = "places"
 				_raise_left = 0.0
+				refresh_objective()
 
 
 ## ⚠ STANDING, NOT STOPPED. Her physics stops in front of Lola, and her pose is set by her physics:
@@ -1072,6 +1129,7 @@ func _reset_summit() -> void:
 	if action_prompts != null:
 		action_prompts.suppressed = false
 		action_prompts.keeps_draw = false
+	draw_button.mouse_filter = Control.MOUSE_FILTER_STOP
 	status_label.show()
 	if is_instance_valid(player):
 		player.set_physics_process(true)

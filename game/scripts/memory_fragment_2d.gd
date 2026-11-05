@@ -5,7 +5,7 @@ extends Node2D
 ##
 ## It goes white once she first comes within SIGHT of it -- slowly, as if there were time -- and
 ## all at once when she has gone PASSED_BY on beyond it: there is no going back down. White, then
-## blank: at blank it is lost. Drawing something that belongs in it, while she is near, saves it:
+## blank: at blank it is lost. Sketching the memory while she is near saves it:
 ## the colour comes back and stays, and her lines are inked into it.
 ##
 ## Nothing about it says what it is worth: no value, no cost, no count (the design: the player
@@ -43,8 +43,6 @@ var vignette_id := ""
 var _dance_frames: Array[Texture2D] = []
 var _landmark_frames: Array[Texture2D] = []
 var _landmark_frame_seconds := .18
-## The classes that belong in it: drawing one, near it, saves it.
-@export var accepts: PackedStringArray = []
 ## Whether lolo is in it: saving it steadies him for a while.
 @export var holds_lolo := false
 ## How near she must stand for a drawing to go into it. The flower's is short: it is saved from
@@ -63,7 +61,6 @@ var bloom_tint := Color.WHITE
 
 
 func configure_memory(entry: Dictionary) -> void:
-	accepts = PackedStringArray(entry.get("accepts", []))
 	holds_lolo = bool(entry.get("holds_lolo", false))
 	cluster_id = String(entry.get("cluster", ""))
 	vignette_id = String(entry.get("vignette", ""))
@@ -177,10 +174,6 @@ func set_targeted(on: bool) -> void:
 
 func is_targeted() -> bool:
 	return _targeted
-
-
-func belongs(entity_id: String) -> bool:
-	return accepts.has(entity_id)
 
 
 func drain() -> float:
