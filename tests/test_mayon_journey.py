@@ -59,6 +59,17 @@ class MayonJourneyArtTests(unittest.TestCase):
                 self.assertLessEqual(scene["length"],1440)
                 self.assertEqual(scene["profile"][-1][0],scene["length"])
 
+    def test_the_storm_does_not_end_in_a_straight_cut(self):
+        # Kent, 2026-11-05: parts of the runway are "cut off". The storm's clouds filled their
+        # canvas side to side, so on the shore they ended in two ruler lines; the ends are rounded off.
+        with Image.open(ROOT/"game/assets/Level5/journey/storm_landmark.png") as image:
+            alpha = image.convert("RGBA").getchannel("A")
+            width, height = alpha.size
+            for x in list(range(8))+list(range(width-8, width)):
+                with self.subTest(column=x):
+                    opaque = sum(1 for y in range(height) if alpha.getpixel((x, y)) > 200)
+                    self.assertLess(opaque, height*0.05)
+
     def test_the_terraces_target_is_payyos_own_painting(self):
         # Kent, 2026-11-05: the first memory lane "has full of grass which looks weird". Its target
         # was rice_beds.png, three slabs of stalks drawn by code and wider than the steps under them,
