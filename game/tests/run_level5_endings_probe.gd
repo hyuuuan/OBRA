@@ -1,6 +1,6 @@
 extends SceneTree
 ## The actual summit state machine for both endings and all three voices, including no memories.
-const CHECKS := 12
+const CHECKS := 14
 var checked := 0
 var failures := 0
 
@@ -14,6 +14,8 @@ func _run() -> void:
 		for route in ["artist", "pragmatist", "protector"]:
 			await _ending(perfect, route)
 	await _every_place_blooms_inside_the_frame()
+	await _the_places_she_saved_stand_apart(["terraces", "church", "storm", "bangka"])
+	await _the_places_she_saved_stand_apart(["kubo", "bandaritas", "coral", "forest"])
 	print("OBRA_LEVEL5_ENDINGS_%s (%d/%d)" % ["OK" if failures == 0 and checked == CHECKS else "FAILED", checked, CHECKS])
 	quit(0 if failures == 0 and checked == CHECKS else 1)
 
@@ -82,9 +84,10 @@ func _ending(perfect: bool, route: String) -> void:
 		var targets: Array = level.call("bloom_targets")
 		var scenery: Array = level.get("_bloomed")
 		for i in range(scenery.size()):
-			widths_hold = widths_hold and is_equal_approx(scenery[i].texture.get_width()*scenery[i].scale.x,
-				targets[i].bloom_width)
-		_check(widths_hold and scenery.size() == 2, "restored scenery keeps its authored width through the fade")
+			# The width the summit's layout gave it (bloom_layout), which the fade must not undo.
+			widths_hold = widths_hold and is_equal_approx(scenery[i].scale.x, float(scenery[i].get("world_scale"))) \
+				and scenery[i].texture.get_width()*scenery[i].scale.x <= targets[i].bloom_width + 0.5
+		_check(widths_hold and scenery.size() == 2, "restored scenery keeps its laid-out width through the fade")
 		# Her saved lines sign each place at a signature's size; they do not span the landscape.
 		var signed := scenery.size() == 2
 		var sizes: Array[float] = []
@@ -186,6 +189,86 @@ func _every_place_blooms_inside_the_frame() -> void:
 	level.queue_free()
 	for i in range(5):
 		await process_frame
+
+
+## Kent, 2026-11-05: where Lola paints, "stuff do not make sense like it is not pleasing to the eye".
+## The places were set at fixed points whatever their sizes: the terraces buried the church and the
+## bangka ran off the frame. A run saves four at most (six units, two gates); each must stand inside
+## the frame, and none on the ground may be more than half hidden behind one in front of it.
+func _the_places_she_saved_stand_apart(ids: Array) -> void:
+	root.get_node("PlayerProfile").call("reset_progress")
+	var script := GDScript.new()
+	script.source_code = 'extends "res://scripts/level_5.gd"\n' \
+		+ 'func _speak_and_wait(_lines: Array) -> void:\n\tawait get_tree().process_frame\n' \
+		+ 'func _play_own_ending() -> void:\n\tpass\n'
+	if script.reload() != OK:
+		_check(false, "layout harness compiles")
+		return
+	var level: Node = (load("res://level_5.tscn") as PackedScene).instantiate()
+	level.set_script(script)
+	level.get_node("BackendSupervisor").auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, "set_auto_dismiss", true)
+	await create_timer(.3).timeout
+	(level.get("lolo") as Lolo).vanish()
+	level.set("_lolo_moment", "gone")
+	for id: String in ids:
+		(level.call("_fragment", id) as MemoryFragment2D).restore_to("saved", [[2.0, 3.0, 11.0, 17.0]])
+		(level.get("_save_order") as Array).append(id)
+	preload("res://tests/level5_journey_fixture.gd").summit(level)
+	level.get("player").call("apply_morph_state", {"position": level.call("_anchor","summit")+Vector2(100,0), "linear_velocity": Vector2.ZERO})
+	await create_timer(2.0).timeout
+	var camera := level.call("_world_camera") as Camera2D
+	var half := camera.get_viewport_rect().size / camera.zoom * 0.5
+	var view := Rect2(camera.get_screen_center_position() - half, half * 2.0)
+	level.set("_summit", "places")
+	level.call("_free_paint_completed", [])
+	var end := Time.get_ticks_msec() + 15000
+	while int(level.call("bloomed")) < ids.size() and Time.get_ticks_msec() < end:
+		await create_timer(.1).timeout
+	var targets: Array = level.call("bloom_targets")
+	var scenery: Array = level.get("_bloomed")
+	var rects: Array[Rect2] = []
+	for picture: Sprite2D in scenery:
+		var painted := _painted_rect(picture.texture.get_image())
+		var size := picture.texture.get_size()
+		rects.append(Rect2(picture.global_position + (painted.position - size * 0.5) * picture.global_scale.y,
+			painted.size * picture.global_scale.y))
+	var faults: Array[String] = []
+	for index in range(scenery.size()):
+		var id := String(targets[index].fragment_id)
+		if rects[index].position.x < view.position.x - 1.0 or rects[index].end.x > view.end.x + 1.0:
+			faults.append("%s runs off the frame" % id)
+		if String(targets[index].bloom_layer) == "sky":
+			continue
+		var hidden := 0.0
+		for other in range(scenery.size()):
+			if other == index or String(targets[other].bloom_layer) == "sky" \
+					or (scenery[other] as Sprite2D).z_index <= (scenery[index] as Sprite2D).z_index:
+				continue
+			hidden = maxf(hidden, rects[index].intersection(rects[other]).get_area() / maxf(1.0, rects[index].get_area()))
+		if hidden > 0.5:
+			faults.append("%s %d%% hidden" % [id, int(hidden * 100.0)])
+	_check(scenery.size() == ids.size() and faults.is_empty(),
+		"the places she saved (%s) stand inside the frame, none buried behind another: %s" % [", ".join(ids), faults])
+	level.queue_free()
+	for i in range(5):
+		await process_frame
+
+
+## Where an image holds paint -- opaque, and not paper white -- in its own pixels.
+func _painted_rect(image: Image) -> Rect2:
+	var rows := _painted_rows(image)
+	var first := image.get_width()
+	var last := 0
+	for x in range(0, image.get_width(), 2):
+		for y in range(int(rows.x), int(rows.y) + 1, 4):
+			var colour := image.get_pixel(x, y)
+			if colour.a > 0.5 and not (colour.r > 0.9 and colour.g > 0.9 and colour.b > 0.9):
+				first = mini(first, x)
+				last = maxi(last, x)
+				break
+	return Rect2(first, rows.x, maxi(1, last - first), maxf(1.0, rows.y - rows.x))
 
 
 ## The first and last rows holding paint: opaque, and not paper white.
