@@ -24,13 +24,32 @@ const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 const Bakunawa = preload("res://scripts/bakunawa_2d.gd")
 
 
+## ⚠ A STALL FAILS, IT DOES NOT HANG. Inside a full suite run this probe once sat for 85 minutes
+## with nothing printed past its banner -- every result is held for the summary -- until it was
+## killed, so nobody could say where it stopped. Each part now names itself as it starts, a wait
+## on a world that will not run gives up (`_seconds`), and if the whole run has not finished in
+## this long it prints what it has and fails, naming the part it was in. A passing run is about
+## three minutes on its own.
+const WATCHDOG_SECONDS := 900.0
+## Paused this many waits running inside `_seconds`, each after a full `_unpause`, the world is
+## not going to run again and the wait gives up.
+const STUCK_WAITS := 10
+
 var level: Node
 var results: Array[String] = []
 var failures := 0
+## The part of the run under way, for the watchdog to name.
+var _part := "opening"
 
 
 func _initialize() -> void:
+	create_timer(WATCHDOG_SECONDS, true, false, true).timeout.connect(_on_watchdog)
 	call_deferred("_run")
+
+
+func _on_watchdog() -> void:
+	_check(false, "the probe finishes", "still in %s after %d s" % [_part, int(WATCHDOG_SECONDS)])
+	_report()
 
 
 func _check(ok: bool, what: String, detail: String) -> void:
@@ -41,20 +60,19 @@ func _check(ok: bool, what: String, detail: String) -> void:
 
 func _run() -> void:
 	print("\n===== DAGAT'S SEA =====")
-	await _the_longer_level()
-	await _the_apo_dives_on_a_breath()
-	await _breathing_frees_the_swimmer()
-	await _the_bangka_goes_in_on_e()
-	await _the_anvil_shoves_it()
-	await _fifteen_blows_and_away()
-	await _led_home_by_the_light()
-	await _a_silhouette_from_above()
-	await _room_under_it()
-	await _the_hook_under_the_sand()
-	await _fishing_from_the_boat()
-	await _the_creatures_fight_back()
-	await _the_fact_is_the_coral_she_stopped_at()
-	await _drifting_is_not_swimming_on()
+	for part: Callable in [_the_longer_level, _the_apo_dives_on_a_breath,
+			_breathing_frees_the_swimmer, _the_bangka_goes_in_on_e, _the_anvil_shoves_it,
+			_fifteen_blows_and_away, _led_home_by_the_light, _a_silhouette_from_above,
+			_room_under_it, _the_hook_under_the_sand, _fishing_from_the_boat,
+			_the_creatures_fight_back, _the_fact_is_the_coral_she_stopped_at,
+			_drifting_is_not_swimming_on]:
+		_part = part.get_method()
+		print("  -- %s" % _part)
+		await part.call()
+	_report()
+
+
+func _report() -> void:
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -1002,11 +1020,20 @@ func _place(at: Vector2) -> void:
 
 func _seconds(seconds: float) -> void:
 	var elapsed := 0.0
+	# ⚠ SECONDS ARE COUNTED ONLY WHILE THE WORLD RUNS, so a world that paused itself again on
+	# every frame kept this waiting for good. Bounded by how many waits in a row found it paused.
+	var stuck := 0
 	while elapsed < seconds:
 		await physics_frame
 		if paused:
+			stuck += 1
+			if stuck > STUCK_WAITS:
+				_check(false, "the world runs again in %s" % _part,
+					"still paused after %d tries to unpause it" % STUCK_WAITS)
+				return
 			await _unpause()
 			continue
+		stuck = 0
 		elapsed += 1.0 / 60.0
 
 
