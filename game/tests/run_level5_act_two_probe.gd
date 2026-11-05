@@ -1,7 +1,7 @@
 extends SceneTree
 ## Mayon's Act Two, played: the fragments go white once seen and in seconds once passed; a drawing
-## that belongs saves one for a unit of ink -- never the hidden reserve -- and one that does not is
-## handed back free; the flower is saved only from its ledge, and is the fifth flower and the
+## saves one for a unit of ink. Cancelling costs nothing and the hidden reserve is only for
+## gates. The flower is saved only from its ledge and is the fifth flower and the
 ## artist's choice; a fall gives back the fragments as they were; lolo thins, steadies, and at
 ## the top the brush is raised to him, refuses, and he is gone.
 ##
@@ -26,9 +26,9 @@ func _run() -> void:
 	_check(not bool(level.call("_brush_refuses_here")), "below the top the page is an ordinary page",
 		"refusing %s" % level.call("_brush_refuses_here"))
 	await _a_fragment_goes_white_once_seen()
-	await _a_drawing_that_belongs_saves_it_for_one_unit()
+	await _a_sketch_saves_it_for_one_unit()
 	await _with_the_gauge_empty_the_reserve_does_not_pay()
-	await _a_drawing_that_does_not_belong_is_handed_back()
+	await _cancelling_a_sketch_spends_nothing()
 	await _passed_by_it_is_lost_in_seconds()
 	await _a_fall_gives_back_the_fragments_as_they_were()
 	await _the_flower_is_saved_only_from_its_ledge()
@@ -56,7 +56,7 @@ func _a_fragment_goes_white_once_seen() -> void:
 		"kubo %.3f -> %.3f, terraces still %.3f" % [before, kubo.drain(), far.drain()])
 
 
-func _a_drawing_that_belongs_saves_it_for_one_unit() -> void:
+func _a_sketch_saves_it_for_one_unit() -> void:
 	var kubo := _fragment("kubo")
 	await _near("kubo")
 	var far := _fragment("terraces")
@@ -64,11 +64,11 @@ func _a_drawing_that_belongs_saves_it_for_one_unit() -> void:
 		"the fragment a drawing would go into is lit, and only it",
 		"kubo lit %s, terraces lit %s" % [kubo.is_targeted(), far.is_targeted()])
 	_set_ink(1.0, 2.0)
-	_draw("door")
+	_sketch_memory()
 	await create_timer(1.6).timeout
 	_check(kubo.state() == "saved" and is_zero_approx(ink.remaining()) and is_equal_approx(ink.hidden_reserve, 2.0)
 		and kubo.drain() < 0.02 and not kubo.strokes().is_empty(),
-		"a drawing that belongs saves it for one unit, never the reserve, and her lines go into it",
+		"a freehand sketch saves it for one unit, never the reserve, and her lines go into it",
 		"kubo %s, gauge %.1f, reserve %.1f, drain %.2f, lines %d" % [kubo.state(), ink.remaining(),
 			ink.hidden_reserve, kubo.drain(), kubo.strokes().size()])
 
@@ -78,28 +78,29 @@ func _with_the_gauge_empty_the_reserve_does_not_pay() -> void:
 	_fragment("terraces").restore_to("whole")
 	await _near("terraces")
 	_set_ink(0.0, 2.0)
-	_draw("stairs")
+	_sketch_memory()
 	await _frames(4)
 	_check(terraces.is_open() and is_equal_approx(ink.hidden_reserve, 2.0),
 		"with the gauge empty a fragment cannot be saved, and the reserve does not pay",
 		"terraces %s, reserve %.1f" % [terraces.state(), ink.hidden_reserve])
 
 
-func _a_drawing_that_does_not_belong_is_handed_back() -> void:
+func _cancelling_a_sketch_spends_nothing() -> void:
 	var terraces := _fragment("terraces")
 	_set_ink(2.0, 2.0)
-	_draw("sword")
+	level.call("_open_the_page", true)
+	level.get("memory_sketch").handle_cancel()
 	await _frames(4)
-	var after_wrong := ink.remaining()
-	var open_after_wrong := terraces.is_open()
-	_draw("tree")
+	var after_cancel := ink.remaining()
+	var open_after_cancel := terraces.is_open()
+	_sketch_memory()
 	await _frames(6)
 	var lolo := level.get("lolo") as Lolo
-	_check(open_after_wrong and is_equal_approx(after_wrong, 2.0) and terraces.state() == "saved"
+	_check(open_after_cancel and is_equal_approx(after_cancel, 2.0) and terraces.state() == "saved"
 		and is_equal_approx(ink.remaining(), 1.0) and is_zero_approx(lolo.thinness()),
-		"a drawing that does not belong is handed back free; one that does saves it, and lolo steadies",
-		"after the wrong one: gauge %.1f, open %s; after the right one: %s, gauge %.1f, lolo thinness %.2f" % [
-			after_wrong, open_after_wrong, terraces.state(), ink.remaining(), lolo.thinness()])
+		"closing a sketch spends nothing, and preserving it steadies Lolo",
+		"after cancelling: gauge %.1f, open %s; after preserving: %s, gauge %.1f, lolo thinness %.2f" % [
+			after_cancel, open_after_cancel, terraces.state(), ink.remaining(), lolo.thinness()])
 
 
 func _passed_by_it_is_lost_in_seconds() -> void:
@@ -121,7 +122,7 @@ func _the_flower_is_saved_only_from_its_ledge() -> void:
 	await _near("flower")
 	var from_the_ledge: bool = level.call("_fragment_here") == flower
 	_set_ink(2.0, 2.0)
-	_draw("butterfly")
+	_sketch_memory()
 	await _frames(6)
 	var found: bool = profile.call("is_collectible_found", "L5_HF")
 	var artist_after: int = profile.call("route_count", "artist")
@@ -137,7 +138,7 @@ func _a_fall_gives_back_the_fragments_as_they_were() -> void:
 	await _near("coral")
 	_set_ink(2.0, 2.0)
 	level.call("_write_checkpoint", "CP1")
-	_draw("crab")
+	_sketch_memory()
 	await _frames(4)
 	var saved_then := coral.state()
 	level.call("_restore_checkpoint")
@@ -226,6 +227,13 @@ func _fragment(id: String) -> MemoryFragment2D:
 func _set_ink(gauge: float, reserve: float) -> void:
 	ink.committed = ink.capacity - gauge
 	ink.hidden_reserve = reserve
+
+
+func _sketch_memory() -> void:
+	level.call("_open_the_page", true)
+	level.call("_preserve_memory",
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(40, 60), Vector2(80, 0)]),
+			"width": 6.0, "color": Color.BLACK}])
 
 
 func _draw(entity: String) -> void:

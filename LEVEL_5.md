@@ -81,15 +81,14 @@ Six visible units, no refills, one unit per accepted drawing, and continuous cre
 remain unchanged. The two-unit hidden reserve still funds only eligible placements at the
 ascent's Span and Climb gates. Every preservation choice uses visible ink alone.
 
-The twelve original preservation IDs, accepted classes and `holds_lolo` memberships stay
-stable. Targets now stand in the places themselves. The terraces and Bale belong to Payyo;
+The twelve original preservation IDs and `holds_lolo` memberships stay stable. Targets now stand in the places themselves. The terraces and Bale belong to Payyo;
 the dancers, church and bunting to Piyesta; the storm and bangka to the shore, coral and
 bakunawa to the sea; the forest, waterfall and optional flower to Dilim. The church's votive
 rack is its local target. The complete authored troupe frames stay registered as one animation.
 
-A nearby target receives the highlight. Opening the page locks that target; its reference is
-outside the recognizer capture. Saving restores its colour and retains the player's original
-polylines. Whitening starts when its place is entered, pauses during modals, and takes 90s to
+A nearby target receives the highlight. Draw opens a separate sketchbook and locks that target.
+Any nonempty freehand sketch can preserve it for one visible ink. Saving restores its colour
+and retains the player's original polylines. Whitening starts when its place is entered, pauses during modals, and takes 90s to
 paper. Leaving through the forward shadow takes unsaved landmarks to blank over four seconds.
 Backtracking can revisit scenery, but never reopens a lost choice. The farewell closes any
 remaining choices before Lolo goes; late or migrated rewards cannot bring his voice back.
@@ -102,6 +101,29 @@ reveals the white summit. The brush refusals, free painting, saved places bloomi
 ink, route-dependent voice, both flower endings, last diary page and return home are retained.
 
 Mayon remains silent. No enemy, health, boss or required replay of an earlier quest is added.
+
+## Player instructions and completion (5 November 2026)
+
+Lolo explains the finite ink at the foot of Mayon and tells the apo to draw something that
+reminds them of a glowing place when they enter the memories. The objective gives the Draw
+key when a landmark is in reach. The sketchbook shows its reference beside the paper.
+**Preserve · 1 ink** commits the sketch. Closing the book costs nothing. When the brush is
+empty, the objective tells the player they can continue to the ending. HudNotice confirms
+when a memory is preserved or lost.
+
+The Lolo, Lola and final free-paint pages show the task, a visible drawing surface and Paint.
+These pages wait for Paint and use the existing quiet brush and free-paint sequences.
+
+The summit retains its objective and the Draw button when drawing is available. It tells
+the player to approach Lola, attempt her drawing, then draw any remembered place for free.
+After the last diary page, the objective confirms **Mayon complete. Progress saved. Returning
+home.** The house confirms **Journey complete. Progress saved.** and offers exploration or
+revisiting paintings. The existing home and Lola scenes still play as authored.
+
+`run_level5_guidance_probe` checks these states, remapped input, a freehand house sketch,
+Preserve and Paint clicks, empty ink, loss feedback and completion acknowledgement. With `-- --visual` it also saves
+screenshots, including a taller final-page layout. The continuous finish runner clicks
+Paint on each guided ending page.
 
 The summit camera holds its eye 80 units above the configured floor in a 1,200-unit-tall
 frame, keeping both figures and the restored places above the dialogue box. This adapts the

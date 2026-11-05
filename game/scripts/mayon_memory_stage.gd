@@ -2,10 +2,19 @@ extends Node2D
 ## Scenery only. Each stop has an authored composition and a small ambient phrase.
 ## No bodies, pickups, dialogue, sounds or extra actors enter either scenery viewport.
 
+const CROSSING_WATER_SHADER := preload("res://shaders/mayon_crossing_water.gdshader")
+const CROSSING_WATER_FRAMES: Array[String] = [
+	"Level5/journey/crossing_falls_01.png",
+	"Level5/journey/crossing_falls_02.png",
+	"Level5/journey/crossing_falls_04.png",
+]
+const CROSSING_WATER_FPS := 6.0
+
 var kind := ""
 var props: Array = []
 var route: Array[Rect2] = []
 var world_origin := Vector2.ZERO
+var river_bounds := Rect2()
 var visitor := Vector2.INF
 var clock := 0.0
 var _time := 0.0
@@ -17,10 +26,24 @@ var span := 1280.0
 ## The sea's moving surf, drawn BEHIND every prop on the shore and the island. It was drawn last, at
 ## half alpha over the palms and their rocks, and laid see-through wave bands and boxes across them.
 var _water: Node2D
+var _crossing_waterfall: Sprite2D
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if kind == "crossing":
+		_crossing_waterfall = Sprite2D.new()
+		_crossing_waterfall.name = "CrossingWaterfall"
+		_crossing_waterfall.texture = _art(CROSSING_WATER_FRAMES[0])
+		_crossing_waterfall.position = river_bounds.get_center()
+		var frame_size := _crossing_waterfall.texture.get_size()
+		_crossing_waterfall.scale = river_bounds.size / frame_size
+		var material := ShaderMaterial.new()
+		material.shader = CROSSING_WATER_SHADER
+		var art_height := river_bounds.size.x * frame_size.y / frame_size.x
+		material.set_shader_parameter("art_fraction", art_height / river_bounds.size.y)
+		_crossing_waterfall.material = material
+		add_child(_crossing_waterfall)
 	_air = Node2D.new()
 	_air.name = "WaterLightAndWildlife"
 	_air.z_index = 2
@@ -36,12 +59,16 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if not is_visible_in_tree(): return
-	if not Motion.reduced():
+	var reduced := Motion.reduced()
+	if not reduced:
 		clock += delta
 		if kind in ["terraces", "crossing", "bale"] and visitor.is_finite():
 			var distance_to_birds := visitor.distance_to(Vector2(980,_floor(980)-16))
 			if distance_to_birds < 250: _scatter = minf(1.0,_scatter+delta*.65)
-	_time = 0.0 if Motion.reduced() else floorf(clock*15.0)/15.0
+	_time = 0.0 if reduced else floorf(clock*15.0)/15.0
+	if _crossing_waterfall != null:
+		var frame := 0 if reduced else int(clock * CROSSING_WATER_FPS) % CROSSING_WATER_FRAMES.size()
+		_crossing_waterfall.texture = _art(CROSSING_WATER_FRAMES[frame])
 	queue_redraw()
 	_air.queue_redraw()
 	_water.queue_redraw()
@@ -92,20 +119,8 @@ func _draw() -> void:
 		var y := _floor(x)+float(spec.get("lift",0)) if bool(spec.get("floor",false)) else float(spec.get("y",0))
 		_prop(self,String(spec.art),x,y,float(spec.width),tint,bool(spec.get("mirror",false)),float(spec.get("rotation",0)))
 	match kind:
-		"crossing": _river()
 		"bale": _yard()
 		"sea": _reef()
-
-
-func _river() -> void:
-	# The stream continues through the gorge below the real, continuous bridge deck.
-	draw_colored_polygon(PackedVector2Array([Vector2(575,8),Vector2(703,8),Vector2(690,160),
-		Vector2(760,400),Vector2(650,760),Vector2(685,1400),Vector2(530,1400),
-		Vector2(500,760),Vector2(600,400),Vector2(540,160)]),Color(.2,.43,.38,.75))
-	for index in range(9):
-		var y := 24+fposmod(_time*60+index*39,280)
-		var x := 580+sin(y*.014)*20
-		draw_line(Vector2(x,y),Vector2(x+40+index%3*13,y),Color(.57,.76,.65,.25),2)
 
 
 func _yard() -> void:
@@ -165,12 +180,6 @@ func _draw_air() -> void:
 				_prop(_air,"Level3/authored/gull_%d.png"%(int(_time/.2+index)%4),x,y,39,Color(.92,.96,1,.8))
 		"sea": _bubbles()
 		"forest", "waterfall", "dawn": _forest_air()
-	if kind == "crossing":
-		# Water is behind the bridge and clipped to its opening, never a new floor.
-		for index in range(23):
-			var x := 470+fposmod(index*67.0,336)
-			var y := 28+fposmod(_time*110+index*43,240)
-			_air.draw_rect(Rect2(x,y,2,9+index%7),Color(.5,.73,.67,.3))
 	if kind == "waterfall": _falling_water()
 
 

@@ -45,16 +45,15 @@ func _run() -> void:
 	level.call("_open_the_page", true)
 	var before := kubo.drain()
 	await _wait(.25)
-	var ref := panel.panel_root.get_node_or_null("MemoryReference")
-	_check(is_equal_approx(before, kubo.drain()) and ref != null and not panel.canvas_viewport.is_ancestor_of(ref),
-		"drawing pauses whitening and its reference stays outside captured ink")
+	var sketch: Node = level.get("memory_sketch")
+	_check(is_equal_approx(before, kubo.drain()) and sketch.is_open() and not panel.is_open(),
+		"the separate memory sketchbook pauses whitening")
 	_put((level.call("_fragment", "terraces") as Node2D).global_position + Vector2(0, 60))
-	panel.close_panel()
 	var strokes := [{"points": PackedVector2Array([Vector2(12, 19), Vector2(51, 89), Vector2(92, 21)]), "width": 6.0, "color": Color.BLACK}]
 	var image := Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	level.call("_on_drawing_ready", "door", "Door", image, {}, strokes, 1.0)
+	level.call("_preserve_memory", strokes)
 	_check(kubo.state() == "saved" and (level.call("_fragment", "terraces") as MemoryFragment2D).state() != "saved",
-		"a prediction saves the memory selected when the page opened")
+		"a sketch saves the memory selected when the page opened")
 	var lolo: Lolo = level.get("lolo")
 	lolo.set_thinness(.63)
 	var snapshot: Dictionary = level.call("_level_run_state")

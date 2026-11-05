@@ -187,6 +187,7 @@ func _play_the_epilogue() -> void:
 	await _epilogue.play()
 	_revealing = false
 	_player.set_physics_process(true)
+	_write_status()
 
 
 ## Where the camera looks while the house shows her something, and back to her.
@@ -587,6 +588,10 @@ func _on_brush_taken() -> void:
 ## The line under the title. It is the room's only standing instruction, so it says the
 ## thing the player cannot do anything without: on a first visit, where the brush is.
 func _write_status() -> void:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile != null and bool(profile.call("is_level_completed", "level_5")):
+		_status.text = "Journey complete. Progress saved. You can explore or revisit a painting."
+		return
 	_status.text = "Walk to a painting and press E" if _has_brush() \
 		else "Lola's brush is at the end of the hall. Take it first."
 
