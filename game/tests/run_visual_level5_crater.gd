@@ -85,18 +85,24 @@ func _check_composite() -> void:
 	var rendered := root.get_texture().get_image()
 	var outgoing: Image = journey.get_node("SceneryPass0").get_texture().get_image()
 	var incoming: Image = journey.get_node("SceneryPass1").get_texture().get_image()
-	var edge := int(journey.divider*rendered.get_width())
-	var clear_offset := int(journey.column_pixels*.5+journey.column_softness_pixels+20)
-	var left := Vector2i(edge-clear_offset,450)
-	var right := Vector2i(edge+clear_offset,450)
-	var old_matches := _distance(rendered.get_pixelv(left),outgoing.get_pixelv(left)) < .04
-	var new_matches := _distance(rendered.get_pixelv(right),incoming.get_pixelv(right)) < .04
-	var distinct := _distance(outgoing.get_pixelv(left),incoming.get_pixelv(left)) > .08
-	var covers := rendered.get_pixel(edge,450).get_luminance()<.04 \
-		and rendered.get_pixel(edge,650).get_luminance()<.04
-	var soft_x := edge+int(journey.column_pixels*.5+journey.column_softness_pixels*.5)
-	var soft := rendered.get_pixel(soft_x,450).get_luminance()
-	var clear := incoming.get_pixel(soft_x,450).get_luminance()
+	# ⚠ IN THE VIEW'S OWN UNITS. On a Retina display the window's texture is ~2.1x the 1600x900 view
+	# while the scenery passes are not, so a pixel index taken off one read a different place in
+	# the other, and this check failed on a correct mask.
+	var view := root.get_visible_rect().size
+	var on_screen := float(rendered.get_width())/view.x
+	var on_pass := float(outgoing.get_width())/view.x
+	var edge: float = journey.divider*view.x
+	var clear_offset: float = journey.column_pixels*.5+journey.column_softness_pixels+20
+	var left := Vector2(edge-clear_offset,450)
+	var right := Vector2(edge+clear_offset,450)
+	var old_matches := _distance(rendered.get_pixelv(Vector2i(left*on_screen)),outgoing.get_pixelv(Vector2i(left*on_pass))) < .04
+	var new_matches := _distance(rendered.get_pixelv(Vector2i(right*on_screen)),incoming.get_pixelv(Vector2i(right*on_pass))) < .04
+	var distinct := _distance(outgoing.get_pixelv(Vector2i(left*on_pass)),incoming.get_pixelv(Vector2i(left*on_pass))) > .08
+	var covers := rendered.get_pixelv(Vector2i(Vector2(edge,450)*on_screen)).get_luminance()<.04 \
+		and rendered.get_pixelv(Vector2i(Vector2(edge,650)*on_screen)).get_luminance()<.04
+	var soft_x: float = edge+journey.column_pixels*.5+journey.column_softness_pixels*.5
+	var soft := rendered.get_pixelv(Vector2i(Vector2(soft_x,450)*on_screen)).get_luminance()
+	var clear := incoming.get_pixelv(Vector2i(Vector2(soft_x,450)*on_pass)).get_luminance()
 	var feathered := soft>.01 and soft<clear*.85
 	var ok := old_matches and new_matches and distinct and covers and feathered
 	failures += int(not ok)
