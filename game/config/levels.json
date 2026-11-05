@@ -2,7 +2,7 @@
   {
     "id": "level_1",
     "number": 1,
-    "title": "Payyo",
+    "title": "Terraces",
     "theme": "Ifugao rice terraces of the Cordillera Central",
     "scene_path": "res://game_level.tscn",
     "thumbnail": "res://assets/Level1/terraces_2.png",
