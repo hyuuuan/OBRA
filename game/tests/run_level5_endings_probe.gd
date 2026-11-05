@@ -156,7 +156,9 @@ func _every_place_blooms_inside_the_frame() -> void:
 	var box := get_first_node_in_group(DialogueBox.GROUP) as DialogueBox
 	var box_top := view.position.y + box.frame_rect().position.y / camera.zoom.y
 	level.set("_summit", "places")
-	level.call("_free_paint_completed", [{"points": PackedVector2Array([Vector2(3, 8), Vector2(19, 51)]), "width": 8.0, "color": Color.BLACK}])
+	# Left untouched, the places page plays on with no lines, and the places still bloom (Kent,
+	# 2026-11-05: the summit "takes soo long i dont know what to do").
+	level.call("_free_paint_completed", [])
 	var everything := (level.get("_fragments") as Array).size()
 	var end := Time.get_ticks_msec() + 15000
 	while int(level.call("bloomed")) < everything and Time.get_ticks_msec() < end:

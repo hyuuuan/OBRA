@@ -19,7 +19,7 @@ class StubClient extends Node:
 
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 5
+const CHECKS := 6
 
 var failures := 0
 var checked := 0
@@ -104,6 +104,22 @@ func _a_refusing_page_takes_nothing_and_fades() -> void:
 		"cancelling leaves the attempt pending and the page comes back clean",
 		"cancel taken %s, heard %s, sent %d, page alpha %.2f, classes drawn %d -> %d" % [took, heard,
 			stub.sent, panel.canvas.modulate.a, drawn_before, drawn_after])
+	# Kent, 2026-11-05: "this screen ... takes soo long i dont know what to do". Left untouched, the
+	# page waits a moment for her lines, then plays on without them -- the refusal, or the places.
+	var free: Array = []
+	panel.free_paint_completed.connect(func(strokes: Array) -> void: free.append(strokes.size()))
+	level.call("_on_draw_button_pressed")
+	await create_timer(DrawPanel.QUIET_UNTOUCHED * 0.5).timeout
+	var waited := panel.is_open()
+	await create_timer(DrawPanel.QUIET_UNTOUCHED * 0.5 + DrawPanel.REFUSAL_FADE + 0.4).timeout
+	var refused_untouched := not panel.is_open() and heard == [2, 0] and stub.sent == 0
+	panel.set_drawing_mode(DrawPanel.DrawingMode.FREE_PAINT)
+	panel.open_panel()
+	await create_timer(DrawPanel.QUIET_UNTOUCHED + 1.0).timeout
+	_check(waited and refused_untouched and not panel.is_open() and free == [0],
+		"an untouched page waits a moment, then plays on without her lines",
+		"open at half the wait %s; refused untouched %s (heard %s); free page closed %s, completed %s" % [
+			waited, refused_untouched, heard, not panel.is_open(), free])
 	level.queue_free()
 	await _frames(3)
 

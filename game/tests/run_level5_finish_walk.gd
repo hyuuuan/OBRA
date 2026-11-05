@@ -203,8 +203,11 @@ func _save_memory(id: String, answer: String) -> void:
 	await _clear_ui()
 
 func _paint_page() -> bool:
-	await _clear_ui()
 	var panel: DrawPanel = level.get("draw_panel")
+	# A line still up is read first; a page already open is drawn on at once. Waiting that pause
+	# out as well left the page untouched, and an untouched page plays on without her lines.
+	if not panel.is_open():
+		await _clear_ui()
 	if not panel.is_open(): _key(KEY_R)
 	await process_frame
 	if not panel.is_open() or not panel.is_refusing(): return false
