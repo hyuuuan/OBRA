@@ -95,9 +95,10 @@ func _check_composite() -> void:
 	var clear_offset: float = journey.column_pixels*.5+journey.column_softness_pixels+20
 	var left := Vector2(edge-clear_offset,450)
 	var right := Vector2(edge+clear_offset,450)
-	var old_matches := _distance(rendered.get_pixelv(Vector2i(left*on_screen)),outgoing.get_pixelv(Vector2i(left*on_pass))) < .04
-	var new_matches := _distance(rendered.get_pixelv(Vector2i(right*on_screen)),incoming.get_pixelv(Vector2i(right*on_pass))) < .04
-	var distinct := _distance(outgoing.get_pixelv(Vector2i(left*on_pass)),incoming.get_pixelv(Vector2i(left*on_pass))) > .08
+	# A patch's mean, not one pixel: in detailed art a single pixel one step off reads as a mismatch.
+	var old_matches := _distance(_patch(rendered,left,on_screen),_patch(outgoing,left,on_pass)) < .04
+	var new_matches := _distance(_patch(rendered,right,on_screen),_patch(incoming,right,on_pass)) < .04
+	var distinct := _distance(_patch(outgoing,left,on_pass),_patch(incoming,left,on_pass)) > .08
 	var covers := rendered.get_pixelv(Vector2i(Vector2(edge,450)*on_screen)).get_luminance()<.04 \
 		and rendered.get_pixelv(Vector2i(Vector2(edge,650)*on_screen)).get_luminance()<.04
 	var soft_x: float = edge+journey.column_pixels*.5+journey.column_softness_pixels*.5
@@ -133,6 +134,18 @@ func _check_painted(what: String, area: Rect2) -> void:
 	print("  %s %s is painted, not a flat fill: its commonest colour covers %d%%" % [
 		"OK" if ok else "FAIL", what, int(share*100.0)])
 
+## The mean colour of a 13x13 view-unit patch centred on `at`, read off an image `scale` times the view.
+func _patch(image: Image, at: Vector2, scale: float) -> Color:
+	var sum := Color(0,0,0,0)
+	var n := 0
+	for dy in range(-6,7,2):
+		for dx in range(-6,7,2):
+			var p := Vector2i((at+Vector2(dx,dy))*scale)
+			if p.x < 0 or p.y < 0 or p.x >= image.get_width() or p.y >= image.get_height(): continue
+			sum += image.get_pixelv(p)
+			n += 1
+	return sum/maxf(1.0,float(n))
+
 func _distance(a: Color,b: Color) -> float:
 	return Vector3(a.r,a.g,a.b).distance_to(Vector3(b.r,b.g,b.b))
 
@@ -160,19 +173,35 @@ func _check_life(id: String) -> void:
 	print("  %s visible memory life in %s: %d changed samples"%["OK" if ok else "FAIL",id,changed])
 
 func _check_lava() -> void:
+	# ⚠ WHERE THE LAVA IS, NOT A FIXED PIXEL BOX. The box was 1010..1210 x 830..890 in window pixels,
+	# which is the lava only on a 1600x900 window at scale 1: on a Retina display the window texture
+	# is ~2.1x the view, and a taller window fits the camera closer, so it sampled crater rock.
+	var lava := level.find_child("MoltenSurface", true, false) as Polygon2D
+	var molten := Rect2()
+	for point in lava.polygon:
+		var on_view: Vector2 = level.get_viewport().get_canvas_transform() * (lava.global_transform * point)
+		molten = Rect2(on_view, Vector2.ZERO) if molten.size == Vector2.ZERO and molten.position == Vector2.ZERO \
+			else molten.expand(on_view)
+	# Inside its rim, away from the rock that overlaps its edges.
+	molten = molten.grow_individual(-molten.size.x * .2, -2.0, -molten.size.x * .2, -molten.size.y * .35)
+	# Only what is on screen: the pool runs on below the frame's bottom edge.
+	molten = molten.intersection(Rect2(Vector2.ZERO, root.get_visible_rect().size - Vector2.ONE))
 	await RenderingServer.frame_post_draw
 	var first := root.get_texture().get_image()
 	await create_timer(.7).timeout
 	await RenderingServer.frame_post_draw
 	var second := root.get_texture().get_image()
+	var k := float(first.get_width()) / root.get_visible_rect().size.x
 	var colours: Dictionary = {}
 	var changed := 0
-	for x in range(1010,1210,4):
-		for y in range(830,890,4):
+	var samples := 0
+	for x in range(int(molten.position.x*k), int(molten.end.x*k), maxi(1, int(4*k))):
+		for y in range(int(molten.position.y*k), int(molten.end.y*k), maxi(1, int(2*k))):
 			var colour := first.get_pixel(x,y)
 			colours[colour.to_html(false)]=true
 			changed+=int(_distance(colour,second.get_pixel(x,y))>.03)
-	var ok := colours.size()>12 and changed>60
+			samples+=1
+	var ok := colours.size()>12 and changed>samples*.15
 	failures+=int(not ok)
-	print("  %s rendered lava has moving molten cells: %d colours, %d changed samples" %
-		["OK" if ok else "FAIL",colours.size(),changed])
+	print("  %s rendered lava has moving molten cells: %d colours, %d of %d samples changed" %
+		["OK" if ok else "FAIL",colours.size(),changed,samples])
