@@ -47,6 +47,7 @@ func _ready() -> void:
 		_stage.name = "RememberedLife"
 		_stage.set("kind",kind)
 		_stage.set("props",staging.get("props",[]))
+		_stage.set("span",span)
 		add_child(_stage)
 	_ground = Node2D.new()
 	_ground.name = "WalkSurface"
@@ -111,12 +112,8 @@ func _draw() -> void:
 				draw_set_transform(Vector2(rect.end.x,rect.position.y),0.0,Vector2(-1,1))
 				draw_texture_rect(texture,Rect2(Vector2.ZERO,rect.size),false,tint)
 				draw_set_transform(Vector2.ZERO)
-	if kind == "island":
-		var palms := _art("Level5/journey/palms_landmark.png")
-		var width := 310.0
-		var height := width * palms.get_height() / palms.get_width()
-		draw_texture_rect(palms, Rect2(span*.5-180, -height, width, height), false)
-	elif kind == "crossing":
+	# The island's palms are the stage's now: the surf passes behind them (RememberedLife).
+	if kind == "crossing":
 		draw_rect(Rect2(span*.5-210,0,420,1400),Color("182c25"))
 
 
