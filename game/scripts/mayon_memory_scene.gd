@@ -14,6 +14,10 @@ var _ground: Node2D
 var _stage: Node2D
 var staging: Dictionary = {}
 const StageScript = preload("res://scripts/mayon_memory_stage.gd")
+const TERRACE_GROUND := preload("res://shaders/mayon_terrace_ground.gdshader")
+const TERRACE_LIP := 8.0
+const TERRACE_ROUND := 34.0
+const TERRACE_JOIN_SCALE := 2048.0
 
 const BACKDROPS := {
  "terraces": ["Level5/journey/payyo_sky.png"], "crossing": ["Level5/journey/payyo_sky.png"],
@@ -51,8 +55,21 @@ func _ready() -> void:
 	_ground = Node2D.new()
 	_ground.name = "WalkSurface"
 	_ground.z_index = 1
+	if kind in ["terraces", "crossing", "bale"]:
+		var material := ShaderMaterial.new()
+		material.shader = TERRACE_GROUND
+		_ground.material = material
 	_ground.draw.connect(_draw_walk_surface)
 	add_child(_ground)
+	if kind == "crossing":
+		# The bridge sits in front of the banks and uses its own artwork.
+		var bridge := Sprite2D.new()
+		bridge.name = "BridgeDeck"
+		bridge.texture = _art("Level5/props/old_crossing.png")
+		bridge.scale = Vector2.ONE * 460.0 / bridge.texture.get_width()
+		bridge.position = Vector2(span * 0.5, 20.0 - bridge.texture.get_height() * bridge.scale.y * 0.5)
+		bridge.z_index = _ground.z_index
+		add_child(bridge)
 
 
 func frame(camera: Vector2, extent: Vector2, player_position := Vector2.INF) -> void:
@@ -128,12 +145,7 @@ func _draw_walk_surface() -> void:
 		var rock := _art("Level5/terrain/basalt.png")
 		for ledge in ledges:
 			_ground.draw_texture_rect(rock,Rect2(ledge.position-global_position,ledge.size),false)
-	if kind == "crossing":
-		var bridge := _art("Level5/props/old_crossing.png")
-		var width := 460.0
-		var height := width * bridge.get_height() / bridge.get_width()
-		_ground.draw_texture_rect(bridge, Rect2(span*.5-width*.5, -height+20, width, height), false)
-	elif kind in ["shore", "sea"]:
+	if kind in ["shore", "sea"]:
 		var water := Color(.16,.52,.68,.38) if kind == "shore" else Color(.12,.47,.63,.3)
 		for rect in route:
 			var local := Rect2(rect.position-global_position,rect.size)
@@ -181,6 +193,9 @@ func _draw_ground(bounds: Rect2) -> void:
 	for rect in ground_rects:
 		var local := Rect2(rect.position - global_position, rect.size)
 		if local.end.x < bounds.position.x or local.position.x > bounds.end.x: continue
+		if kind in ["terraces", "crossing", "bale"]:
+			_draw_terrace_bank(rect, local, ground_rects, texture)
+			continue
 		_ground.draw_rect(local, ground)
 		# Keep the delivered material's scale; the plaza strip is only 96px tall.
 		var height := float(texture.get_height())
@@ -201,3 +216,39 @@ func _draw_ground(bounds: Rect2) -> void:
 			_ground.draw_texture_rect_region(texture, Rect2(left, local.position.y - 4, right-left, height),
 				Rect2((left-x_index*tile_width) / tile_width * texture.get_width(), 0,
 					(right-left) / tile_width * texture.get_width(), texture.get_height()))
+
+
+func _draw_terrace_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], texture: Texture2D) -> void:
+	var top := local.position.y - TERRACE_LIP
+	var outline := PackedVector2Array()
+	var meets_higher := [false, false]
+	for side in [-1, 1]:
+		var edge := world.position.x if side == -1 else world.end.x
+		var radius := minf(TERRACE_ROUND, local.size.x * 0.5)
+		for other in neighbours:
+			var contact := other.end.x if side == -1 else other.position.x
+			if is_equal_approx(edge, contact):
+				var drop := other.position.y - world.position.y
+				radius = minf(radius, maxf(0.0, drop))
+				if drop < 0.0:
+					meets_higher[int(side == 1)] = true
+		var x := edge - global_position.x
+		if is_zero_approx(radius):
+			outline.append(Vector2(x, top))
+			continue
+		var centre := Vector2(x - side * radius, top + radius)
+		var start := PI if side == -1 else 1.5 * PI
+		for step in range(9):
+			outline.append(centre + Vector2.from_angle(start + step * PI / 16.0) * radius)
+	outline.append(Vector2(local.end.x, local.end.y))
+	outline.append(Vector2(local.position.x, local.end.y))
+
+	var uv := PackedVector2Array()
+	var joins := PackedColorArray()
+	for point in outline:
+		uv.append(Vector2(point.x + global_position.x, point.y - top) / texture.get_size())
+		# The shader reads distance to each uphill join from the vertex colours.
+		var left := (point.x - local.position.x) / TERRACE_JOIN_SCALE if meets_higher[0] else 1.0
+		var right := (local.end.x - point.x) / TERRACE_JOIN_SCALE if meets_higher[1] else 1.0
+		joins.append(Color(left, right, 0.0))
+	_ground.draw_polygon(outline, joins, uv, texture)

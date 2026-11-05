@@ -164,6 +164,7 @@
       "vignette": "payyo_terraces",
       "landmark_art": "res://assets/Level5/journey/terraces_landmark.png",
       "landmark_width": 980,
+      "landmark_feather": 16,
       "landmark_position": [
         640,
         8
@@ -425,18 +426,6 @@
         ],
         "staging": {
           "props": [
-            {
-              "art": "Level5/journey/payyo_bank.png",
-              "x": 900,
-              "width": 1400,
-              "y": 115,
-              "tint": [
-                0.75,
-                0.86,
-                0.66,
-                1
-              ]
-            },
             {
               "art": "Level5/journey/payyo_fence.png",
               "x": 120,

@@ -75,6 +75,11 @@ func configure_memory(entry: Dictionary) -> void:
 		var offset: Array = entry.get("landmark_offset", [0,0])
 		_sprite.position = Vector2(float(offset[0]),float(offset[1])-_sprite.texture.get_height()*_sprite.scale.y*.5)
 		_sprite.self_modulate = Color(float(landmark_tint[0]),float(landmark_tint[1]),float(landmark_tint[2]),float(landmark_tint[3]))
+		var feather := float(entry.get("landmark_feather", 0.0))
+		if feather > 0.0:
+			var material := _sprite.material as ShaderMaterial
+			material.set_shader_parameter(&"edge_feather_uv",
+				Vector2.ONE * feather / (_sprite.texture.get_size() * _sprite.scale))
 	summit_texture = load(String(entry.get("summit_art", FOLDER + fragment_id + ".png"))) as Texture2D
 	bloom_width = float(entry.get("bloom_width", 800.0))
 	bloom_elevation = float(entry.get("bloom_elevation", 0.0))
