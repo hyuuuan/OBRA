@@ -362,7 +362,8 @@ func _open_the_page(tell_the_director: bool) -> void:
 		return
 	_locked_fragment = fragment
 	var reference := fragment.get_node("Picture") as Sprite2D
-	memory_sketch.present(_memory_name(fragment.fragment_id), reference.texture)
+	memory_sketch.present(_memory_name(fragment.fragment_id), reference.texture,
+		int(floor(ink_manager.remaining() / InkManager.UNIT)))
 
 
 func _prepare_drawing_page() -> void:

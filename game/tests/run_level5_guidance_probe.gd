@@ -56,6 +56,17 @@ func _run() -> void:
 	_check(root.get_visible_rect().encloses(paper.get_global_rect())
 		and reference.is_visible_in_tree() and not paper.get_global_rect().intersects(reference.get_global_rect()),
 		"the drawing area and landmark reference fit side by side")
+	# Kent, 2026-11-05: "how are they supposed to know what to draw in that moment". The memory is
+	# on the paper, faint, under her strokes; the page says to trace it, that a few lines do, what
+	# it costs, where it goes, and how much ink is left.
+	var trace := sketch.find_child("TraceGuide", true, false) as TextureRect
+	var words: String = sketch.call("instructions")
+	var guided := trace != null and trace.is_visible_in_tree() and trace.texture != null \
+		and trace.texture == (reference as TextureRect).texture and trace.modulate.a < 0.4 \
+		and trace.get_index() < paper.get_index() and paper.get_parent() == trace.get_parent()
+	_check(guided and words.contains("Trace") and words.contains("1 ink") and words.contains("summit")
+			and words.contains("Ink left: %d" % int(ink.remaining())),
+		"the sketch page shows the memory faintly to trace and says what to do, its cost and the ink left")
 	var before := ink.remaining()
 	await _stroke(paper, [Vector2(-90, 20), Vector2(0, -90), Vector2(90, 20)])
 	await _key(KEY_ESCAPE)
@@ -158,8 +169,8 @@ func _run() -> void:
 	await _photo("08_home_complete")
 	hub.queue_free()
 	await process_frame
-	print("OBRA_LEVEL5_GUIDANCE_%s (%d checks)" % ["OK" if failures == 0 and checked == 20 else "FAILED", checked])
-	quit(0 if failures == 0 and checked == 20 else 1)
+	print("OBRA_LEVEL5_GUIDANCE_%s (%d checks)" % ["OK" if failures == 0 and checked == 21 else "FAILED", checked])
+	quit(0 if failures == 0 and checked == 21 else 1)
 
 
 func _objective() -> String:

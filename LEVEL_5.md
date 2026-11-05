@@ -145,6 +145,11 @@ proper animation to the painting".
   with the largest at the edges and the smallest behind the pair. The storm and the fiesta flags
   (`bloom_layer: "sky"`) hang across the top behind them. The endings probe fails if a place runs
   off the frame or is more than half hidden.
+- **The sketch page says what to draw** (6 November). Kent: "how are they supposed to know what
+  to draw in that moment". The memory's picture lies faintly on the paper to trace
+  (`TraceGuide`, under her strokes and never part of them). Beside it are three steps (trace or
+  sketch the picture; a few lines are enough; Preserve, 1 ink), where the sketch goes (the
+  summit), and the ink left. `run_level5_guidance_probe` checks all of it.
 
 ## Implementation and checks
 
