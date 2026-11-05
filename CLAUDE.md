@@ -38,7 +38,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 ### Testing
 - **First, in a fresh checkout or after art changes:** `godot --headless --path game --import`. Without it, no `class_name` resolves.
 - **Run only the suites your change touches:** `tools/run_suites.sh only <suite> <suite> …`. Run the **full** suite (`tools/run_suites.sh`, 25–40 min) only when shipping, or when a change cuts across every level (an autoload, shared `LevelBase` plumbing).
-- **Run one Godot process at a time.** Test runs share one sandboxed `user://test_runs/` folder.
+- **Run one Godot process at a time per checkout.** Each test run keeps its data in its own `user://test_runs/<pid>/` folder, but runs in one checkout still share its `.godot` import cache.
 - **A green suite is not a silent one.** Grep the output for `SCRIPT ERROR`, `Parse Error`, `^ERROR` and `Error calling`.
 - **Mutation-test every new check.** Break the line the check guards, run the probe, confirm that the check fails, then restore the line. A check that cannot fail is not a check, so do this for every assertion you add.
 - **Probe conventions:**
