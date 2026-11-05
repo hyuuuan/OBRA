@@ -284,8 +284,9 @@ const STEADY_SECONDS := 60.0
 const THINNING := 0.25
 ## Where lolo goes with all three of his fragments saved; each one let go brings it nearer.
 const LOLO_GOES_SOONER := 40.0
-## How long she stands before raising the brush herself.
-const RAISE_AFTER := 8.0
+## How long she stands before raising the brush herself. Four, not eight (Kent, 2026-11-05: the
+## summit "takes soo long"): long enough to press R, short enough not to read as a hang.
+const RAISE_AFTER := 4.0
 
 var _fragments: Array[MemoryFragment2D] = []
 var _steady_left := 0.0
