@@ -267,6 +267,11 @@ func show_movement_keys(shown: bool) -> void:
 	_movement_wanted = shown
 	_set_wanted(_move, shown and not _placing)
 	_set_wanted(_jump, shown and not _placing)
+	# ⚠ LAID OUT NOW, NOT ON THE NEXT _process. Wanted, they are visible at once, and the level
+	# asks for them as it builds: until the first _process placed the row they stood at the
+	# origin, under the minimap and on each other, for every physics step a level's first frame
+	# catches up on (seven, in run_hud_watch_level1).
+	_place_bottom_actions()
 
 
 func movement_keys_shown() -> bool:

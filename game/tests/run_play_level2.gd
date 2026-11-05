@@ -33,7 +33,11 @@ const HudOverlap = preload("res://tests/hud_overlap.gd")
 
 var failures := 0
 var _asked: Dictionary = {}
-## Pages of her diary read on the way through, every plan together.
+## Pages of her diary read on the way through, every plan together: counted as the book opens,
+## not when the play loop next looks. ⚠ An unattended run puts the book down by itself after
+## DiaryOverlay.AUTO_HOLD, and a page found mid-climb (the second alley's, under the strings)
+## opened and closed again while `_climb_and_cut` was still running -- kept, read, and never
+## seen by a loop that only looked between actions.
 var _pages_read := 0
 ## Every HUD overlap seen while playing, first sighting only, with the beat it happened in.
 var _overlaps: Dictionary = {}
@@ -74,6 +78,7 @@ func _play(plan: Dictionary) -> void:
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	(level.get("diary_overlay") as DiaryOverlay).opened.connect(_on_page_opened)
 	for _frame in range(40):
 		await physics_frame
 	var done: Dictionary = {}
@@ -132,6 +137,11 @@ func _play(plan: Dictionary) -> void:
 		await process_frame
 
 
+## A named method, not a lambda: a lambda would count into its own copy of the total.
+func _on_page_opened() -> void:
+	_pages_read += 1
+
+
 ## The screens that stop the world, answered the way a player answers them. True when one was
 ## up this frame.
 func _handle_screens(plan: Dictionary) -> bool:
@@ -156,7 +166,6 @@ func _handle_screens(plan: Dictionary) -> bool:
 	var diary := level.get("diary_overlay") as DiaryOverlay
 	if diary != null and diary.is_open():
 		_release()
-		_pages_read += 1
 		await _frames(20)
 		diary.close()
 		await _frames(10)

@@ -24,13 +24,32 @@ const RosterFixtures = preload("res://tests/roster_fixtures.gd")
 const Bakunawa = preload("res://scripts/bakunawa_2d.gd")
 
 
+## ⚠ A STALL FAILS, IT DOES NOT HANG. Inside a full suite run this probe once sat for 85 minutes
+## with nothing printed past its banner -- every result is held for the summary -- until it was
+## killed, so nobody could say where it stopped. Each part now names itself as it starts, a wait
+## on a world that will not run gives up (`_seconds`), and if the whole run has not finished in
+## this long it prints what it has and fails, naming the part it was in. A passing run is about
+## three minutes on its own.
+const WATCHDOG_SECONDS := 900.0
+## Paused this many waits running inside `_seconds`, each after a full `_unpause`, the world is
+## not going to run again and the wait gives up.
+const STUCK_WAITS := 10
+
 var level: Node
 var results: Array[String] = []
 var failures := 0
+## The part of the run under way, for the watchdog to name.
+var _part := "opening"
 
 
 func _initialize() -> void:
+	create_timer(WATCHDOG_SECONDS, true, false, true).timeout.connect(_on_watchdog)
 	call_deferred("_run")
+
+
+func _on_watchdog() -> void:
+	_check(false, "the probe finishes", "still in %s after %d s" % [_part, int(WATCHDOG_SECONDS)])
+	_report()
 
 
 func _check(ok: bool, what: String, detail: String) -> void:
@@ -41,20 +60,19 @@ func _check(ok: bool, what: String, detail: String) -> void:
 
 func _run() -> void:
 	print("\n===== DAGAT'S SEA =====")
-	await _the_longer_level()
-	await _the_apo_dives_on_a_breath()
-	await _breathing_frees_the_swimmer()
-	await _the_bangka_goes_in_on_e()
-	await _the_anvil_shoves_it()
-	await _fifteen_blows_and_away()
-	await _led_home_by_the_light()
-	await _a_silhouette_from_above()
-	await _room_under_it()
-	await _the_hook_under_the_sand()
-	await _fishing_from_the_boat()
-	await _the_creatures_fight_back()
-	await _the_fact_is_the_coral_she_stopped_at()
-	await _drifting_is_not_swimming_on()
+	for part: Callable in [_the_longer_level, _the_apo_dives_on_a_breath,
+			_breathing_frees_the_swimmer, _the_bangka_goes_in_on_e, _the_anvil_shoves_it,
+			_fifteen_blows_and_away, _led_home_by_the_light, _a_silhouette_from_above,
+			_room_under_it, _the_hook_under_the_sand, _fishing_from_the_boat,
+			_the_creatures_fight_back, _the_fact_is_the_coral_she_stopped_at,
+			_drifting_is_not_swimming_on]:
+		_part = part.get_method()
+		print("  -- %s" % _part)
+		await part.call()
+	_report()
+
+
+func _report() -> void:
 	for line in results:
 		print(line)
 	if failures == 0:
@@ -603,7 +621,12 @@ func _fishing_from_the_boat() -> void:
 	await _seconds(0.5)
 	await _unpause()
 	# Wound hard through its runs: the line snaps.
-	await _held_cast(0.8)
+	# ⚠ ON A LONG CAST. On a 0.8 s cast the pugita was hooked about 620 px off and snapped about
+	# 170 px from the rod, and run and rest lengths are random (FishingLine2D._fight_it): a long
+	# first rest, wound through, reeled it the last hundred into LAND_REACH first: one of seven
+	# full runs on 2026-11-05 landed it, a second catch that failed this check and the next. Hooked
+	# a long cast down (about 860 px), it snaps 300-500 px out, well before it can reach the boat.
+	await _held_cast(1.4)
 	await _seconds(1.0)
 	var fighter := await _hook_one("pugita")
 	var snapped := false
@@ -615,11 +638,16 @@ func _fishing_from_the_boat() -> void:
 			break
 	level.set("hold_override", false)
 	_check(snapped and int(level.get("_catches")) == 1 and bool(fighter.call("is_alive")),
-		"wound hard through its runs, the line snaps and it gets away", "still one caught")
+		"wound hard through its runs, the line snaps and it gets away",
+		"%s, %d caught" % ["still on the line" if not snapped
+			else "got away" if bool(fighter.call("is_alive")) else "landed",
+			int(level.get("_catches"))])
 	await _seconds(2.0)
 	level.call("_put_the_line_away")
 	await _unpause()
-	# Left to run, it takes the line.
+	# Left to run, it takes the line -- and lands nothing, counted from here, so a check above
+	# that went wrong is not failed a second time here.
+	var caught_before := int(level.get("_catches"))
 	await _held_cast(0.8)
 	await _seconds(1.0)
 	var runner := await _hook_one("pawikan")
@@ -629,8 +657,10 @@ func _fishing_from_the_boat() -> void:
 		if runner != null and is_instance_valid(runner) and not bool(runner.call("is_hooked")):
 			ran = true
 			break
-	_check(ran and int(level.get("_catches")) == 1, "not wound at all, it takes all the line",
-		"still one caught")
+	_check(ran and int(level.get("_catches")) == caught_before,
+		"not wound at all, it takes all the line", "%s, %d more caught" % [
+			"took the line" if ran else "still on the line",
+			int(level.get("_catches")) - caught_before])
 	level.call("_put_the_line_away")
 	await _unpause()
 	# Five, and the hook breaks.
@@ -990,11 +1020,20 @@ func _place(at: Vector2) -> void:
 
 func _seconds(seconds: float) -> void:
 	var elapsed := 0.0
+	# ⚠ SECONDS ARE COUNTED ONLY WHILE THE WORLD RUNS, so a world that paused itself again on
+	# every frame kept this waiting for good. Bounded by how many waits in a row found it paused.
+	var stuck := 0
 	while elapsed < seconds:
 		await physics_frame
 		if paused:
+			stuck += 1
+			if stuck > STUCK_WAITS:
+				_check(false, "the world runs again in %s" % _part,
+					"still paused after %d tries to unpause it" % STUCK_WAITS)
+				return
 			await _unpause()
 			continue
+		stuck = 0
 		elapsed += 1.0 / 60.0
 
 
