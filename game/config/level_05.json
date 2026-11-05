@@ -162,11 +162,11 @@
       "bloom_width": 1100,
       "bloom_elevation": 0,
       "vignette": "payyo_terraces",
-      "landmark_art": "res://assets/Level5/journey/rice_beds.png",
-      "landmark_width": 850,
+      "landmark_art": "res://assets/Level5/journey/terraces_landmark.png",
+      "landmark_width": 980,
       "landmark_position": [
         640,
-        0
+        8
       ]
     },
     {

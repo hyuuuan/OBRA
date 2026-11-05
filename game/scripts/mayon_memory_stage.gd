@@ -75,23 +75,10 @@ func _draw() -> void:
 		var y := _floor(x)+float(spec.get("lift",0)) if bool(spec.get("floor",false)) else float(spec.get("y",0))
 		_prop(self,String(spec.art),x,y,float(spec.width),tint,bool(spec.get("mirror",false)),float(spec.get("rotation",0)))
 	match kind:
-		"terraces": _irrigation()
 		"crossing": _river()
 		"bale": _yard()
 		"shore", "island": _shore()
 		"sea": _reef()
-
-
-func _irrigation() -> void:
-	# Far paddy banks connect the foreground rice to the village on the hill.
-	for index in range(3):
-		var y := -58.0-index*81
-		var x := 230.0+index*100
-		var width := 800.0-index*200
-		draw_rect(Rect2(x,y,width,6),Color(.2,.4,.3,.4))
-		for glint in range(5):
-			var at := x+fposmod(glint*137.0+_time*13,width-30)
-			draw_line(Vector2(at,y+2),Vector2(at+13,y+2),Color(.68,.8,.5,.3),1)
 
 
 func _river() -> void:
