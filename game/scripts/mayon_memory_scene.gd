@@ -59,15 +59,23 @@ func _ready() -> void:
 			# Tuck the water under the rounded turf lips so no sky peeks through.
 			_stage.set("river_bounds", opening.grow_individual(16.0, 0.0, 16.0, 0.0))
 		add_child(_stage)
-	_ground = Node2D.new()
+	if kind == "plaza":
+		var plaza := PiyestaPlaza2D.new()
+		# The painted plaza is centred here. Extend the tiled surface under
+		# both sides of the transition into the neighbouring memories.
+		plaza.from_x = -240.0
+		plaza.to_x = span + 190.0
+		_ground = plaza
+	else:
+		_ground = Node2D.new()
+		_ground.draw.connect(_draw_walk_surface)
 	_ground.name = "WalkSurface"
-	_ground.z_index = 1
 	if kind in ["terraces", "crossing", "bale"]:
 		var material := ShaderMaterial.new()
 		material.shader = TERRACE_GROUND
 		_ground.material = material
-	_ground.draw.connect(_draw_walk_surface)
 	add_child(_ground)
+	_ground.z_index = 1
 	if kind == "crossing":
 		# The bridge sits in front of the banks and uses its own artwork.
 		var bridge := Sprite2D.new()
@@ -87,7 +95,8 @@ func frame(camera: Vector2, extent: Vector2, player_position := Vector2.INF) -> 
 		_stage.set("route",route)
 		_stage.set("world_origin",global_position)
 	queue_redraw()
-	_ground.queue_redraw()
+	if kind != "plaza":
+		_ground.queue_redraw()
 
 
 func _art(path: String) -> Texture2D:
@@ -113,11 +122,11 @@ func _draw() -> void:
 		var y := -height
 		var tint := Color.WHITE
 		if kind == "plaza":
-			# The plaza already has sky extended on both sides. Its cut IS the walk line.
+			# Piyesta's painting is a single plate registered to the walk line.
 			height = 720.0
 			width = height * texture.get_width() / texture.get_height()
-			x = span * .5 - width * .5
-			y = -height
+			draw_texture_rect(texture, Rect2((span - width) * 0.5, -height, width, height), false)
+			continue
 		elif kind == "church":
 			height = 820.0
 			width = height * texture.get_width() / texture.get_height()
@@ -164,7 +173,7 @@ func _draw_ground(bounds: Rect2) -> void:
 	if kind == "church":
 		surface = "Level2/interiors/church_floor.png"
 		ground = Color("88785d")
-	elif kind in ["plaza", "alley"]:
+	elif kind == "alley":
 		surface = "Level2/plaza/retaining.png"
 		ground = Color("8a7660")
 	elif kind in ["shore", "island", "sea"]:
