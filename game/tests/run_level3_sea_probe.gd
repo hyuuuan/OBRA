@@ -603,7 +603,12 @@ func _fishing_from_the_boat() -> void:
 	await _seconds(0.5)
 	await _unpause()
 	# Wound hard through its runs: the line snaps.
-	await _held_cast(0.8)
+	# ⚠ ON A LONG CAST. On a 0.8 s cast the pugita was hooked about 620 px off and snapped about
+	# 170 px from the rod, and run and rest lengths are random (FishingLine2D._fight_it): a long
+	# first rest, wound through, reeled it the last hundred into LAND_REACH first: one of seven
+	# full runs on 2026-11-05 landed it, a second catch that failed this check and the next. Hooked
+	# a long cast down (about 860 px), it snaps 300-500 px out, well before it can reach the boat.
+	await _held_cast(1.4)
 	await _seconds(1.0)
 	var fighter := await _hook_one("pugita")
 	var snapped := false
@@ -615,11 +620,16 @@ func _fishing_from_the_boat() -> void:
 			break
 	level.set("hold_override", false)
 	_check(snapped and int(level.get("_catches")) == 1 and bool(fighter.call("is_alive")),
-		"wound hard through its runs, the line snaps and it gets away", "still one caught")
+		"wound hard through its runs, the line snaps and it gets away",
+		"%s, %d caught" % ["still on the line" if not snapped
+			else "got away" if bool(fighter.call("is_alive")) else "landed",
+			int(level.get("_catches"))])
 	await _seconds(2.0)
 	level.call("_put_the_line_away")
 	await _unpause()
-	# Left to run, it takes the line.
+	# Left to run, it takes the line -- and lands nothing, counted from here, so a check above
+	# that went wrong is not failed a second time here.
+	var caught_before := int(level.get("_catches"))
 	await _held_cast(0.8)
 	await _seconds(1.0)
 	var runner := await _hook_one("pawikan")
@@ -629,8 +639,10 @@ func _fishing_from_the_boat() -> void:
 		if runner != null and is_instance_valid(runner) and not bool(runner.call("is_hooked")):
 			ran = true
 			break
-	_check(ran and int(level.get("_catches")) == 1, "not wound at all, it takes all the line",
-		"still one caught")
+	_check(ran and int(level.get("_catches")) == caught_before,
+		"not wound at all, it takes all the line", "%s, %d more caught" % [
+			"took the line" if ran else "still on the line",
+			int(level.get("_catches")) - caught_before])
 	level.call("_put_the_line_away")
 	await _unpause()
 	# Five, and the hook breaks.
