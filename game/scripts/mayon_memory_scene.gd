@@ -114,7 +114,24 @@ func _draw() -> void:
 				draw_set_transform(Vector2.ZERO)
 	# The island's palms are the stage's now: the surf passes behind them (RememberedLife).
 	if kind == "crossing":
-		draw_rect(Rect2(span*.5-210,0,420,1400),Color("182c25"))
+		# ⚠ A GORGE, NOT A BOX. Under the bridge this was one flat dark rectangle with the river
+		# laid on it (Kent: parts of the runway "not rendering properly"). Its walls are the
+		# banks' own rock, set back in shadow, course under course, and the river runs over them.
+		var gorge := Rect2(span*.5-210,0,420,1400)
+		draw_rect(gorge,Color("182c25"))
+		var rock := _art("Level1/cliff/face.png")
+		var course := float(rock.get_height())*.46
+		var tile := float(rock.get_width())*float(rock.get_height())/rock.get_height()
+		for row in range(ceili(gorge.size.y/course)):
+			var shade := maxf(.18, .5*pow(.9,float(row)))
+			for column in range(ceili(gorge.size.x/tile)+1):
+				var left := gorge.position.x+column*tile-float(row%2)*tile*.5
+				var clipped := Rect2(maxf(left,gorge.position.x),gorge.position.y+row*course,0,course)
+				clipped.size.x = minf(left+tile,gorge.end.x)-clipped.position.x
+				if clipped.size.x <= 0.0: continue
+				var from_x := (clipped.position.x-left)/tile*rock.get_width()
+				draw_texture_rect_region(rock,clipped,Rect2(from_x,rock.get_height()*.22,
+					clipped.size.x/tile*rock.get_width(),rock.get_height()*.46),Color(shade,shade*1.05,shade))
 
 
 func _draw_walk_surface() -> void:
