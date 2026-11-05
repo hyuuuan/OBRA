@@ -43,8 +43,9 @@ the opening between the storefronts, and the wall continues in whole brick cours
   "full of grass" (5 November); the builder still writes that file, but no place uses it. Ang Tulay crosses a flowing river between
   planted banks and fences. Ang Bale has a gate, storage pot, lamp and stored harvest around its
   raised yard. Perched birds lift as the apo approaches; butterflies move between the beds.
-- **Dagat:** palms frame the beach, registered surf moves behind the bangka, and a paddle rests
-  beside it. The reef has distant ridges, coral, swaying kelp, fish schools, jellyfish and
+- **Dagat:** palms frame the beach, surf spans the visible water behind the bangka, and a paddle
+  rests beside it. Painted water continues into the inlet, where the sand curves down to the
+  original collision step. The reef has distant ridges, coral, swaying kelp, fish schools, jellyfish and
   bubbles. The preservation bakunawa uses thirteen original swimming frames, on one common
   canvas so its scale and the saved strokes stay registered. The island has a landing, shells,
   palms, passing gulls and an offshore bangka.

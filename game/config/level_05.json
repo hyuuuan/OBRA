@@ -231,6 +231,9 @@
       "vignette": "dagat_shore",
       "landmark_art": "res://assets/Level5/journey/storm_landmark.png",
       "landmark_width": 720,
+      "landmark_feather": 18,
+      "landmark_tint": [1, 1, 1, 0.9],
+      "landmark_offset": [130, -78],
       "landmark_position": [
         350,
         -250
@@ -732,10 +735,11 @@
         "staging": {
           "props": [
             {
-              "art": "Level5/journey/palms_landmark.png",
-              "x": 80,
-              "width": 225,
+              "art": "Level5/journey/shore_palms.png",
+              "x": 194,
+              "width": 235,
               "floor": true,
+              "lift": 7,
               "tint": [
                 0.83,
                 0.91,
@@ -745,7 +749,7 @@
             },
             {
               "art": "Level3/authored/sand_mound.png",
-              "x": 185,
+              "x": 299,
               "width": 165,
               "floor": true
             },

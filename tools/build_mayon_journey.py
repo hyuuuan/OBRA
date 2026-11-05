@@ -328,6 +328,13 @@ def build():
         original = original.crop(original.getchannel("A").getbbox())
         # The storm's clouds fill their canvas side to side (Kent: parts of the runway "cut off").
         outputs[ident+"_landmark.png"] = dissolve_sides(original) if ident == "storm" else original
+    # The shore uses a complete silhouette. The old island cut reached the
+    # source plate's side, right through a frond and the last boulder.
+    with Image.open(ROOT / "LEVEL5_Mayon/authored/shore_palms.png") as source:
+        palms = clean_alpha(source.convert("RGBA"))
+    palms = palms.crop(palms.getchannel("A").getbbox())
+    outputs["shore_palms.png"] = palms.resize((palms.width // 2, palms.height // 2),
+                                               Image.Resampling.NEAREST)
     atlas=Image.open(ASSETS/"Level1/texturemap.png").convert("RGBA")
     outputs["rice_beds.png"]=rice_beds()
     # These pieces already belong together in the original Payyo atlas. Preserve their

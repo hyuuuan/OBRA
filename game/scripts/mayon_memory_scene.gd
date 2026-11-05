@@ -15,6 +15,7 @@ var _stage: Node2D
 var staging: Dictionary = {}
 const StageScript = preload("res://scripts/mayon_memory_stage.gd")
 const TERRACE_GROUND := preload("res://shaders/mayon_terrace_ground.gdshader")
+const SHORE_GROUND := preload("res://shaders/mayon_shore_ground.gdshader")
 const TERRACE_LIP := 8.0
 const TERRACE_ROUND := 34.0
 const TERRACE_JOIN_SCALE := 2048.0
@@ -77,9 +78,9 @@ func _ready() -> void:
 		_ground = Node2D.new()
 		_ground.draw.connect(_draw_walk_surface)
 	_ground.name = "WalkSurface"
-	if kind in ["terraces", "crossing", "bale"]:
+	if kind in ["terraces", "crossing", "bale", "shore"]:
 		var material := ShaderMaterial.new()
-		material.shader = TERRACE_GROUND
+		material.shader = SHORE_GROUND if kind == "shore" else TERRACE_GROUND
 		_ground.material = material
 	add_child(_ground)
 	_ground.z_index = 1
@@ -101,6 +102,7 @@ func frame(camera: Vector2, extent: Vector2, player_position := Vector2.INF) -> 
 		_stage.set("visitor",player_position-global_position)
 		_stage.set("route",route)
 		_stage.set("world_origin",global_position)
+		_stage.set("view_bounds", Rect2(camera - global_position - extent * 0.5, extent).grow(640))
 	queue_redraw()
 	if _ground != null and kind != "plaza":
 		_ground.queue_redraw()
@@ -147,6 +149,17 @@ func _draw() -> void:
 		# Repeat only the authored sky/landscape, with mirrored neighbours at the ends.
 		for repeat_index in [-1, 0, 1]:
 			var rect := Rect2(x + repeat_index * width, y, width, height)
+			# The shore's inlet is lower than the plate's walk line. Reflect its
+			# last stretch of ocean below the edge so the cut never exposes SkyFill.
+			if kind == "shore":
+				var ocean_depth := 90.0
+				var rows := ocean_depth * texture.get_height() / height
+				var origin_x := rect.position.x if repeat_index == 0 else rect.end.x
+				draw_set_transform(Vector2(origin_x, rect.end.y + ocean_depth),
+					0.0, Vector2(1 if repeat_index == 0 else -1, -1))
+				draw_texture_rect_region(texture, Rect2(0, 0, width, ocean_depth),
+					Rect2(0, texture.get_height() - rows, texture.get_width(), rows), tint)
+				draw_set_transform(Vector2.ZERO)
 			if repeat_index == 0:
 				draw_texture_rect(texture, rect, false, tint)
 			else:
@@ -164,8 +177,8 @@ func _draw_walk_surface() -> void:
 		var rock := _art("Level5/terrain/basalt.png")
 		for ledge in ledges:
 			_ground.draw_texture_rect(rock,Rect2(ledge.position-global_position,ledge.size),false)
-	if kind in ["shore", "sea"]:
-		var water := Color(.16,.52,.68,.38) if kind == "shore" else Color(.12,.47,.63,.3)
+	if kind == "sea":
+		var water := Color(.12,.47,.63,.3)
 		for rect in route:
 			var local := Rect2(rect.position-global_position,rect.size)
 			if local.position.x < 0 or local.position.x >= span or local.position.y <= 0: continue
@@ -209,8 +222,8 @@ func _draw_ground(bounds: Rect2) -> void:
 	for rect in ground_rects:
 		var local := Rect2(rect.position - global_position, rect.size)
 		if local.end.x < bounds.position.x or local.position.x > bounds.end.x: continue
-		if kind in ["terraces", "crossing", "bale"]:
-			_draw_terrace_bank(rect, local, ground_rects, texture)
+		if kind in ["terraces", "crossing", "bale", "shore"]:
+			_draw_rounded_bank(rect, local, ground_rects, texture)
 			continue
 		_ground.draw_rect(local, ground)
 		# Keep the delivered material's scale; the plaza strip is only 96px tall.
@@ -246,13 +259,14 @@ func _draw_ground(bounds: Rect2) -> void:
 					(right-left) / tile_width * texture.get_width(), texture.get_height()))
 
 
-func _draw_terrace_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], texture: Texture2D) -> void:
-	var top := local.position.y - TERRACE_LIP
+func _draw_rounded_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], texture: Texture2D) -> void:
+	var beach := kind == "shore"
+	var top := local.position.y if beach else local.position.y - TERRACE_LIP
 	var outline := PackedVector2Array()
 	var meets_higher := [false, false]
 	for side in [-1, 1]:
 		var edge := world.position.x if side == -1 else world.end.x
-		var radius := minf(TERRACE_ROUND, local.size.x * 0.5)
+		var radius := minf(40.0 if beach else TERRACE_ROUND, local.size.x * 0.5)
 		for other in neighbours:
 			var contact := other.end.x if side == -1 else other.position.x
 			if is_equal_approx(edge, contact):
@@ -268,6 +282,9 @@ func _draw_terrace_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], te
 		var start := PI if side == -1 else 1.5 * PI
 		for step in range(9):
 			outline.append(centre + Vector2.from_angle(start + step * PI / 16.0) * radius)
+	if beach:
+		_draw_shore_face(outline, local.end.y, texture)
+		return
 	outline.append(Vector2(local.end.x, local.end.y))
 	outline.append(Vector2(local.position.x, local.end.y))
 
@@ -280,3 +297,18 @@ func _draw_terrace_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], te
 		var right := (local.end.x - point.x) / TERRACE_JOIN_SCALE if meets_higher[1] else 1.0
 		joins.append(Color(left, right, 0.0))
 	_ground.draw_polygon(outline, joins, uv, texture)
+
+
+func _draw_shore_face(outline: PackedVector2Array, bottom: float, texture: Texture2D) -> void:
+	# Each slice measures depth from the curved sand surface, so the sand wraps
+	# down the rounded bank instead of ending in a straight stripe across it.
+	for index in range(outline.size() - 1):
+		var a := outline[index]
+		var b := outline[index + 1]
+		var vertices := PackedVector2Array([a, b, Vector2(b.x, bottom), Vector2(a.x, bottom)])
+		var u_a := (a.x + global_position.x) / texture.get_width()
+		var u_b := (b.x + global_position.x) / texture.get_width()
+		var uv := PackedVector2Array([Vector2(u_a, 0), Vector2(u_b, 0),
+			Vector2(u_b, (bottom - b.y) / texture.get_height()),
+			Vector2(u_a, (bottom - a.y) / texture.get_height())])
+		_ground.draw_polygon(vertices, PackedColorArray([Color.WHITE]), uv, texture)

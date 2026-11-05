@@ -16,6 +16,7 @@ var route: Array[Rect2] = []
 var world_origin := Vector2.ZERO
 var river_bounds := Rect2()
 var visitor := Vector2.INF
+var view_bounds := Rect2(-800, -500, 2880, 1000)
 var clock := 0.0
 var _time := 0.0
 var _scatter := 0.0
@@ -134,10 +135,40 @@ func _draw_water() -> void:
 	if kind not in ["shore", "island"]:
 		return
 	var frame := int(_time/.32)%3
-	# These three waves share one cropped canvas: the water moves, never the shoreline.
-	_prop(_water,"Level5/journey/surf_%02d.png"%frame,640,-42,1450,Color(1,1,1,.48))
+	var surf := _art("Level5/journey/surf_%02d.png" % frame)
+	if kind == "shore":
+		# Carry the ocean colour into the lowered sand, behind the bank and boat.
+		# The transparent upper edge merges into the distant water.
+		var near := Color(.12, .51, .68, .38)
+		var clear := Color(near, 0.0)
+		var left := view_bounds.position.x
+		var right := view_bounds.end.x
+		_water.draw_polygon(PackedVector2Array([
+			Vector2(left, -38), Vector2(right, -38), Vector2(right, 80), Vector2(left, 80),
+		]), PackedColorArray([clear, clear, near, near]))
+	_surf_strip(surf, Rect2(Vector2.ZERO, surf.get_size()), -42.0, 0.0, 0.48)
+	if kind == "shore":
+		# The nearest crest meets the sand; the banks hide the part under dry land.
+		_surf_strip(surf, Rect2(0, 0, surf.get_width(), 66), 43.0, 243.0, 0.45)
 	if kind == "island":
 		_prop(_water,"Level3/authored/bangka_afloat.png",210+sin(_time*.22)*7,-106,150,Color(.66,.79,.84))
+
+
+func _surf_strip(texture: Texture2D, source: Rect2, bottom: float, phase: float, opacity: float) -> void:
+	var width := 1450.0
+	var height := width * source.size.y / source.size.x
+	var origin := (span - width) * 0.5 + phase
+	var first := floori((view_bounds.position.x - origin) / width)
+	var end := ceili((view_bounds.end.x - origin) / width)
+	var tint := Color(1, 1, 1, opacity)
+	# Mirror neighbours in the same frame so their crests share the edge pixels.
+	for index in range(first, end):
+		var x := origin + index * width
+		var mirror := posmod(index, 2) == 1
+		_water.draw_set_transform(Vector2(x + width if mirror else x, bottom - height),
+			0.0, Vector2(-1 if mirror else 1, 1))
+		_water.draw_texture_rect_region(texture, Rect2(0, 0, width, height), source, tint)
+	_water.draw_set_transform(Vector2.ZERO)
 
 
 ## The shore and island's surf, behind everything standing on them (see _water).
