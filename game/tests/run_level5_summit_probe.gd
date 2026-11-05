@@ -114,11 +114,15 @@ func _walked_up_to_lola_she_stands_and_the_brush_key_stays() -> void:
 	var pose := String((player.get_node("Figure") as Node).get("pose"))
 	var draw := level.get("draw_button") as Button
 	var panel := level.get("draw_panel") as DrawPanel
+	# Walk and jump stand beside R elsewhere in Mayon; held here, they would do nothing.
+	var prompts := level.get("action_prompts") as Control
+	var walk_shown := (prompts.get("_move") as Control).is_visible_in_tree() \
+		or (prompts.get("_jump") as Control).is_visible_in_tree()
 	_check(String(level.call("summit_state")) == "trying" and jumped and pose == "idle"
-			and draw.is_visible_in_tree() and not panel.is_open(),
-		"walked up to lola she stands still in front of her, and the brush's key stays on screen",
-		"%s, jumped on arrival %s, her pose %s, draw key shown %s, page open %s" % [
-			level.call("summit_state"), jumped, pose, draw.is_visible_in_tree(), panel.is_open()])
+			and draw.is_visible_in_tree() and not walk_shown and not panel.is_open(),
+		"walked up to lola she stands still in front of her, and the brush's key alone stays on screen",
+		"%s, jumped on arrival %s, her pose %s, draw key shown %s, walk/jump shown %s, page open %s" % [
+			level.call("summit_state"), jumped, pose, draw.is_visible_in_tree(), walk_shown, panel.is_open()])
 
 
 func _the_brush_refuses_her_twice_then_she_lowers_it() -> void:

@@ -195,14 +195,15 @@ func _movement_keys() -> void:
 		"and come back when the placement ends")
 	level.set_physics_process(true)
 
-	# The other four do not ask for them.
+	# Piyesta, Dagat and Dilim do not ask for them. Mayon does (Kent, 2026-11-05: "the r draw at
+	# the bottom right is alone, i want to include there the movements key").
 	var asked: Array[String] = []
 	for number in [2, 3, 4, 5]:
 		var other: Node = (load("res://scripts/level_%d.gd" % number) as GDScript).new()
 		if bool(other.call("_shows_movement_keys")):
 			asked.append("level_%d" % number)
 		other.free()
-	_check(asked.is_empty(), "and no other level shows them (%s)"
+	_check(asked == ["level_5"], "and of the other levels only Mayon shows them (%s)"
 		% ("none" if asked.is_empty() else ", ".join(asked)))
 
 
