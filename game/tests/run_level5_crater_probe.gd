@@ -114,6 +114,7 @@ func _mask_contracts() -> void:
 	journey.sync()
 	_check(is_equal_approx(journey.divider,paused_seam),"a moving dialogue camera cannot advance a paused crossing")
 	level.get("draw_panel").close_panel()
+	level.get("memory_sketch").close()
 	camera.position.x -= 50
 	camera.force_update_scroll()
 	journey.sync()
@@ -144,17 +145,15 @@ func _preservation_contracts() -> void:
 	await create_timer(.2).timeout
 	_check(is_equal_approx(terraces.drain(),before) and is_equal_approx(journey.divider,seam),
 		"drawing pauses preservation and shadow travel")
-	var reference: Node = level.get("draw_panel").panel_root.get_node("MemoryReference")
-	_check(not level.get("draw_panel").canvas_viewport.is_ancestor_of(reference),
-		"landmark references never enter recognizer pixels")
-	# Move while the page is paused: the accepted result must still use its locked landmark.
+	var sketch: Node = level.get("memory_sketch")
+	_check(sketch.is_open() and not level.get("draw_panel").is_open(),
+		"preservation opens a separate page from recognition")
+	# Move while the page is paused. The drawing must still use its locked landmark.
 	player.call("apply_morph_state",{"position":Vector2(6250,98),"linear_velocity":Vector2.ZERO})
-	level.get("draw_panel").close_panel()
 	var strokes := [{"points":PackedVector2Array([Vector2(12,19),Vector2(51,89),Vector2(92,21)]),"width":6.0,"color":Color.BLACK}]
-	var image := Image.create(32,32,false,Image.FORMAT_RGBA8)
 	var ink: InkManager = level.get("ink_manager")
 	var reserve := ink.hidden_reserve
-	level.call("_on_drawing_ready","stairs","Stairs",image,{},strokes,1.0)
+	level.call("_preserve_memory", strokes)
 	_check(terraces.state()=="saved" and terraces.strokes()==[[12.0,19.0,51.0,89.0,92.0,21.0]]
 		and is_equal_approx(ink.remaining(),5) and is_equal_approx(ink.hidden_reserve,reserve),
 		"the locked landmark saves exact strokes for one visible ink and cannot spend reserve")

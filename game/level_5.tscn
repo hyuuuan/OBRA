@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/level_5.gd" id="1_level"]
+[ext_resource type="Script" path="res://scripts/mayon_memory_sketch.gd" id="1_memory_sketch"]
 [ext_resource type="Script" uid="uid://d0an1bmtb5qc3" path="res://scripts/entity_registry.gd" id="2_registry"]
 [ext_resource type="Script" uid="uid://drxne0eggtwt1" path="res://scripts/draw_panel.gd" id="3_panel"]
 [ext_resource type="Script" uid="uid://mvf0xesfnobu" path="res://scripts/drawing_canvas.gd" id="4_canvas"]
@@ -389,6 +390,9 @@ text = "QUIT TO DESKTOP"
 
 [node name="ConfirmOverlay" parent="." unique_id=144313219 instance=ExtResource("16_confirm")]
 
+[node name="MemorySketch" type="CanvasLayer" parent="."]
+script = ExtResource("1_memory_sketch")
+
 [node name="UIRouter" type="Node" parent="." unique_id=1496123291]
 script = ExtResource("13_ui_router")
-cancel_chain = Array[NodePath]([NodePath("../ConfirmOverlay"), NodePath("../LevelCompleteOverlay"), NodePath("../MemoryOverlay"), NodePath("../DialogueChoiceOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")])
+cancel_chain = Array[NodePath]([NodePath("../ConfirmOverlay"), NodePath("../LevelCompleteOverlay"), NodePath("../MemoryOverlay"), NodePath("../DialogueChoiceOverlay"), NodePath("../OutOfInkOverlay"), NodePath("../SettingsOverlay"), NodePath("../ControlsOverlay"), NodePath("../MemorySketch"), NodePath("../DrawPanel"), NodePath("../PlacementController"), NodePath("../PauseMenu")])

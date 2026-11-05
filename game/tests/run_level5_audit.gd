@@ -40,10 +40,10 @@ func _run() -> void:
 		root.add_child(tags)
 	var level := _load(LEVEL_PATH)
 	_audit_gates_have_two_strong_answers(level)
-	_audit_no_line_names_a_class()
 	_audit_nothing_refills(level)
 	_audit_shipping_state()
 	var scene := await _open_level()
+	_audit_no_line_names_a_class(scene)
 	_audit_hooks(scene)
 	_audit_the_reserve_is_the_gates(scene)
 	_audit_gate_ground(scene)
@@ -91,7 +91,7 @@ func _audit_gates_have_two_strong_answers(level: Dictionary) -> void:
 		"; ".join(seen) if thin.is_empty() else "; ".join(thin))
 
 
-func _audit_no_line_names_a_class() -> void:
+func _audit_no_line_names_a_class(scene: Node) -> void:
 	var terms := _class_terms()
 	var hits: Array[String] = []
 	for line_value: Variant in _load(DIALOGUE_PATH).get("lines", []):
@@ -101,11 +101,14 @@ func _audit_no_line_names_a_class() -> void:
 			if pattern.search(text) != null:
 				hits.append("%s names '%s'" % [(line_value as Dictionary).get("id", "?"), term])
 	var objectives: Dictionary = _load(LEVEL_PATH).get("objectives", {})
+	# Audit the words the player sees. A {key:redraw} token renders as the bound
+	# control, and its literal "key" is also a drawable class in the roster.
 	for key: String in objectives:
 		if key.begins_with("$"):
 			continue
+		var shown := String(scene.call("with_keys", String(objectives[key])))
 		for term in terms:
-			if RegEx.create_from_string("\\b%s\\b" % term.to_lower()).search(String(objectives[key]).to_lower()) != null:
+			if RegEx.create_from_string("\\b%s\\b" % term.to_lower()).search(shown.to_lower()) != null:
 				hits.append("objective %s names '%s'" % [key, term])
 	_check(hits.is_empty(), "no line or objective names a drawable class",
 		"none" if hits.is_empty() else "; ".join(hits.slice(0, 4)))
@@ -252,28 +255,19 @@ func _audit_every_obstacle_has_a_volume(scene: Node, level: Dictionary) -> void:
 		", ".join(volumes) if data == volumes else "data %s, ground %s" % [data, volumes])
 
 
-## Act Two: twelve fragments, three with lolo in them, and every class that saves one reads at
-## or above the floor -- a misread fragment costs nothing but is a choice taken away.
+## Act Two has twelve distinct preservation landmarks and three that steady Lolo.
 func _audit_the_fragments(scene: Node) -> void:
-	var report := _report()
 	var fragments := scene.find_children("*", "MemoryFragment2D", true, false)
 	var lolo := 0
-	var thin: Array[String] = []
+	var ids := {}
 	for node in fragments:
 		var fragment := node as MemoryFragment2D
+		ids[fragment.fragment_id] = true
 		if fragment.holds_lolo:
 			lolo += 1
-		var strong := 0
-		for entity: String in fragment.accepts:
-			if float((report.get(entity, {}) as Dictionary).get("recall", 0.0)) >= RECALL_FLOOR:
-				strong += 1
-			else:
-				thin.append("%s: %s" % [fragment.fragment_id, entity])
-		if strong < 2:
-			thin.append("%s has %d" % [fragment.fragment_id, strong])
-	_check(fragments.size() == 12 and lolo == 3 and thin.is_empty(),
-		"twelve fragments, three with lolo in them, each saved by two or more strong classes",
-		"%d fragments, %d with lolo" % [fragments.size(), lolo] if thin.is_empty() else "; ".join(thin))
+	_check(fragments.size() == 12 and ids.size() == 12 and lolo == 3,
+		"twelve distinct fragments, three with Lolo in them",
+		"%d fragments, %d distinct, %d with Lolo" % [fragments.size(), ids.size(), lolo])
 
 
 ## The flower's fragment is down a path nobody needed to walk: out of reach of the corridor.
