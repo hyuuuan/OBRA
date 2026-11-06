@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 40
+const CHECKS := 41
 
 
 func _initialize() -> void:
@@ -347,9 +347,24 @@ func _the_bar_comes_with_the_first_find(shown_before: bool) -> void:
 	var shown_after := bar.visible
 	_check(not shown_before and shown_after, "the quick slots are not on screen until the first find brings them",
 		"before %s, after %s" % [shown_before, shown_after])
-	var names := [bar.slot_name(0), bar.slot_name(1)]
-	_check(names == ["Asin", ""] and bar.size.y >= bar.slot_rect(0).end.y + QuickSlotBar.NAME_GAP + QuickSlotBar.NAME_ROW,
-		"a filled slot is named under it, inside the bar; an empty one is not", "%s, bar %.0f tall" % [names, bar.size.y])
+	var names := [bar.slot_name(0), bar.slot_does(0), bar.slot_name(1), bar.slot_does(1)]
+	_check(names == ["Asin", "Burns them", "", ""]
+			and bar.size.y >= bar.slot_rect(0).end.y + QuickSlotBar.NAME_GAP + QuickSlotBar.NAME_ROW * 2.0,
+		"a filled slot says under it what it is and what it does, inside the bar; an empty one is silent",
+		"%s, bar %.0f tall" % [names, bar.size.y])
+	# Held to the floor, and to the room each slot has: no name brought down to fit any more.
+	var font := bar.get_theme_default_font()
+	var room := QuickSlotBar.SLOT.x + QuickSlotBar.GAP - 4.0
+	var over: Array[String] = []
+	for id: String in (level.get("satchel") as Satchel).ids():
+		for text: String in [String((level.get("satchel") as Satchel).row(id).get("display_name", "")),
+				String((level.get("satchel") as Satchel).row(id).get("does", ""))]:
+			if text.is_empty() or font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, QuickSlotBar.NAME_FONT).x > room:
+				over.append("%s '%s'" % [id, text])
+	_check(over.is_empty() and QuickSlotBar.CAP_FONT >= 20 and QuickSlotBar.COUNT_FONT >= 20
+			and QuickSlotBar.NAME_FONT >= 20,
+		"the key, the count, every name and every use read at 20 px and fit under their slots",
+		"room %.0f px" % room if over.is_empty() else "too long or missing: %s" % [over])
 	var kept: Dictionary = (level.get("satchel") as Satchel).to_data().duplicate(true)
 	(level.get("satchel") as Satchel).from_data({})
 	await _frames(2)

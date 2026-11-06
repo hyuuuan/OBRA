@@ -16,9 +16,10 @@ extends Control
 
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 const ICONS := "res://assets/Level4/props/"
-const SLOT := Vector2(56.0, 56.0)
-## Wide enough apart that each slot's name, at the readable floor, stays under its own slot.
-const GAP := 34.0
+const SLOT := Vector2(64.0, 64.0)
+## Wide enough apart that the longest name and what each thing does, at the readable floor, stay
+## under their own slot: Buntot Pagi, Lights here.
+const GAP := 60.0
 const RADIUS := 10.0
 const ICON_SCALE := 1.25
 const SPENT_ALPHA := 0.32
@@ -27,16 +28,17 @@ const FLASH_SECONDS := 0.35
 ## it went. A 0.35 s brighten while she reads what the thing does was over before she looked down.
 const WELCOME_SECONDS := 2.6
 const WELCOME_HZ := 1.4
-const CAP := Vector2(20.0, 18.0)
-const COUNT_FONT := 15
-const CAP_FONT := 12
-## Each filled slot's name, under it: an icon of a white heap and a 2 did not say "salt" to anyone
-## who had missed the line that came with it. At the readable floor (UISkin.FONT_CAPTION); only a
-## name too long for its slot's room -- Buntot Pagi -- comes down, never past NAME_MIN.
+## ⚠ THE KEY AND THE COUNT ARE READ, SO THEY ARE AT THE FLOOR. They were 12 and 15 px: the one thing
+## she has to find mid-fight was the smallest type on the screen.
+const CAP := Vector2(30.0, 28.0)
+const COUNT_FONT := UISkin.FONT_CAPTION
+const CAP_FONT := UISkin.FONT_CAPTION
+## Under each filled slot, its name and what it does: an icon of a white heap and a 2 did not say
+## "salt" to anyone who had missed the line that came with it, and "Asin" alone did not say what it
+## was for to anyone who had (Kent: "not that clear to use and when to use").
 const NAME_FONT := UISkin.FONT_CAPTION
-const NAME_MIN := 16
-const NAME_GAP := 5.0
-const NAME_ROW := 20.0
+const NAME_GAP := 4.0
+const NAME_ROW := 22.0
 
 var satchel: Satchel = null
 var _icons: Dictionary = {}
@@ -50,7 +52,7 @@ var _counts: Array[int] = []
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(SLOT.x * Satchel.SLOTS + GAP * (Satchel.SLOTS - 1),
-		SLOT.y + CAP.y * 0.5 + NAME_GAP + NAME_ROW)
+		SLOT.y + CAP.y * 0.5 + NAME_GAP + NAME_ROW * 2.0)
 	size = custom_minimum_size
 
 
@@ -141,18 +143,22 @@ func _draw() -> void:
 					Color(1, 1, 1, 1.0 if count > 0 else SPENT_ALPHA))
 			var number := str(count)
 			var width := font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_FONT).x
-			draw_string(font, rect.end - Vector2(width + 5.0, 5.0), number, HORIZONTAL_ALIGNMENT_LEFT,
-				-1, COUNT_FONT, UISkin.CREAM_TEXT if count > 0 else UISkin.MUTED)
-			_draw_name(font, rect, slot_name(index), count > 0)
+			var at := rect.end - Vector2(width + 5.0, 5.0)
+			draw_string_outline(font, at, number, HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_FONT, 4,
+				Color(UISkin.PANEL, 0.9))
+			draw_string(font, at, number, HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_FONT,
+				UISkin.CREAM_TEXT if count > 0 else UISkin.MUTED)
+			_draw_label(font, rect, 0, slot_name(index), UISkin.CREAM_TEXT if count > 0 else UISkin.MUTED)
+			_draw_label(font, rect, 1, slot_does(index), UISkin.GOLD if count > 0 else UISkin.MUTED)
 		if _welcome[index] > 0.0:
 			_draw_welcome(rect, _welcome[index])
 		# The key, on a little cap over the slot's top-left corner.
-		var cap := Rect2(rect.position + Vector2(-4.0, -CAP.y * 0.5), CAP)
+		var cap := Rect2(rect.position + Vector2(-6.0, -CAP.y * 0.5), CAP)
 		_round(cap, UISkin.GOLD_FILL if not id.is_empty() else Color(UISkin.GOLD_FILL, 0.4),
 			UISkin.GOLD_EDGE, 1, 5.0)
 		var key := ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1))
 		var key_width := font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT).x
-		draw_string(font, cap.position + Vector2((CAP.x - key_width) * 0.5, CAP.y - 4.0), key,
+		draw_string(font, cap.position + Vector2((CAP.x - key_width) * 0.5, CAP.y - 6.0), key,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT, UISkin.GOLD_LABEL)
 
 
@@ -172,17 +178,19 @@ func slot_name(index: int) -> String:
 	return "" if id.is_empty() else String(satchel.row(id).get("display_name", id))
 
 
-func _draw_name(font: Font, rect: Rect2, text: String, live: bool) -> void:
-	var font_size := NAME_FONT
-	var room := SLOT.x + GAP - 4.0
-	while font_size > NAME_MIN and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > room:
-		font_size -= 1
-	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	var at := Vector2(rect.get_center().x - width * 0.5, rect.end.y + NAME_GAP + NAME_ROW - 3.0)
+## What slot `index` does, in a phrase: the file's `does`, or nothing while it is empty.
+func slot_does(index: int) -> String:
+	var id := satchel.slot_item(index) if satchel != null else ""
+	return "" if id.is_empty() else String(satchel.row(id).get("does", ""))
+
+
+## One of the rows under a slot, centred on it: 0 its name, 1 what it does.
+func _draw_label(font: Font, rect: Rect2, row: int, text: String, colour: Color) -> void:
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_FONT).x
+	var at := Vector2(rect.get_center().x - width * 0.5, rect.end.y + NAME_GAP + NAME_ROW * (row + 1) - 3.0)
 	# Outlined: the bar sits over the world, and in Dilim the world is the dark.
-	draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 4, Color(UISkin.PANEL, 0.9))
-	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size,
-		UISkin.CREAM_TEXT if live else UISkin.MUTED)
+	draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_FONT, 4, Color(UISkin.PANEL, 0.9))
+	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_FONT, colour)
 
 
 func _icon(id: String) -> Texture2D:
