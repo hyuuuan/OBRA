@@ -1269,9 +1269,8 @@ const CANDLE_LIGHTS_WITHIN := 120.0
 const DARK_ENOUGH := 0.5
 
 ## ⚠ THE WORDS WAIT A MOMENT; THE CHIP DOES NOT. Stepping into a beat is also when its story line goes
-## up, and that takes any hint down with it: said on the same tick, a moment was marked told and
-## never read. This much play first, and the arrival has been and gone. The tree stops for a line, so
-## this does not count while one is up. The ash does not wait: its moment is a second long.
+## up. This much play first, and the words come after it and not under it. The tree stops for a line,
+## so this does not count while one is up. The ash does not wait: its moment is a second long.
 const MOMENT_AFTER := 0.5
 var _wanted_for: Dictionary = {}
 
@@ -1399,18 +1398,22 @@ func _whip_would_reach() -> bool:
 	return false
 
 
-## The first time, with its key, over her head where she is looking. Waits for the bar to be free,
-## but for the ash: the Now chip is up meanwhile. A candle has two moments, and each is said once.
+## The first time, with its key, over her head where she is looking. Waits for what is up to be
+## read, but for the ash: the Now chip is up meanwhile. A candle has two moments, and each is said
+## once.
+##
+## ⚠ NOT FOR AN EMPTY BAR. Advice stands through its beat and a wave's brief through its wave, so the
+## chip said Now and the words waited for the beat to end. Said as an aside, what was up comes back.
 func _tell_the_moment(id: String, index: int) -> void:
 	if hint_bar == null:
 		return
 	var row := satchel.row(id)
 	var said := String(row.get("moment_answers" if _candle_would_answer() and row.has("moment_answers") else "moment", ""))
 	if said.is_empty() or _moments_told.has(said) \
-			or (hint_bar.is_showing() and String(row.get("use", "")) != "dust"):
+			or (hint_bar.is_being_read() and String(row.get("use", "")) != "dust"):
 		return
 	_moments_told[said] = true
-	hint_bar.show_hint(said.replace("{key}", _slot_key(index)), _companion_speaker(), MOMENT_SECONDS)
+	hint_bar.interject(said.replace("{key}", _slot_key(index)), _companion_speaker(), MOMENT_SECONDS)
 
 
 const MOMENT_SECONDS := 5.0
