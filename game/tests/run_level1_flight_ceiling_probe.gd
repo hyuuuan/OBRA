@@ -11,9 +11,18 @@ extends SceneTree
 ## Flown with real flaps, under each room, because a test that writes a position would prove the
 ## ceiling exists and not that a flier meets it.
 
-const CHECKS := 12
+const CHECKS := 13
 ## Under the heap, under Ang Bale, and the open sky between them.
-const COLUMNS := [2580.0, 4640.0, 3400.0]
+##
+## ⚠ THE SECOND IS ON THE OPEN OVERLOOK, STILL UNDER THE ROOM, AND NOT UNDER THE HOUSE. This stood
+## at x 4640 until a third of its runs came back with a bird at y -1977: that is inside the sealed
+## pocket between Ang Bale's posts, under its deck, and a rig built overlapping those bodies blows
+## apart and throws itself anywhere, which no ceiling can stop. It looked exactly like the lid
+## leaking. Nobody can stand there: walking in, the first post stops her at x 4509.
+const COLUMNS := [2580.0, 4440.0, 3400.0]
+## The top of the Overlook, and where a test may ask her to stand on it.
+const OVERLOOK_Y := 80.0
+const OVERLOOK_FROM_X := 4340.0
 const FLAP_SECONDS := 9.0
 
 var level: Node2D
@@ -61,9 +70,16 @@ func _run() -> void:
 func _fly_up_at(column: float) -> void:
 	level.call("_revert_to_base_form")
 	await _wait(0.3)
-	var ground := 240.0 if column < 4340.0 else 80.0
-	(level.get("player") as Node2D).global_position = Vector2(column, ground - 60.0)
+	var ground := 240.0 if column < OVERLOOK_FROM_X else OVERLOOK_Y
+	var apo := level.get("player") as Node2D
+	apo.global_position = Vector2(column, ground - 60.0)
 	await _wait(0.2)
+	if column >= OVERLOOK_FROM_X:
+		# The premise, and a harness fault if it fails: she came down onto the ground, not out of
+		# something solid. Let her land before asking.
+		await _wait(0.5)
+		_check(absf(apo.global_position.y - OVERLOOK_Y) < 4.0,
+			"at x %.0f she is standing on open ground" % column, "y %.1f" % apo.global_position.y)
 	var drawing := Image.create(64, 64, false, Image.FORMAT_RGBA8)
 	drawing.fill(Color.WHITE)
 	var strokes: Array = preload("res://tests/drawn_like_people_fixtures.gd")._bird_side()
