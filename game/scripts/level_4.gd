@@ -1147,6 +1147,9 @@ func _a_candle_answers_here() -> bool:
 		return false
 	if REST_LINES.has(beat):
 		director.solve_with_item(beat, "kandila")
+		# Before the line stops the tree: the card refreshes on a timer, and it would go on asking
+		# for the light under the line that thanks her for it.
+		refresh_objective()
 		_speak(script_lines.fire(String(REST_LINES[beat])))
 	else:
 		_answer(beat, "artist")
