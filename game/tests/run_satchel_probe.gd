@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 59
+const CHECKS := 63
 
 
 func _initialize() -> void:
@@ -87,7 +87,14 @@ func _run() -> void:
 	level.queue_free()
 	await _frames(3)
 	level = await _open_level()
-	await _a_candle_where_a_drawing_is_asked_says_so()
+	await _a_candle_is_a_light()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _a_candle_beside_the_lower_half_answers_it()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
 	await _salt_and_garlic_are_asked_for_when_they_would_help()
 	level.queue_free()
 	await _frames(3)
@@ -145,9 +152,9 @@ func _each_says_what_it_is_for() -> void:
 	for id: String in satchel.ids():
 		said[id] = String(satchel.row(id).get("found", "")).to_lower()
 	_check(said["abo"].contains("keep it") and said["langis"].contains("low")
-			and said["kandila"].contains("when the lamp is low") and said["bawang"].contains("ten seconds")
+			and said["kandila"].contains("a light like any other") and said["bawang"].contains("ten seconds")
 			and said["asin"].contains("ahead of me"),
-		"and when: ash kept for what she cannot see, oil and the candle for a low lamp, garlic's ten seconds",
+		"and when: ash kept for what she cannot see, oil for a low lamp, the candle as a light, garlic's ten seconds",
 		"%s" % [said])
 
 
@@ -936,33 +943,82 @@ func _a_press_that_does_nothing_says_why() -> void:
 		"and a slot with none left says that", "\"%s\"" % _said())
 
 
-## The first candle lies beside the first "Draw a light here". Pressed there, or at what flees a light
-## she draws, it says it is not that; pressed anywhere else, how it burns.
-func _a_candle_where_a_drawing_is_asked_says_so() -> void:
+## Kent's decision: a candle is a light like any other. At a clearing it fills the lamp, with the
+## clearing's own line; at the sigbin and the tiyanak it is the artist's way past, and they go. Set
+## anywhere else it says how it burns, and answers nothing.
+func _a_candle_is_a_light() -> void:
 	var satchel := level.get("satchel") as Satchel
 	var director := level.get("director") as Object
+	var health := level.get("player_health") as PlayerHealth
 	satchel.add("kandila", 3)
 	var slot := satchel.slots().find("kandila")
-	var wanted := "A candle shows the way, but this wants a light I draw."
 	await _stand_her_at(5000.0)
-	await _quiet()
+	health.dim(PlayerHealth.LOW)
+	health.dim(PlayerHealth.LOW)
+	var low := health.stage
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	level.call("use_quick_slot", slot)
-	await _frames(2)
-	var in_clearing := _said()
-	var solved_clearing := bool(director.call("is_solved", "L4_REST1"))
+	await physics_frame
+	var line := String((level.get("dialogue_box") as Node).call("current_line"))
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(6)
+	_check(low == PlayerHealth.LOW and bool(director.call("is_solved", "L4_REST1")) and health.stage == PlayerHealth.FULL
+			and line.begins_with("There. Warm."),
+		"a candle at a clearing fills the lamp, as a drawn light does, and she says so",
+		"stage %d -> %d, solved %s, \"%s\"" % [low, health.stage, director.call("is_solved", "L4_REST1"), line])
 	await _stand_her_at(6800.0)
-	await _quiet()
+	var chip_at_sigbin := bool(level.call("_wanted_now", "kandila"))
 	level.call("use_quick_slot", slot)
-	await _frames(2)
-	var at_sigbin := _said()
+	await _frames(6)
+	var sigbin := level.get("_sigbin") as Sigbin2D
+	_check(chip_at_sigbin and bool(director.call("is_solved", "L4_SIGBIN"))
+			and String(director.call("committed_route", "L4_SIGBIN")) == "artist" and sigbin.is_gone(),
+		"at the sigbin it is the artist's way past, and it goes", "wanted %s, route '%s', gone %s"
+			% [chip_at_sigbin, director.call("committed_route", "L4_SIGBIN"), sigbin.is_gone()])
+	await _stand_her_at(17100.0)
+	level.call("use_quick_slot", slot)
+	await _frames(6)
+	var tiyanak := level.get("_tiyanak") as Tiyanak2D
+	_check(bool(director.call("is_solved", "L4_TIYANAK"))
+			and String(director.call("committed_route", "L4_TIYANAK")) == "artist" and tiyanak.is_gone(),
+		"and at the tiyanak the same", "route '%s', gone %s" % [director.call("committed_route", "L4_TIYANAK"), tiyanak.is_gone()])
 	await _stand_her_at(7800.0)
+	health.reset_full()
+	var chip_elsewhere := bool(level.call("_wanted_now", "kandila"))
+	satchel.add("kandila", 1)
 	await _quiet()
 	level.call("use_quick_slot", slot)
 	await _frames(2)
-	_check(in_clearing == wanted and not solved_clearing and at_sigbin == wanted
-			and _said() == "It burns here for 45 seconds. It does not follow me.",
-		"a candle in the clearing or at the sigbin says it wants a light she draws; elsewhere, how it burns",
-		"\"%s\" / \"%s\" / \"%s\"" % [in_clearing, at_sigbin, _said()])
+	_check(not chip_elsewhere and _said() == "It burns here for 45 seconds. It does not follow me.",
+		"where nothing asks for a light its slot stays quiet, and set down it says how it burns",
+		"wanted %s, \"%s\"" % [chip_elsewhere, _said()])
+
+
+## The manananggal's is asked of the light: too far from her lower half a candle answers nothing, and
+## set beside it, it answers once it has burned for the design's two seconds.
+func _a_candle_beside_the_lower_half_answers_it() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var director := level.get("director") as Object
+	var lower := level.get("_lower") as ManananggalLower2D
+	satchel.add("kandila", 2)
+	var slot := satchel.slots().find("kandila")
+	await _stand_her_at(lower.global_position.x - 450.0)
+	var chip_far := bool(level.call("_wanted_now", "kandila"))
+	level.call("use_quick_slot", slot)
+	await _frames(int(2.4 * 60.0))
+	var answered_far := bool(director.call("is_solved", "L4_MANANANGGAL"))
+	await _stand_her_at(lower.global_position.x - 80.0)
+	var chip_near := bool(level.call("_wanted_now", "kandila"))
+	level.call("use_quick_slot", slot)
+	await _frames(int(1.0 * 60.0))
+	var too_soon := bool(director.call("is_solved", "L4_MANANANGGAL"))
+	await _frames(int(1.4 * 60.0))
+	_check(not chip_far and not answered_far and chip_near and not too_soon
+			and bool(director.call("is_solved", "L4_MANANANGGAL"))
+			and String(director.call("committed_route", "L4_MANANANGGAL")) == "artist",
+		"a candle far from the lower half answers nothing; beside it, in two seconds, it does",
+		"far: wanted %s, answered %s; near: wanted %s, at 1 s %s, then route '%s'" % [chip_far, answered_far, chip_near,
+			too_soon, director.call("committed_route", "L4_MANANANGGAL")])
 
 
 ## Salt when something is ahead of her and in reach, not behind her. Garlic when two are close, or

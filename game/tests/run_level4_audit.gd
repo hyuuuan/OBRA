@@ -90,7 +90,6 @@ func _run() -> void:
 	_audit_no_objective_names_a_class(level)
 	_audit_no_satchel_line_names_a_class()
 	_audit_every_thing_says_what_and_when()
-	_audit_a_drawn_light_is_asked_for_in_words(level)
 	_audit_nothing_story_shaped_mid_encounter(level)
 	_audit_no_line_is_unreachable(level, dialogue)
 	_audit_shipping_state()
@@ -329,7 +328,7 @@ func _audit_no_satchel_line_names_a_class() -> void:
 	var items: Dictionary = data.get("items", {})
 	for id: Variant in items.keys():
 		var row: Dictionary = items[id]
-		for field: String in ["found", "does", "moment", "night", "used", "too_far", "not_the_answer", "full"]:
+		for field: String in ["found", "does", "moment", "moment_answers", "night", "used", "too_far", "full"]:
 			if not row.has(field):
 				continue
 			counted += 1
@@ -351,18 +350,6 @@ func _audit_every_thing_says_what_and_when() -> void:
 			silent.append(String(id))
 	_check(items.size() == 6 and silent.is_empty(), "each of Lola's things has its use on its slot, and its moment with its key",
 		"%d kinds" % items.size() if silent.is_empty() else "missing on: %s" % [silent])
-
-
-## ⚠ A CANDLE IS LIGHT, AND IT ANSWERS NONE OF THESE. Wherever only a drawing with the light tag
-## answers, the banner says draw: "Make a light" read as an offer to the candle lying beside it.
-func _audit_a_drawn_light_is_asked_for_in_words(level: Dictionary) -> void:
-	var objectives: Dictionary = level.get("objectives", {})
-	var unclear: Array[String] = []
-	for key: String in ["rest", "sigbin", "tiyanak"]:
-		if not String(objectives.get(key, "")).to_lower().contains("draw a light"):
-			unclear.append(key)
-	_check(unclear.is_empty(), "where only a light she draws answers, the banner says draw",
-		"rest, sigbin, tiyanak" if unclear.is_empty() else "not in: %s" % [unclear])
 
 
 ## A lore line pauses the tree. Arriving, and the answer landing, are the only places a story

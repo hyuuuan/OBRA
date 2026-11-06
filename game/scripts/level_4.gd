@@ -782,7 +782,7 @@ func _tiktik_without_ash() -> bool:
 func _has_supplies_for(encounter: String) -> bool:
 	if encounter != "L4_KAPRE" and (satchel.count("asin") > 0 or satchel.count(WHIP) > 0):
 		return true
-	if encounter in ["L4_SIGBIN", "L4_TIYANAK"] and satchel.count("kandila") > 0:
+	if encounter in ["L4_SIGBIN", "L4_TIYANAK", "L4_MANANANGGAL"] and satchel.count("kandila") > 0:
 		return true
 	# A useful drawing may be in hand, stored or set down. Compare the authored tags and
 	# exclusions, so an unrelated prop does not conceal the lack of a usable answer.
@@ -1080,8 +1080,14 @@ func _refuse_the_press(index: int, said: String) -> void:
 
 const REFUSED_SECONDS := 3.0
 
-## The beats where only a light she draws answers: its clearing's lamp, and what flees a light.
-const LIGHT_IS_DRAWN_AT := ["L4_REST1", "L4_REST2", "L4_SIGBIN", "L4_TIYANAK", "L4_MANANANGGAL"]
+## KANDILA IS A LIGHT LIKE ANY OTHER (Kent, 2026-11-06). Every banner here says "a light", and the
+## first candle lies beside the first of them. It used to answer none of them, and was lost in
+## silence. These answer as a drawn light does: at once, from anywhere in the beat. The manananggal's
+## is asked of the light itself, in _tend_the_manananggal.
+const LIGHT_IS_ASKED_AT := ["L4_REST1", "L4_REST2", "L4_SIGBIN", "L4_TIYANAK"]
+## A clearing has no route to answer it by, so its line is said here. Written out, for the audit
+## that every authored line is said.
+const REST_LINES := {"L4_REST1": "L4_REST1.fire.solved", "L4_REST2": "L4_REST2.fire.solved"}
 
 ## What she has been told about using a kind, for the run.
 var _uses_told: Dictionary = {}
@@ -1090,17 +1096,15 @@ var _last_dust: AboDust2D
 
 
 ## WHAT THE PRESS DID, where it is not plain from looking: how long a ward holds and that she has to
-## stay in it, and that a candle stays where it is put. And what it did NOT do, each time: ⚠ a candle
-## is light that costs no ink, and every banner here says "a light" -- but only a light she draws
-## fills the lamp or drives anything off (level_04.json's routes want a drawing with the tag), and
-## the first candle lies beside the first "Draw a light here". Pressed there it was lost in silence.
+## stay in it, and that a candle stays where it is put. A candle that answered something has that
+## beat's own line, and says nothing more. Ash that reached nothing says why.
 func _say_what_it_did(id: String) -> void:
 	var row := satchel.row(id)
 	var said := ""
 	match String(row.get("use", "")):
 		"candle":
-			if _a_drawn_light_is_asked_here():
-				said = String(row.get("not_the_answer", ""))
+			if _a_candle_answers_here():
+				return
 		"dust":
 			if _last_dust != null and is_instance_valid(_last_dust) and _last_dust.blinded().is_empty():
 				said = String(row.get("too_far", ""))
@@ -1111,16 +1115,43 @@ func _say_what_it_did(id: String) -> void:
 		hint_bar.show_hint(said, _companion_speaker(), MOMENT_SECONDS)
 
 
-func _a_drawn_light_is_asked_here() -> bool:
+## The unanswered beat she stands in that a light answers, or "".
+func _beat_asking_for_a_light() -> String:
 	if player == null or not is_instance_valid(player) or director == null:
-		return false
+		return ""
 	var x := player.global_position.x
 	var spans := _beat_spans()
-	for beat: String in LIGHT_IS_DRAWN_AT:
+	for beat: String in LIGHT_IS_ASKED_AT:
 		var span: Vector2 = spans.get(beat, Vector2(INF, -INF))
 		if x >= span.x and x <= span.y and not director.is_solved(beat):
-			return true
-	return false
+			return beat
+	return ""
+
+
+## Whether a candle set down here would answer something, for the Now chip. Not at a clearing, though
+## it would: arriving there always fills her ink, so a drawn light is free of worry, and the slot
+## should not talk her out of the one candle she may want in the night.
+func _candle_would_answer() -> bool:
+	var beat := _beat_asking_for_a_light()
+	if beat == "L4_SIGBIN" or beat == "L4_TIYANAK":
+		return true
+	return _lower != null and is_instance_valid(_lower) and not _lower.is_dead() and director != null \
+		and not director.is_solved("L4_MANANANGGAL") and player != null and is_instance_valid(player) \
+		and _lower.global_position.distance_to(player.global_position) <= CANDLE_LIGHTS_WITHIN
+
+
+## A candle just set down: answered as a drawn light is, by the artist's route where there is one.
+## False where there is nothing for it to answer, or nothing yet.
+func _a_candle_answers_here() -> bool:
+	var beat := _beat_asking_for_a_light()
+	if beat.is_empty():
+		return false
+	if REST_LINES.has(beat):
+		director.solve_with_item(beat, "kandila")
+		_speak(script_lines.fire(String(REST_LINES[beat])))
+	else:
+		_answer(beat, "artist")
+	return true
 
 
 func _quick_slots_answer() -> bool:
@@ -1231,8 +1262,8 @@ const CANDLE_LIGHTS_WITHIN := 120.0
 ## Darker than this is dark enough to want one.
 const DARK_ENOUGH := 0.5
 
-## The kinds she has been told about the moment for, for the run: a line she has read does not
-## need saying at every foe, and the Now chip goes on saying it.
+## The moments she has been told about, by line, for the run: a line she has read does not need
+## saying at every foe, and the Now chip goes on saying it.
 var _moments_told: Dictionary = {}
 
 
@@ -1254,8 +1285,9 @@ func _wanted_now(id: String) -> bool:
 		"oil":
 			return _lamp_is_low()
 		"candle":
-			return _lamp_is_low() and not _oil_would_answer() and not _a_candle_lights_her() \
-				and darkness_layer != null and darkness_layer.darkness >= DARK_ENOUGH
+			return _candle_would_answer() or (_lamp_is_low() and not _oil_would_answer() \
+				and not _a_candle_lights_her() and darkness_layer != null \
+				and darkness_layer.darkness >= DARK_ENOUGH)
 		"throw":
 			return _salt_would_land(float(row.get("reach", 300.0)))
 		"ward":
@@ -1354,14 +1386,17 @@ func _whip_would_reach() -> bool:
 
 
 ## The first time, with its key, over her head where she is looking. Waits for the bar to be free:
-## the Now chip is up meanwhile. The ash does not wait: its moment is a second long.
+## the Now chip is up meanwhile. The ash does not wait: its moment is a second long. A candle has two
+## moments, and each is said once.
 func _tell_the_moment(id: String, index: int) -> void:
-	if _moments_told.has(id) or hint_bar == null:
+	if hint_bar == null:
 		return
-	var said := String(satchel.row(id).get("moment", ""))
-	if said.is_empty() or (hint_bar.is_showing() and String(satchel.row(id).get("use", "")) != "dust"):
+	var row := satchel.row(id)
+	var said := String(row.get("moment_answers" if _candle_would_answer() and row.has("moment_answers") else "moment", ""))
+	if said.is_empty() or _moments_told.has(said) \
+			or (hint_bar.is_showing() and String(row.get("use", "")) != "dust"):
 		return
-	_moments_told[id] = true
+	_moments_told[said] = true
 	hint_bar.show_hint(said.replace("{key}", _slot_key(index)), _companion_speaker(), MOMENT_SECONDS)
 
 
@@ -1963,8 +1998,11 @@ func _tend_the_manananggal(delta: float) -> void:
 	if _lower == null or director == null or director.is_solved("L4_MANANANGGAL") or _lower.is_dead():
 		_lit_for = 0.0
 		return
-	if director.committed_route("L4_MANANANGGAL") == "artist" \
-			and LightField.light_from(_drawn_light(), _lower.global_position) >= LIT_ENOUGH:
+	# A drawn light is the choice and holding it there the answer. A candle set by her is both: no
+	# route has to be chosen first, so salt is still hers to throw until it has burned long enough.
+	var drawn := director.committed_route("L4_MANANANGGAL") == "artist" \
+		and LightField.light_from(_drawn_light(), _lower.global_position) >= LIT_ENOUGH
+	if drawn or LightField.light_from(_candle_light(), _lower.global_position) >= LIT_ENOUGH:
 		_lit_for += delta
 		if _lit_for >= LIT_SECONDS:
 			_answer("L4_MANANANGGAL", "artist")
@@ -1982,6 +2020,14 @@ func _drawn_light() -> Array:
 		var hole: Dictionary = source.call("light_hole")
 		if not hole.is_empty():
 			holes.append(hole)
+	return holes
+
+
+func _candle_light() -> Array:
+	var holes: Array = []
+	for source in get_tree().get_nodes_in_group(LightField.GROUP):
+		if source is CandleFlame2D:
+			holes.append((source as CandleFlame2D).light_hole())
 	return holes
 
 

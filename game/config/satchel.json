@@ -80,17 +80,17 @@
     "kandila": {
       "display_name": "Kandila",
       "gloss": "Candle",
-      "found": "Kandila, a candle. {key} sets it at my feet: light on this spot, no ink. For when the lamp is low.",
+      "found": "Kandila, a candle. {key} sets it at my feet: a light like any other, and it costs no ink.",
       "does": "Lights here",
       "moment": "I can barely see. {key} sets the candle down.",
+      "moment_answers": "A light would answer this. {key} sets the candle down.",
       "used": "It burns here for 45 seconds. It does not follow me.",
-      "not_the_answer": "A candle shows the way, but this wants a light I draw.",
       "cap": 3,
       "drop_chance": 0.08,
       "use": "candle",
       "radius": 220,
       "seconds": 45.0,
-      "$comment": "A light that costs no ink, set down where she stands, burning for 45 s. What a player hoards for the last clearing."
+      "$comment": "A light that costs no ink, set down where she stands, burning for 45 s. It answers what a drawn light answers (Kent, 2026-11-06): a clearing's lamp, the sigbin, the tiyanak, the manananggal's lower half."
     },
     "langis": {
       "display_name": "Langis",
