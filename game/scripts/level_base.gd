@@ -3273,6 +3273,17 @@ func _tick_tutorial() -> void:
 		_has_moved = true
 	if _has_moved:
 		tutorial.note("moved")
+	# HOW THIS FORM MOVES. Polled, not hung off `became_creature`: that fires before the new body
+	# is adopted, and "in the water" is a thing that happens to a form long after it arrives.
+	var form := player as ActiveRagdollMorph
+	if form == null:
+		return
+	var rig_type := String(form.rig_profile.get("rig_type", ""))
+	if rig_type == "flier":
+		tutorial.note("can_fly")
+	elif (rig_type == "swimmer" or bool(form.rig_profile.get("can_swim", false))) \
+			and form.is_in_water():
+		tutorial.note("swimming")
 
 
 func _drawing_display_name(drawing: PhysicsShapeObject) -> String:

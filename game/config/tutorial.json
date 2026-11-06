@@ -185,6 +185,37 @@
           "lead": "You can always come back to yourself, apo. Remember how."
         },
         {
+          "id": "fly",
+          "at": "can_fly",
+          "after": "revert",
+          "mode": "do",
+          "visual": "jump",
+          "context": "creature",
+          "anchor": "player",
+          "action": "jump",
+          "delay": 0.2,
+          "seconds": 10.0,
+          "caption": "Tap it again and again to rise",
+          "text": "{keys}, again and again, keeps you in the air.",
+          "lead": "You have to work for the sky, apo. Keep beating, or down you come."
+        },
+        {
+          "id": "swim",
+          "at": "swimming",
+          "mode": "do",
+          "visual": "keys",
+          "context": "creature",
+          "anchor": "player",
+          "action": "move_up",
+          "through": "move_down",
+          "join": " and ",
+          "delay": 0.4,
+          "seconds": 10.0,
+          "caption": "Swim up and down",
+          "text": "{keys} take you up and down in the water.",
+          "lead": "The water will have you now, apo. Go as deep as you like."
+        },
+        {
           "id": "clock",
           "at": "morph_running",
           "after": "revert",
