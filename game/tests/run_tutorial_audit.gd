@@ -71,10 +71,12 @@ func _initialize() -> void:
 	_check(director.has_taught("rotate"), "and the third the time after", "rotate")
 
 	# 8. LESS OF IT. Kent: "its just knowledge dumping at this point". The four cut on that
-	#    pass stay cut, and the tutorial level stays under twenty things to say.
+	#    pass stay cut, and the tutorial level stays under twenty-five things to say. It was
+	#    twenty until he asked for it to cover everything; five of these only appear for a
+	#    player who does the thing they are about, or after the first gate.
 	for cut in ["pause", "sure", "sign"]:
 		_check(not ids.has(cut), "'%s' stays cut" % cut, "absent" if not ids.has(cut) else "BACK")
-	_check(lessons.size() < 20, "Level 1 says fewer than twenty things", "%d" % lessons.size())
+	_check(lessons.size() < 25, "Level 1 says fewer than twenty-five things", "%d" % lessons.size())
 	_check(not ledger["levels"]["level_1"].has("canvas_briefing"),
 		"the canvas is taught by cards, not four lines of Lolo", "no briefing")
 

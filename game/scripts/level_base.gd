@@ -1282,7 +1282,7 @@ func _refresh_requirements() -> void:
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
 	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player",
-	"placement", "placed", "canvas_paper", "transform_button", "lantern"]
+	"placement", "placed", "canvas_paper", "transform_button", "lantern", "quest_card"]
 ## Every `context` a lesson may name, answered by _tutorial_context.
 const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "any"]
 ## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
@@ -1362,6 +1362,8 @@ func _tutorial_target(anchor: String) -> Rect2:
 			node = hud_panel as Control
 		"requirement_strip":
 			node = requirement_strip as Control
+		"quest_card":
+			node = objective_banner.card() if objective_banner != null else null
 		"morph_card":
 			# The plate top right that says what the player currently IS. It carries the two
 			# readings the game never explained: how long this drawing has left, and how sure
@@ -3831,6 +3833,8 @@ func _on_form_changed(form_name: String, _form_id: String) -> void:
 	if morph_card != null and form_name.is_empty():
 		morph_card.hide_form()
 	if tutorial != null and not form_name.is_empty():
+		# She has already found out, so the card that tells her she can is spent unshown.
+		tutorial.mark_taught(["become"])
 		tutorial.note("became_creature")
 
 

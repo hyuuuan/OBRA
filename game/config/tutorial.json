@@ -241,6 +241,32 @@
           "lead": "A lantern! She lit these so nobody would lose their way."
         },
         {
+          "id": "quest",
+          "at": "moved",
+          "after": "checkpoint",
+          "mode": "look",
+          "visual": "quest",
+          "context": "world",
+          "anchor": "quest_card",
+          "delay": 2.0,
+          "caption": "Your next task is always here",
+          "text": "The card at the top says what comes next, apo.",
+          "lead": "If you ever lose your way, apo, look up. That card says what comes next."
+        },
+        {
+          "id": "become",
+          "at": "moved",
+          "after": "quest",
+          "mode": "look",
+          "visual": "become",
+          "context": "world",
+          "anchor": "player",
+          "delay": 6.0,
+          "caption": "Draw something alive and you become it",
+          "text": "Draw something alive, apo, and you become it.",
+          "lead": "One more thing, apo. Paint something alive and you do not carry it. You become it."
+        },
+        {
           "id": "bag",
           "at": "item_stored",
           "mode": "do",
