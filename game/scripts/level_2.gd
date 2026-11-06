@@ -1249,10 +1249,11 @@ func _on_at_door(standing: bool, door: PiyestaDoor2D) -> void:
 	if not standing:
 		# Only if the bar is still saying what this door put there -- one channel carries
 		# several voices, and clearing unconditionally takes somebody else's message with it.
-		if hint_bar.current_text() == door.prompt():
-			hint_bar.clear()
+		hint_bar.take_down(door.prompt())
 		return
-	hint_bar.show_hint(door.prompt(), Lolo.SPEAKER)
+	# An aside. The plaza's two rules are going up as she takes her first steps past these doors,
+	# and a door replacing them replaced them for good.
+	hint_bar.interject(door.prompt(), Lolo.SPEAKER, 0.0)
 
 
 ## E at an open door. Tried between a placed drawing and a signpost, which is where the base
