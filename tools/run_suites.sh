@@ -46,8 +46,8 @@ print "started $EPOCHSECONDS" > "$LOG"
 
 HEADLESS=(
   run_tests run_level_ready test_player_profile run_dev_mode_probe
-  run_level1_audit run_walk_level1 run_nodraw_level1 run_level1_finish_probe run_level1_backdrop_probe run_cliff_dressing_probe
-  run_ink_economy_probe run_morph_gate_probe run_book_probe run_tutorial_audit
+  run_level1_audit run_walk_level1 run_nodraw_level1 run_level1_finish_probe run_level1_flight_ceiling_probe run_level1_backdrop_probe run_cliff_dressing_probe
+  run_ink_economy_probe run_morph_gate_probe run_book_probe run_tutorial_audit run_tutorial_coverage_probe
   run_gate_probe
   run_tutorial_popup_probe run_action_prompt_probe run_ladder_angle_probe run_hint_probe run_dialogue_box_probe run_line_timing_probe
   run_room_probe run_head_clear_probe run_motion_probe run_hud_motion_probe run_rig_fit_probe run_rig_facing_probe

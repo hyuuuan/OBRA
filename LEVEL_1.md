@@ -612,6 +612,20 @@ Lessons wait for the opening now (`_tutorial_context`).
 question.** The fork's box and the arrival's box both begin at x 2950. They used to open on one
 frame, and the key turning Lolo's pages answered the question.
 
+After that, each lesson waits for its moment, and most of them only come if the player does the
+thing (`tutorial.json`). Three come for everyone once the first gate is behind her:
+
+5. the checkpoint, at Ang Hagdan's lantern;
+6. **Quest** (`quest`), which lights the quest card, then **Become** (`become`), six seconds on and
+   before the lake, the first place it can matter. It is spent unshown if she has already become
+   something;
+7. **E** (`interact`), the next time its prompt is up. ⚠ It waits for the checkpoint and it is a
+   `look` card, because E is first offered beside the first drawing she set down, among the lessons
+   about it, and a `do` card there would have her press E and pocket what she was about to climb.
+
+**Fly** and **Swim** come only to a form that can do them, and Swim only once it is in the water.
+A lesson a route never reached is owed to the next level: AGENTS.md has the rule.
+
 ⚠ **The greeting is not said on a first visit** (`_greets_on_first_visit`). It came straight
 after the intro, at the spawn — "press R and draw", the first instruction in the game, with
 nothing in front of her to draw for — and the `draw` lesson's lead says the same thing at the
@@ -840,6 +854,12 @@ the rim, so the apo cannot wade it, and going under puts her back at her last ch
 `run_walk_level1` holds the width, keeps water, bed and basin bank to bank, checks no signpost
 stands in it, and rides a boat across. It is not in `GATES.md` and has no beat or hint of its
 own: the banner says "Follow the terraces east to the gorge" all the way across it.
+
+**The sky has a lid (`GameplayPlane/SkyLid`, underside y -440).** Kent: "when i try to fly up above
+in level 1, i get to go to the houses, hay". Both insides are parked over the valley (the heap at
+y -900, Ang Bale at y -1180) and a room is entered by position (`_room_holding_player`), so a bird
+flapped off the top of the painted sky and into them. The lid is world collision, and doors
+teleport past it. `run_level1_flight_ceiling_probe` flies at it with real flaps.
 
 ## What the player is told to do
 

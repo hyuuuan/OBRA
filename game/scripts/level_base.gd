@@ -1389,7 +1389,7 @@ func _refresh_requirements() -> void:
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
 	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player",
-	"placement", "placed", "canvas_paper", "transform_button", "lantern"]
+	"placement", "placed", "canvas_paper", "transform_button", "lantern", "quest_card"]
 ## Every `context` a lesson may name, answered by _tutorial_context.
 const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "any"]
 ## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
@@ -1469,6 +1469,8 @@ func _tutorial_target(anchor: String) -> Rect2:
 			node = hud_panel as Control
 		"requirement_strip":
 			node = requirement_strip as Control
+		"quest_card":
+			node = objective_banner.card() if objective_banner != null else null
 		"morph_card":
 			# The plate top right that says what the player currently IS. It carries the two
 			# readings the game never explained: how long this drawing has left, and how sure
@@ -3364,6 +3366,8 @@ func _refresh_action_prompts() -> void:
 	# A drawing within reach takes E first (see press_interact), so the level's own offer is
 	# only shown where there is none.
 	var offer: Dictionary = _level_interact_offer() if can_act and not can_pick_up else {}
+	if tutorial != null and (can_pick_up or not offer.is_empty()):
+		tutorial.note("pickup_ready")
 	if not offer.is_empty():
 		action_prompts.set_pickup_available(true, String(offer.get("name", "")),
 			String(offer.get("verb", "USE")))
@@ -3426,6 +3430,17 @@ func _tick_tutorial() -> void:
 		_has_moved = true
 	if _has_moved:
 		tutorial.note("moved")
+	# HOW THIS FORM MOVES. Polled, not hung off `became_creature`: that fires before the new body
+	# is adopted, and "in the water" is a thing that happens to a form long after it arrives.
+	var form := player as ActiveRagdollMorph
+	if form == null:
+		return
+	var rig_type := String(form.rig_profile.get("rig_type", ""))
+	if rig_type == "flier":
+		tutorial.note("can_fly")
+	elif (rig_type == "swimmer" or bool(form.rig_profile.get("can_swim", false))) \
+			and form.is_in_water():
+		tutorial.note("swimming")
 
 
 func _drawing_display_name(drawing: PhysicsShapeObject) -> String:
@@ -3988,6 +4003,8 @@ func _on_form_changed(form_name: String, _form_id: String) -> void:
 	if morph_card != null and form_name.is_empty():
 		morph_card.hide_form()
 	if tutorial != null and not form_name.is_empty():
+		# She has already found out, so the card that tells her she can is spent unshown.
+		tutorial.mark_taught(["become"])
 		tutorial.note("became_creature")
 
 
@@ -5172,6 +5189,10 @@ func _complete_level() -> void:
 ## The level is finished -- and if that is what opens the next one, the house is told to open
 ## it in front of the player (LevelManager.pending_reveal, Painting2D.reveal).
 func mark_finished(level_id: String) -> void:
+	# What this route never reached is owed to the next level. Not on a replay: its tutorial is
+	# off, so nothing was spent there and it has no idea what the first time through covered.
+	if tutorial != null and tutorial.is_enabled():
+		PlayerProfile.set_lessons_owed(tutorial.owed_ids())
 	var next := LevelManager.next_level_id(level_id)
 	var was_open := next.is_empty() or LevelManager.is_unlocked(next)
 	PlayerProfile.mark_level_completed(level_id)

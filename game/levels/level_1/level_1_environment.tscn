@@ -115,6 +115,9 @@ size = Vector2(3760, 48)
 [sub_resource type="RectangleShape2D" id="Rectangle_wall"]
 size = Vector2(48, 1200)
 
+[sub_resource type="RectangleShape2D" id="Rectangle_sky_lid"]
+size = Vector2(5240, 160)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_y6bxt"]
 size = Vector2(700, 300)
 
@@ -494,6 +497,17 @@ position = Vector2(4780, 80)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/RightWall" unique_id=1719693980]
 shape = SubResource("Rectangle_wall")
+
+; ⚠ THE LID ON THE VALLEY. Both insides are parked in this sky (the heap at y -900, Ang Bale at
+; y -1180) and a room is "entered" by position, so a bird flapping up past the top of the painted
+; sky flew off screen and into them. Its underside (y -440) keeps a flier in frame and clear of
+; the HUD's top band; its top (y -600) is under the reach of the heap (y -750). Thick, so nothing
+; quick tunnels it. Doors teleport past it. run_level1_flight_ceiling_probe flies at it.
+[node name="SkyLid" type="StaticBody2D" parent="GameplayPlane"]
+position = Vector2(2560, -520)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/SkyLid"]
+shape = SubResource("Rectangle_sky_lid")
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane" unique_id=89777346]
 
