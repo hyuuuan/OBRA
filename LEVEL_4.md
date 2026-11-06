@@ -149,7 +149,7 @@ alongside this file; the numbers below are its starting points.
 | The finale | `DilimFinale2D` (the clock, the three waves, the dead tree) · `DawnClockHud` · `Wakwak2D` · `Tiktik2D` · `DeadTree2D` (`art_kind = "dead_tree"`, Dilim's own, drawn; `stands_solid` off) |
 | Lola's things | `Satchel` · `SatchelPickup2D` · `QuickSlotBar` · `AsinThrow2D` · `AboDust2D` · `BawangWard2D` · `CandleFlame2D` · `WhipLash2D` |
 | Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (the sculpted creatures, the kapre's balete, smoke and cigar) · `tools/build_dilim_delivered.py` (the art team's: the kapre, the manananggal, the white lady) · `tools/build_dilim_props.py` (satchel icons) |
-| Tests | `run_level4_audit` · `run_level4_enablers_probe` · `run_level4_seg1/seg2/seg3_probe` · `run_level4_finale_probe` · `run_level4_tiktik_probe` · `run_level4_whip_probe` · `run_satchel_probe` · `run_combat_probe` · `run_enemy_probe` · `run_weapon_probe` · `run_darkness_probe` · `run_makiling_probe` · `run_journey_probe` (Dagat → house → Dilim → dawn → ending) · windowed looks `run_visual_dilim_light`, `run_visual_makiling`, `run_visual_dilim_creatures` |
+| Tests | `run_level4_audit` · `run_level4_enablers_probe` · `run_level4_seg1/seg2/seg3_probe` · `run_level4_finale_probe` · `run_level4_tiktik_probe` · `run_level4_whip_probe` · `run_satchel_probe` · `run_combat_probe` · `run_enemy_probe` · `run_weapon_probe` · `run_darkness_probe` · `run_makiling_probe` · `run_journey_probe` (Dagat → house → Dilim → dawn → ending) · windowed looks `run_visual_dilim_light`, `run_visual_makiling`, `run_visual_dilim_creatures`, `run_visual_level4_clock` |
 
 ## As built, against the design
 
@@ -240,8 +240,8 @@ What the build does that the design above does not say, and what it does not do 
 - **What to do is said where it is done** (Kent, 2026-10-19: "the game's instructions are all
   unclear"). Inside an encounter not yet answered the banner names Lola's three ways past it, no
   class named ("Draw a light, put my back to a rock, or fight it."), each at the banner's full
-  size; the first of each of Lola's things says what it does and its key ("Kandila -- a candle. X
-  sets it down: light that costs no ink."); the santelmo's walk is taught ~3 s before it can see
+  size; the first of each of Lola's things says what it does, its key and when ("Kandila, a candle.
+  X sets it at my feet: light on this spot, no ink. For when the lamp is low."); the santelmo's walk is taught ~3 s before it can see
   her, and the first salt lies past it so nothing takes the hint bar from that.
 - **No "?" boards.** They promised Lolo's help, and stood on the creature; every beat keeps its
   story board at its approach (`LevelObstacle2D.plants_hint_sign`).
@@ -286,12 +286,17 @@ Kent: "not that clear to use and when to use"; "start off as a moon and then slo
   help now, and that slot wears a Now chip. Advice only; no press changes.
 - **A press that does nothing says why**: oil on a full lamp, a slot with none left, ash with nothing
   in reach, a candle where only a drawn light answers.
-- **Garlic's ring** stands over the dark and closes as it runs out.
+- **Garlic's ring** stands over the dark and closes as it runs out. It is room to breathe, not "room
+  to draw" as the design table has it: drawing stops the world, so the words say ten seconds, stay in.
 - **`DawnClockHud`** is a window on the sky: a crescent among stars, full by halfway, silver warming
   to gold, rays by morning, with the time in words and the two waves marked on its path. It pictures
   a sun at Kent's request; no line names one.
 - **The night's words:** one line on arriving, the wave's line and her keys on the hint bar, the quest
-  card by what is after her (`_night_objective`).
+  card by what is after her (`_night_objective`). A retried night repeats what is happening, and the
+  list of her things only for the wave that knocked her out.
+
+`run_visual_level4_clock` writes the clock through the night to `/tmp/obra_dawn_clock.png`; the reviewed
+sheet is `docs/screenshots/dilim_morning_clock.png`.
 
 **For Kent to decide (design, left unchanged):**
 1. **Four slots, five placed kinds.** A player who saves everything finds the oil with no slot. It now
