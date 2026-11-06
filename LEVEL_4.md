@@ -90,8 +90,8 @@ CP3        FINAL CLEARING — aswang waves until dawn
 | Asin (salt) | Thrown, burns over time. The only thing that kills a manananggal's lower half. |
 | Bawang (garlic) | Area repellent; anything that hunts by smell will not cross it. Buys room to draw. |
 | Langis (lamp oil) | Refills the lantern. The only healing; never drops during the finale. |
-| Abo (ash) | A cloud that reveals what hides in shadow. The only counter to the tik-tik. |
-| Kandila (candle) | Portable light that costs no ink; burns down. |
+| Abo (ash) | A cloud that reveals what hides in shadow, there or flying in while it hangs. The only counter to the tik-tik. |
+| Kandila (candle) | Portable light that costs no ink; burns down. A light like any other: it answers what a drawn light answers. |
 | Buntot pagi (stingray tail) | A whip. High damage, limited uses, rare. |
 
 ## Build order, as shipped (each a PR that shipped green; every new behaviour is a LevelBase hook that defaults off)
@@ -233,15 +233,16 @@ What the build does that the design above does not say, and what it does not do 
   the reviewed contact sheet is `docs/screenshots/dilim_dawn_progression.png`.
 - **The dead tree** is the woods' own, drawn in the balete's bark (Level 1's was standing in). It
   stands at the clearing's middle and falls east into a 64-px log that shuts the east side; a felled tree stays down through a knockout, so a retried night starts with it shut.
-- **The tik-tik** is shown by ash for the dust's 6 s and blinded for 1.5 s; inside 220 px of her
-  lantern the HUD leans and gutters and the light drops 18%.
+- **The tik-tik** is shown by ash for the dust's 6 s and blinded for 1.5 s, at the throw or flying into
+  the cloud while it hangs (1.6 s); inside 220 px of her lantern the HUD leans and gutters and the
+  light drops 18%, which is her signal to throw.
 - **The buntot pagi** drops only in waves 2 and 3 (2%), lashes 10 times, and reaches fliers. Its
   lashes left are saved with the run, and every lash flashes its quick slot and is logged.
 - **What to do is said where it is done** (Kent, 2026-10-19: "the game's instructions are all
   unclear"). Inside an encounter not yet answered the banner names Lola's three ways past it, no
-  class named ("Draw a light, put my back to a rock, or fight it."), each at the banner's full
+  class named ("Show it light, put my back to a rock, or fight it."), each at the banner's full
   size; the first of each of Lola's things says what it does, its key and when ("Kandila, a candle.
-  X sets it at my feet: light on this spot, no ink. For when the lamp is low."); the santelmo's walk is taught ~3 s before it can see
+  X sets it at my feet: a light like any other, and it costs no ink."); the santelmo's walk is taught ~3 s before it can see
   her, and the first salt lies past it so nothing takes the hint bar from that.
 - **No "?" boards.** They promised Lolo's help, and stood on the creature; every beat keeps its
   story board at its approach (`LevelObstacle2D.plants_hint_sign`).
@@ -300,11 +301,17 @@ Kent: "not that clear to use and when to use"; "start off as a moon and then slo
 `run_visual_level4_clock` writes the clock through the night to `/tmp/obra_dawn_clock.png`; the reviewed
 sheet is `docs/screenshots/dilim_morning_clock.png`.
 
-**For Kent to decide (design, left unchanged):**
-1. **A set-down candle answers nothing.** It does not fill a clearing's lamp or drive off the sigbin or
-   tiyanak, though `_has_supplies_for` counts it as a supply for those two. She is now told; should it answer?
-2. **Ash reveals only within 160 px at the throw**, while the lamp leans at 220, so the window is about
-   1.5 s. The Now chip marks it; the dust could instead reveal what enters it while it hangs.
+**Two of Kent's decisions came with this (2026-11-06):**
+
+- **A candle is a light like any other.** It fills a clearing's lamp (`solve_with_item`, with the
+  clearing's line) and is the artist's way past the sigbin and the tiyanak, at once and from anywhere in
+  the beat, as a drawn light is. Set beside the manananggal's lower half it answers in the same two
+  seconds, with no route chosen first, so salt stays open until then. It counts as the artist's route in
+  the tally. The Now chip stays off at a clearing, since arriving always fills her ink.
+- **Ash shows what flies in while it hangs.** Asked only at the throw, ash thrown as the lamp leaned at
+  220 px reached nothing, since the cloud reaches 160. It goes on looking for its 1.6 s, and the tik-tik
+  comes in at 110 px/s, so "when the lamp leans, throw" is always in time. That lean is the slot's Now.
+  Walkers are still blinded only at the throw. An empty cloud says so once it has gone.
 
 ## The ground is built the way Mayon's is, in Makiling's mud (2026-11-02)
 
