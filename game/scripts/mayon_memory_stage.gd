@@ -9,6 +9,8 @@ const CROSSING_WATER_FRAMES: Array[String] = [
 	"Level5/journey/crossing_falls_04.png",
 ]
 const CROSSING_WATER_FPS := 6.0
+## Local x and width of the three water curtains in Dilim's registered falls landmark.
+const DILIM_WATER_STREAMS := [Vector2(602, 23), Vector2(641, 26), Vector2(700, 26)]
 
 var kind := ""
 var props: Array = []
@@ -101,11 +103,6 @@ func _prop(canvas: Node2D, path: String, x: float, y: float, width: float,
 
 
 func _draw() -> void:
-	if kind in ["forest", "waterfall", "dawn"]:
-		var shade := Color(.62,.72,.82) if kind != "dawn" else Color(.94,.99,.78)
-		# The supplied tree frame encloses a clearing; it belongs to the same forest
-		# as the distant mountain plates, and is registered to the walk line.
-		_prop(self,"Level4/backdrop/frame.png",640,70,1900,shade)
 	for spec: Dictionary in props:
 		var tint := Color.WHITE
 		if spec.has("tint"):
@@ -270,8 +267,9 @@ func _falling_water() -> void:
 	var strength := _landmark_colour("waterfall")
 	if strength <= 0: return
 	for index in range(34):
-		var x := 617+fposmod(index*23.0,94)
-		var y := -364+fposmod(_time*(100+index%4*15)+index*47,337)
+		var stream: Vector2 = DILIM_WATER_STREAMS[index % DILIM_WATER_STREAMS.size()]
+		var x := stream.x + fposmod(index * 17.0, stream.y)
+		var y := -212.0 + fposmod(_time * (100 + index % 4 * 15) + index * 47, 185.0)
 		_air.draw_rect(Rect2(x,y,2,7+index%6),Color(.74,.95,.95,.35*strength))
 	for index in range(7):
 		var x := 620+index*17+sin(_time*.9+index)*12

@@ -406,6 +406,16 @@ its parallax and dawn tint. Chopping, smoke, cigar targets, collision and encoun
 keep their existing rules. The older sculpted tree outputs remain historical build outputs.
 `run_visual_dilim_trees.gd` captures all three replacements and both felled states.
 
+**Dilim's outdoor backdrop uses the supplied vista behind the existing trees (2026-11-07).**
+Three ImageGen edits under `assets/Level4/backdrop_reference/` form the sky, single Makiling
+peak, and forest canopy. Their horizontal camera rates are 0.02, 0.044, and 0.29. The sky
+and canopy mirror at the joins. The supplied `forest_plate.png` repeats in front of the
+canopy at 0.62, with its original scale and top edge. All four bands draw behind the
+play plane and share the finale's night-to-dawn grade.
+`run_makiling_probe` checks the live bands and `run_visual_makiling` shows the joins and
+ravine. The [generation prompts](LEVEL4_Mt.Makiling/authored/backdrop_reference_prompts.md)
+record the artwork edits.
+
 ## The old way over the ravine fades (2026-11-01)
 
 A fallen log lay across the bungisngis's ravine: `GameplayPlane/OldLog`, Makiling's own mossy log

@@ -1,8 +1,8 @@
 extends Node2D
 ## A real opening in the mountain. The player's physics anchor enters it; there is no E prompt.
 const WIDTH := 500.0
-const BASALT := preload("res://assets/Level5/props/basalt_spires.png")
-const FACE := preload("res://assets/Level5/terrain/basalt.png")
+const BASALT := preload("res://assets/Level5/revamp/basalt_spires.png")
+const FACE := MayonTerrain2D.CLIFFS["basalt"]
 const LAVA := preload("res://shaders/crater_lava.gdshader")
 var _clock := 0.0
 var _lava: Polygon2D
