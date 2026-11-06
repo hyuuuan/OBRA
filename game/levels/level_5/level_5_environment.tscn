@@ -331,6 +331,7 @@ position = Vector2(22310.0, 140.0)
 position = Vector2(2250.0, 210.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L5_SPAN"
+story_sign_offset = 360.0
 announce_size = Vector2(180, 460)
 plants_hint_sign = false
 trigger_size = Vector2(900.0, 460.0)
