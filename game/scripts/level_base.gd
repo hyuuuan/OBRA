@@ -950,6 +950,13 @@ func _stage_the_checkpoint(mark: Node2D) -> void:
 	# decides whether the moment also takes the camera and the bars.
 	if not _may_frame_the_checkpoint(mark):
 		return
+	# ⚠ AFTER THE WORDS, NOT UNDER THEM. A route's commit line and its lantern start on one
+	# frame, so the letterbox came in over "Let us put it back" and the camera went to the
+	# lantern while the apo was talking, then let go of whoever was speaking a second later.
+	if dialogue_box != null and dialogue_box.is_open():
+		await dialogue_box.conversation_finished
+		if not is_inside_tree() or not is_instance_valid(mark) or cinematic.is_playing():
+			return
 	var world_camera := _world_camera()
 	cinematic.close("CHECKPOINT")
 	if world_camera != null:
@@ -960,7 +967,9 @@ func _stage_the_checkpoint(mark: Node2D) -> void:
 	if is_instance_valid(mark) and mark.has_method("light"):
 		mark.call("light", Vector2(0.0, -60.0))
 	await get_tree().create_timer(1.35, true, false, true).timeout
-	if world_camera != null:
+	# A line that began under the bars has the camera now, and gives it back when it ends.
+	var someone_talking := dialogue_box != null and dialogue_box.is_open()
+	if world_camera != null and not someone_talking:
 		world_camera.release_focus()
 	if cinematic != null:
 		cinematic.open()
