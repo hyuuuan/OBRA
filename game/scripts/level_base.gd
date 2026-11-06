@@ -917,7 +917,10 @@ func _checkpoint_is_declared(checkpoint_id: String) -> bool:
 
 func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 	_write_checkpoint(checkpoint_id)
-	if _saves_silently():
+	# ⚠ NOT WHILE THE LEVEL IS STILL OPENING. Piyesta's first lantern stands where she wakes, so
+	# it was "reached" before anybody had said a word: the letterbox and the camera took the
+	# lantern under the opening's first line, for a place she had not walked to.
+	if _saves_silently() or _opening_running:
 		return
 	_say_checkpoint()
 	var area := _checkpoint_area_for(checkpoint_id)
@@ -1060,6 +1063,8 @@ const LISTEN_PATIENCE := 1.2
 
 
 func _until_she_can_listen() -> void:
+	if _opening_running:
+		await opening_finished
 	var waited := 0.0
 	while waited < LISTEN_PATIENCE and is_inside_tree() and _is_busy_for_a_line():
 		await get_tree().physics_frame
@@ -1429,6 +1434,10 @@ func _tutorial_context(context: String) -> bool:
 		"any":
 			return true
 	if canvas_open or _level_completed or player == null or not is_instance_valid(player):
+		return false
+	# ⚠ NOT BEFORE THE LEVEL'S FIRST WORDS. A key already held when the level appeared noted the
+	# first step, so "Can you still jump, apo?" was said before the apo had woken up.
+	if _opening_running:
 		return false
 	var placing := placement_controller.is_placing()
 	match context:
@@ -4611,6 +4620,10 @@ var resume_enabled := not preload("res://scripts/user_data.gd").is_test_run()
 ## How long the level is on screen before the opening speaks, so the first line does not land
 ## on the frame the scene appears.
 const OPENING_DELAY := 0.8
+## The level's first words have been said, or it has none. Everything else that speaks waits
+## for it (`_until_she_can_listen`). See `_play_opening`.
+signal opening_finished
+var _opening_running := false
 
 
 ## THE LEVEL'S FIRST WORDS, chosen by whether the apo has been here before.
@@ -4621,6 +4634,13 @@ const OPENING_DELAY := 0.8
 ## replaying does not mean hearing the same welcome twice. Either way the tutorial waits: it
 ## shows nothing over anyone talking (TutorialDirector), so Walk comes after the last word.
 func _play_opening() -> void:
+	_opening_running = true
+	await _say_the_opening()
+	_opening_running = false
+	opening_finished.emit()
+
+
+func _say_the_opening() -> void:
 	var level_id := LevelManager.current_level_id
 	var visits := 1
 	if PlayerProfile.has_method("record_level_visit"):
