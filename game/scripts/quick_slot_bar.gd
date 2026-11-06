@@ -40,6 +40,9 @@ const NOW_RISE := 32.0
 ## A press that could do nothing: the slot shakes for this long, whole pixels at the pixel rate.
 const REFUSED_SECONDS := 0.3
 const REFUSED_SHAKE := 3.0
+## What she carries with no slot, standing to the left of the first: it has no key to name, and
+## says so.
+const NO_SLOT_TEXT := "No slot yet"
 const COUNT_FONT := UISkin.FONT_CAPTION
 const CAP_FONT := UISkin.FONT_CAPTION
 ## Under each filled slot, its name and what it does: an icon of a white heap and a 2 did not say
@@ -143,6 +146,15 @@ func is_refusing(index: int) -> bool:
 	return index >= 0 and index < _refused.size() and _refused[index] > 0.0
 
 
+## What she carries with no key, for a probe as for the screen.
+func waiting_names() -> Array[String]:
+	var out: Array[String] = []
+	if satchel != null:
+		for id in satchel.waiting():
+			out.append(String(satchel.row(id).get("display_name", id)))
+	return out
+
+
 func _process(delta: float) -> void:
 	var lit := false
 	_wanted_clock += delta
@@ -206,6 +218,7 @@ func _draw() -> void:
 		var key_width := font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT).x
 		draw_string(font, cap.position + Vector2((CAP.x - key_width) * 0.5, CAP.y - 6.0), key,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT, UISkin.GOLD_LABEL)
+	_draw_waiting(font)
 
 
 ## Where a press that did nothing has its slot, this frame: left, right, left, a step at the pixel
@@ -228,6 +241,28 @@ func _draw_wanted(font: Font, rect: Rect2) -> void:
 	_round(chip, UISkin.GOLD_FILL, UISkin.GOLD_EDGE, 1, 6.0)
 	draw_string(font, chip.position + Vector2(8.0, 20.0), NOW_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1,
 		NAME_FONT, UISkin.GOLD_LABEL)
+
+
+## Left of the first slot, what she carries that has no slot of its own: a slot's worth of hollow,
+## its thing and how many, and no cap, because no key is what is wrong with it.
+func _draw_waiting(font: Font) -> void:
+	if satchel == null:
+		return
+	var waiting := satchel.waiting()
+	for order in range(waiting.size()):
+		var id := waiting[order]
+		var rect := Rect2(Vector2(-(order + 1) * (SLOT.x + GAP), CAP.y * 0.5), SLOT)
+		_round(rect, Color(UISkin.PANEL, 0.55), UISkin.RING_MID, 1)
+		var art := _icon(id)
+		if art != null:
+			var side := art.get_size() * ICON_SCALE
+			draw_texture_rect(art, Rect2(rect.get_center() - side * 0.5, side), false, Color(1, 1, 1, 0.625))
+		var number := str(satchel.count(id))
+		var width := font.get_string_size(number, HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_FONT).x
+		draw_string(font, rect.end - Vector2(width + 5.0, 5.0), number, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			COUNT_FONT, UISkin.MUTED)
+		_draw_label(font, rect, 0, String(satchel.row(id).get("display_name", id)), UISkin.MUTED)
+		_draw_label(font, rect, 1, NO_SLOT_TEXT, UISkin.MUTED)
 
 
 ## A gold ring round the slot, breathing out and in, fading over its last half second. Steady
