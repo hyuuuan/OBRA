@@ -995,7 +995,9 @@ func _say_checkpoint() -> void:
 		tutorial.note("checkpoint")
 		explained = not before and tutorial.is_coming("checkpoint")
 	if hint_bar != null and not explained:
-		hint_bar.show_hint("Checkpoint. If you fall, you start again from here.", "", 3.5)
+		# An aside, because a checkpoint is crossed in the middle of whatever Lolo is saying:
+		# Piyesta's first step replaced the two rules of the plaza with this, for good.
+		hint_bar.interject("Checkpoint. If you fall, you start again from here.", "", 3.5)
 	var audio := get_node_or_null(^"/root/AudioDirector")
 	if audio != null:
 		audio.call("play_sfx", &"checkpoint")
