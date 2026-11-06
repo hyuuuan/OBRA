@@ -987,18 +987,77 @@ func use_quick_slot(index: int) -> bool:
 	if not _quick_slots_answer():
 		return false
 	var id := satchel.slot_item(index)
-	if id.is_empty() or satchel.count(id) <= 0:
+	if id.is_empty():
+		return true
+	if satchel.count(id) <= 0:
+		_refuse_the_press(index, satchel.line("none_left", id))
 		return true
 	var spent := _use_from_satchel(id)
-	if spent:
-		satchel.take(id)
 	# A lash of the whip is a use that spends nothing until its last: it shows, and is logged, all
 	# the same.
 	if spent or _lashed:
 		quick_slots.flash(index)
 		Telemetry.record_event("satchel_used", {"level_id": LevelManager.current_level_id, "item": id})
+		_say_what_it_did(id)
+	elif String(satchel.row(id).get("use", "")) == "oil":
+		_refuse_the_press(index, String(satchel.row(id).get("full", "")))
+	# Last: taking the last of it can give its slot to one that waited, which has its own line.
+	if spent:
+		satchel.take(id)
 	_lashed = false
 	return true
+
+
+## ⚠ A KEY THAT DOES NOTHING READS AS A BROKEN KEY. Oil on a full lamp, or a slot with none left,
+## said nothing and looked like nothing: she could not tell a refusal from a key she had got wrong.
+func _refuse_the_press(index: int, said: String) -> void:
+	quick_slots.refuse(index)
+	hint_bar.show_hint(said, _companion_speaker(), REFUSED_SECONDS)
+
+
+const REFUSED_SECONDS := 3.0
+
+## The beats where only a light she draws answers: its clearing's lamp, and what flees a light.
+const LIGHT_IS_DRAWN_AT := ["L4_REST1", "L4_REST2", "L4_SIGBIN", "L4_TIYANAK", "L4_MANANANGGAL"]
+
+## What she has been told about using a kind, for the run.
+var _uses_told: Dictionary = {}
+## The handful of ash last thrown, to ask what it reached.
+var _last_dust: AboDust2D
+
+
+## WHAT THE PRESS DID, where it is not plain from looking: how long a ward holds and that she has to
+## stay in it, and that a candle stays where it is put. And what it did NOT do, each time: ⚠ a candle
+## is light that costs no ink, and every banner here says "a light" -- but only a light she draws
+## fills the lamp or drives anything off (level_04.json's routes want a drawing with the tag), and
+## the first candle lies beside the first "Draw a light here". Pressed there it was lost in silence.
+func _say_what_it_did(id: String) -> void:
+	var row := satchel.row(id)
+	var said := ""
+	match String(row.get("use", "")):
+		"candle":
+			if _a_drawn_light_is_asked_here():
+				said = String(row.get("not_the_answer", ""))
+		"dust":
+			if _last_dust != null and is_instance_valid(_last_dust) and _last_dust.blinded().is_empty():
+				said = String(row.get("too_far", ""))
+	if said.is_empty() and not _uses_told.has(id):
+		_uses_told[id] = true
+		said = String(row.get("used", ""))
+	if not said.is_empty():
+		hint_bar.show_hint(said, _companion_speaker(), MOMENT_SECONDS)
+
+
+func _a_drawn_light_is_asked_here() -> bool:
+	if player == null or not is_instance_valid(player) or director == null:
+		return false
+	var x := player.global_position.x
+	var spans := _beat_spans()
+	for beat: String in LIGHT_IS_DRAWN_AT:
+		var span: Vector2 = spans.get(beat, Vector2(INF, -INF))
+		if x >= span.x and x <= span.y and not director.is_solved(beat):
+			return true
+	return false
 
 
 func _quick_slots_answer() -> bool:
@@ -1379,6 +1438,7 @@ func _throw_ash(item: Dictionary) -> bool:
 	dust.reveal_seconds = float(item.get("reveal_seconds", 6.0))
 	dust.position = player.global_position
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
+	_last_dust = dust
 	return true
 
 

@@ -37,6 +37,9 @@ const CAP := Vector2(30.0, 28.0)
 const WANTED_HOLD := 0.6
 const NOW_TEXT := "Now"
 const NOW_RISE := 32.0
+## A press that could do nothing: the slot shakes for this long, whole pixels at the pixel rate.
+const REFUSED_SECONDS := 0.3
+const REFUSED_SHAKE := 3.0
 const COUNT_FONT := UISkin.FONT_CAPTION
 const CAP_FONT := UISkin.FONT_CAPTION
 ## Under each filled slot, its name and what it does: an icon of a white heap and a 2 did not say
@@ -51,6 +54,7 @@ var _icons: Dictionary = {}
 var _flash: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _welcome: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _wanted: Array[float] = [0.0, 0.0, 0.0, 0.0]
+var _refused: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _wanted_clock := 0.0
 
 
@@ -127,12 +131,27 @@ func is_wanted(index: int) -> bool:
 	return index >= 0 and index < _wanted.size() and _wanted[index] > 0.0
 
 
+## A press that did nothing: it says so with a shake (nothing, under Reduce motion, but the words
+## that come with it).
+func refuse(index: int) -> void:
+	if index >= 0 and index < _refused.size():
+		_refused[index] = REFUSED_SECONDS
+		queue_redraw()
+
+
+func is_refusing(index: int) -> bool:
+	return index >= 0 and index < _refused.size() and _refused[index] > 0.0
+
+
 func _process(delta: float) -> void:
 	var lit := false
 	_wanted_clock += delta
 	for index in range(_flash.size()):
 		if _wanted[index] > 0.0:
 			_wanted[index] = maxf(0.0, _wanted[index] - delta)
+			lit = true
+		if _refused[index] > 0.0:
+			_refused[index] = maxf(0.0, _refused[index] - delta)
 			lit = true
 		if _flash[index] > 0.0:
 			_flash[index] = maxf(0.0, _flash[index] - delta)
@@ -152,6 +171,7 @@ func _draw() -> void:
 	var font := get_theme_default_font()
 	for index in range(Satchel.SLOTS):
 		var rect := slot_rect(index)
+		rect.position.x += _shake_of(index)
 		var id := satchel.slot_item(index) if satchel != null else ""
 		var count := satchel.count(id) if satchel != null and not id.is_empty() else 0
 		var glow := _flash[index] / FLASH_SECONDS
@@ -186,6 +206,15 @@ func _draw() -> void:
 		var key_width := font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT).x
 		draw_string(font, cap.position + Vector2((CAP.x - key_width) * 0.5, CAP.y - 6.0), key,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT, UISkin.GOLD_LABEL)
+
+
+## Where a press that did nothing has its slot, this frame: left, right, left, a step at the pixel
+## rate, still under Reduce motion.
+func _shake_of(index: int) -> float:
+	if _refused[index] <= 0.0 or Motion.reduced():
+		return 0.0
+	var step := int((REFUSED_SECONDS - _refused[index]) * Motion.PIXEL_FPS)
+	return REFUSED_SHAKE * (1.0 if step % 2 == 0 else -1.0)
 
 
 ## The thing to press now: the gold ring, breathing, and a chip that says so.
