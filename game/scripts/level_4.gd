@@ -664,6 +664,10 @@ func _drop_the_bestiary() -> void:
 	plane.add_child(page)
 
 
+func _arrival_hook(obstacle_id: String) -> String:
+	return "" if obstacle_id == "L4_TIKBALANG" else super._arrival_hook(obstacle_id)
+
+
 func _diary_page_on_arrival(obstacle_id: String) -> Dictionary:
 	if not BESTIARY_PAGES.has(obstacle_id):
 		return {}
@@ -1412,6 +1416,11 @@ const LED_BACK_TO := 8350.0
 const RACE_REACH := 150.0
 
 var _tikbalang: Tikbalang2D
+## ⚠ "THIS IS THE SAME ROCK. I HAVE PASSED IT THREE TIMES NOW." was its arrival line, so it was said
+## on the first approach, before she had passed anything. It is said when it is true: past it once
+## on the way in, and twice more led back. See `_arrival_hook`.
+const LED_BACK_TO_NOTICE := 2
+var _times_led_back := 0
 ## Where she was last tick, and the most a tick of her own going could carry her.
 var _her_last_x := INF
 const CROSSING_STEP := 120.0
@@ -1429,7 +1438,11 @@ func _lead_her_round() -> void:
 		return
 	_put_her_back_at_the_rock()
 	_her_last_x = PlayerHurtbox2D.middle_of(player).x
-	_speak(script_lines.fire("L4_TIKBALANG.led_back"))
+	_times_led_back += 1
+	if _times_led_back == LED_BACK_TO_NOTICE:
+		_speak_on_arrival("L4_TIKBALANG.enter")
+	else:
+		_speak(script_lines.fire("L4_TIKBALANG.led_back"))
 
 
 func _put_her_back_at_the_rock() -> void:
