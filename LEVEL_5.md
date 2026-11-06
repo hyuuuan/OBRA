@@ -14,6 +14,16 @@ in the collision ground. Lava, embers and smoke are visible below its rim. Enter
 with the player's physics anchor starts the drop; there is no E interaction, death, ink charge
 or health system. Smoke covers the transfer to the first remembered place.
 
+**Mayon's ascent follows the supplied sunset vista.** The visible cone and grass bank use
+pixels from the reference. ImageGen filled the scenery behind the cone and trees and matched
+the bare basalt, ash, cliff caps, and loose rocks to the same palette. The sky, single cone,
+barren ridges, and forest crowns scroll at separate rates. The trees, palms, and Cagsawa tower
+stand on the existing route. The forest gives way to bare ridges as the apo climbs to the crater.
+The broadleaf trees, coconut palms and ash snags use Dilim's stepped outlines and bark in
+Mayon's sunset colours. Each sprite stands on its original anchor, including the palm the ash takes.
+Cagsawa's tower uses the same dark outlines around its silhouette, masonry and arches.
+The [art sources and prompts](LEVEL5_Mayon/authored/mayon_vista_prompts.md) describe the cuts.
+
 | Earlier painting | Short places, in order |
 |---|---|
 | Payyo | Terraces, Ang Tulay, Ang Bale |

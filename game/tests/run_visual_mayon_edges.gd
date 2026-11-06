@@ -17,9 +17,9 @@ func _run() -> void:
 	call_group(DialogueBox.GROUP, "set_auto_dismiss", true)
 	await create_timer(.6).timeout
 	var suffix := "after" if OS.get_cmdline_user_args().has("--after") else "before"
-	for entry in [["meadow",Vector2(1320,550)],["ascent",Vector2(1760,470)],
+	for entry in [["foot",Vector2(260,550)],["meadow",Vector2(1320,550)],["ascent",Vector2(1760,470)],
 		["gap",Vector2(2200,400)],["wall",Vector2(4070,300)],
-		["memories",Vector2(5900,0)],["ash",Vector2(9520,-280)]]:
+		["crater",Vector2(4910,98)],["memories",Vector2(5900,0)],["ash",Vector2(9520,-280)]]:
 		level.get("player").call("apply_morph_state", {"position":entry[1],"linear_velocity":Vector2.ZERO})
 		await create_timer(.65).timeout
 		level.call("_world_camera").snap_to_target()

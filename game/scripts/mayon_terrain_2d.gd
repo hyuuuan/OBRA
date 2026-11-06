@@ -30,17 +30,17 @@ const DEPTH_SKIP := 40.0
 @export var one_way := false
 
 const CLIFFS := {
-	"meadow": preload("res://assets/Level5/terrain/meadow.png"),
-	"basalt": preload("res://assets/Level5/terrain/basalt.png"),
-	"ash": preload("res://assets/Level5/terrain/ash.png"),
+	"meadow": preload("res://assets/Level5/revamp/meadow.png"),
+	"basalt": preload("res://assets/Level5/revamp/basalt.png"),
+	"ash": preload("res://assets/Level5/revamp/ash.png"),
 }
 
 ## Painted end caps share the three surface materials. Their left edge faces open air;
 ## mirroring puts the same registered corner on a right-facing gap edge.
 const EDGES := {
-	"meadow": preload("res://assets/Level5/terrain/edge_meadow.png"),
-	"basalt": preload("res://assets/Level5/terrain/edge_basalt.png"),
-	"ash": preload("res://assets/Level5/terrain/edge_ash.png"),
+	"meadow": preload("res://assets/Level5/revamp/edge_meadow.png"),
+	"basalt": preload("res://assets/Level5/revamp/edge_basalt.png"),
+	"ash": preload("res://assets/Level5/revamp/edge_ash.png"),
 }
 
 var _body_texture: Texture2D
@@ -128,7 +128,7 @@ func _zone(rect: Rect2) -> String:
 
 
 func _lip(zone: String) -> float:
-	return 20.0 if zone == "meadow" else (5.0 if zone == "ash" else 7.0)
+	return 8.0 if zone == "meadow" else (5.0 if zone == "ash" else 7.0)
 
 
 func _build_edge_joins() -> void:
