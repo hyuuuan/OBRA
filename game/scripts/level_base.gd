@@ -3733,7 +3733,7 @@ var _curtain_closed := 0.0
 var _story_veil := 1.0
 ## The HUD pieces along the bottom of the screen, which is where Lolo's story box stands.
 const UNDER_THE_STORY_BOX := [&"GoalLabelChip", &"RequirementStrip",
-	&"DrawButton", &"ActionPrompts"]
+	&"DrawButton", &"ActionPrompts", &"QuickSlots"]
 
 
 ## THE ONE PLACE THE HUD'S ALPHA IS DECIDED.

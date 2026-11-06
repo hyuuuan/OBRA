@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 53
+const CHECKS := 54
 
 
 func _initialize() -> void:
@@ -91,6 +91,7 @@ func _run() -> void:
 	await _frames(3)
 	level = await _open_level()
 	await _the_fifth_thing_says_it_has_no_slot()
+	await _the_bar_steps_back_for_a_line()
 	level.queue_free()
 	await _frames(3)
 	level = await _open_level(true)
@@ -775,6 +776,27 @@ func _ash_shows_what_hides() -> void:
 	_check(is_equal_approx(float(hider.get(&"shown")), 6.0), "and shows what hides in shadow, for six seconds",
 		"shown for %.1f s" % float(hider.get(&"shown")))
 	hider.queue_free()
+
+
+## Seen in a window: the row of names stood half out from under the story box. It steps back as the
+## other pieces along the bottom do, and comes back after. Frames counted here by hand: a line stops
+## the tree, and this probe's own wait lets it go.
+func _the_bar_steps_back_for_a_line() -> void:
+	var bar := level.get("quick_slots") as QuickSlotBar
+	var box := level.get("dialogue_box") as Node
+	var before := bar.modulate.a
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	box.call("speak", [{"text": "Listen.", "speaker": "Apo", "at": "apo"}])
+	for _frame in range(40):
+		await physics_frame
+	var during := bar.modulate.a
+	call_group(DialogueBox.GROUP, &"hide_line")
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	paused = false
+	await _frames(40)
+	_check(before == 1.0 and during == 0.0 and bar.modulate.a == 1.0,
+		"the quick slots step back under a line of story, and come back after",
+		"%.2f, then %.2f, then %.2f" % [before, during, bar.modulate.a])
 
 
 # --- When each one is the thing to press --------------------------------------------------
