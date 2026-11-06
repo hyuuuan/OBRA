@@ -22,7 +22,7 @@ var _time := 0.0
 var _scatter := 0.0
 var _textures := {}
 var _air: Node2D
-## How long the place is. Its landmark palms stand at its middle.
+## How long the place is, used to register the surf and its scenery.
 var span := 1280.0
 ## The sea's moving surf, drawn BEHIND every prop on the shore and the island. It was drawn last, at
 ## half alpha over the palms and their rocks, and laid see-through wave bands and boxes across them.
@@ -101,11 +101,6 @@ func _prop(canvas: Node2D, path: String, x: float, y: float, width: float,
 
 
 func _draw() -> void:
-	if kind == "island":
-		var palms := _art("Level5/journey/palms_landmark.png")
-		var width := 310.0
-		var height := width * palms.get_height() / palms.get_width()
-		draw_texture_rect(palms, Rect2(span*.5-180, -height, width, height), false)
 	if kind in ["forest", "waterfall", "dawn"]:
 		var shade := Color(.62,.72,.82) if kind != "dawn" else Color(.94,.99,.78)
 		# The supplied tree frame encloses a clearing; it belongs to the same forest
@@ -146,12 +141,17 @@ func _draw_water() -> void:
 		_water.draw_polygon(PackedVector2Array([
 			Vector2(left, -38), Vector2(right, -38), Vector2(right, 80), Vector2(left, 80),
 		]), PackedColorArray([clear, clear, near, near]))
+	if kind == "island":
+		# The bangka moves with the middle distance. Foam crosses the hull
+		# after it is drawn, giving it a waterline well behind the beach.
+		var drift := (view_bounds.get_center().x - span * 0.5) * 0.52
+		var x := 240.0 + drift + sin(_time * 0.22) * 7.0
+		var y := -170.0 + sin(_time * 1.4) * 2.5
+		_prop(_water, "Level3/authored/bangka_afloat.png", x, y, 185.0, Color(.79, .91, 1.0, .9))
 	_surf_strip(surf, Rect2(Vector2.ZERO, surf.get_size()), -42.0, 0.0, 0.48)
 	if kind == "shore":
 		# The nearest crest meets the sand; the banks hide the part under dry land.
 		_surf_strip(surf, Rect2(0, 0, surf.get_width(), 66), 43.0, 243.0, 0.45)
-	if kind == "island":
-		_prop(_water,"Level3/authored/bangka_afloat.png",210+sin(_time*.22)*7,-106,150,Color(.66,.79,.84))
 
 
 func _surf_strip(texture: Texture2D, source: Rect2, bottom: float, phase: float, opacity: float) -> void:

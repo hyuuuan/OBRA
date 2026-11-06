@@ -79,10 +79,10 @@ func _ready() -> void:
 		_ground = Node2D.new()
 		_ground.draw.connect(_draw_walk_surface)
 	_ground.name = "WalkSurface"
-	if kind in ["terraces", "crossing", "bale", "shore", "sea"]:
+	if kind in ["terraces", "crossing", "bale", "shore", "sea", "island"]:
 		var material := ShaderMaterial.new()
 		match kind:
-			"shore": material.shader = SHORE_GROUND
+			"shore", "island": material.shader = SHORE_GROUND
 			"sea": material.shader = SEABED_GROUND
 			_: material.shader = TERRACE_GROUND
 		_ground.material = material
@@ -153,9 +153,9 @@ func _draw() -> void:
 		# Repeat only the authored sky/landscape, with mirrored neighbours at the ends.
 		for repeat_index in [-1, 0, 1]:
 			var rect := Rect2(x + repeat_index * width, y, width, height)
-			# The inlet and reef dip below the plate. Continue the painted water
-			# behind the low ground to keep the backdrop joined at the walk line.
-			if kind in ["shore", "sea"]:
+			# Coastal scenery can see the lowered banks of its neighbours. Extend
+			# the painted water behind the ground so the plate ends out of sight.
+			if kind in ["shore", "sea", "island"]:
 				var ocean_depth := 90.0
 				var rows := ocean_depth * texture.get_height() / height
 				var origin_x := rect.position.x if repeat_index == 0 else rect.end.x
@@ -216,7 +216,7 @@ func _draw_ground(bounds: Rect2) -> void:
 	for rect in ground_rects:
 		var local := Rect2(rect.position - global_position, rect.size)
 		if local.end.x < bounds.position.x or local.position.x > bounds.end.x: continue
-		if kind in ["terraces", "crossing", "bale", "shore", "sea"]:
+		if kind in ["terraces", "crossing", "bale", "shore", "sea", "island"]:
 			_draw_rounded_bank(rect, local, ground_rects, texture)
 			continue
 		_ground.draw_rect(local, ground)
@@ -254,12 +254,12 @@ func _draw_ground(bounds: Rect2) -> void:
 
 
 func _draw_rounded_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], texture: Texture2D) -> void:
-	var curved_face := kind in ["shore", "sea"]
+	var curved_face := kind in ["shore", "sea", "island"]
 	var top := local.position.y if curved_face else local.position.y - TERRACE_LIP
 	var max_radius := TERRACE_ROUND
 	match kind:
 		"shore": max_radius = 40.0
-		"sea": max_radius = 60.0
+		"sea", "island": max_radius = 60.0
 	var outline := PackedVector2Array()
 	var meets_higher := [false, false]
 	for side in [-1, 1]:
@@ -277,7 +277,7 @@ func _draw_rounded_bank(world: Rect2, local: Rect2, neighbours: Array[Rect2], te
 			outline.append(Vector2(x, top))
 			continue
 		var centre := Vector2(x - side * radius, top + radius)
-		if kind == "sea":
+		if kind in ["sea", "island"]:
 			# Ease into the basin floor as well as out of the high bank. Keep
 			# most of the visible drop close to the collision step.
 			for step in range(9):

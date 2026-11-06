@@ -871,10 +871,18 @@
         "staging": {
           "props": [
             {
-              "art": "Level5/journey/palms_landmark.png",
-              "x": 1170,
-              "width": 205,
+              "art": "Level5/journey/shore_palms.png",
+              "x": 615,
+              "width": 310,
               "floor": true,
+              "lift": 8
+            },
+            {
+              "art": "Level5/journey/shore_palms.png",
+              "x": 1152,
+              "width": 215,
+              "floor": true,
+              "lift": 7,
               "mirror": true,
               "tint": [
                 0.8,
@@ -887,7 +895,7 @@
               "art": "Level5/journey/shore_jetty.png",
               "x": 195,
               "width": 300,
-              "y": 105,
+              "y": 84,
               "tint": [
                 0.84,
                 0.88,
