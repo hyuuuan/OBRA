@@ -85,9 +85,11 @@ var _lesson_plain := ""
 ## screenshot. Re-measuring for a few frames lets the wrap settle and then fits to it.
 var _refit := 0
 var _life := 0.0
-## The rest of a beat, waiting its turn: [{text, speaker}]. Empty for every ordinary hint,
-## which is one line that stands until something replaces it.
+## The rest of a beat, waiting its turn: [{text, speaker, seconds?}]. Empty for every ordinary
+## hint, which is one line that stands until something replaces it.
 var _queue: Array[Dictionary] = []
+## Who is saying the current line, as given: `_speaker` holds it as printed.
+var _speaker_id := ""
 ## The fade this node's own alpha is currently under, so the next one can cancel it.
 ##
 ## A CLEAR AND A SHOW IN THE SAME FRAME USED TO CANCEL EACH OTHER THE WRONG WAY ROUND.
@@ -315,6 +317,7 @@ func show_hint(text: String, speaker: String = "", seconds: float = 0.0) -> void
 ## The half both entry points share: who is speaking, how long it stands, and the arrival.
 func _show(speaker: String, seconds: float) -> void:
 	_queue.clear()
+	_speaker_id = speaker
 	_speaker.text = "%s:" % speaker.to_upper() if not speaker.is_empty() else ""
 	_speaker.visible = not speaker.is_empty()
 	_life = seconds
@@ -379,6 +382,45 @@ func show_beat(entries: Array, speaker: String = "") -> void:
 	show_hint(String(head["text"]), String(head["speaker"]), _dwell_for(String(head["text"])))
 	# show_hint drops the queue, because a standing prompt has to be able to. Put it back.
 	_queue = lines.slice(1)
+
+
+## SAY THIS, THEN GO BACK TO WHAT YOU WERE SAYING. `show_hint` replaces, which is right for a
+## prompt about where she is standing. It is wrong for a remark made in passing, which took the
+## rest of a beat of advice with it. What was up comes back after, with the time it had left.
+## `seconds` of 0 stands until `take_down`.
+func interject(text: String, speaker: String, seconds: float) -> void:
+	if not is_showing() or _lesson.visible or _text.text.is_empty():
+		show_hint(text, speaker, seconds)
+		return
+	var rest: Array[Dictionary] = [{"text": _text.text, "speaker": _speaker_id, "seconds": _life}]
+	rest.append_array(_queue)
+	show_hint(text, speaker, seconds)
+	_queue = _without(rest, text)
+
+
+## Take this sentence down if it is still what is up, and go back to whatever it interrupted. A
+## prompt about where she is standing, put up with `interject` and taken down as she walks off.
+##
+## ⚠ AND IT LEAVES THE QUEUE TOO. A prompt with an aside over it is waiting its turn, and she can
+## walk off while it waits: left there, "There is a light on in there" came back at the far end of
+## the plaza and stood for good, with nothing left to take it down.
+func take_down(text: String) -> void:
+	_queue = _without(_queue, text)
+	if current_text() != text:
+		return
+	if _queue.is_empty():
+		clear()
+	else:
+		# The next `_process` moves on to it, under the same rule as a line whose time is up.
+		_life = 0.001
+
+
+func _without(lines: Array[Dictionary], text: String) -> Array[Dictionary]:
+	var kept: Array[Dictionary] = []
+	for line in lines:
+		if String(line.get("text", "")) != text:
+			kept.append(line)
+	return kept
 
 
 ## How long one line of a beat is held. Long enough to read, capped so a wordy line cannot
@@ -468,6 +510,8 @@ func _process(delta: float) -> void:
 	var text := String(next["text"])
 	# The last line of a beat stands, like any ordinary hint; the ones before it are timed.
 	var dwell := 0.0 if _queue.is_empty() else _dwell_for(text)
+	if next.has("seconds"):
+		dwell = float(next["seconds"])
 	var rest := _queue.duplicate()
 	show_hint(text, String(next.get("speaker", "")), dwell)
 	_queue = rest
