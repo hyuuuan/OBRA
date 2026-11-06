@@ -31,6 +31,12 @@ const WELCOME_HZ := 1.4
 ## ⚠ THE KEY AND THE COUNT ARE READ, SO THEY ARE AT THE FLOOR. They were 12 and 15 px: the one thing
 ## she has to find mid-fight was the smallest type on the screen.
 const CAP := Vector2(30.0, 28.0)
+## WHEN TO PRESS IT, shown while it is true: the level asks for a slot, and it wears the gold ring
+## and a Now chip over it. Held a little past the moment, so the chip does not flicker as a foe
+## steps in and out of reach.
+const WANTED_HOLD := 0.6
+const NOW_TEXT := "Now"
+const NOW_RISE := 32.0
 const COUNT_FONT := UISkin.FONT_CAPTION
 const CAP_FONT := UISkin.FONT_CAPTION
 ## Under each filled slot, its name and what it does: an icon of a white heap and a 2 did not say
@@ -44,6 +50,8 @@ var satchel: Satchel = null
 var _icons: Dictionary = {}
 var _flash: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _welcome: Array[float] = [0.0, 0.0, 0.0, 0.0]
+var _wanted: Array[float] = [0.0, 0.0, 0.0, 0.0]
+var _wanted_clock := 0.0
 
 
 ## Each slot's count as last drawn, so a slot that gains can be told from one that is used.
@@ -107,9 +115,25 @@ func is_welcoming(index: int) -> bool:
 	return index >= 0 and index < _welcome.size() and _welcome[index] > 0.0
 
 
+## Whether slot `index` is the thing to press now. The level says each tick; it stays lit
+## WANTED_HOLD past the last time it did.
+func set_wanted(index: int, wanted: bool) -> void:
+	if wanted and index >= 0 and index < _wanted.size():
+		_wanted[index] = WANTED_HOLD
+		queue_redraw()
+
+
+func is_wanted(index: int) -> bool:
+	return index >= 0 and index < _wanted.size() and _wanted[index] > 0.0
+
+
 func _process(delta: float) -> void:
 	var lit := false
+	_wanted_clock += delta
 	for index in range(_flash.size()):
+		if _wanted[index] > 0.0:
+			_wanted[index] = maxf(0.0, _wanted[index] - delta)
+			lit = true
 		if _flash[index] > 0.0:
 			_flash[index] = maxf(0.0, _flash[index] - delta)
 			lit = true
@@ -152,6 +176,8 @@ func _draw() -> void:
 			_draw_label(font, rect, 1, slot_does(index), UISkin.GOLD if count > 0 else UISkin.MUTED)
 		if _welcome[index] > 0.0:
 			_draw_welcome(rect, _welcome[index])
+		elif _wanted[index] > 0.0:
+			_draw_wanted(font, rect)
 		# The key, on a little cap over the slot's top-left corner.
 		var cap := Rect2(rect.position + Vector2(-6.0, -CAP.y * 0.5), CAP)
 		_round(cap, UISkin.GOLD_FILL if not id.is_empty() else Color(UISkin.GOLD_FILL, 0.4),
@@ -160,6 +186,19 @@ func _draw() -> void:
 		var key_width := font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT).x
 		draw_string(font, cap.position + Vector2((CAP.x - key_width) * 0.5, CAP.y - 6.0), key,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, CAP_FONT, UISkin.GOLD_LABEL)
+
+
+## The thing to press now: the gold ring, breathing, and a chip that says so.
+func _draw_wanted(font: Font, rect: Rect2) -> void:
+	var breath := 1.0 if Motion.reduced() else 0.5 + 0.5 * sin(_wanted_clock * TAU * WELCOME_HZ)
+	var ring := rect.grow(4.0 + roundf(2.0 * breath))
+	_round(ring, Color(UISkin.GOLD, 0.0), Color(UISkin.GOLD, 0.625 + 0.375 * breath), 2, RADIUS + 4.0)
+	var width := font.get_string_size(NOW_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_FONT).x
+	var chip := Rect2(Vector2(rect.get_center().x - width * 0.5 - 8.0, rect.position.y - NOW_RISE - CAP.y * 0.5 + 6.0),
+		Vector2(width + 16.0, 26.0)).abs()
+	_round(chip, UISkin.GOLD_FILL, UISkin.GOLD_EDGE, 1, 6.0)
+	draw_string(font, chip.position + Vector2(8.0, 20.0), NOW_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		NAME_FONT, UISkin.GOLD_LABEL)
 
 
 ## A gold ring round the slot, breathing out and in, fading over its last half second. Steady

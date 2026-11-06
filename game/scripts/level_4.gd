@@ -205,6 +205,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 		_place_dawn_clock()
 	_tick_curse(get_physics_process_delta_time())
 	_watch_supplies(get_physics_process_delta_time())
+	_tend_the_satchel()
 
 
 ## Each beat's ground, west edge to east edge in world x, by obstacle id: read off the scene's
@@ -1084,6 +1085,165 @@ func _on_satchel_moved_in(id: String, index: int) -> void:
 	quick_slots.welcome(index)
 	hint_bar.show_hint(satchel.line("moved_in", id).replace("{key}", _slot_key(index)),
 		_companion_speaker(), FOUND_SECONDS)
+
+
+# --- When each of them is the thing to press ------------------------------------------------
+
+## Kent: "not that clear to use and when to use". What it does is on its slot now, but WHEN cannot
+## be said once at the moment of finding it, a level away from the fight it is for. So the level
+## asks, every tick, which of her things would do something right now: that slot wears the Now
+## chip while it is true, and the first time, she says so with its key.
+##
+## ⚠ THIS IS ADVICE, NOT A RULE. Nothing here changes what a press does; every one still works when
+## its slot is not lit.
+
+## How near a foe has to be, and how many of them, before the ring of garlic is worth crushing. One
+## is enough when the lamp is already low.
+const CROWDED_WITHIN := 260.0
+const CROWDED_BY := 2
+## How far off the ground of her middle salt still lands on anything: its arc is low, and a flier
+## hanging over her is out of it.
+const SALT_HEIGHT := 100.0
+## How far off a candle still lights her: past this she has walked out of its middle.
+const CANDLE_LIGHTS_WITHIN := 120.0
+## Darker than this is dark enough to want one.
+const DARK_ENOUGH := 0.5
+
+## The kinds she has been told about the moment for, for the run: a line she has read does not
+## need saying at every foe, and the Now chip goes on saying it.
+var _moments_told: Dictionary = {}
+
+
+func _tend_the_satchel() -> void:
+	if satchel == null or quick_slots == null or player == null or not is_instance_valid(player):
+		return
+	for index in range(Satchel.SLOTS):
+		var id := satchel.slot_item(index)
+		if id.is_empty() or satchel.count(id) <= 0 or not _wanted_now(id):
+			continue
+		quick_slots.set_wanted(index, true)
+		_tell_the_moment(id, index)
+
+
+## Whether pressing this kind would do something for her right now. By its `use`, as the press is.
+func _wanted_now(id: String) -> bool:
+	var row := satchel.row(id)
+	match String(row.get("use", "")):
+		"oil":
+			return _lamp_is_low()
+		"candle":
+			return _lamp_is_low() and not _oil_would_answer() and not _a_candle_lights_her() \
+				and darkness_layer != null and darkness_layer.darkness >= DARK_ENOUGH
+		"throw":
+			return _salt_would_land(float(row.get("reach", 300.0)))
+		"ward":
+			return _crowded() and not _a_ward_holds_her()
+		"dust":
+			return _hidden_tiktik_within(float(row.get("radius", 160.0)))
+		"whip":
+			return _whip_would_reach()
+	return false
+
+
+func _lamp_is_low() -> bool:
+	return player_health != null and player_health.stage <= PlayerHealth.LOW
+
+
+## Oil she can pour says it first: the candle only lights a spot, and the oil fills the lamp.
+func _oil_would_answer() -> bool:
+	return satchel.count("langis") > 0 and satchel.slots().has("langis")
+
+
+func _a_candle_lights_her() -> bool:
+	for source in get_tree().get_nodes_in_group(LightField.GROUP):
+		var candle := source as CandleFlame2D
+		if candle != null and candle.global_position.distance_to(player.global_position) <= CANDLE_LIGHTS_WITHIN:
+			return true
+	return false
+
+
+func _a_ward_holds_her() -> bool:
+	for node in get_tree().get_nodes_in_group(Enemy2D.WARDS):
+		var ward := node as BawangWard2D
+		if ward != null and ward.global_position.distance_to(player.global_position) < ward.reach():
+			return true
+	return false
+
+
+## The way she faces, -1 or 1: where salt goes and the whip lashes.
+func _facing_sign() -> float:
+	var facing: Variant = player.get(&"_facing")
+	return signf(float(facing)) if facing != null and float(facing) != 0.0 else 1.0
+
+
+## Awake and after her, or what is left of the manananggal, which waits. Unseen, nothing counts:
+## she cannot be told to throw at what she cannot see.
+func _salt_would_land(reach: float) -> bool:
+	var middle := PlayerHurtbox2D.middle_of(player)
+	var facing := _facing_sign()
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead() or foe.is_burning() or not foe.is_visible_in_tree():
+			continue
+		if foe.state_name() == "IDLE" and not foe is ManananggalLower2D:
+			continue
+		if foe is Tiktik2D and not (foe as Tiktik2D).is_revealed():
+			continue
+		var off := foe.global_position - middle
+		if signf(off.x) == facing and absf(off.x) <= reach and absf(off.y) <= SALT_HEIGHT:
+			return true
+	return false
+
+
+## Too many of what the garlic keeps off, too close. The tik-tik is not among them to count: she
+## cannot see it, and it has its own moment.
+func _crowded() -> bool:
+	var close := 0
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead() or not foe.hunts_by_smell or not foe.is_visible_in_tree() \
+				or foe.state_name() == "IDLE":
+			continue
+		if foe.global_position.distance_to(player.global_position) <= CROWDED_WITHIN:
+			close += 1
+	return close >= CROWDED_BY or (close >= 1 and _lamp_is_low())
+
+
+## ⚠ ASH ONLY SHOWS WHAT IS WITHIN ITS RADIUS WHEN IT IS THROWN, and the tik-tik circles well outside
+## that before it comes in. So this asks the dust's own reach, not the lamp's lean: the lamp leans at
+## 220 px, and ash thrown then, the moment the eye sees it, is ash wasted.
+func _hidden_tiktik_within(radius: float) -> bool:
+	var tiktik: Tiktik2D = _finale.tiktik() if _finale != null else null
+	return tiktik != null and not tiktik.is_revealed() \
+		and tiktik.global_position.distance_to(player.global_position) <= radius
+
+
+func _whip_would_reach() -> bool:
+	var reach := WeaponTable.reach(WHIP)
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead() or not foe.is_visible_in_tree() or foe.state_name() == "IDLE":
+			continue
+		if foe is Tiktik2D and not (foe as Tiktik2D).is_revealed():
+			continue
+		if foe.global_position.distance_to(PlayerHurtbox2D.middle_of(player)) <= reach:
+			return true
+	return false
+
+
+## The first time, with its key, over her head where she is looking. Waits for the bar to be free:
+## the Now chip is up meanwhile. The ash does not wait: its moment is a second long.
+func _tell_the_moment(id: String, index: int) -> void:
+	if _moments_told.has(id) or hint_bar == null:
+		return
+	var said := String(satchel.row(id).get("moment", ""))
+	if said.is_empty() or (hint_bar.is_showing() and String(satchel.row(id).get("use", "")) != "dust"):
+		return
+	_moments_told[id] = true
+	hint_bar.show_hint(said.replace("{key}", _slot_key(index)), _companion_speaker(), MOMENT_SECONDS)
+
+
+const MOMENT_SECONDS := 5.0
 
 
 # --- What a fallen aswang drops -----------------------------------------------------------
