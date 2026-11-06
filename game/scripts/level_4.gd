@@ -253,7 +253,7 @@ func _current_objective() -> Dictionary:
 	var x := player.global_position.x
 	var spans := _beat_spans()
 	if spans.has("L4_FINALE") and x >= (spans["L4_FINALE"] as Vector2).x:
-		return {"key": "dawn"}
+		return {"key": _night_objective()}
 	for rest in ["L4_REST1", "L4_REST2"]:
 		var span: Vector2 = spans.get(rest, Vector2(INF, -INF))
 		# Until its light is lit: after, the woods again.
@@ -270,6 +270,19 @@ func _current_objective() -> Dictionary:
 	if spans.has("L4_NUNO") and x <= (spans["L4_NUNO"] as Vector2).y:
 		key = "edge"
 	return {"key": key, "target": _next_mark_east(x)}
+
+
+## WHAT THE NIGHT ASKS NOW. Always the same task, and whatever on it has changed: asked of what is
+## after her and not of the wave, so a line about the wings goes when the wings have.
+func _night_objective() -> String:
+	if _finale == null or not _finale.is_running():
+		return "dawn"
+	if _finale.tiktik() != null and satchel != null and satchel.count("abo") > 0:
+		return "dawn_tiktik"
+	for foe in _finale.alive():
+		if foe is FlyingEnemy2D and not foe is Tiktik2D:
+			return "dawn_wings"
+	return "dawn"
 
 
 ## Each encounter's objective, by beat: the key of its line in level_04.json's `objectives`.
@@ -352,6 +365,7 @@ func _restore_checkpoint() -> String:
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
 	_morning = false
+	_night_brief_due = false
 	_apply_dawn_visuals(0.0)
 	_went_to_the_cry = false
 	_absurd_near = 0.0
@@ -838,7 +852,7 @@ var _finale: DilimFinale2D
 ## The night's clock on screen, under the quest card; shown only while the night runs.
 var dawn_clock: DawnClockHud
 const DAWN_CLOCK_TOP := 104.0
-## Clear air between the quest card's frame and the clock's strip.
+## Clear air between the quest card's frame and the clock.
 const DAWN_CLOCK_GAP := 10.0
 
 
@@ -862,15 +876,14 @@ func _apply_dawn_visuals(daylight: float) -> void:
 		sky.color = _night_sky.lerp(MORNING_SKY, daylight)
 
 
-## UNDER THE QUEST CARD, NOT AGAINST IT. Seen in a window: placed at a fixed height the strip sat
-## flush on the card's frame, and the card grows when it has a second line. So it follows the
-## frame's bottom.
+## UNDER THE QUEST CARD, NOT AGAINST IT. Seen in a window: placed at a fixed height it sat flush on
+## the card's frame, and the card grows when it has a second line. So it follows the frame's bottom.
 func _place_dawn_clock() -> void:
 	var frame := objective_banner.get_node_or_null(^"Panel") as Control \
 		if objective_banner != null else null
 	var bottom := frame.get_global_rect().end.y if frame != null and frame.is_visible_in_tree() \
 		else DAWN_CLOCK_TOP
-	dawn_clock.position.y = bottom + DAWN_CLOCK_GAP - DawnClockHud.STRIP_TOP
+	dawn_clock.position.y = bottom + DAWN_CLOCK_GAP
 
 
 ## The night has begun: its clock comes up, and goes on the first frame of the morning.
@@ -883,16 +896,50 @@ func _on_night_began() -> void:
 		_suns_seen[sun.get_instance_id()] = true
 
 
-## What has come, said as each later wave opens -- on the hint bar, never a story line: the night is
-## a fight, and a line in the box would stop it (the audit holds the finale to that).
-## Each later wave's hook, by the wave it opens -- written out, so the audit that every authored line
-## is said can find them.
-const WAVE_LINES := {1: "L4_FINALE.wave2", 2: "L4_FINALE.wave3"}
+## WHAT IS HAPPENING AND WHAT HELPS, as each wave opens -- on the hint bar, never a story line: the
+## night is a fight, and a line in the box would stop it (the audit holds the finale to that). Over
+## her head, where she is looking (Kent: the top of the frame is where nobody reads).
+##
+## Each wave's hook, by the wave it opens -- written out, so the audit that every authored line is
+## said can find them.
+const WAVE_LINES := {0: "L4_FINALE.wave1", 1: "L4_FINALE.wave2", 2: "L4_FINALE.wave3"}
+## Which of her things to name as each wave opens, in turn, if she has them on a slot. The rest wait
+## for their own moment: the oil and the candle for a low lamp.
+const NIGHT_HELP := {0: ["asin", "bawang"], 2: ["abo"]}
+## The first wave's words wait this long into the night. The tree stops for the tik-tik's page and
+## the lines on arriving, and the night's clock with it, so this counts past both: said on stepping
+## in, they went up under the page and a story line took them down.
+const NIGHT_BRIEF_AFTER := 0.5
+
+var _night_brief_due := false
+## What she has been told helps, wave by wave, for the run: a retried night says what is happening
+## again, and leaves out the rest. The Now chips go on saying it.
+var _night_helped: Dictionary = {}
 
 
 func _on_wave_opened(index: int) -> void:
-	if WAVE_LINES.has(index):
-		_speak(script_lines.fire(String(WAVE_LINES[index])))
+	if index == 0:
+		_night_brief_due = true
+	else:
+		_brief_the_wave(index)
+
+
+func _brief_the_wave(wave: int) -> void:
+	var said: Array[Dictionary] = []
+	for line: Dictionary in script_lines.fire(String(WAVE_LINES[wave])):
+		said.append({"text": script_lines.display_text(line), "speaker": _companion_speaker()})
+	if not _night_helped.has(wave):
+		_night_helped[wave] = true
+		for id: String in NIGHT_HELP.get(wave, []):
+			var index := satchel.slots().find(id)
+			if index >= 0 and satchel.count(id) > 0:
+				said.append({"text": String(satchel.row(id).get("night", "")).replace("{key}", _slot_key(index)),
+					"speaker": _companion_speaker()})
+		# The one thing that shortens the night is hers to draw, and the line names no class.
+		if wave == 0 and ink_manager != null and ink_manager.remaining() >= 1.0:
+			for line: Dictionary in script_lines.fire("L4_FINALE.bright"):
+				said.append({"text": script_lines.display_text(line), "speaker": _companion_speaker()})
+	hint_bar.show_beat(said)
 
 
 ## Suns she has drawn during the night, each seen once: the finale moves the morning on for each,
@@ -903,11 +950,17 @@ var _suns_seen := {}
 func _tend_the_night() -> void:
 	if _finale == null or not _finale.is_running():
 		return
+	if _night_brief_due and _finale.elapsed >= NIGHT_BRIEF_AFTER:
+		_night_brief_due = false
+		_brief_the_wave(0)
 	for sun: Node in _drawn_suns():
 		var id := sun.get_instance_id()
 		if not _suns_seen.has(id):
 			_suns_seen[id] = true
-			_finale.hurry_dawn()
+			if _finale.hurry_dawn() and dawn_clock != null:
+				dawn_clock.set_progress(_finale.progress())
+				dawn_clock.hurried(DilimFinale2D.SUN_HURRIES)
+				_speak(script_lines.fire("L4_FINALE.hurried"))
 
 
 ## THE TIK-TIK SHE CANNOT SEE. Its call goes on the screen's edge where it comes from, violet, as
@@ -955,11 +1008,12 @@ func _on_dawn() -> void:
 	_apply_dawn_visuals(1.0)
 	AudioDirector.play_sfx(&"dawn")
 	if dawn_clock != null:
-		dawn_clock.set_progress(1.0)
-		dawn_clock.hide_night()
+		dawn_clock.morning()
 	await _speak_and_wait(script_lines.fire("L4_FINALE.solved"))
 	if not is_inside_tree():
 		return
+	if dawn_clock != null:
+		dawn_clock.hide_night()
 	await get_tree().create_timer(MORNING_HOLD, false).timeout
 	if is_inside_tree():
 		_complete_level()
