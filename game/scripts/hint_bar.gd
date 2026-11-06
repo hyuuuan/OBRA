@@ -94,6 +94,8 @@ var _last_stands := true
 var _speaker_id := ""
 ## How long the current line has been up with nobody talking over it. See is_being_read.
 var _read_for := 0.0
+## The current line is a remark in passing with a time of its own. See show_beat.
+var _is_aside := false
 ## The fade this node's own alpha is currently under, so the next one can cancel it.
 ##
 ## A CLEAR AND A SHOW IN THE SAME FRAME USED TO CANCEL EACH OTHER THE WRONG WAY ROUND.
@@ -322,6 +324,7 @@ func show_hint(text: String, speaker: String = "", seconds: float = 0.0) -> void
 func _show(speaker: String, seconds: float) -> void:
 	_queue.clear()
 	_read_for = 0.0
+	_is_aside = false
 	_speaker_id = speaker
 	_speaker.text = "%s:" % speaker.to_upper() if not speaker.is_empty() else ""
 	_speaker.visible = not speaker.is_empty()
@@ -381,6 +384,13 @@ func show_beat(entries: Array, speaker: String = "", stands: bool = true) -> voi
 	if lines.is_empty():
 		return
 	_last_stands = stands
+	# ⚠ A REMARK IS READ FIRST. Lolo's remarks are spent the moment they go up, so one replaced a
+	# moment later was never said again: Dagat's "That bar is your ink now" lands on the same
+	# beat as "That one has the back for it". The advice waits for the reading time, and no longer.
+	if _is_aside and _life > 0.0 and _read_for < _dwell_for(_text.text):
+		_queue = lines
+		_life = minf(_life, _dwell_for(_text.text) - _read_for)
+		return
 	if lines.size() == 1:
 		var only := String(lines[0]["text"])
 		show_hint(only, String(lines[0]["speaker"]), 0.0 if stands else _dwell_for(only))
@@ -399,11 +409,13 @@ func show_beat(entries: Array, speaker: String = "", stands: bool = true) -> voi
 func interject(text: String, speaker: String, seconds: float) -> void:
 	if not is_showing() or _lesson.visible or _text.text.is_empty():
 		show_hint(text, speaker, seconds)
+		_is_aside = seconds > 0.0
 		return
 	var rest: Array[Dictionary] = [{"text": _text.text, "speaker": _speaker_id, "seconds": _life}]
 	rest.append_array(_queue)
 	show_hint(text, speaker, seconds)
 	_queue = _without(rest, text)
+	_is_aside = seconds > 0.0
 
 
 ## Take this sentence down if it is still what is up, and go back to whatever it interrupted. A
