@@ -189,6 +189,11 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_relayout)
 
 
+## The card itself, which is what the lesson about it lights: the banner around it is wider.
+func card() -> Control:
+	return _panel
+
+
 func text() -> String:
 	return _text
 

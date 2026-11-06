@@ -9,6 +9,20 @@ extends SceneTree
 const LEDGER := "res://config/tutorial.json"
 const LEVEL_BASE := "res://scripts/level_base.gd"
 const TutorialScript = preload("res://scripts/tutorial_director.gd")
+const CONTROLS := "res://config/controls.json"
+## Controls that have no lesson, deliberately. `pause` was cut by Kent (see below), and
+## `skip_tutorial` is printed on every card, which is the only place it does anything.
+const UNTAUGHT_ON_PURPOSE := ["pause", "skip_tutorial"]
+## A controls row that names the mouse, and the name a lesson's `mouse` list gives it.
+const MOUSE_ROWS := {"Left click": "left", "Right click": "right", "Scroll": "wheel",
+	"Shift + Scroll": "shift_wheel"}
+## Every card shown outside Level 1, and why Level 1 cannot be the place it is taught.
+const NECESSARY_CARDS := {
+	"new_brush": "Dagat's brush changes the ink rule, and Level 1 never has that brush",
+	"jars": "the only refill, in a sea Level 1 does not have",
+	"lamp": "Dilim's lamp is her life, and nothing else in the game has one",
+	"swing": "the click only swings in Dilim",
+}
 ## Where each level's lesson events are fired, besides LevelBase. Every level in the ledger
 ## must be here: one that is not fails, rather than having its events looked for in the
 ## wrong file and passing or failing by accident.
@@ -71,16 +85,121 @@ func _initialize() -> void:
 	_check(director.has_taught("rotate"), "and the third the time after", "rotate")
 
 	# 8. LESS OF IT. Kent: "its just knowledge dumping at this point". The four cut on that
-	#    pass stay cut, and the tutorial level stays under twenty things to say.
+	#    pass stay cut, and the tutorial level stays under twenty-five things to say. It was
+	#    twenty until he asked for it to cover everything; five of these only appear for a
+	#    player who does the thing they are about, or after the first gate.
 	for cut in ["pause", "sure", "sign"]:
 		_check(not ids.has(cut), "'%s' stays cut" % cut, "absent" if not ids.has(cut) else "BACK")
-	_check(lessons.size() < 20, "Level 1 says fewer than twenty things", "%d" % lessons.size())
+	_check(lessons.size() < 25, "Level 1 says fewer than twenty-five things", "%d" % lessons.size())
 	_check(not ledger["levels"]["level_1"].has("canvas_briefing"),
 		"the canvas is taught by cards, not four lines of Lolo", "no briefing")
+
+	_audit_level_1_covers_every_control(lessons, director)
+	_audit_later_levels_only_say_what_changes(ledger)
+	_audit_what_a_route_can_miss(ledger)
 
 	print("--- %d passed, %d failed ---" % [_passed, _failed])
 	print("OBRA_TUTORIAL_FAILED=%d" % _failed if _failed > 0 else "OBRA_TUTORIAL_OK")
 	quit(1 if _failed > 0 else 0)
+
+
+## LEVEL 1 COVERS EVERYTHING. Kent: "fix level 1 like tutorial part make sure it covers
+## everything". The controls screen is the list of what the game can do, so it is what this reads:
+## a row that works in Level 1 and that no lesson teaches is a control the game never mentions.
+## `E` was exactly that, with an anchor waiting for it the whole time.
+func _audit_level_1_covers_every_control(lessons: Array, director: Node) -> void:
+	print("  -- Level 1 covers every control --")
+	var taught_actions := {}
+	var taught_mouse := {}
+	for value: Variant in lessons:
+		var lesson: Dictionary = value
+		for action: String in director.actions_for(lesson):
+			taught_actions[action] = true
+		for button: Variant in lesson.get("mouse", []):
+			taught_mouse[String(button)] = true
+	var controls: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(CONTROLS))
+	var rows := 0
+	for value: Variant in controls["rows"]:
+		var row: Dictionary = value
+		# A row for another level does nothing here, and teaching it would be a false lesson.
+		if row.has("levels") and not (row["levels"] as Array).has("level_1"):
+			continue
+		var action := String(row.get("action", ""))
+		if UNTAUGHT_ON_PURPOSE.has(action):
+			continue
+		rows += 1
+		if not action.is_empty():
+			# A run of keys (inventory_slot_1 .. 6) is taught if its first and last are.
+			var through := String(row.get("through", ""))
+			var covered: bool = taught_actions.has(action) \
+				and (through.is_empty() or taught_actions.has(through))
+			_check(covered, "'%s' has a lesson" % action, String(row.get("label", "")))
+		else:
+			var button: String = MOUSE_ROWS.get(String(row.get("keys", "")), "")
+			_check(taught_mouse.has(button), "'%s' has a lesson" % String(row.get("keys", "")),
+				String(row.get("label", "")))
+	_check(rows >= 15, "and the controls screen was really read", "%d rows" % rows)
+
+
+## A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: "other levels wont have any tutorials if
+## necessary". A card dims the screen, so one outside Level 1 has to be something Level 1 cannot
+## teach: a rule or a control that does not exist until that level. Named here one by one, so a
+## new card has to be argued for rather than slipping in. Anything else goes on the hint bar.
+func _audit_later_levels_only_say_what_changes(ledger: Dictionary) -> void:
+	print("  -- later levels only say what they change --")
+	var levels: Dictionary = ledger["levels"]
+	for level_id in ["level_2", "level_5"]:
+		_check(not levels.has(level_id), "%s teaches nothing of its own" % level_id,
+			"no block" if not levels.has(level_id) else "HAS LESSONS")
+	var cards := 0
+	for level_id: String in levels:
+		if level_id == "level_1":
+			continue
+		for value: Variant in (levels[level_id] as Dictionary)["lessons"]:
+			var lesson: Dictionary = value
+			if String(lesson.get("mode", "")) == "say":
+				continue
+			cards += 1
+			_check(NECESSARY_CARDS.has(String(lesson["id"])),
+				"%s's card '%s' is one Level 1 cannot teach" % [level_id, lesson["id"]],
+				String(NECESSARY_CARDS.get(String(lesson["id"]), "NOT ON THE LIST")))
+	# ⚠ BOTH WAYS. A card converted away but left on the list would make the list a lie, and
+	# the rule above would still pass with no cards at all.
+	_check(cards == NECESSARY_CARDS.size(), "and every one on the list is still a card",
+		"%d cards, %d listed" % [cards, NECESSARY_CARDS.size()])
+
+
+## WHAT A ROUTE CAN MISS comes back in a later level, so it has to make sense in one.
+func _audit_what_a_route_can_miss(ledger: Dictionary) -> void:
+	print("  -- what a route can miss --")
+	var source := FileAccess.get_file_as_string(LEVEL_BASE)
+	var carried := 0
+	var later := {}
+	for level_id: String in ledger["levels"]:
+		if level_id != "level_1":
+			for value: Variant in (ledger["levels"][level_id] as Dictionary)["lessons"]:
+				later[String((value as Dictionary)["id"])] = level_id
+	for value: Variant in ledger["levels"]["level_1"]["lessons"]:
+		var lesson: Dictionary = value
+		if not bool(lesson.get("carries", false)):
+			continue
+		carried += 1
+		var id := String(lesson["id"])
+		# The event has to fire in every level, not only the level that owns the lesson.
+		_check(source.contains('tutorial.note("%s")' % String(lesson["at"])),
+			"'%s' can come round in any level" % id, String(lesson["at"]))
+		_check(not later.has(id), "'%s' is not a later level's id too" % id,
+			String(later.get(id, "unique")))
+		# Their mode is theirs: a `say` line would go out as "Lolo" in a level he has left.
+		_check(String(lesson.get("mode", "")) != "say", "'%s' speaks as nobody if it carries" % id,
+			String(lesson.get("mode", "")))
+	_check(carried >= 10, "and the things a route can skip do carry", "%d lessons" % carried)
+	# The ones whose rule is not true everywhere must not: the ink changes level by level.
+	for value: Variant in ledger["levels"]["level_1"]["lessons"]:
+		var lesson: Dictionary = value
+		if String(lesson["id"]) in ["undo", "ink", "checkpoint"]:
+			_check(not bool(lesson.get("carries", false)), "'%s' stays in Level 1" % lesson["id"],
+				"its rule changes later")
 
 
 func _audit_level(ledger: Dictionary, level_id: String) -> void:

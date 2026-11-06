@@ -102,6 +102,9 @@ func _fresh() -> void:
 	var seen: Dictionary = tutorial.get("_seen")
 	seen["move"] = "shown"
 	seen["jump"] = "shown"
+	# The same two kinds of thing, after a checkpoint: `moved` offers them every frame too.
+	seen["quest"] = "shown"
+	seen["become"] = "shown"
 	paused = false
 
 

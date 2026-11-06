@@ -62,16 +62,43 @@ func _a_drained_thing_wears_the_drain_and_so_do_its_parts() -> void:
 	await process_frame
 
 
-## ⚠ Godot 4's COLOR already carries the texture: a shader that samples TEXTURE again squares
-## every colour, and Mayon drew darker than painted from the start, before any ash. Headless
-## draws nothing, so this reads the shader's own code.
+## ⚠ Godot 4's COLOR already carries the texture: a shader that takes TEXTURE's colour again squares
+## every colour, and Mayon drew darker than painted from the start, before any ash. Its alpha is
+## another matter: the edge feather reads its neighbours' `.a` to find how far the art reaches, and
+## no colour comes of it. So `texture(TEXTURE, ...).a` is the one thing here that may name TEXTURE;
+## a whole sample, a `.rgb` and a `.ar` all fail. Headless draws nothing, so this reads the shader's
+## own code, which cannot see an alpha read laundered into a colour: only a capture can.
 func _it_is_drawn_in_its_painted_colours() -> void:
-	var samples_again := false
+	var code := ""
 	for line in Drainable.SHADER.code.split("\n"):
-		if line.get_slice("//", 0).contains("TEXTURE"):
-			samples_again = true
-	_check(not samples_again, "it is drawn in its painted colours: COLOR is never multiplied by the "
-		+ "texture it already carries", "samples TEXTURE again %s" % samples_again)
+		code += line.get_slice("//", 0) + "\n"
+	var colour_samples := 0
+	var alpha_reads := 0
+	for mention in RegEx.create_from_string("\\bTEXTURE\\b").search_all(code):
+		if _reads_only_its_alpha(code, mention.get_start()):
+			alpha_reads += 1
+		else:
+			colour_samples += 1
+	_check(colour_samples == 0, "it is drawn in its painted colours: COLOR is never multiplied by the "
+		+ "texture it already carries", "%d colour samples of TEXTURE, %d alpha reads"
+		% [colour_samples, alpha_reads])
+
+
+## Whether this mention of TEXTURE opens a texture() call that is read for `.a` alone. It counts
+## parentheses because the call's arguments hold calls of their own, and works on the whole code
+## because a sample can run across lines.
+func _reads_only_its_alpha(code: String, at: int) -> bool:
+	if RegEx.create_from_string("\\btexture\\(\\s*$").search(code.left(at)) == null:
+		return false
+	var depth := 1
+	var index := at
+	while depth > 0 and index < code.length():
+		if code[index] == "(":
+			depth += 1
+		elif code[index] == ")":
+			depth -= 1
+		index += 1
+	return RegEx.create_from_string("^\\s*\\.a\\b").search(code.substr(index)) != null
 
 
 func _blank_takes_the_ground_from_under_her_and_restore_gives_it_back() -> void:
