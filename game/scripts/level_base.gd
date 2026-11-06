@@ -1026,8 +1026,11 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 ## the fork instead -- Dagat's crossing is entered beside the brush, and its two ways across
 ## piled up on the brush's own lines a fork's length before the choice they introduce. The tags
 ## are taught on entering either way; only the words wait.
-func _teaches_on_entering(_obstacle_id: String) -> bool:
-	return true
+##
+## ⚠ AND A FORK ALWAYS DOES. Its question follows its opening line and its ways through, in that
+## order, so all three belong at the fork (`_on_dialogue_node_approached`).
+func _teaches_on_entering(obstacle_id: String) -> bool:
+	return obstacle_id != _dialogue_node_obstacle_id()
 
 
 ## The player has reached what the beat is about, which is where its opening line belongs.
@@ -4930,6 +4933,25 @@ func _on_dialogue_node_approached() -> void:
 		# the re-arm a player turned away once has lost the fork for the rest of the run.
 		if dialogue_node != null and dialogue_node.has_method("rearm"):
 			dialogue_node.call("rearm")
+		return
+	await _until_she_can_listen()
+	if not is_inside_tree():
+		return
+	# ⚠ ITS OPENING LINE, ITS WAYS THROUGH, THEN THE QUESTION, AND NEVER TWO AT ONCE. At Payyo's
+	# gorge the fork's box and the arrival's box begin at the same x, so the question and seven
+	# lines of Lolo opened on one frame, in whichever order the physics server reported them.
+	# Fork first, and the lines ran under the question and the key turning their pages answered
+	# it: the route was committed by reading. Arrival first, and opening the question would have
+	# ended the conversation unread. Each is said once, so the second pass through here (after
+	# they are read) goes straight to the question.
+	var setting_up := _dialogue_node_obstacle_id()
+	if not setting_up.is_empty() and script_lines != null:
+		_speak_on_arrival(_arrival_hook(setting_up))
+		_speak_on_arrival("%s.teach" % setting_up)
+	if dialogue_box != null and dialogue_box.is_open():
+		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
+			dialogue_box.conversation_finished.connect(_on_dialogue_node_approached,
+				CONNECT_ONE_SHOT)
 		return
 	if lolo != null and is_instance_valid(lolo):
 		lolo.hush()
