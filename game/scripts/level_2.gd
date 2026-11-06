@@ -718,6 +718,22 @@ func _wire_dialogue_node() -> void:
 		alley.fork.route_chosen.connect(_on_route_chosen)
 
 
+## ⚠ THE PLAZA'S OPENING LINE WAITS FOR ITS FORK. Its volume begins ten pixels from where she
+## wakes, so "The church first" was said on her first step, straight after the level's own
+## opening, and its three ways were gone the same frame. Both are said at the fork now, just
+## before the question they introduce -- as Dagat's crossing does.
+func _on_obstacle_arrived(obstacle_id: String) -> void:
+	if obstacle_id == "L2_N1":
+		return
+	super._on_obstacle_arrived(obstacle_id)
+
+
+## Every beat in Piyesta is a fork, and `_dialogue_node_obstacle_id()` answers for whichever is
+## live, not for the one being entered.
+func _teaches_on_entering(_obstacle_id: String) -> bool:
+	return false
+
+
 ## A FORK IS APPROACHED. The base's handler reads `dialogue_node` and
 ## `_dialogue_node_obstacle_id()`, so both are pointed at this one before it runs.
 func _on_fork_approached(fork: DialogueNode2D, obstacle_id: String) -> void:
@@ -732,6 +748,7 @@ func _on_fork_approached(fork: DialogueNode2D, obstacle_id: String) -> void:
 		# four verbs -- and Lolo's arrival is said first, and the choice waits for him.
 		director.enter_obstacle(obstacle_id)
 		_speak_on_arrival("%s.enter" % obstacle_id)
+		_speak_on_arrival("%s.teach" % obstacle_id)
 	# The choice after the conversation that sets it up, never over it.
 	if dialogue_box != null and dialogue_box.is_open():
 		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
