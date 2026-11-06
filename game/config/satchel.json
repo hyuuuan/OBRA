@@ -4,7 +4,7 @@
     "",
     "Kent's design: none of these is in the fifty and none is drawable -- 'The brush is the apo's.",
     "These are lola's.' So they never go through the bag or the recogniser: they stack here, with",
-    "a visible count, and four of them sit on quick slots (Z X C V) because a fight has no time for",
+    "a visible count, and five of them sit on quick slots (Z X C V B) because a fight has no time for",
     "a menu. The slots fill in the order things are first picked up.",
     "",
     "`cap` is how many she can carry; `drop_chance` is the share of aswang that drop one when they",
@@ -23,10 +23,10 @@
   "of it as the last clearing starts. None of these may name a drawable class: the audit reads them."
   ],
   "schema_version": 1,
-  "quick_slots": 4,
+  "quick_slots": 5,
   "lines": {
     "$comment": "Said of any of them. {name} and {gloss} are the row's; {key} the slot's, as bound.",
-    "no_slot": "{name}, {gloss}. All four slots are full: use up one of my things and it moves in.",
+    "no_slot": "{name}, {gloss}. All the slots are full: use up one of my things and it moves in.",
     "moved_in": "A slot is free. {name} is on {key} now.",
     "none_left": "No more {gloss}."
   },

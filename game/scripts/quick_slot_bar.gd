@@ -1,6 +1,6 @@
 class_name QuickSlotBar
 extends Control
-## Dilim's quick slots on screen: four soft slots, each with its key, its thing and how many.
+## Dilim's quick slots on screen: five soft slots, each with its key, its thing and how many.
 ##
 ## Readable mid-fight, which is the whole brief (Kent's design: "Quick-slot bar with stack counts,
 ## readable mid-combat"). The key on each slot is read off the live input map, so a rebinding
@@ -10,7 +10,7 @@ extends Control
 ##
 ## Draws itself; holds no state of its own beyond what the satchel says.
 ##
-## NOT THERE UNTIL SOMETHING IS IN IT. Four empty slots with Z X C V on them, from the first step
+## NOT THERE UNTIL SOMETHING IS IN IT. A row of empty slots with their keys on them, from the first step
 ## into the woods, said nothing a player could use (Kent: "no clear instructions and not user
 ## friendly"): the bar pops in with the first of Lola's things she finds, and stays.
 
@@ -54,10 +54,10 @@ const NAME_ROW := 22.0
 
 var satchel: Satchel = null
 var _icons: Dictionary = {}
-var _flash: Array[float] = [0.0, 0.0, 0.0, 0.0]
-var _welcome: Array[float] = [0.0, 0.0, 0.0, 0.0]
-var _wanted: Array[float] = [0.0, 0.0, 0.0, 0.0]
-var _refused: Array[float] = [0.0, 0.0, 0.0, 0.0]
+var _flash: Array[float] = []
+var _welcome: Array[float] = []
+var _wanted: Array[float] = []
+var _refused: Array[float] = []
 var _wanted_clock := 0.0
 
 
@@ -65,6 +65,9 @@ var _wanted_clock := 0.0
 var _counts: Array[int] = []
 
 func _init() -> void:
+	for timers: Array[float] in [_flash, _welcome, _wanted, _refused]:
+		timers.resize(Satchel.SLOTS)
+		timers.fill(0.0)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(SLOT.x * Satchel.SLOTS + GAP * (Satchel.SLOTS - 1),
 		SLOT.y + CAP.y * 0.5 + NAME_GAP + NAME_ROW * 2.0)

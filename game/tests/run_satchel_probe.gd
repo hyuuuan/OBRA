@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 54
+const CHECKS := 58
 
 
 func _initialize() -> void:
@@ -24,7 +24,8 @@ func _run() -> void:
 	_a_stack_stops_at_its_cap()
 	_the_slots_fill_in_pickup_order()
 	_a_spent_slot_goes_to_the_next_new_thing()
-	_a_fifth_kind_waits_then_moves_in()
+	_the_five_in_the_woods_all_have_a_slot()
+	_a_sixth_kind_waits_then_moves_in()
 	_nothing_is_used_from_nothing()
 	_it_is_kept_as_plain_data()
 	_kept_data_is_held_to_the_file()
@@ -32,6 +33,10 @@ func _run() -> void:
 	await _z_pours_lamp_oil()
 	await _oil_is_not_wasted_on_a_full_lamp()
 	await _the_keys_stay_with_whoever_has_them()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _b_pours_the_oil_found_last()
 	level.queue_free()
 	await _frames(3)
 	level = await _open_level()
@@ -90,7 +95,7 @@ func _run() -> void:
 	level.queue_free()
 	await _frames(3)
 	level = await _open_level()
-	await _the_fifth_thing_says_it_has_no_slot()
+	await _the_sixth_thing_says_it_has_no_slot()
 	await _the_bar_steps_back_for_a_line()
 	level.queue_free()
 	await _frames(3)
@@ -159,28 +164,39 @@ func _the_slots_fill_in_pickup_order() -> void:
 	var satchel = SatchelScript.new()
 	for id in ["bawang", "asin", "bawang", "kandila"]:
 		satchel.add(id)
-	_check(satchel.slots() == ["bawang", "asin", "kandila", ""] and satchel.count("bawang") == 2,
+	_check(satchel.slots() == ["bawang", "asin", "kandila", "", ""] and satchel.count("bawang") == 2,
 		"the quick slots fill in the order things are first picked up", "%s" % [satchel.slots()])
 
 
 func _a_spent_slot_goes_to_the_next_new_thing() -> void:
 	var satchel = SatchelScript.new()
-	for id in ["bawang", "asin", "kandila", "abo"]:
+	for id in ["bawang", "asin", "kandila", "abo", "langis"]:
 		satchel.add(id)
 	var full := satchel.slots()
 	satchel.take("bawang")
 	var held := satchel.slots()
-	satchel.add("langis")
-	_check(held == full and satchel.slots() == ["langis", "asin", "kandila", "abo"],
+	satchel.add("buntot_pagi")
+	_check(held == full and satchel.slots() == ["buntot_pagi", "asin", "kandila", "abo", "langis"],
 		"a spent slot stays put, then goes to the next new thing",
 		"spent %s, then %s" % [held, satchel.slots()])
 
 
-## All four held, the fifth has no key -- and takes the first slot spent, at once, not on the next
-## pickup: the lamp oil she found at the second clearing is otherwise never usable.
-func _a_fifth_kind_waits_then_moves_in() -> void:
+## Kent's fifth key. Whoever saves everything still has a key for everything the woods give: with
+## four slots the lamp oil, found last, could never be poured.
+func _the_five_in_the_woods_all_have_a_slot() -> void:
 	var satchel = SatchelScript.new()
 	for id in ["asin", "kandila", "abo", "bawang", "langis"]:
+		satchel.add(id)
+	_check(satchel.slots() == ["asin", "kandila", "abo", "bawang", "langis"] and satchel.waiting().is_empty(),
+		"everything lying in the woods, saved in the order it is found, has a slot",
+		"%s, waiting %s" % [satchel.slots(), satchel.waiting()])
+
+
+## All five held, the whip has no key -- and takes the first slot spent, at once, not on the next
+## pickup, which for a thing that drops once in a night might never come.
+func _a_sixth_kind_waits_then_moves_in() -> void:
+	var satchel = SatchelScript.new()
+	for id in ["asin", "kandila", "abo", "bawang", "langis", "buntot_pagi"]:
 		satchel.add(id)
 	var waited: Array[String] = satchel.waiting()
 	set_meta(&"moved_in", [])
@@ -188,9 +204,9 @@ func _a_fifth_kind_waits_then_moves_in() -> void:
 		(get_meta(&"moved_in") as Array).append([id, index]))
 	satchel.take("kandila")
 	var said: Array = get_meta(&"moved_in")
-	_check(waited == ["langis"] and satchel.slots() == ["asin", "langis", "abo", "bawang"]
-			and satchel.waiting().is_empty() and said == [["langis", 1]],
-		"a fifth kind waits with no slot, and moves in as soon as one is spent",
+	_check(waited == ["buntot_pagi"] and satchel.slots() == ["asin", "buntot_pagi", "abo", "bawang", "langis"]
+			and satchel.waiting().is_empty() and said == [["buntot_pagi", 1]],
+		"a sixth kind waits with no slot, and moves in as soon as one is spent",
 		"waited %s, then %s, said %s" % [waited, satchel.slots(), said])
 
 
@@ -224,7 +240,7 @@ func _it_is_kept_as_plain_data() -> void:
 func _kept_data_is_held_to_the_file() -> void:
 	var back = SatchelScript.new()
 	back.from_data({"counts": {"asin": 99, "feather": 3}, "slots": ["feather", "asin", "", ""]})
-	_check(back.count("asin") == 12 and back.count("feather") == 0 and back.slots() == ["", "asin", "", ""],
+	_check(back.count("asin") == 12 and back.count("feather") == 0 and back.slots() == ["", "asin", "", "", ""],
 		"what comes back is held to the file: caps, and only its kinds",
 		"asin %d, slots %s" % [back.count("asin"), back.slots()])
 
@@ -238,6 +254,38 @@ func _press_z() -> void:
 	key.pressed = true
 	level.call("_unhandled_input", key)
 	await _frames(2)
+
+
+func _press_key(code: Key) -> void:
+	var key := InputEventKey.new()
+	key.physical_keycode = code
+	key.pressed = true
+	level.call("_unhandled_input", key)
+	await _frames(2)
+
+
+## The fifth key, as the keyboard sends it, on the thing the fifth slot was added for.
+func _b_pours_the_oil_found_last() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var health := level.get("player_health") as PlayerHealth
+	for id in ["asin", "kandila", "abo", "bawang", "langis"]:
+		satchel.add(id, 1)
+	health.dim(PlayerHealth.LOW)
+	health.dim(PlayerHealth.LOW)
+	var low := health.stage
+	var bar := level.get("quick_slots") as QuickSlotBar
+	await _press_key(KEY_B)
+	_check(satchel.slots()[4] == "langis" and low == PlayerHealth.LOW and health.stage == PlayerHealth.FULL
+			and satchel.count("langis") == 0 and bar.slot_name(4) == "Langis",
+		"B pours the oil she found last, on the fifth slot", "stage %d -> %d, slot %s, %d left"
+			% [low, health.stage, satchel.slots()[4], satchel.count("langis")])
+	var unbound: Array[String] = []
+	for index in range(Satchel.SLOTS):
+		if not InputMap.has_action("quick_slot_%d" % (index + 1)):
+			unbound.append(str(index + 1))
+	var file_says := int((JSON.parse_string(FileAccess.get_file_as_string(Satchel.CONFIG)) as Dictionary).get("quick_slots", 0))
+	_check(unbound.is_empty() and file_says == Satchel.SLOTS, "and every slot has a key bound, as many as the file says",
+		"%d slots, the file says %d, unbound %s" % [Satchel.SLOTS, file_says, unbound])
 
 
 func _z_pours_lamp_oil() -> void:
@@ -992,15 +1040,15 @@ func _ash_is_asked_for_only_within_its_reach() -> void:
 		"lit %s, \"%s\"" % [near, said])
 
 
-## All four held: the oil found says it has no slot, shows as waiting, and has its key the moment one
-## is spent. Named on the bar so she can see she carries it.
-func _the_fifth_thing_says_it_has_no_slot() -> void:
+## All five held: the whip found says it has no slot, shows as waiting, and has its key the moment
+## one is spent. Named on the bar so she can see she carries it.
+func _the_sixth_thing_says_it_has_no_slot() -> void:
 	var satchel := level.get("satchel") as Satchel
 	var bar := level.get("quick_slots") as QuickSlotBar
-	for id in ["asin", "kandila", "abo", "bawang"]:
+	for id in ["asin", "kandila", "abo", "bawang", "langis"]:
 		satchel.add(id, 1)
 	await _quiet()
-	await _touch_a_new("langis")
+	await _touch_a_new("buntot_pagi")
 	var said := _said()
 	var waited := bar.waiting_names()
 	await _stand_her_at(7800.0)
@@ -1008,12 +1056,12 @@ func _the_fifth_thing_says_it_has_no_slot() -> void:
 	var freed := satchel.slots().find("kandila")
 	level.call("use_quick_slot", freed)
 	await _frames(2)
-	_check(said == "Langis, lamp oil. All four slots are full: use up one of my things and it moves in."
-			and waited == ["Langis"],
-		"a thing found with all four slots full says so, and stands on the bar as having none",
+	_check(said == "Buntot Pagi, stingray-tail whip. All the slots are full: use up one of my things and it moves in."
+			and waited == ["Buntot Pagi"],
+		"a thing found with every slot full says so, and stands on the bar as having none",
 		"\"%s\", waiting %s" % [said, waited])
-	_check(satchel.slots()[freed] == "langis" and bar.waiting_names().is_empty() and bar.is_welcoming(freed)
-			and _said() == "A slot is free. Langis is on %s now." % _key_on(freed),
+	_check(satchel.slots()[freed] == "buntot_pagi" and bar.waiting_names().is_empty() and bar.is_welcoming(freed)
+			and _said() == "A slot is free. Buntot Pagi is on %s now." % _key_on(freed),
 		"and when one is spent it moves in, rung, with its key said", "\"%s\", slots %s" % [_said(), satchel.slots()])
 
 
@@ -1054,6 +1102,7 @@ func _a_continue_gives_it_back() -> void:
 func _the_controls_screen_names_the_slots() -> void:
 	var overlay := level.get_node(^"ControlsOverlay")
 	var shown: Array[bool] = []
+	var keys_named := false
 	for level_id in ["level_1", "level_4"]:
 		root.get_node(^"LevelManager").set(&"current_level_id", level_id)
 		overlay.call("_build")
@@ -1061,10 +1110,12 @@ func _the_controls_screen_names_the_slots() -> void:
 		var named := false
 		for label in overlay.find_children("*", "Label", true, false):
 			named = named or (label as Label).text.begins_with("Use one of Lola's things")
+			keys_named = keys_named or (label as Label).text == "Z  -  B"
 		shown.append(named)
 	root.get_node(^"LevelManager").set(&"current_level_id", "level_4")
 	_check(shown == [false, true], "the controls screen names the quick slots in Dilim and nowhere else",
 		"shown in Payyo / Dilim: %s" % [shown])
+	_check(keys_named, "and it names them from Z to B", "named %s" % keys_named)
 
 
 func _open_level(resuming: bool = false) -> Node:

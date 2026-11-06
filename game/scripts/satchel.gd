@@ -1,6 +1,6 @@
 class_name Satchel
 extends RefCounted
-## Dilim's satchel: Lola's things, in stacks with a visible count, four of them on quick slots.
+## Dilim's satchel: Lola's things, in stacks with a visible count, five of them on quick slots.
 ##
 ## Not the bag. The bag holds drawings, which are the apo's and went through the recogniser; these
 ## are Lola's, are never drawn, and are counted rather than kept one by one (config/satchel.json).
@@ -9,10 +9,11 @@ extends RefCounted
 ## for a menu. A slot keeps its thing while she has any; once it is spent the slot goes to the next
 ## new kind she picks up, and until then it stays put, empty, so nothing moves under her fingers.
 ##
-## ⚠ FIVE KINDS LIE IN THE WOODS AND THERE ARE FOUR SLOTS. Whoever saves everything -- which is what
-## a first run does -- finds the lamp oil with all four held, and it used to have no key for the rest
-## of the level, with nothing to say so. A kind that finds no slot now WAITS (`waiting`), and the
-## moment one of the four is spent it moves in (`moved_in`), rather than only on another pickup.
+## ⚠ FIVE KINDS LIE IN THE WOODS, SO THERE ARE FIVE SLOTS. With four (Z X C V), whoever saved
+## everything -- which is what a first run does -- found the lamp oil with nowhere to go and no key
+## for the rest of the level (Kent, 2026-11-06: "Add a fifth key"). The whip, the sixth kind, only
+## drops late in the night and can still find them all held. A kind with no slot WAITS (`waiting`),
+## and the moment one of the five is spent it moves in (`moved_in`), not only on another pickup.
 ##
 ## Plain data in and out (to_data / from_data): a checkpoint's run state drops any dictionary that
 ## holds an object, so the satchel is saved as counts and slot ids, never as itself.
@@ -22,7 +23,7 @@ signal changed
 signal moved_in(id: String, index: int)
 
 const CONFIG := "res://config/satchel.json"
-const SLOTS := 4
+const SLOTS := 5
 
 var _rows: Dictionary = {}
 ## What she says of any of them, whichever it is (the file's `lines`).

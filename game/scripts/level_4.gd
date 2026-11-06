@@ -617,7 +617,7 @@ func _build_level_furniture() -> void:
 	dawn_clock.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	dawn_clock.position = Vector2(-DawnClockHud.SIZE.x * 0.5, DAWN_CLOCK_TOP)
 	$CanvasLayer.add_child(dawn_clock)
-	# Bottom centre: Lola's things on Z, X, C and V.
+	# Bottom centre: Lola's things on Z, X, C, V and B.
 	satchel = Satchel.new()
 	satchel.moved_in.connect(_on_satchel_moved_in)
 	quick_slots = QuickSlotBar.new()
@@ -1030,7 +1030,7 @@ func _on_dawn() -> void:
 
 # --- The satchel ----------------------------------------------------------------------------
 
-## Lola's things, counted, four on quick slots (config/satchel.json, Satchel).
+## Lola's things, counted, five on quick slots (config/satchel.json, Satchel).
 var satchel: Satchel
 var quick_slots: QuickSlotBar
 const QUICK_SLOTS_BOTTOM := 28.0
@@ -1043,7 +1043,7 @@ func _handle_level_input(event: InputEvent) -> bool:
 	return false
 
 
-## Z, X, C or V: the thing on that slot, used now, and one fewer. Spent only if it did something.
+## Z, X, C, V or B: the thing on that slot, used now, and one fewer. Spent only if it did something.
 ## Returns whether the press was the satchel's -- it is not while a drawing is being placed (the
 ## same keys turn and size it), drawn, or the bag is open: those keep the key.
 func use_quick_slot(index: int) -> bool:
@@ -1185,7 +1185,7 @@ func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
 		_met[pickup.item] = true
 		quick_slots.welcome(index)
 		# What it is for, which key and when: a name and a key alone left her holding a candle with
-		# no idea what it was for. And with all four slots full it says so: it used to say its name
+		# no idea what it was for. And with every slot full it says so: it used to say its name
 		# and nothing else, and she carried the oil the rest of the way with no way to pour it.
 		var said := String(satchel.row(pickup.item).get("found", "")) if index >= 0 \
 			else satchel.line("no_slot", pickup.item)
