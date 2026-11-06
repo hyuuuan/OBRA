@@ -39,7 +39,7 @@ in three waves until dawn.
 | Choosing a route | **By what you do — no popup.** Drawing a light at the sigbin *is* the artist choice; backing against the rock *is* pragmatic; landing a hit *is* protector. A popup would freeze a fight. **And it stays open until one is answered** (as built): a blade swung first and then a light is the light (`LevelDirector.routes_stay_open`). |
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
-| Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
+| Quick slots | Five, on **Z X C V B** (four until 2026-11-06, when Kent added B: the lamp oil, found last, had no key in any run that saved everything). Z/X rotate a drawing only while placing, and quick slots are off while placing. |
 | Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- the kapre, the manananggal and a white lady as the lean aswang came in `Creatures.zip`; the crawling aswang, tikbalang and tiyanak sheets were supplied on 2026-11-01, and the repaired-arm bungisngis, wakwak, sigbin and nuno on 2026-11-04. All ten are cut by `tools/build_dilim_delivered.py`. |
 | Defaults taken | Shift = walk (the santelmo's rule needs one). The opening is design Draft A, naming the manananggal and the tikbalang, played as the level's intro. |
 
@@ -284,6 +284,8 @@ Kent: "not that clear to use and when to use"; "start off as a moon and then slo
 - **Each thing says what, which key and when.** On finding it (`found`), on its slot for as long as
   she carries it (`does`), and at its moment: `level_4.gd` `_wanted_now` asks every tick what would
   help now, and that slot wears a Now chip. Advice only; no press changes.
+- **Everything lying in the woods has a slot.** Only the whip, which drops late in the night, can find
+  all five held: it then says so, stands on the bar with no key and takes the next slot spent.
 - **A press that does nothing says why**: oil on a full lamp, a slot with none left, ash with nothing
   in reach, a candle where only a drawn light answers.
 - **Garlic's ring** stands over the dark and closes as it runs out. It is room to breathe, not "room
@@ -299,11 +301,9 @@ Kent: "not that clear to use and when to use"; "start off as a moon and then slo
 sheet is `docs/screenshots/dilim_morning_clock.png`.
 
 **For Kent to decide (design, left unchanged):**
-1. **Four slots, five placed kinds.** A player who saves everything finds the oil with no slot. It now
-   says so and takes the next slot spent, but she must spend something first. A fifth key would end it.
-2. **A set-down candle answers nothing.** It does not fill a clearing's lamp or drive off the sigbin or
+1. **A set-down candle answers nothing.** It does not fill a clearing's lamp or drive off the sigbin or
    tiyanak, though `_has_supplies_for` counts it as a supply for those two. She is now told; should it answer?
-3. **Ash reveals only within 160 px at the throw**, while the lamp leans at 220, so the window is about
+2. **Ash reveals only within 160 px at the throw**, while the lamp leans at 220, so the window is about
    1.5 s. The Now chip marks it; the dust could instead reveal what enters it while it hangs.
 
 ## The ground is built the way Mayon's is, in Makiling's mud (2026-11-02)
