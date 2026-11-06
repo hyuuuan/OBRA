@@ -290,7 +290,8 @@ Kent: "not that clear to use and when to use"; "start off as a moon and then slo
 
 - **Each thing says what, which key and when.** On finding it (`found`), on its slot for as long as
   she carries it (`does`), and at its moment: `level_4.gd` `_wanted_now` asks every tick what would
-  help now, and that slot wears a Now chip. Advice only; no press changes.
+  help now, and that slot wears a Now chip. Advice only; no press changes. The words wait for what
+  is up to be read and speak as an aside, so advice standing through a beat comes back after them.
 - **Everything lying in the woods has a slot.** Only the whip, which drops late in the night, can find
   all five held: it then says so, stands on the bar with no key and takes the next slot spent.
 - **A press that does nothing says why**: oil on a full lamp, a slot with none left, ash with nothing
