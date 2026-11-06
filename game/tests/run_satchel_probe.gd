@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 58
+const CHECKS := 59
 
 
 func _initialize() -> void:
@@ -29,6 +29,7 @@ func _run() -> void:
 	_nothing_is_used_from_nothing()
 	_it_is_kept_as_plain_data()
 	_kept_data_is_held_to_the_file()
+	_an_old_save_gives_the_oil_its_slot()
 	level = await _open_level()
 	await _z_pours_lamp_oil()
 	await _oil_is_not_wasted_on_a_full_lamp()
@@ -235,6 +236,17 @@ func _it_is_kept_as_plain_data() -> void:
 	satchel.from_data({})
 	_check((kept["slots"] as Array).has("asin") and int((kept["counts"] as Dictionary).get("asin", 0)) == 5,
 		"and what it keeps is a copy, not the satchel itself", "kept %s" % [kept])
+
+
+## A save from when there were four slots: four listed, and the oil carried with none.
+func _an_old_save_gives_the_oil_its_slot() -> void:
+	var back = SatchelScript.new()
+	back.from_data({"counts": {"asin": 1, "kandila": 1, "abo": 1, "bawang": 1, "langis": 2},
+		"slots": ["asin", "kandila", "abo", "bawang"]})
+	_check(back.slots() == ["asin", "kandila", "abo", "bawang", "langis"] and back.waiting().is_empty()
+			and back.count("langis") == 2,
+		"a save from when there were four slots gives the oil it carried the new one",
+		"%s, waiting %s" % [back.slots(), back.waiting()])
 
 
 func _kept_data_is_held_to_the_file() -> void:

@@ -130,6 +130,10 @@ func from_data(data: Dictionary) -> void:
 	for index in range(mini(saved.size(), SLOTS)):
 		var id := String(saved[index])
 		_slots[index] = id if _rows.has(id) else ""
+	# ⚠ A SAVE FROM WHEN THERE WERE FOUR holds no list as long as this one, and can hold the oil with
+	# no slot. Handed one here, or a Continue leaves it keyless beside the slot added for it.
+	for id in waiting():
+		_give_a_slot(id)
 	changed.emit()
 
 
