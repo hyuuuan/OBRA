@@ -34,6 +34,8 @@ void fragment() {
 	rgb = mix(rgb, paper.rgb, smoothstep(0.5, 0.85, drain));
 	colour.rgb = mix(colour.rgb, rgb, wash);
 	if (edge_feather_uv.x > 0.0) {
+		// ⚠ Its neighbours' .a and nothing else: how far the art reaches, which changes no colour.
+		// Their colour would square it, as above, and run_drain_probe fails on one.
 		float interior = 0.0;
 		for (int ring = 1; ring <= 3; ring++) {
 			vec2 offset = edge_feather_uv * (float(ring) / 3.0);

@@ -879,7 +879,8 @@ the obstacle reads as hers to draw before anyone says so. Kent (2026-11-01): ful
 - ⚠ **`drain.gdshader` reads `COLOR` as it is.** Godot 4's `COLOR` already carries the texture;
   sampling `TEXTURE` again squared every colour (0.42 came out 0.17), so whatever wore the drain
   drew darker than painted from the start. It once had a flag for this; now no level samples
-  twice, and `run_drain_probe` fails if the shader does.
+  twice, and `run_drain_probe` fails if the shader does. The one read it allows is `.a`: Mayon's
+  edge feather asks how far the art reaches, and no colour comes of that.
 
 ## Verify
 
