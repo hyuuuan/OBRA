@@ -454,6 +454,8 @@ func _build_the_dance_screen() -> void:
 
 
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	if obstacle_id == "L2_N1" and route == "protector":
+		_warn_about_the_dancers()
 	if obstacle_id != "L2_N1" or route != "artist" or dance_screen == null:
 		return
 	# FIRST THE DANCERS, THEN THE PUZZLE. Restart their authored three-frame phrase and wait
@@ -510,7 +512,28 @@ func _bring_out_the_dancers() -> void:
 ## signal to arrive BEFORE the commit, and this fires off the dancers' own approach volume
 ## rather than off the choice screen -- so it is said about the people it is about, while the
 ## player is looking at them.
+##
+## ⚠ BUT NOT BEFORE THE PLAZA HAS BEEN INTRODUCED, AND NOT TO SOMEBODY DOING SOMETHING ELSE. The
+## volume begins almost at her feet, so "If you do this they will not come back" was the first
+## thing the level said to somebody who had taken one step and been asked to do nothing. It waits
+## for the fork to have said what they are; a player who chose to clear them, and is still among
+## them, hears it then, with the deed still ahead of them.
 func _on_dancers_noticed(_text: String) -> void:
+	_among_the_dancers = true
+	_warn_about_the_dancers()
+
+
+func _warn_about_the_dancers() -> void:
+	if not _among_the_dancers:
+		return
+	if not script_lines.has_heard("L2_N1.enter"):
+		# They only tell once, and this was not it: the next time she comes up to them can be.
+		if dancers != null:
+			dancers.forget_telling()
+		return
+	var route: String = director.committed_route("L2_N1")
+	if not route.is_empty() and route != "protector":
+		return
 	var lines := script_lines.fire("L2_N1.protector.warn")
 	# Remember which of them is the HINT, because that is the one that lands on the bar and
 	# the one walking away should take back down. The rest is a story beat and dismisses
@@ -529,6 +552,7 @@ func _on_dancers_noticed(_text: String) -> void:
 ## about to do. Cleared only if the bar is still saying it, because one channel carries
 ## several voices and taking down somebody else's message is worse than leaving this one up.
 func _on_dancers_notice_left() -> void:
+	_among_the_dancers = false
 	if hint_bar == null or _warning.is_empty():
 		return
 	if hint_bar.current_text() == _warning:
@@ -716,6 +740,10 @@ func _wire_dialogue_node() -> void:
 	for alley: _Alley in _alleys.values():
 		alley.fork.approached.connect(_on_fork_approached.bind(alley.fork, alley.obstacle_id))
 		alley.fork.route_chosen.connect(_on_route_chosen)
+
+
+## Standing in the dancers' notice. See `_on_dancers_noticed`.
+var _among_the_dancers := false
 
 
 ## ⚠ THE PLAZA'S OPENING LINE WAITS FOR ITS FORK. Its volume begins ten pixels from where she
