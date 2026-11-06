@@ -1091,28 +1091,27 @@ const REST_LINES := {"L4_REST1": "L4_REST1.fire.solved", "L4_REST2": "L4_REST2.f
 
 ## What she has been told about using a kind, for the run.
 var _uses_told: Dictionary = {}
-## The handful of ash last thrown, to ask what it reached.
-var _last_dust: AboDust2D
 
 
 ## WHAT THE PRESS DID, where it is not plain from looking: how long a ward holds and that she has to
 ## stay in it, and that a candle stays where it is put. A candle that answered something has that
-## beat's own line, and says nothing more. Ash that reached nothing says why.
+## beat's own line, and says nothing more.
 func _say_what_it_did(id: String) -> void:
 	var row := satchel.row(id)
-	var said := ""
-	match String(row.get("use", "")):
-		"candle":
-			if _a_candle_answers_here():
-				return
-		"dust":
-			if _last_dust != null and is_instance_valid(_last_dust) and _last_dust.blinded().is_empty():
-				said = String(row.get("too_far", ""))
-	if said.is_empty() and not _uses_told.has(id):
-		_uses_told[id] = true
-		said = String(row.get("used", ""))
+	if String(row.get("use", "")) == "candle" and _a_candle_answers_here():
+		return
+	if _uses_told.has(id):
+		return
+	_uses_told[id] = true
+	var said := String(row.get("used", ""))
 	if not said.is_empty():
 		hint_bar.show_hint(said, _companion_speaker(), MOMENT_SECONDS)
+
+
+## The cloud hung and went without touching anything: said then, not at the throw, when it can still
+## catch what is on its way in.
+func _on_ash_reached_nothing() -> void:
+	hint_bar.show_hint(String(satchel.row("abo").get("too_far", "")), _companion_speaker(), MOMENT_SECONDS)
 
 
 ## The unanswered beat she stands in that a light answers, or "".
@@ -1293,7 +1292,7 @@ func _wanted_now(id: String) -> bool:
 		"ward":
 			return _crowded() and not _a_ward_holds_her()
 		"dust":
-			return _hidden_tiktik_within(float(row.get("radius", 160.0)))
+			return _hidden_tiktik_is_close()
 		"whip":
 			return _whip_would_reach()
 	return false
@@ -1363,13 +1362,11 @@ func _crowded() -> bool:
 	return close >= CROWDED_BY or (close >= 1 and _lamp_is_low())
 
 
-## ⚠ ASH ONLY SHOWS WHAT IS WITHIN ITS RADIUS WHEN IT IS THROWN, and the tik-tik circles well outside
-## that before it comes in. So this asks the dust's own reach, not the lamp's lean: the lamp leans at
-## 220 px, and ash thrown then, the moment the eye sees it, is ash wasted.
-func _hidden_tiktik_within(radius: float) -> bool:
+## The tik-tik she cannot see, close enough to pull at her lamp. It only comes this close on its way
+## in, and the cloud hangs longer than it takes to fly from here into it, so the lean is the signal.
+func _hidden_tiktik_is_close() -> bool:
 	var tiktik: Tiktik2D = _finale.tiktik() if _finale != null else null
-	return tiktik != null and not tiktik.is_revealed() \
-		and tiktik.global_position.distance_to(player.global_position) <= radius
+	return tiktik != null and not tiktik.is_revealed() and tiktik.pulls_at(player.global_position)
 
 
 func _whip_would_reach() -> bool:
@@ -1535,8 +1532,8 @@ func _throw_ash(item: Dictionary) -> bool:
 	dust.stun_seconds = float(item.get("stun_seconds", 1.5))
 	dust.reveal_seconds = float(item.get("reveal_seconds", 6.0))
 	dust.position = player.global_position
+	dust.reached_nothing.connect(_on_ash_reached_nothing)
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
-	_last_dust = dust
 	return true
 
 

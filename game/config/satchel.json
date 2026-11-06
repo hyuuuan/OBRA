@@ -51,16 +51,16 @@
       "gloss": "Ash",
       "found": "Abo, ash. {key} throws it up, to show what hides close by. Keep it for what I cannot see.",
       "does": "Reveals",
-      "moment": "It is close. {key}, now: ash shows it.",
-      "night": "{key} is the ash. It only reaches close by: wait until its slot says Now.",
-      "too_far": "Nothing near enough. Ash only reaches this close.",
+      "moment": "The lamp leans. {key}, now: ash shows it.",
+      "night": "{key} is the ash. When the lamp leans it is close: throw it then.",
+      "too_far": "Nothing came near enough. Ash only reaches this close.",
       "cap": 6,
       "drop_chance": 0.2,
       "use": "dust",
       "radius": 160,
       "stun_seconds": 1.5,
       "reveal_seconds": 6.0,
-      "$comment": "Thrown into the air where she stands: it hangs there, blinds what it touches for a moment, and shows what hides in shadow."
+      "$comment": "Thrown into the air where she stands: it blinds what it touches for a moment, and shows what hides in shadow, there or flying in while it hangs (Kent, 2026-11-06)."
     },
     "bawang": {
       "display_name": "Bawang",

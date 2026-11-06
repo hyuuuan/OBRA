@@ -255,7 +255,7 @@ func _the_banner_goes_with_what_is_after_her() -> void:
 	var banner := level.get("objective_banner") as ObjectiveBanner
 	var satchel := level.get("satchel") as Satchel
 	var slots := satchel.slots()
-	var told := "%s is the ash. It only reaches close by: wait until its slot says Now." \
+	var told := "%s is the ash. When the lamp leans it is close: throw it then." \
 		% String(level.call("_slot_key", slots.find("abo")))
 	await _seconds(4.5)
 	_check(heard.has(told), "and as the third wave came she said which key is the ash, and when", "%s" % [heard.slice(-3)])

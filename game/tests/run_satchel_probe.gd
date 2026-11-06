@@ -99,7 +99,7 @@ func _run() -> void:
 	level.queue_free()
 	await _frames(3)
 	level = await _open_level()
-	await _ash_is_asked_for_only_within_its_reach()
+	await _ash_is_asked_for_when_the_lamp_leans()
 	level.queue_free()
 	await _frames(3)
 	level = await _open_level()
@@ -1070,9 +1070,10 @@ func _salt_and_garlic_are_asked_for_when_they_would_help() -> void:
 	foe.queue_free()
 
 
-## The design's 160: ash shows nothing past it, so the slot does not say Now past it. Said without
-## waiting for the bar, its window is a second long. Thrown too soon, she is told why it did nothing.
-func _ash_is_asked_for_only_within_its_reach() -> void:
+## The lamp's lean, 220 px, is the signal: its slot says Now from there and not from further off, and
+## says so over whatever the bar was saying. Thrown with nothing coming, she is told, once the cloud
+## has gone: at the throw it may yet catch something on its way in.
+func _ash_is_asked_for_when_the_lamp_leans() -> void:
 	var satchel := level.get("satchel") as Satchel
 	var bar := level.get("quick_slots") as QuickSlotBar
 	var finale := level.get("_finale") as DilimFinale2D
@@ -1093,18 +1094,21 @@ func _ash_is_asked_for_only_within_its_reach() -> void:
 	await _quiet()
 	level.call("use_quick_slot", slot)
 	await _frames(2)
-	var thrown_far := _said()
+	var at_the_throw := _said()
+	await _frames(int(1.8 * 60.0))
+	var after_it_hung := _said()
 	var shown_far := tiktik.is_revealed()
 	(level.get("hint_bar") as HintBar).show_hint("something else", "", 30.0)
-	tiktik.global_position = her + Vector2(0.0, -120.0)
+	tiktik.global_position = her + Vector2(0.0, -200.0)
 	await _frames(3)
 	var near := bar.is_wanted(slot)
 	var said := _said()
-	_check(not far and thrown_far == "Nothing near enough. Ash only reaches this close." and not shown_far,
-		"the ash's slot is not lit with the tik-tik out of its reach, and thrown then, she is told why",
-		"lit %s, \"%s\", shown %s" % [far, thrown_far, shown_far])
-	_check(near and said == "It is close. %s, now: ash shows it." % _key_on(slot),
-		"within its reach it says Now, and says so over whatever the bar was saying",
+	_check(not far and at_the_throw.is_empty() and not shown_far
+			and after_it_hung == "Nothing came near enough. Ash only reaches this close.",
+		"the ash's slot is not lit with the tik-tik far off; thrown then, she is told once the cloud has gone",
+		"lit %s, at the throw \"%s\", after \"%s\", shown %s" % [far, at_the_throw, after_it_hung, shown_far])
+	_check(near and said == "The lamp leans. %s, now: ash shows it." % _key_on(slot),
+		"as the lamp leans it says Now, and says so over whatever the bar was saying",
 		"lit %s, \"%s\"" % [near, said])
 
 
