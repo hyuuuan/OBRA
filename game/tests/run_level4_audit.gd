@@ -28,6 +28,7 @@ const TAGS_PATH := "res://config/tags.json"
 const LEVELS_PATH := "res://config/levels.json"
 const METRICS_PATH := "res://../model/metrics.json"
 const SCENE_PATH := "res://level_4.tscn"
+const SATCHEL_PATH := "res://config/satchel.json"
 const HOST_SOURCES := ["res://scripts/level_4.gd", "res://scripts/level_base.gd"]
 
 ## BR-7. No critical-path obstacle may depend on a class whose held-out recall is under this.
@@ -87,6 +88,9 @@ func _run() -> void:
 	_audit_every_line_is_hers(dialogue)
 	_audit_no_line_names_a_class(dialogue)
 	_audit_no_objective_names_a_class(level)
+	_audit_no_satchel_line_names_a_class()
+	_audit_every_thing_says_what_and_when()
+	_audit_a_drawn_light_is_asked_for_in_words(level)
 	_audit_nothing_story_shaped_mid_encounter(level)
 	_audit_no_line_is_unreachable(level, dialogue)
 	_audit_shipping_state()
@@ -305,6 +309,60 @@ func _audit_no_objective_names_a_class(level: Dictionary) -> void:
 			offenders.append("'%s' names '%s'" % [key, named])
 	_check(counted > 0 and offenders.is_empty(), "no objective names a class",
 		"%d objectives clean" % counted if offenders.is_empty() else "; ".join(offenders))
+
+
+## What she says of Lola's things is held to the rule her lines are: it is written in satchel.json,
+## where the line audit does not look. {key} is whichever key a slot is bound to, not the word.
+func _audit_no_satchel_line_names_a_class() -> void:
+	var terms := _class_terms()
+	var data := _load(SATCHEL_PATH)
+	var offenders: Array[String] = []
+	var counted := 0
+	var lines: Dictionary = data.get("lines", {})
+	for key_value: Variant in lines.keys():
+		if String(key_value).begins_with("$"):
+			continue
+		counted += 1
+		var named := _names_a_class(String(lines[key_value]).replace("{key}", "Z"), terms)
+		if not named.is_empty():
+			offenders.append("lines.%s names '%s'" % [key_value, named])
+	var items: Dictionary = data.get("items", {})
+	for id: Variant in items.keys():
+		var row: Dictionary = items[id]
+		for field: String in ["found", "does", "moment", "night", "used", "too_far", "not_the_answer", "full"]:
+			if not row.has(field):
+				continue
+			counted += 1
+			var named := _names_a_class(String(row[field]).replace("{key}", "Z"), terms)
+			if not named.is_empty():
+				offenders.append("%s.%s names '%s'" % [id, field, named])
+	_check(counted > 20 and offenders.is_empty(), "nothing she says of Lola's things names a class",
+		"%d lines clean" % counted if offenders.is_empty() else "; ".join(offenders))
+
+
+## Each of them says what it does on its slot, and when it is the thing to press, with its key.
+func _audit_every_thing_says_what_and_when() -> void:
+	var items: Dictionary = _load(SATCHEL_PATH).get("items", {})
+	var silent: Array[String] = []
+	for id: Variant in items.keys():
+		var row: Dictionary = items[id]
+		if String(row.get("does", "")).is_empty() or not String(row.get("moment", "")).contains("{key}") \
+				or not String(row.get("found", "")).contains("{key}"):
+			silent.append(String(id))
+	_check(items.size() == 6 and silent.is_empty(), "each of Lola's things has its use on its slot, and its moment with its key",
+		"%d kinds" % items.size() if silent.is_empty() else "missing on: %s" % [silent])
+
+
+## ⚠ A CANDLE IS LIGHT, AND IT ANSWERS NONE OF THESE. Wherever only a drawing with the light tag
+## answers, the banner says draw: "Make a light" read as an offer to the candle lying beside it.
+func _audit_a_drawn_light_is_asked_for_in_words(level: Dictionary) -> void:
+	var objectives: Dictionary = level.get("objectives", {})
+	var unclear: Array[String] = []
+	for key: String in ["rest", "sigbin", "tiyanak"]:
+		if not String(objectives.get(key, "")).to_lower().contains("draw a light"):
+			unclear.append(key)
+	_check(unclear.is_empty(), "where only a light she draws answers, the banner says draw",
+		"rest, sigbin, tiyanak" if unclear.is_empty() else "not in: %s" % [unclear])
 
 
 ## A lore line pauses the tree. Arriving, and the answer landing, are the only places a story
