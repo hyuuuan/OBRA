@@ -9,6 +9,13 @@ extends SceneTree
 const LEDGER := "res://config/tutorial.json"
 const LEVEL_BASE := "res://scripts/level_base.gd"
 const TutorialScript = preload("res://scripts/tutorial_director.gd")
+const CONTROLS := "res://config/controls.json"
+## Controls that have no lesson, deliberately. `pause` was cut by Kent (see below), and
+## `skip_tutorial` is printed on every card, which is the only place it does anything.
+const UNTAUGHT_ON_PURPOSE := ["pause", "skip_tutorial"]
+## A controls row that names the mouse, and the name a lesson's `mouse` list gives it.
+const MOUSE_ROWS := {"Left click": "left", "Right click": "right", "Scroll": "wheel",
+	"Shift + Scroll": "shift_wheel"}
 ## Where each level's lesson events are fired, besides LevelBase. Every level in the ledger
 ## must be here: one that is not fails, rather than having its events looked for in the
 ## wrong file and passing or failing by accident.
@@ -80,9 +87,49 @@ func _initialize() -> void:
 	_check(not ledger["levels"]["level_1"].has("canvas_briefing"),
 		"the canvas is taught by cards, not four lines of Lolo", "no briefing")
 
+	_audit_level_1_covers_every_control(lessons, director)
+
 	print("--- %d passed, %d failed ---" % [_passed, _failed])
 	print("OBRA_TUTORIAL_FAILED=%d" % _failed if _failed > 0 else "OBRA_TUTORIAL_OK")
 	quit(1 if _failed > 0 else 0)
+
+
+## LEVEL 1 COVERS EVERYTHING. Kent: "fix level 1 like tutorial part make sure it covers
+## everything". The controls screen is the list of what the game can do, so it is what this reads:
+## a row that works in Level 1 and that no lesson teaches is a control the game never mentions.
+## `E` was exactly that, with an anchor waiting for it the whole time.
+func _audit_level_1_covers_every_control(lessons: Array, director: Node) -> void:
+	print("  -- Level 1 covers every control --")
+	var taught_actions := {}
+	var taught_mouse := {}
+	for value: Variant in lessons:
+		var lesson: Dictionary = value
+		for action: String in director.actions_for(lesson):
+			taught_actions[action] = true
+		for button: Variant in lesson.get("mouse", []):
+			taught_mouse[String(button)] = true
+	var controls: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(CONTROLS))
+	var rows := 0
+	for value: Variant in controls["rows"]:
+		var row: Dictionary = value
+		# A row for another level does nothing here, and teaching it would be a false lesson.
+		if row.has("levels") and not (row["levels"] as Array).has("level_1"):
+			continue
+		var action := String(row.get("action", ""))
+		if UNTAUGHT_ON_PURPOSE.has(action):
+			continue
+		rows += 1
+		if not action.is_empty():
+			# A run of keys (inventory_slot_1 .. 6) is taught if its first and last are.
+			var through := String(row.get("through", ""))
+			var covered: bool = taught_actions.has(action) \
+				and (through.is_empty() or taught_actions.has(through))
+			_check(covered, "'%s' has a lesson" % action, String(row.get("label", "")))
+		else:
+			var button: String = MOUSE_ROWS.get(String(row.get("keys", "")), "")
+			_check(taught_mouse.has(button), "'%s' has a lesson" % String(row.get("keys", "")),
+				String(row.get("label", "")))
+	_check(rows >= 15, "and the controls screen was really read", "%d rows" % rows)
 
 
 func _audit_level(ledger: Dictionary, level_id: String) -> void:
