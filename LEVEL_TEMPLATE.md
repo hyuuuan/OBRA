@@ -272,6 +272,7 @@ a player presses. These rules are what it found, and they hold for every level:
 | **Walking back in reminds her, on a free bar only.** Never story, never a solved or answered beat. | `_say_or_remind` | A respawn replaced "You cannot swim" in 0.03 s with advice about a wall she was on top of. |
 | **A remark or a prompt is an aside.** It gives the bar back, with the rest of the beat. | `HintBar.interject`, `take_down` | Each door and heap, and every checkpoint, replaced advice for good. `show_hint` is for words that really do replace. |
 | **A line waits for her to land** (at most 1.2 s), and for a placement to finish. | `_until_she_can_listen` | The world froze mid-jump with the camera pushing in. |
+| **Lolo's remark waits for what is up to be read, then speaks over it.** Advice that stands has been read after the time a timed line of its length gets, and comes back after him. New advice waits for his remark's reading time. | `HintBar.is_being_read`, `TutorialDirector._coast_is_clear`, `HintBar.show_beat` | Waiting for an empty bar, "That bar is your ink now" was not said while the bangka's advice stood, which is the whole time she holds the shape it is about. |
 | **A lantern's moment waits for the words.** The letterbox does not come in under a line, or take the camera from one. | `_stage_the_checkpoint` | A route's commit line and its lantern began on one frame. |
 | **A lesson's lead does not wait for the letterbox; its card does.** The bars do not stop her. | `TutorialDirector._coast_is_clear` | "A lantern!" was said 480 px past the lantern. |
 | **A board stands where its line fires,** within `Signpost2D.READ_RANGE`. A board and an announce box are two numbers for one place. | `story_sign_offset`, `announce_offset` | She walked past a sign and nothing happened: L1_N3 by 160 px, L5_SPAN by 360, L3_N1 by 800. |
@@ -279,9 +280,10 @@ a player presses. These rules are what it found, and they hold for every level:
 | **A line about something fires as it comes into view,** and is true when it is said. | `announce_offset`, `_arrival_hook` | Dilim's "A mound on the path" 600 px out in the dark, and "I have passed it three times now" on the first approach. |
 | **The sign's sentence is for somebody who stayed** (0.9 s). The board lights at once. | `SIGN_PROMPT_AFTER` | "Press E to read the sign" went up the frame a line ended and was gone half a second later, at every board. |
 
-⚠ **`hint_bar.is_showing()` is still a yield.** A `say` lesson and the sign's sentence wait for an
-empty bar, and advice now stands until its beat ends instead of until somebody speaks. If a level's
-`say` lesson has to land inside a beat with standing advice, it will wait for the beat to end.
+⚠ **`hint_bar.is_showing()` is still a yield for the sign's sentence and for reminders.** Advice
+stands until its beat ends, so neither is said inside a beat with advice up. That is meant: the
+board is lit, and a reminder of what is on screen says nothing. A `say` lesson asks `is_being_read`
+instead. Anything new that must land inside a beat has to ask that too.
 
 ⚠ **`condition` has no `unless`.** A hook fires *every* matching line, so a conditional pair
 ("you combed the straw" / "you did not") needs either an `unless` key added to

@@ -185,8 +185,8 @@ lesson, read off `controls.json`, so a new control fails until it is taught; `pa
 `skip_tutorial` is printed on every card. Outside Level 1 a card must be on `NECESSARY_CARDS`, each
 with the reason Level 1 cannot be where it is taught: Dagat's `new_brush` and `jars`, Dilim's `lamp`
 and `swing`. Piyesta and Mayon teach nothing of their own. Anything else a later level says is a
-`say` line on the hint bar. ⚠ **A line on the bar waits for the bar and Lolo is on it for most of
-Dagat, so nothing the player cannot do without may live only there.** That is why `jars` is a card
+`say` line on the hint bar. ⚠ **A line on the bar waits for what is up to be read and Lolo is on it
+for most of Dagat, so nothing the player cannot do without may live only there.** That is why `jars` is a card
 and why `new_brush` now states the whole ink rule.
 
 **A ROUTE CAN MISS A LESSON, AND THE LESSON IS OWED.** Most of Level 1's lessons wait for the player
