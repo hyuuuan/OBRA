@@ -43,7 +43,9 @@ player or creates a placeable utility from the player's actual stroke vectors.
 - Ink integrity is a contract: every polyline the rig renders must be an exact
   contiguous slice of the player's strokes (never a reassembly), and a post-build
   audit demotes any diverging rig to one intact compound body. `_test_ink_integrity`
-  in `game/tests/run_tests.gd` enforces this on clean and messy fixtures.
+  in `game/tests/run_tests.gd` enforces this on clean and messy fixtures. To move part
+  of a drawing (a fan's blades, `FanBlades`), turn whole strokes by their `Line2D`
+  transform (`RuntimeRig2D.turn_strokes`), never by rewriting their points.
 
 ## Building a level
 
