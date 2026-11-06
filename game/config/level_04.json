@@ -64,7 +64,8 @@
     "manananggal": "Salt the half she left, light it, or drive her off.",
     "dawn": "Last until morning. Keep the lamp lit.",
     "dawn_wings": "Last until morning. Step aside when they dive.",
-    "dawn_tiktik": "Last until morning. Ash shows what I cannot see."
+    "dawn_tiktik": "Last until morning. Ash shows what I cannot see.",
+    "morning": "Morning. The night is over."
   },
   "obstacles": [
     {

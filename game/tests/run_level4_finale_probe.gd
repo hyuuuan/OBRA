@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 46
+const CHECKS := 47
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -339,14 +339,16 @@ func _dawn_brightens_from_halfway() -> void:
 
 func _a_knockout_starts_the_night_over() -> void:
 	var before := finale.elapsed
+	# Read before it: a clock nobody is feeding reads 1:30 all night, which looks like starting over.
+	var read_before := (level.get("dawn_clock") as DawnClockHud).time_text()
 	level.call("_knockout")
 	await _frames(4)
 	_grace()
 	await _seconds(0.5)
 	var clock := level.get("dawn_clock") as DawnClockHud
 	var clock_read := clock.time_text()
-	_check(clock.visible and clock_read in ["1:30", "1:29"] and not clock.is_morning(),
-		"and its clock starts over with it", "visible %s, %s" % [clock.visible, clock_read])
+	_check(clock.visible and read_before != clock_read and clock_read in ["1:30", "1:29"] and not clock.is_morning(),
+		"and its clock starts over with it", "visible %s, %s then %s" % [clock.visible, read_before, clock_read])
 	_check(before > 5.0 and finale.is_running() and finale.elapsed < 1.0
 			and finale.alive().size() == DilimFinale2D.WAVE_SIZE
 			and (level.get("darkness_layer") as DarknessLayer).darkness > 0.9
@@ -525,6 +527,7 @@ func _morning_ends_it() -> void:
 		said[0] = true
 		var clock := level.get("dawn_clock") as DawnClockHud
 		set_meta(&"clock_at_dawn", [clock.is_morning(), clock.visible, clock.caption(), clock.time_text()])
+		set_meta(&"card_at_dawn", (level.get("objective_banner") as ObjectiveBanner).text())
 		set_meta(&"dawn_line", String(box.call("current_line"))))
 	# Lines left up for the dawn's to be read: the probe otherwise dismisses each as it comes.
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
@@ -540,6 +543,8 @@ func _morning_ends_it() -> void:
 		"morning ends it, and they go", "dawned %s, %d still in the clearing" % [said[0], left])
 	var at_dawn: Array = get_meta(&"clock_at_dawn", [])
 	_check(at_dawn == [true, true, "", "0:00"], "and the clock stays up through her line, saying morning", "%s" % [at_dawn])
+	_check(String(get_meta(&"card_at_dawn", "")) == "Morning. The night is over.",
+		"and the quest card says so before her line stops the tree", "\"%s\"" % get_meta(&"card_at_dawn", ""))
 
 
 ## Her line, then the dark gone and the level finished: the majority route settled.

@@ -275,6 +275,8 @@ func _current_objective() -> Dictionary:
 ## WHAT THE NIGHT ASKS NOW. Always the same task, and whatever on it has changed: asked of what is
 ## after her and not of the wave, so a line about the wings goes when the wings have.
 func _night_objective() -> String:
+	if _morning:
+		return "morning"
 	if _finale == null or not _finale.is_running():
 		return "dawn"
 	if _finale.tiktik() != null and satchel != null and satchel.count("abo") > 0:
@@ -1010,6 +1012,9 @@ func _drawn_suns() -> Array:
 func _on_dawn() -> void:
 	_morning = true
 	_apply_dawn_visuals(1.0)
+	# Now, not on the card's timer: the line below stops the tree, and "Ash shows what I cannot see"
+	# stood over the morning for as long as she read it.
+	refresh_objective()
 	AudioDirector.play_sfx(&"dawn")
 	if dawn_clock != null:
 		dawn_clock.morning()
