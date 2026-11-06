@@ -524,7 +524,7 @@ Its suites: `run_level4_audit`, `run_level4_enablers_probe`, `run_level4_seg1/se
 `run_level4_finale_probe`, `run_level4_tiktik_probe`, `run_level4_whip_probe`,
 `run_satchel_probe`, `run_combat_probe`, `run_enemy_probe`, `run_weapon_probe`,
 `run_darkness_probe`, `run_makiling_probe`. Windowed looks: `run_visual_dilim_light`,
-`run_visual_makiling`, `run_visual_dilim_creatures`.
+`run_visual_makiling`, `run_visual_dilim_creatures`, `run_visual_level4_clock`.
 
 
 ## Level 5 (Mayon)

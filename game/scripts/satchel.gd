@@ -1,6 +1,6 @@
 class_name Satchel
 extends RefCounted
-## Dilim's satchel: Lola's things, in stacks with a visible count, four of them on quick slots.
+## Dilim's satchel: Lola's things, in stacks with a visible count, five of them on quick slots.
 ##
 ## Not the bag. The bag holds drawings, which are the apo's and went through the recogniser; these
 ## are Lola's, are never drawn, and are counted rather than kept one by one (config/satchel.json).
@@ -9,15 +9,25 @@ extends RefCounted
 ## for a menu. A slot keeps its thing while she has any; once it is spent the slot goes to the next
 ## new kind she picks up, and until then it stays put, empty, so nothing moves under her fingers.
 ##
+## ⚠ FIVE KINDS LIE IN THE WOODS, SO THERE ARE FIVE SLOTS. With four (Z X C V), whoever saved
+## everything -- which is what a first run does -- found the lamp oil with nowhere to go and no key
+## for the rest of the level (Kent, 2026-11-06: "Add a fifth key"). The whip, the sixth kind, only
+## drops late in the night and can still find them all held. A kind with no slot WAITS (`waiting`),
+## and the moment one of the five is spent it moves in (`moved_in`), not only on another pickup.
+##
 ## Plain data in and out (to_data / from_data): a checkpoint's run state drops any dictionary that
 ## holds an object, so the satchel is saved as counts and slot ids, never as itself.
 
 signal changed
+## A kind that was waiting has been given slot `index`, one of the four having been spent.
+signal moved_in(id: String, index: int)
 
 const CONFIG := "res://config/satchel.json"
-const SLOTS := 4
+const SLOTS := 5
 
 var _rows: Dictionary = {}
+## What she says of any of them, whichever it is (the file's `lines`).
+var _lines: Dictionary = {}
 var _counts: Dictionary = {}
 var _slots: Array[String] = []
 
@@ -27,6 +37,9 @@ func _init(config_path: String = CONFIG) -> void:
 	var items: Variant = (parsed as Dictionary).get("items", {}) if parsed is Dictionary else {}
 	if items is Dictionary:
 		_rows = (items as Dictionary).duplicate(true)
+	var lines: Variant = (parsed as Dictionary).get("lines", {}) if parsed is Dictionary else {}
+	if lines is Dictionary:
+		_lines = (lines as Dictionary).duplicate(true)
 	_slots.resize(SLOTS)
 	_slots.fill("")
 
@@ -41,6 +54,12 @@ func ids() -> Array[String]:
 
 func row(id: String) -> Dictionary:
 	return _rows.get(id, {}) as Dictionary
+
+
+## One of the file's `lines`, with {name} and {gloss} written in for `id`. {key} is the level's.
+func line(line_id: String, id: String) -> String:
+	return String(_lines.get(line_id, "")).replace("{name}", String(row(id).get("display_name", id))) \
+		.replace("{gloss}", String(row(id).get("gloss", "")).to_lower())
 
 
 func count(id: String) -> int:
@@ -71,6 +90,8 @@ func take(id: String) -> bool:
 	if count(id) <= 0:
 		return false
 	_counts[id] = count(id) - 1
+	if count(id) == 0:
+		_hand_on_a_slot(id)
 	changed.emit()
 	return true
 
@@ -82,6 +103,15 @@ func slot_item(index: int) -> String:
 
 func slots() -> Array[String]:
 	return _slots.duplicate()
+
+
+## What she carries that has no slot, and so no key, in the file's order.
+func waiting() -> Array[String]:
+	var out: Array[String] = []
+	for id in ids():
+		if count(id) > 0 and not _slots.has(id):
+			out.append(id)
+	return out
 
 
 func to_data() -> Dictionary:
@@ -100,6 +130,10 @@ func from_data(data: Dictionary) -> void:
 	for index in range(mini(saved.size(), SLOTS)):
 		var id := String(saved[index])
 		_slots[index] = id if _rows.has(id) else ""
+	# ⚠ A SAVE FROM WHEN THERE WERE FOUR holds no list as long as this one, and can hold the oil with
+	# no slot. Handed one here, or a Continue leaves it keyless beside the slot added for it.
+	for id in waiting():
+		_give_a_slot(id)
 	changed.emit()
 
 
@@ -116,3 +150,13 @@ func _give_a_slot(id: String) -> void:
 		if count(_slots[index]) <= 0:
 			_slots[index] = id
 			return
+
+
+## The last of `spent` is gone: its slot goes to whatever has been waiting for one.
+func _hand_on_a_slot(spent: String) -> void:
+	var index := _slots.find(spent)
+	var next := waiting()
+	if index < 0 or next.is_empty():
+		return
+	_slots[index] = next[0]
+	moved_in.emit(next[0], index)

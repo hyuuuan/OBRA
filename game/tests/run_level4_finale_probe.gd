@@ -14,11 +14,13 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 30
+const CHECKS := 47
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
 var most_alive := 0
+## Everything the hint bar has said, in order: the night's words go by while the fight goes on.
+var heard: Array[String] = []
 
 
 func _initialize() -> void:
@@ -31,6 +33,9 @@ func _run() -> void:
 		quit(2))
 	level = await _open_level()
 	finale = _the_finale()
+	var satchel := level.get("satchel") as Satchel
+	for id in ["asin", "bawang", "abo"]:
+		satchel.add(id, 1)
 	# Every encounter answered the artist's way first, so the morning has one route to settle and
 	# none is left to answer itself as she is put past it (walking by the tiyanak on its path is the
 	# pragmatist's). What the profile held before, to count the morning's points against.
@@ -42,12 +47,16 @@ func _run() -> void:
 	await _nothing_before_the_clearing()
 	await _stepping_in_begins_the_night()
 	await _the_clock_comes_with_the_night()
+	_the_clock_says_how_long()
+	_the_clock_starts_a_moon_and_ends_a_sun()
 	await _one_falls_and_another_comes()
 	await _never_more_than_two()
+	await _the_night_says_what_is_happening()
 	await _ash_and_salt_reach_the_night()
 	await _dawn_brightens_from_halfway()
 	await _a_knockout_starts_the_night_over()
 	await _the_waves_come_on_time()
+	await _the_banner_goes_with_what_is_after_her()
 	await _a_sun_hurries_the_morning()
 	await _the_dead_tree()
 	await _morning_ends_it()
@@ -117,16 +126,156 @@ func _the_clock_comes_with_the_night() -> void:
 		"before %s, now %s at %.3f of %.3f" % [get_meta(&"clock_before", true), clock.visible,
 			clock.progress(), finale.progress()])
 	var frame := (level.get("objective_banner") as Node).get_node(^"Panel") as Control
-	var strip_top := clock.get_global_rect().position.y + DawnClockHud.STRIP_TOP
-	var gap := strip_top - frame.get_global_rect().end.y
+	var gap := clock.get_global_rect().position.y - frame.get_global_rect().end.y
 	# And it follows the card: a taller card (a second line) pushes its frame's bottom down.
 	frame.position.y += 30.0
 	await _frames(3)
-	var followed := clock.get_global_rect().position.y + DawnClockHud.STRIP_TOP - frame.get_global_rect().end.y
+	var followed := clock.get_global_rect().position.y - frame.get_global_rect().end.y
 	frame.position.y -= 30.0
 	_check(gap >= 6.0 and gap <= 20.0 and absf(followed - gap) < 1.0,
 		"and it sits under the quest card, clear of it, following it", "%.0f px between, %.0f after the card grew"
 			% [gap, followed])
+
+
+## In words and a number: the old strip said neither. The design's 90 s, not the script's table.
+func _the_clock_says_how_long() -> void:
+	var clock := level.get("dawn_clock") as DawnClockHud
+	var read := []
+	for at: float in [0.0, 45.0, 74.0, 76.0, 89.5, 90.0]:
+		clock.set_progress(at / 90.0)
+		read.append("%s %s" % [clock.caption(), clock.time_text()])
+	clock.set_progress(finale.progress())
+	_check(read == ["Morning in 1:30", "Morning in 0:45", "Morning in 0:16", "Almost morning 0:14",
+			"Almost morning 0:01", "Almost morning 0:00"]
+			and DawnClockHud.CAPTION_FONT >= 20 and DawnClockHud.TIME_FONT >= 20,
+		"the clock says what it is and how long is left, at the readable floor", "%s" % [read])
+	_check(is_equal_approx(clock.mark_share(1), 27.0 / 90.0) and is_equal_approx(clock.mark_share(2), 60.0 / 90.0),
+		"and the two moments the night changes are marked where they come",
+		"%.3f and %.3f" % [clock.mark_share(1), clock.mark_share(2)])
+
+
+## Kent: "start off as a moon and then slowly transform into a sun". Asked of the picture itself.
+func _the_clock_starts_a_moon_and_ends_a_sun() -> void:
+	var clock := level.get("dawn_clock") as DawnClockHud
+	var start := clock.body_image(0.0)
+	var quarter := clock.body_image(0.25)
+	var half := clock.body_image(0.5)
+	var dawn := clock.body_image(1.0)
+	var lit := [_lit_share(start), _lit_share(quarter), _lit_share(half)]
+	_check(lit[0] > 0.08 and lit[0] < 0.35 and lit[1] > lit[0] and lit[1] < 1.0 and is_equal_approx(lit[2], 1.0),
+		"it starts a crescent, waxes, and is full by halfway", "lit %.2f, %.2f, %.2f" % lit)
+	var warmth := [_warmth(start), _warmth(half), _warmth(clock.body_image(0.75)), _warmth(dawn)]
+	_check(warmth[0] < 0.0 and warmth[1] < warmth[2] and warmth[2] < warmth[3] and warmth[3] > 0.2,
+		"silver at the start, warming all the way to gold", "red over blue %.2f, %.2f, %.2f, %.2f" % warmth)
+	var mid := DawnClockHud.BODY_SIDE / 2
+	var off_the_edge := DawnClockHud.BODY_R + 2
+	var rays := func(image: Image) -> int:
+		var count := 0
+		for direction: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+			if image.get_pixelv(Vector2i(mid, mid) + direction * off_the_edge).a >= 1.0:
+				count += 1
+		return count
+	_check(rays.call(start) == 0 and rays.call(half) == 0 and rays.call(dawn) == 4,
+		"no rays on the moon; by morning it has them all round",
+		"%d, %d, %d" % [rays.call(start), rays.call(half), rays.call(dawn)])
+	# Its craters go as it warms: one crater against a plain cell as far out, either side of the turn.
+	var crater := Vector2i(mid - 4, mid + 1)
+	var plain := Vector2i(mid - 4, mid - 1)
+	var late := clock.body_image(0.8)
+	_check(half.get_pixelv(crater) != half.get_pixelv(plain) and late.get_pixelv(crater) == late.get_pixelv(plain),
+		"its craters show on the full moon and are gone by the time it is gold", "%s / %s, %s / %s"
+			% [half.get_pixelv(crater), half.get_pixelv(plain), late.get_pixelv(crater), late.get_pixelv(plain)])
+	var from := clock.body_at(0.0)
+	var over := clock.body_at(0.5)
+	var to := clock.body_at(1.0)
+	var inside := Rect2(Vector2.ZERO, DawnClockHud.WINDOW.size)
+	_check(from.x < over.x and over.x < to.x and from.y > over.y and over.y > to.y and inside.has_point(from)
+			and inside.has_point(to) and over == over.round(),
+		"and it crosses the window, rising, on whole pixels", "%s, %s, %s" % [from, over, to])
+
+
+## How much of its face is lit: every cell of the disc that is not its dark side.
+func _lit_share(image: Image) -> float:
+	var mid := DawnClockHud.BODY_SIDE / 2
+	var disc := 0
+	var lit := 0
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			if Vector2(x - mid, y - mid).length() > DawnClockHud.BODY_R:
+				continue
+			disc += 1
+			# Near, not equal: the image holds it in eight bits.
+			var cell := image.get_pixel(x, y)
+			if absf(cell.r - UISkin.MOON_DARK.r) + absf(cell.g - UISkin.MOON_DARK.g) + absf(cell.b - UISkin.MOON_DARK.b) > 0.02:
+				lit += 1
+	return float(lit) / disc
+
+
+## Red over blue, on a cell of the disc that is lit at every phase: on the right, inside its rim.
+func _warmth(image: Image) -> float:
+	var mid := DawnClockHud.BODY_SIDE / 2
+	var cell := image.get_pixel(mid + DawnClockHud.BODY_R - 2, mid - 2)
+	return cell.r - cell.b
+
+
+## What is happening, what she must do, and which of her things helps, with their keys, in order;
+## and the one line on arriving that names all three, in the box.
+func _the_night_says_what_is_happening() -> void:
+	# Its four lines go by at reading speed, held while a line in the box is up.
+	await _seconds(5.0)
+	var slots := (level.get("satchel") as Satchel).slots()
+	var key := func(id: String) -> String: return String(level.call("_slot_key", slots.find(id)))
+	var expected: Array[String] = ["They keep coming. Nothing has to fall: I only have to last.",
+		"%s throws salt. It burns what it lands on." % key.call("asin"),
+		"%s crushes garlic. They will not cross the ring for ten seconds." % key.call("bawang"),
+		"Something as bright as day would bring the morning on."]
+	var at := -1
+	var in_order := true
+	for line in expected:
+		var found := heard.find(line)
+		in_order = in_order and found > at
+		at = found
+	_check(in_order, "as the night starts she says what is happening and which of her things help, with their keys",
+		"%s" % [heard])
+	var script_lines = level.get("script_lines")
+	var arriving: Array[String] = []
+	for line: Dictionary in script_lines.peek("L4_FINALE.enter"):
+		arriving.append(String(line.get("text", "")))
+	_check(arriving.has("Salt burns them. Garlic keeps them off. Ash shows the one I cannot see."),
+		"and on arriving, where nothing is moving yet, she says what each is for", "%s" % [arriving])
+	_check(String((level.get("objective_banner") as ObjectiveBanner).text()) == "Last until morning. Keep the lamp lit.",
+		"and the quest card says what to do", (level.get("objective_banner") as ObjectiveBanner).text())
+
+
+## Wings, while there are wings; the ash, while the tik-tik is about and she has ash; and the plain
+## task once neither is true. Asked of what is after her, never of the wave. And the ash's key is said
+## this time round though the clock already ran through this wave once: the knockout that started the
+## night over cut that telling off, and a line she never read has not been said.
+func _the_banner_goes_with_what_is_after_her() -> void:
+	var banner := level.get("objective_banner") as ObjectiveBanner
+	var satchel := level.get("satchel") as Satchel
+	var slots := satchel.slots()
+	var told := "%s is the ash. When the lamp leans it is close: throw it then." \
+		% String(level.call("_slot_key", slots.find("abo")))
+	await _seconds(4.5)
+	_check(heard.has(told), "and as the third wave came she said which key is the ash, and when", "%s" % [heard.slice(-3)])
+	# Asked directly: the card refreshes on a timer, and these are about what it says, not when.
+	level.call("refresh_objective")
+	var words := [banner.text()]
+	# A fall may have dropped more of it by now.
+	while satchel.count("abo") > 0:
+		satchel.take("abo")
+	level.call("refresh_objective")
+	words.append(banner.text())
+	for foe in finale.alive():
+		if foe is FlyingEnemy2D:
+			foe.crush(99)
+	level.call("refresh_objective")
+	words.append(banner.text())
+	satchel.add("abo", 1)
+	_check(words == ["Last until morning. Ash shows what I cannot see.", "Last until morning. Step aside when they dive.",
+			"Last until morning. Keep the lamp lit."],
+		"the quest card goes with what is after her: the ash, then the wings, then the plain task", "%s" % [words])
 
 
 func _one_falls_and_another_comes() -> void:
@@ -190,10 +339,16 @@ func _dawn_brightens_from_halfway() -> void:
 
 func _a_knockout_starts_the_night_over() -> void:
 	var before := finale.elapsed
+	# Read before it: a clock nobody is feeding reads 1:30 all night, which looks like starting over.
+	var read_before := (level.get("dawn_clock") as DawnClockHud).time_text()
 	level.call("_knockout")
 	await _frames(4)
 	_grace()
 	await _seconds(0.5)
+	var clock := level.get("dawn_clock") as DawnClockHud
+	var clock_read := clock.time_text()
+	_check(clock.visible and read_before != clock_read and clock_read in ["1:30", "1:29"] and not clock.is_morning(),
+		"and its clock starts over with it", "visible %s, %s then %s" % [clock.visible, read_before, clock_read])
 	_check(before > 5.0 and finale.is_running() and finale.elapsed < 1.0
 			and finale.alive().size() == DilimFinale2D.WAVE_SIZE
 			and (level.get("darkness_layer") as DarknessLayer).darkness > 0.9
@@ -201,6 +356,16 @@ func _a_knockout_starts_the_night_over() -> void:
 				== level.get_node("EnvironmentBaseplate/ForestBand").tint,
 		"a knockout starts the night over", "%.1f s in, then %.1f s, %d alive"
 			% [before, finale.elapsed, finale.alive().size()])
+	# A retried night says what is happening again, and does not read her the list again.
+	await _seconds(4.5)
+	var said := (level.get("hint_bar") as HintBar).current_text()
+	var openings := heard.count("They keep coming. Nothing has to fall: I only have to last.")
+	var salts := 0
+	for line in heard:
+		if line.ends_with("throws salt. It burns what it lands on."):
+			salts += 1
+	_check(openings == 2 and salts == 1, "and a retried night says what is happening, not the list of her things again",
+		"said so %d times, salt %d, now \"%s\"" % [openings, salts, said])
 
 
 ## The shortened night's 27 s and 60 s, not the script's table, within half a second.
@@ -252,6 +417,15 @@ func _a_sun_hurries_the_morning() -> void:
 	var before := finale.elapsed
 	var first := await _set_down("sun", Vector2(CLEARING_WEST + 300.0, 300.0))
 	var jumped := finale.elapsed - before
+	var clock := level.get("dawn_clock") as DawnClockHud
+	var caption := clock.caption()
+	var gliding := clock.shown() < clock.progress()
+	var told := (level.get("hint_bar") as HintBar).current_text()
+	await _seconds(0.8)
+	var arrived := is_equal_approx(clock.shown(), clock.progress())
+	_check(caption == "15 s nearer" and gliding and arrived and told == "The morning came nearer.",
+		"and the clock shows it: it says how much nearer, the body glides there, and she says so",
+		"\"%s\", gliding %s then there %s, \"%s\"" % [caption, gliding, arrived, told])
 	before = finale.elapsed
 	var second := await _set_down("sun", Vector2(CLEARING_WEST + 600.0, 300.0))
 	var again := finale.elapsed - before
@@ -351,6 +525,9 @@ func _morning_ends_it() -> void:
 	# After the level's own answer to it has begun -- connected later, so called later.
 	finale.dawned.connect(func() -> void:
 		said[0] = true
+		var clock := level.get("dawn_clock") as DawnClockHud
+		set_meta(&"clock_at_dawn", [clock.is_morning(), clock.visible, clock.caption(), clock.time_text()])
+		set_meta(&"card_at_dawn", (level.get("objective_banner") as ObjectiveBanner).text())
 		set_meta(&"dawn_line", String(box.call("current_line"))))
 	# Lines left up for the dawn's to be read: the probe otherwise dismisses each as it comes.
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
@@ -364,6 +541,10 @@ func _morning_ends_it() -> void:
 			left += 1
 	_check(said[0] and finale.has_dawned() and not finale.is_running() and left == 0,
 		"morning ends it, and they go", "dawned %s, %d still in the clearing" % [said[0], left])
+	var at_dawn: Array = get_meta(&"clock_at_dawn", [])
+	_check(at_dawn == [true, true, "", "0:00"], "and the clock stays up through her line, saying morning", "%s" % [at_dawn])
+	_check(String(get_meta(&"card_at_dawn", "")) == "Morning. The night is over.",
+		"and the quest card says so before her line stops the tree", "\"%s\"" % get_meta(&"card_at_dawn", ""))
 
 
 ## Her line, then the dark gone and the level finished: the majority route settled.
@@ -464,9 +645,19 @@ func _frames(count: int) -> void:
 		await physics_frame
 		if finale != null and is_instance_valid(finale):
 			most_alive = maxi(most_alive, finale.alive().size())
+		_listen()
 		if paused:
 			call_group(DialogueBox.GROUP, &"hide_line")
 			paused = false
+
+
+func _listen() -> void:
+	var hints := level.get("hint_bar") as HintBar if level != null and is_instance_valid(level) else null
+	if hints == null or not hints.is_showing():
+		return
+	var text := hints.current_text()
+	if heard.is_empty() or heard.back() != text:
+		heard.append(text)
 
 
 func _seconds(seconds: float) -> void:
