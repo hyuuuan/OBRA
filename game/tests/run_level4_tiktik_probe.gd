@@ -16,7 +16,7 @@ const CLEARING_X := 21900.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 7
+const CHECKS := 9
 var level: Node
 
 
@@ -29,7 +29,7 @@ func _run() -> void:
 		print("OBRA_L4_TIKTIK_FAILED=watchdog")
 		quit(2))
 	var only := " ".join(OS.get_cmdline_user_args())
-	for scenario in [_unseen_a_blow_goes_through, _ash_shows_it, _its_call_is_louder_far,
+	for scenario in [_unseen_a_blow_goes_through, _ash_shows_it, _ash_catches_what_flies_in, _its_call_is_louder_far,
 			_the_level_shows_its_call, _the_lantern_leans_only_when_it_is_close, _garlic_keeps_it_out]:
 		if not only.is_empty() and not String((scenario as Callable).get_method()).contains(only):
 			continue
@@ -78,6 +78,40 @@ func _ash_shows_it() -> void:
 
 
 ## The design's numbers: nothing inside 180, all of it by 1100, and louder at every step out.
+## Kent's decision: thrown as the lamp leans, with it still on its way in, the hanging cloud shows it
+## when it arrives, blinded. The real flight, at the design's 220 px and 110 px/s, not put there.
+func _ash_catches_what_flies_in() -> void:
+	var tiktik := await _sent_beside_her(Vector2(0.0, -200.0))
+	tiktik.stun(0.01)
+	tiktik.set(&"_circling", 0.0)
+	await _frames(3)
+	var apo := level.get("player") as Node2D
+	var dust := AboDust2D.new()
+	dust.position = apo.global_position
+	level.get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
+	await _frames(2)
+	var from := tiktik.global_position.distance_to(dust.global_position)
+	var at_throw := tiktik.is_revealed()
+	await _frames(int(1.3 * 60.0))
+	_check(from > dust.radius and not at_throw and tiktik.is_revealed() and tiktik.state_name() == "STUN"
+			and dust.shown_count() == 1,
+		"ash thrown as the lamp leans shows it when it flies in, and blinds it",
+		"%.0f px off of %.0f, then shown %s, %s" % [from, dust.radius, tiktik.is_revealed(), tiktik.state_name()])
+	# And one that never comes near stays unseen, and the cloud says it reached nothing. The first
+	# goes first: the finale hands back the first one alive, and that one has been shown.
+	set_meta(&"cloud_empty", false)
+	tiktik.crush(99)
+	var far := await _sent_beside_her(Vector2(0.0, -300.0))
+	var empty := AboDust2D.new()
+	empty.position = apo.global_position + Vector2(2000.0, 0.0)
+	empty.reached_nothing.connect(func() -> void: set_meta(&"cloud_empty", true))
+	level.get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(empty)
+	await _frames(int(1.9 * 60.0))
+	_check(not far.is_revealed() and bool(get_meta(&"cloud_empty", false)),
+		"one that does not come near stays unseen, and the empty cloud says so once it has gone",
+		"shown %s, said %s" % [far.is_revealed(), get_meta(&"cloud_empty", false)])
+
+
 func _its_call_is_louder_far() -> void:
 	var steps: Array[float] = []
 	for distance in [100.0, 180.0, 300.0, 500.0, 700.0, 900.0, 1100.0, 1400.0]:

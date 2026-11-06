@@ -205,6 +205,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 		_place_dawn_clock()
 	_tick_curse(get_physics_process_delta_time())
 	_watch_supplies(get_physics_process_delta_time())
+	_tend_the_satchel()
 
 
 ## Each beat's ground, west edge to east edge in world x, by obstacle id: read off the scene's
@@ -252,7 +253,7 @@ func _current_objective() -> Dictionary:
 	var x := player.global_position.x
 	var spans := _beat_spans()
 	if spans.has("L4_FINALE") and x >= (spans["L4_FINALE"] as Vector2).x:
-		return {"key": "dawn"}
+		return {"key": _night_objective()}
 	for rest in ["L4_REST1", "L4_REST2"]:
 		var span: Vector2 = spans.get(rest, Vector2(INF, -INF))
 		# Until its light is lit: after, the woods again.
@@ -269,6 +270,21 @@ func _current_objective() -> Dictionary:
 	if spans.has("L4_NUNO") and x <= (spans["L4_NUNO"] as Vector2).y:
 		key = "edge"
 	return {"key": key, "target": _next_mark_east(x)}
+
+
+## WHAT THE NIGHT ASKS NOW. Always the same task, and whatever on it has changed: asked of what is
+## after her and not of the wave, so a line about the wings goes when the wings have.
+func _night_objective() -> String:
+	if _morning:
+		return "morning"
+	if _finale == null or not _finale.is_running():
+		return "dawn"
+	if _finale.tiktik() != null and satchel != null and satchel.count("abo") > 0:
+		return "dawn_tiktik"
+	for foe in _finale.alive():
+		if foe is FlyingEnemy2D and not foe is Tiktik2D:
+			return "dawn_wings"
+	return "dawn"
 
 
 ## Each encounter's objective, by beat: the key of its line in level_04.json's `objectives`.
@@ -348,9 +364,14 @@ func _arm_player_health() -> void:
 ## way it was then: a santelmo home, an aswang where it waited, at full strength. Before any
 ## checkpoint is written as well, when the moment is the start.
 func _restore_checkpoint() -> String:
+	# Whatever she was being told as the lamp went out she may never have read, and a line that goes
+	# up with a fight on is the likeliest to be cut off. The wave she was in says its help again.
+	if _finale != null:
+		_night_helped.erase(_finale.current_wave())
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
 	_morning = false
+	_night_brief_due = false
 	_apply_dawn_visuals(0.0)
 	_went_to_the_cry = false
 	_absurd_near = 0.0
@@ -596,8 +617,9 @@ func _build_level_furniture() -> void:
 	dawn_clock.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	dawn_clock.position = Vector2(-DawnClockHud.SIZE.x * 0.5, DAWN_CLOCK_TOP)
 	$CanvasLayer.add_child(dawn_clock)
-	# Bottom centre: Lola's things on Z, X, C and V.
+	# Bottom centre: Lola's things on Z, X, C, V and B.
 	satchel = Satchel.new()
+	satchel.moved_in.connect(_on_satchel_moved_in)
 	quick_slots = QuickSlotBar.new()
 	quick_slots.name = "QuickSlots"
 	quick_slots.bind(satchel)
@@ -760,7 +782,7 @@ func _tiktik_without_ash() -> bool:
 func _has_supplies_for(encounter: String) -> bool:
 	if encounter != "L4_KAPRE" and (satchel.count("asin") > 0 or satchel.count(WHIP) > 0):
 		return true
-	if encounter in ["L4_SIGBIN", "L4_TIYANAK"] and satchel.count("kandila") > 0:
+	if encounter in ["L4_SIGBIN", "L4_TIYANAK", "L4_MANANANGGAL"] and satchel.count("kandila") > 0:
 		return true
 	# A useful drawing may be in hand, stored or set down. Compare the authored tags and
 	# exclusions, so an unrelated prop does not conceal the lack of a usable answer.
@@ -836,7 +858,7 @@ var _finale: DilimFinale2D
 ## The night's clock on screen, under the quest card; shown only while the night runs.
 var dawn_clock: DawnClockHud
 const DAWN_CLOCK_TOP := 104.0
-## Clear air between the quest card's frame and the clock's strip.
+## Clear air between the quest card's frame and the clock.
 const DAWN_CLOCK_GAP := 10.0
 
 
@@ -860,15 +882,14 @@ func _apply_dawn_visuals(daylight: float) -> void:
 		sky.color = _night_sky.lerp(MORNING_SKY, daylight)
 
 
-## UNDER THE QUEST CARD, NOT AGAINST IT. Seen in a window: placed at a fixed height the strip sat
-## flush on the card's frame, and the card grows when it has a second line. So it follows the
-## frame's bottom.
+## UNDER THE QUEST CARD, NOT AGAINST IT. Seen in a window: placed at a fixed height it sat flush on
+## the card's frame, and the card grows when it has a second line. So it follows the frame's bottom.
 func _place_dawn_clock() -> void:
 	var frame := objective_banner.get_node_or_null(^"Panel") as Control \
 		if objective_banner != null else null
 	var bottom := frame.get_global_rect().end.y if frame != null and frame.is_visible_in_tree() \
 		else DAWN_CLOCK_TOP
-	dawn_clock.position.y = bottom + DAWN_CLOCK_GAP - DawnClockHud.STRIP_TOP
+	dawn_clock.position.y = bottom + DAWN_CLOCK_GAP
 
 
 ## The night has begun: its clock comes up, and goes on the first frame of the morning.
@@ -881,16 +902,50 @@ func _on_night_began() -> void:
 		_suns_seen[sun.get_instance_id()] = true
 
 
-## What has come, said as each later wave opens -- on the hint bar, never a story line: the night is
-## a fight, and a line in the box would stop it (the audit holds the finale to that).
-## Each later wave's hook, by the wave it opens -- written out, so the audit that every authored line
-## is said can find them.
-const WAVE_LINES := {1: "L4_FINALE.wave2", 2: "L4_FINALE.wave3"}
+## WHAT IS HAPPENING AND WHAT HELPS, as each wave opens -- on the hint bar, never a story line: the
+## night is a fight, and a line in the box would stop it (the audit holds the finale to that). Over
+## her head, where she is looking (Kent: the top of the frame is where nobody reads).
+##
+## Each wave's hook, by the wave it opens -- written out, so the audit that every authored line is
+## said can find them.
+const WAVE_LINES := {0: "L4_FINALE.wave1", 1: "L4_FINALE.wave2", 2: "L4_FINALE.wave3"}
+## Which of her things to name as each wave opens, in turn, if she has them on a slot. The rest wait
+## for their own moment: the oil and the candle for a low lamp.
+const NIGHT_HELP := {0: ["asin", "bawang"], 2: ["abo"]}
+## The first wave's words wait this long into the night. The tree stops for the tik-tik's page and
+## the lines on arriving, and the night's clock with it, so this counts past both: said on stepping
+## in, they went up under the page and a story line took them down.
+const NIGHT_BRIEF_AFTER := 0.5
+
+var _night_brief_due := false
+## What she has been told helps, wave by wave, for the run: a retried night says what is happening
+## again, and leaves out the rest, but for the wave that knocked her out. The Now chips go on saying it.
+var _night_helped: Dictionary = {}
 
 
 func _on_wave_opened(index: int) -> void:
-	if WAVE_LINES.has(index):
-		_speak(script_lines.fire(String(WAVE_LINES[index])))
+	if index == 0:
+		_night_brief_due = true
+	else:
+		_brief_the_wave(index)
+
+
+func _brief_the_wave(wave: int) -> void:
+	var said: Array[Dictionary] = []
+	for line: Dictionary in script_lines.fire(String(WAVE_LINES[wave])):
+		said.append({"text": script_lines.display_text(line), "speaker": _companion_speaker()})
+	if not _night_helped.has(wave):
+		_night_helped[wave] = true
+		for id: String in NIGHT_HELP.get(wave, []):
+			var index := satchel.slots().find(id)
+			if index >= 0 and satchel.count(id) > 0:
+				said.append({"text": String(satchel.row(id).get("night", "")).replace("{key}", _slot_key(index)),
+					"speaker": _companion_speaker()})
+		# The one thing that shortens the night is hers to draw, and the line names no class.
+		if wave == 0 and ink_manager != null and ink_manager.remaining() >= 1.0:
+			for line: Dictionary in script_lines.fire("L4_FINALE.bright"):
+				said.append({"text": script_lines.display_text(line), "speaker": _companion_speaker()})
+	hint_bar.show_beat(said)
 
 
 ## Suns she has drawn during the night, each seen once: the finale moves the morning on for each,
@@ -901,11 +956,17 @@ var _suns_seen := {}
 func _tend_the_night() -> void:
 	if _finale == null or not _finale.is_running():
 		return
+	if _night_brief_due and _finale.elapsed >= NIGHT_BRIEF_AFTER:
+		_night_brief_due = false
+		_brief_the_wave(0)
 	for sun: Node in _drawn_suns():
 		var id := sun.get_instance_id()
 		if not _suns_seen.has(id):
 			_suns_seen[id] = true
-			_finale.hurry_dawn()
+			if _finale.hurry_dawn() and dawn_clock != null:
+				dawn_clock.set_progress(_finale.progress())
+				dawn_clock.hurried(DilimFinale2D.SUN_HURRIES)
+				_speak(script_lines.fire("L4_FINALE.hurried"))
 
 
 ## THE TIK-TIK SHE CANNOT SEE. Its call goes on the screen's edge where it comes from, violet, as
@@ -951,13 +1012,17 @@ func _drawn_suns() -> Array:
 func _on_dawn() -> void:
 	_morning = true
 	_apply_dawn_visuals(1.0)
+	# Now, not on the card's timer: the line below stops the tree, and "Ash shows what I cannot see"
+	# stood over the morning for as long as she read it.
+	refresh_objective()
 	AudioDirector.play_sfx(&"dawn")
 	if dawn_clock != null:
-		dawn_clock.set_progress(1.0)
-		dawn_clock.hide_night()
+		dawn_clock.morning()
 	await _speak_and_wait(script_lines.fire("L4_FINALE.solved"))
 	if not is_inside_tree():
 		return
+	if dawn_clock != null:
+		dawn_clock.hide_night()
 	await get_tree().create_timer(MORNING_HOLD, false).timeout
 	if is_inside_tree():
 		_complete_level()
@@ -965,7 +1030,7 @@ func _on_dawn() -> void:
 
 # --- The satchel ----------------------------------------------------------------------------
 
-## Lola's things, counted, four on quick slots (config/satchel.json, Satchel).
+## Lola's things, counted, five on quick slots (config/satchel.json, Satchel).
 var satchel: Satchel
 var quick_slots: QuickSlotBar
 const QUICK_SLOTS_BOTTOM := 28.0
@@ -978,24 +1043,116 @@ func _handle_level_input(event: InputEvent) -> bool:
 	return false
 
 
-## Z, X, C or V: the thing on that slot, used now, and one fewer. Spent only if it did something.
+## Z, X, C, V or B: the thing on that slot, used now, and one fewer. Spent only if it did something.
 ## Returns whether the press was the satchel's -- it is not while a drawing is being placed (the
 ## same keys turn and size it), drawn, or the bag is open: those keep the key.
 func use_quick_slot(index: int) -> bool:
 	if not _quick_slots_answer():
 		return false
 	var id := satchel.slot_item(index)
-	if id.is_empty() or satchel.count(id) <= 0:
+	if id.is_empty():
+		return true
+	if satchel.count(id) <= 0:
+		_refuse_the_press(index, satchel.line("none_left", id))
 		return true
 	var spent := _use_from_satchel(id)
-	if spent:
-		satchel.take(id)
 	# A lash of the whip is a use that spends nothing until its last: it shows, and is logged, all
 	# the same.
 	if spent or _lashed:
 		quick_slots.flash(index)
 		Telemetry.record_event("satchel_used", {"level_id": LevelManager.current_level_id, "item": id})
+		_say_what_it_did(id)
+	elif String(satchel.row(id).get("use", "")) == "oil":
+		_refuse_the_press(index, String(satchel.row(id).get("full", "")))
+	# Last: taking the last of it can give its slot to one that waited, which has its own line.
+	if spent:
+		satchel.take(id)
 	_lashed = false
+	return true
+
+
+## ⚠ A KEY THAT DOES NOTHING READS AS A BROKEN KEY. Oil on a full lamp, or a slot with none left,
+## said nothing and looked like nothing: she could not tell a refusal from a key she had got wrong.
+func _refuse_the_press(index: int, said: String) -> void:
+	quick_slots.refuse(index)
+	hint_bar.show_hint(said, _companion_speaker(), REFUSED_SECONDS)
+
+
+const REFUSED_SECONDS := 3.0
+
+## KANDILA IS A LIGHT LIKE ANY OTHER (Kent, 2026-11-06). Every banner here says "a light", and the
+## first candle lies beside the first of them. It used to answer none of them, and was lost in
+## silence. These answer as a drawn light does: at once, from anywhere in the beat. The manananggal's
+## is asked of the light itself, in _tend_the_manananggal.
+const LIGHT_IS_ASKED_AT := ["L4_REST1", "L4_REST2", "L4_SIGBIN", "L4_TIYANAK"]
+## A clearing has no route to answer it by, so its line is said here. Written out, for the audit
+## that every authored line is said.
+const REST_LINES := {"L4_REST1": "L4_REST1.fire.solved", "L4_REST2": "L4_REST2.fire.solved"}
+
+## What she has been told about using a kind, for the run.
+var _uses_told: Dictionary = {}
+
+
+## WHAT THE PRESS DID, where it is not plain from looking: how long a ward holds and that she has to
+## stay in it, and that a candle stays where it is put. A candle that answered something has that
+## beat's own line, and says nothing more.
+func _say_what_it_did(id: String) -> void:
+	var row := satchel.row(id)
+	if String(row.get("use", "")) == "candle" and _a_candle_answers_here():
+		return
+	if _uses_told.has(id):
+		return
+	_uses_told[id] = true
+	var said := String(row.get("used", ""))
+	if not said.is_empty():
+		hint_bar.show_hint(said, _companion_speaker(), MOMENT_SECONDS)
+
+
+## The cloud hung and went without touching anything: said then, not at the throw, when it can still
+## catch what is on its way in.
+func _on_ash_reached_nothing() -> void:
+	hint_bar.show_hint(String(satchel.row("abo").get("too_far", "")), _companion_speaker(), MOMENT_SECONDS)
+
+
+## The unanswered beat she stands in that a light answers, or "".
+func _beat_asking_for_a_light() -> String:
+	if player == null or not is_instance_valid(player) or director == null:
+		return ""
+	var x := player.global_position.x
+	var spans := _beat_spans()
+	for beat: String in LIGHT_IS_ASKED_AT:
+		var span: Vector2 = spans.get(beat, Vector2(INF, -INF))
+		if x >= span.x and x <= span.y and not director.is_solved(beat):
+			return beat
+	return ""
+
+
+## Whether a candle set down here would answer something, for the Now chip. Not at a clearing, though
+## it would: arriving there always fills her ink, so a drawn light is free of worry, and the slot
+## should not talk her out of the one candle she may want in the night.
+func _candle_would_answer() -> bool:
+	var beat := _beat_asking_for_a_light()
+	if beat == "L4_SIGBIN" or beat == "L4_TIYANAK":
+		return true
+	return _lower != null and is_instance_valid(_lower) and not _lower.is_dead() and director != null \
+		and not director.is_solved("L4_MANANANGGAL") and player != null and is_instance_valid(player) \
+		and _lower.global_position.distance_to(player.global_position) <= CANDLE_LIGHTS_WITHIN
+
+
+## A candle just set down: answered as a drawn light is, by the artist's route where there is one.
+## False where there is nothing for it to answer, or nothing yet.
+func _a_candle_answers_here() -> bool:
+	var beat := _beat_asking_for_a_light()
+	if beat.is_empty():
+		return false
+	if REST_LINES.has(beat):
+		director.solve_with_item(beat, "kandila")
+		# Before the line stops the tree: the card refreshes on a timer, and it would go on asking
+		# for the light under the line that thanks her for it.
+		refresh_objective()
+		_speak(script_lines.fire(String(REST_LINES[beat])))
+	else:
+		_answer(beat, "artist")
 	return true
 
 
@@ -1060,17 +1217,199 @@ func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
 	if first:
 		_met[pickup.item] = true
 		quick_slots.welcome(index)
-		var row := satchel.row(pickup.item)
-		# Named through the same lookup the prompts use, so a rebinding is named as bound. Not by
-		# with_keys: its {key:...} takes no digits, and every slot's action has one.
-		var key := ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) if index >= 0 else ""
-		var said := String(row.get("found", ""))
-		if said.is_empty() or key.is_empty():
-			said = "%s -- %s.%s" % [row.get("display_name", pickup.item), String(row.get("gloss", "")).to_lower(),
-				" It is on %s." % key if not key.is_empty() else ""]
-		# What it is for, and which key: a name and a key alone left her holding a candle with no
-		# idea what it was for. Up long enough to read.
-		hint_bar.show_hint(said.replace("{key}", key), _companion_speaker(), 6.0)
+		# What it is for, which key and when: a name and a key alone left her holding a candle with
+		# no idea what it was for. And with every slot full it says so: it used to say its name
+		# and nothing else, and she carried the oil the rest of the way with no way to pour it.
+		var said := String(satchel.row(pickup.item).get("found", "")) if index >= 0 \
+			else satchel.line("no_slot", pickup.item)
+		hint_bar.show_hint(said.replace("{key}", _slot_key(index)), _companion_speaker(), FOUND_SECONDS)
+
+
+## Up long enough to read the longest of them, with a fight perhaps starting.
+const FOUND_SECONDS := 7.0
+
+
+## The key on slot `index`, named through the same lookup the prompts use, so a rebinding is named
+## as bound. Not by with_keys: its {key:...} takes no digits, and every slot's action has one.
+func _slot_key(index: int) -> String:
+	return ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) if index >= 0 else ""
+
+
+## One that had no slot has been given one: it is said, and rung, as a find is.
+func _on_satchel_moved_in(id: String, index: int) -> void:
+	quick_slots.welcome(index)
+	hint_bar.show_hint(satchel.line("moved_in", id).replace("{key}", _slot_key(index)),
+		_companion_speaker(), FOUND_SECONDS)
+
+
+# --- When each of them is the thing to press ------------------------------------------------
+
+## Kent: "not that clear to use and when to use". What it does is on its slot now, but WHEN cannot
+## be said once at the moment of finding it, a level away from the fight it is for. So the level
+## asks, every tick, which of her things would do something right now: that slot wears the Now
+## chip while it is true, and the first time, she says so with its key.
+##
+## ⚠ THIS IS ADVICE, NOT A RULE. Nothing here changes what a press does; every one still works when
+## its slot is not lit.
+
+## How near a foe has to be, and how many of them, before the ring of garlic is worth crushing. One
+## is enough when the lamp is already low.
+const CROWDED_WITHIN := 260.0
+const CROWDED_BY := 2
+## How far off the ground of her middle salt still lands on anything: its arc is low, and a flier
+## hanging over her is out of it.
+const SALT_HEIGHT := 100.0
+## How far off a candle still lights her: past this she has walked out of its middle.
+const CANDLE_LIGHTS_WITHIN := 120.0
+## Darker than this is dark enough to want one.
+const DARK_ENOUGH := 0.5
+
+## ⚠ THE WORDS WAIT A MOMENT; THE CHIP DOES NOT. Stepping into a beat is also when its story line goes
+## up, and that takes any hint down with it: said on the same tick, a moment was marked told and
+## never read. This much play first, and the arrival has been and gone. The tree stops for a line, so
+## this does not count while one is up. The ash does not wait: its moment is a second long.
+const MOMENT_AFTER := 0.5
+var _wanted_for: Dictionary = {}
+
+## The moments she has been told about, by line, for the run: a line she has read does not need
+## saying at every foe, and the Now chip goes on saying it.
+var _moments_told: Dictionary = {}
+
+
+func _tend_the_satchel() -> void:
+	if satchel == null or quick_slots == null or player == null or not is_instance_valid(player):
+		return
+	for index in range(Satchel.SLOTS):
+		var id := satchel.slot_item(index)
+		if id.is_empty() or satchel.count(id) <= 0 or not _wanted_now(id):
+			_wanted_for.erase(id)
+			continue
+		quick_slots.set_wanted(index, true)
+		_wanted_for[id] = float(_wanted_for.get(id, 0.0)) + get_physics_process_delta_time()
+		if float(_wanted_for[id]) >= MOMENT_AFTER or String(satchel.row(id).get("use", "")) == "dust":
+			_tell_the_moment(id, index)
+
+
+## Whether pressing this kind would do something for her right now. By its `use`, as the press is.
+func _wanted_now(id: String) -> bool:
+	var row := satchel.row(id)
+	match String(row.get("use", "")):
+		"oil":
+			return _lamp_is_low()
+		"candle":
+			return _candle_would_answer() or (_lamp_is_low() and not _oil_would_answer() \
+				and not _a_candle_lights_her() and darkness_layer != null \
+				and darkness_layer.darkness >= DARK_ENOUGH)
+		"throw":
+			return _salt_would_land(float(row.get("reach", 300.0)))
+		"ward":
+			return _crowded() and not _a_ward_holds_her()
+		"dust":
+			return _hidden_tiktik_is_close()
+		"whip":
+			return _whip_would_reach()
+	return false
+
+
+func _lamp_is_low() -> bool:
+	return player_health != null and player_health.stage <= PlayerHealth.LOW
+
+
+## Oil she can pour says it first: the candle only lights a spot, and the oil fills the lamp.
+func _oil_would_answer() -> bool:
+	return satchel.count("langis") > 0 and satchel.slots().has("langis")
+
+
+func _a_candle_lights_her() -> bool:
+	for source in get_tree().get_nodes_in_group(LightField.GROUP):
+		var candle := source as CandleFlame2D
+		if candle != null and candle.global_position.distance_to(player.global_position) <= CANDLE_LIGHTS_WITHIN:
+			return true
+	return false
+
+
+func _a_ward_holds_her() -> bool:
+	for node in get_tree().get_nodes_in_group(Enemy2D.WARDS):
+		var ward := node as BawangWard2D
+		if ward != null and ward.global_position.distance_to(player.global_position) < ward.reach():
+			return true
+	return false
+
+
+## The way she faces, -1 or 1: where salt goes and the whip lashes.
+func _facing_sign() -> float:
+	var facing: Variant = player.get(&"_facing")
+	return signf(float(facing)) if facing != null and float(facing) != 0.0 else 1.0
+
+
+## Awake and after her, or what is left of the manananggal, which waits. Unseen, nothing counts:
+## she cannot be told to throw at what she cannot see.
+func _salt_would_land(reach: float) -> bool:
+	var middle := PlayerHurtbox2D.middle_of(player)
+	var facing := _facing_sign()
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead() or foe.is_burning() or not foe.is_visible_in_tree():
+			continue
+		if foe.state_name() == "IDLE" and not foe is ManananggalLower2D:
+			continue
+		if foe is Tiktik2D and not (foe as Tiktik2D).is_revealed():
+			continue
+		var off := foe.global_position - middle
+		if signf(off.x) == facing and absf(off.x) <= reach and absf(off.y) <= SALT_HEIGHT:
+			return true
+	return false
+
+
+## Too many of what the garlic keeps off, too close. The tik-tik is not among them to count: she
+## cannot see it, and it has its own moment.
+func _crowded() -> bool:
+	var close := 0
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead() or not foe.hunts_by_smell or not foe.is_visible_in_tree() \
+				or foe.state_name() == "IDLE":
+			continue
+		if foe.global_position.distance_to(player.global_position) <= CROWDED_WITHIN:
+			close += 1
+	return close >= CROWDED_BY or (close >= 1 and _lamp_is_low())
+
+
+## The tik-tik she cannot see, close enough to pull at her lamp. It only comes this close on its way
+## in, and the cloud hangs longer than it takes to fly from here into it, so the lean is the signal.
+func _hidden_tiktik_is_close() -> bool:
+	var tiktik: Tiktik2D = _finale.tiktik() if _finale != null else null
+	return tiktik != null and not tiktik.is_revealed() and tiktik.pulls_at(player.global_position)
+
+
+func _whip_would_reach() -> bool:
+	var reach := WeaponTable.reach(WHIP)
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead() or not foe.is_visible_in_tree() or foe.state_name() == "IDLE":
+			continue
+		if foe is Tiktik2D and not (foe as Tiktik2D).is_revealed():
+			continue
+		if foe.global_position.distance_to(PlayerHurtbox2D.middle_of(player)) <= reach:
+			return true
+	return false
+
+
+## The first time, with its key, over her head where she is looking. Waits for the bar to be free,
+## but for the ash: the Now chip is up meanwhile. A candle has two moments, and each is said once.
+func _tell_the_moment(id: String, index: int) -> void:
+	if hint_bar == null:
+		return
+	var row := satchel.row(id)
+	var said := String(row.get("moment_answers" if _candle_would_answer() and row.has("moment_answers") else "moment", ""))
+	if said.is_empty() or _moments_told.has(said) \
+			or (hint_bar.is_showing() and String(row.get("use", "")) != "dust"):
+		return
+	_moments_told[said] = true
+	hint_bar.show_hint(said.replace("{key}", _slot_key(index)), _companion_speaker(), MOMENT_SECONDS)
+
+
+const MOMENT_SECONDS := 5.0
 
 
 # --- What a fallen aswang drops -----------------------------------------------------------
@@ -1205,6 +1544,7 @@ func _throw_ash(item: Dictionary) -> bool:
 	dust.stun_seconds = float(item.get("stun_seconds", 1.5))
 	dust.reveal_seconds = float(item.get("reveal_seconds", 6.0))
 	dust.position = player.global_position
+	dust.reached_nothing.connect(_on_ash_reached_nothing)
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
 	return true
 
@@ -1667,8 +2007,11 @@ func _tend_the_manananggal(delta: float) -> void:
 	if _lower == null or director == null or director.is_solved("L4_MANANANGGAL") or _lower.is_dead():
 		_lit_for = 0.0
 		return
-	if director.committed_route("L4_MANANANGGAL") == "artist" \
-			and LightField.light_from(_drawn_light(), _lower.global_position) >= LIT_ENOUGH:
+	# A drawn light is the choice and holding it there the answer. A candle set by her is both: no
+	# route has to be chosen first, so salt is still hers to throw until it has burned long enough.
+	var drawn := director.committed_route("L4_MANANANGGAL") == "artist" \
+		and LightField.light_from(_drawn_light(), _lower.global_position) >= LIT_ENOUGH
+	if drawn or LightField.light_from(_candle_light(), _lower.global_position) >= LIT_ENOUGH:
 		_lit_for += delta
 		if _lit_for >= LIT_SECONDS:
 			_answer("L4_MANANANGGAL", "artist")
@@ -1686,6 +2029,14 @@ func _drawn_light() -> Array:
 		var hole: Dictionary = source.call("light_hole")
 		if not hole.is_empty():
 			holes.append(hole)
+	return holes
+
+
+func _candle_light() -> Array:
+	var holes: Array = []
+	for source in get_tree().get_nodes_in_group(LightField.GROUP):
+		if source is CandleFlame2D:
+			holes.append((source as CandleFlame2D).light_hole())
 	return holes
 
 
