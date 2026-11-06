@@ -1031,6 +1031,9 @@ func _teaches_on_entering(_obstacle_id: String) -> bool:
 ## Separate from _on_obstacle_entered because entering is a much wider event -- see
 ## LevelObstacle2D.announce_size.
 func _on_obstacle_arrived(obstacle_id: String) -> void:
+	await _until_she_can_listen()
+	if not is_inside_tree():
+		return
 	var hook := _arrival_hook(obstacle_id)
 	# HER DIARY FIRST, the first time (DIARY.md): a level that keeps a page about what is in front
 	# of her opens the book at it, and her own words come once it is put down.
@@ -1047,6 +1050,28 @@ func _arrival_hook(obstacle_id: String) -> String:
 	return "%s.enter" % obstacle_id
 
 
+## ⚠ A LINE STOPS THE WORLD, SO IT WAITS UNTIL THE WORLD CAN BE STOPPED. Crossing a volume in the
+## air froze her mid-jump with the camera pushing in, and one crossed with a drawing on the end of
+## the mouse froze it there. Not for long: a long fall is still interrupted, a held line is not
+## worth losing the player to a wall they cannot see past. And never before the level's opening,
+## which has to be its first words: Piyesta's spawn is ten pixels from its first volume, so a key
+## already held when the level appeared had that beat speak first and the opening after it.
+const LISTEN_PATIENCE := 1.2
+
+
+func _until_she_can_listen() -> void:
+	var waited := 0.0
+	while waited < LISTEN_PATIENCE and is_inside_tree() and _is_busy_for_a_line():
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+
+
+func _is_busy_for_a_line() -> bool:
+	if placement_controller != null and placement_controller.is_placing():
+		return true
+	var walker := player as Wanderer
+	return walker != null and is_instance_valid(walker) and not walker.is_on_floor() \
+		and not walker.is_in_water()
 
 
 ## THE PAGE OF HER DIARY A BEAT OPENS AT, the first time she reaches it: {"entry", "anchor",
