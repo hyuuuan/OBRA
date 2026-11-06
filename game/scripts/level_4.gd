@@ -1261,6 +1261,13 @@ const CANDLE_LIGHTS_WITHIN := 120.0
 ## Darker than this is dark enough to want one.
 const DARK_ENOUGH := 0.5
 
+## ⚠ THE WORDS WAIT A MOMENT; THE CHIP DOES NOT. Stepping into a beat is also when its story line goes
+## up, and that takes any hint down with it: said on the same tick, a moment was marked told and
+## never read. This much play first, and the arrival has been and gone. The tree stops for a line, so
+## this does not count while one is up. The ash does not wait: its moment is a second long.
+const MOMENT_AFTER := 0.5
+var _wanted_for: Dictionary = {}
+
 ## The moments she has been told about, by line, for the run: a line she has read does not need
 ## saying at every foe, and the Now chip goes on saying it.
 var _moments_told: Dictionary = {}
@@ -1272,9 +1279,12 @@ func _tend_the_satchel() -> void:
 	for index in range(Satchel.SLOTS):
 		var id := satchel.slot_item(index)
 		if id.is_empty() or satchel.count(id) <= 0 or not _wanted_now(id):
+			_wanted_for.erase(id)
 			continue
 		quick_slots.set_wanted(index, true)
-		_tell_the_moment(id, index)
+		_wanted_for[id] = float(_wanted_for.get(id, 0.0)) + get_physics_process_delta_time()
+		if float(_wanted_for[id]) >= MOMENT_AFTER or String(satchel.row(id).get("use", "")) == "dust":
+			_tell_the_moment(id, index)
 
 
 ## Whether pressing this kind would do something for her right now. By its `use`, as the press is.
@@ -1382,9 +1392,8 @@ func _whip_would_reach() -> bool:
 	return false
 
 
-## The first time, with its key, over her head where she is looking. Waits for the bar to be free:
-## the Now chip is up meanwhile. The ash does not wait: its moment is a second long. A candle has two
-## moments, and each is said once.
+## The first time, with its key, over her head where she is looking. Waits for the bar to be free,
+## but for the ash: the Now chip is up meanwhile. A candle has two moments, and each is said once.
 func _tell_the_moment(id: String, index: int) -> void:
 	if hint_bar == null:
 		return

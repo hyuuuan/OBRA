@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 63
+const CHECKS := 64
 
 
 func _initialize() -> void:
@@ -900,7 +900,7 @@ func _the_oil_is_asked_for_when_the_lamp_is_low() -> void:
 	var at_full := bar.is_wanted(slot)
 	health.dim(PlayerHealth.LOW)
 	health.dim(PlayerHealth.LOW)
-	await _frames(4)
+	await _frames(40)
 	var low := bar.is_wanted(slot)
 	var said := _said()
 	await _quiet()
@@ -966,8 +966,12 @@ func _a_candle_is_a_light() -> void:
 			and line.begins_with("There. Warm."),
 		"a candle at a clearing fills the lamp, as a drawn light does, and she says so",
 		"stage %d -> %d, solved %s, \"%s\"" % [low, health.stage, director.call("is_solved", "L4_REST1"), line])
+	await _quiet()
 	await _stand_her_at(6800.0)
 	var chip_at_sigbin := bool(level.call("_wanted_now", "kandila"))
+	# Past the arrival's line, which takes down any hint it finds: the words are still there to read.
+	await _frames(45)
+	var told_at_sigbin := _said()
 	level.call("use_quick_slot", slot)
 	await _frames(6)
 	var sigbin := level.get("_sigbin") as Sigbin2D
@@ -975,6 +979,8 @@ func _a_candle_is_a_light() -> void:
 			and String(director.call("committed_route", "L4_SIGBIN")) == "artist" and sigbin.is_gone(),
 		"at the sigbin it is the artist's way past, and it goes", "wanted %s, route '%s', gone %s"
 			% [chip_at_sigbin, director.call("committed_route", "L4_SIGBIN"), sigbin.is_gone()])
+	_check(told_at_sigbin == "A light would answer this. %s sets the candle down." % _key_on(slot),
+		"and arriving there she says so, and its line does not take that down", "\"%s\"" % told_at_sigbin)
 	await _stand_her_at(17100.0)
 	level.call("use_quick_slot", slot)
 	await _frames(6)
