@@ -92,6 +92,8 @@ var _queue: Array[Dictionary] = []
 var _last_stands := true
 ## Who is saying the current line, as given: `_speaker` holds it as printed.
 var _speaker_id := ""
+## How long the current line has been up with nobody talking over it. See is_being_read.
+var _read_for := 0.0
 ## The fade this node's own alpha is currently under, so the next one can cancel it.
 ##
 ## A CLEAR AND A SHOW IN THE SAME FRAME USED TO CANCEL EACH OTHER THE WRONG WAY ROUND.
@@ -319,6 +321,7 @@ func show_hint(text: String, speaker: String = "", seconds: float = 0.0) -> void
 ## The half both entry points share: who is speaking, how long it stands, and the arrival.
 func _show(speaker: String, seconds: float) -> void:
 	_queue.clear()
+	_read_for = 0.0
 	_speaker_id = speaker
 	_speaker.text = "%s:" % speaker.to_upper() if not speaker.is_empty() else ""
 	_speaker.visible = not speaker.is_empty()
@@ -459,6 +462,16 @@ func is_showing() -> bool:
 	return visible
 
 
+## WHETHER SOMEBODY IS STILL PART-WAY THROUGH WHAT IS UP. `is_showing` only says there are words.
+## Advice stands for as long as its beat lasts now, so anything waiting on `is_showing` waited the
+## whole beat: Dagat's rule about the ink was still waiting when the shape was given back. A line
+## that stands has been read after the time a timed line of its length would have had.
+func is_being_read() -> bool:
+	if not visible:
+		return false
+	return _life > 0.0 or _read_for < _dwell_for(_lesson_plain if _lesson.visible else _text.text)
+
+
 func current_speaker() -> String:
 	return _speaker.text
 
@@ -502,6 +515,7 @@ func _process(delta: float) -> void:
 		_panel.modulate.a = 0.0 if speaking else 1.0
 	if speaking:
 		return
+	_read_for += delta
 	if _life <= 0.0:
 		return
 	_life -= delta
