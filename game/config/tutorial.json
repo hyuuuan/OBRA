@@ -18,7 +18,9 @@
     "",
     "`at` is the event that offers a lesson; `after` holds it back until another has been spent, so the order survives a player who does things out of sequence. Cut on this pass because they were the dumping: `pause` (Escape is the one key everybody already knows), `sure` (the confidence number is shown on the card; explaining it at the second second of a ten-second life was a third card in a row), `sign` (the E READ prompt already says it), and the canvas briefing, four lines of Lolo inside the panel -- the canvas is now taught by two cards that only appear if the player hesitates.",
     "",
-    "`lead` is what Lolo says in the story box BEFORE a card shows, so the card answers something he asked: 'Come, apo, walk with me' and then the keys. Said once, through TutorialDirector.bind_lead. Not used on `say` lessons (they are Lolo already) or on the canvas, whose story box is hidden under the drawing panel -- the `draw` lesson leads into it. Cards do not play at all on a return visit."
+    "`lead` is what Lolo says in the story box BEFORE a card shows, so the card answers something he asked: 'Come, apo, walk with me' and then the keys. Said once, through TutorialDirector.bind_lead. Not used on `say` lessons (they are Lolo already) or on the canvas, whose story box is hidden under the drawing panel -- the `draw` lesson leads into it. Cards do not play at all on a return visit.",
+    "",
+    "LEVEL 1 TEACHES THE GAME; A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: 'fix level 1 like tutorial part make sure it covers everything and other levels wont have any tutorials if necessary'. run_tutorial_audit holds both halves: every control that works in Level 1 has a lesson here, and a later level may show a card only for a rule or control Level 1 cannot teach. Everything else a later level says goes to the hint bar (`say`), which dims nothing and stops nothing."
   ],
   "version": 2,
   "levels": {
@@ -384,7 +386,13 @@
         "",
         "The shore is where all of this lands, before the fork. The design is firm about why:",
         "once the player is underwater, learning the ink rule by running out of it is a",
-        "punishment rather than a lesson."
+        "punishment rather than a lesson.",
+        "",
+        "TWO CARDS, AND ONLY TWO. `new_brush` carries the whole rule and `jars` the one way to",
+        "refill, because neither can be taught anywhere else. The drain, the free change back",
+        "and running low are reminders of what the card already said, so they are lines on the",
+        "bar. ⚠ A line on the bar waits for the bar, and Lolo is on it for most of the dive, so",
+        "nothing the player cannot do without may live only there: that is why `jars` stays a card."
       ],
       "speaker_default": "lolo",
       "lessons": [
@@ -396,48 +404,36 @@
           "context": "world",
           "anchor": "ink_gauge",
           "speaker": "Lolo",
-          "caption": "This brush spends ink, not time",
-          "text": "Hers counted you down. This one does not count at all.",
+          "caption": "Holding a shape spends ink, not time",
+          "text": "Hers counted you down. This one spends ink the whole time you hold a shape.",
           "lead": "A new brush! Hers counted the time down... this one is different."
         },
         {
           "id": "drain",
           "at": "ink_draining",
           "after": "new_brush",
-          "mode": "look",
-          "visual": "ink",
-          "context": "world",
-          "anchor": "morph_card",
+          "mode": "say",
           "speaker": "Lolo",
-          "caption": "Holding a shape drains your ink",
-          "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape.",
-          "lead": "Careful, apo. Out here, holding a shape costs ink the whole time."
+          "seconds": 7.0,
+          "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape."
         },
         {
           "id": "revert_is_free",
           "at": "ink_draining",
           "after": "drain",
-          "mode": "look",
-          "visual": "revert",
-          "context": "world",
-          "anchor": "revert_prompt",
+          "mode": "say",
           "speaker": "Lolo",
+          "seconds": 7.0,
           "action": "revert_form",
-          "caption": "Change back to stop it. That is free",
-          "text": "{keys} puts you back, and stops it going down. Changing back never costs.",
-          "lead": "If it gets low, let go of the shape. Being yourself costs nothing."
+          "text": "{keys} puts you back, and stops it going down. Changing back never costs."
         },
         {
           "id": "refill",
           "at": "ink_low",
-          "mode": "look",
-          "visual": "ink",
-          "context": "world",
-          "anchor": "morph_card",
+          "mode": "say",
           "speaker": "Lolo",
-          "caption": "Nearly out. Find more ink",
-          "text": "You are nearly out. It does not come back on its own out here — you have to find more of it.",
-          "lead": "The ink is nearly gone. Look around — the sea keeps some, if you know where."
+          "seconds": 7.0,
+          "text": "You are nearly out. It does not come back on its own out here — you have to find more of it."
         },
         {
           "id": "no_drowning",
@@ -474,10 +470,10 @@
         "DILIM TEACHES WHAT IS NEW ABOUT A FIGHT, AND NOTHING ELSE.",
         "",
         "Lolo is not here, so every lesson is hers (`speaker` Apo) and none has a `lead`: there is",
-        "nobody to ask the question a card answers. Three cards with pictures -- the lamp that is",
-        "her life, the click that swings, and the ink every drawing costs -- and two lines on the hint bar, which never",
-        "stops play, for the moments that come mid-fight: the first hit to the lantern, and a",
-        "weapon nearly worn through.",
+        "nobody to ask the question a card answers. Two cards with pictures, for what Level 1 cannot",
+        "teach because it does nothing there -- the lamp that is her life and the click that swings",
+        "-- and lines on the hint bar, which never stops play, for the rest: the ink every drawing",
+        "costs, the first hit to the lantern, and a weapon nearly worn through.",
         "",
         "Every event is level_4.gd's or LevelBase's: weapon_in_hand and weapon_wearing are polled",
         "off the weapon in her hand, lantern_hit is the lantern's own signal, ink_spent is the",
@@ -531,12 +527,9 @@
         {
           "id": "every_drawing_costs",
           "at": "ink_spent",
-          "mode": "look",
-          "visual": "ink",
-          "context": "world",
-          "anchor": "ink_gauge",
+          "mode": "say",
           "speaker": "Apo",
-          "caption": "Every drawing costs ink here",
+          "seconds": 7.0,
           "text": "Out here every drawing costs ink, even one I have drawn before. The clearings fill it back up."
         },
         {

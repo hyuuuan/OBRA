@@ -16,6 +16,13 @@ const UNTAUGHT_ON_PURPOSE := ["pause", "skip_tutorial"]
 ## A controls row that names the mouse, and the name a lesson's `mouse` list gives it.
 const MOUSE_ROWS := {"Left click": "left", "Right click": "right", "Scroll": "wheel",
 	"Shift + Scroll": "shift_wheel"}
+## Every card shown outside Level 1, and why Level 1 cannot be the place it is taught.
+const NECESSARY_CARDS := {
+	"new_brush": "Dagat's brush changes the ink rule, and Level 1 never has that brush",
+	"jars": "the only refill, in a sea Level 1 does not have",
+	"lamp": "Dilim's lamp is her life, and nothing else in the game has one",
+	"swing": "the click only swings in Dilim",
+}
 ## Where each level's lesson events are fired, besides LevelBase. Every level in the ledger
 ## must be here: one that is not fails, rather than having its events looked for in the
 ## wrong file and passing or failing by accident.
@@ -88,6 +95,7 @@ func _initialize() -> void:
 		"the canvas is taught by cards, not four lines of Lolo", "no briefing")
 
 	_audit_level_1_covers_every_control(lessons, director)
+	_audit_later_levels_only_say_what_changes(ledger)
 
 	print("--- %d passed, %d failed ---" % [_passed, _failed])
 	print("OBRA_TUTORIAL_FAILED=%d" % _failed if _failed > 0 else "OBRA_TUTORIAL_OK")
@@ -130,6 +138,34 @@ func _audit_level_1_covers_every_control(lessons: Array, director: Node) -> void
 			_check(taught_mouse.has(button), "'%s' has a lesson" % String(row.get("keys", "")),
 				String(row.get("label", "")))
 	_check(rows >= 15, "and the controls screen was really read", "%d rows" % rows)
+
+
+## A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: "other levels wont have any tutorials if
+## necessary". A card dims the screen, so one outside Level 1 has to be something Level 1 cannot
+## teach: a rule or a control that does not exist until that level. Named here one by one, so a
+## new card has to be argued for rather than slipping in. Anything else goes on the hint bar.
+func _audit_later_levels_only_say_what_changes(ledger: Dictionary) -> void:
+	print("  -- later levels only say what they change --")
+	var levels: Dictionary = ledger["levels"]
+	for level_id in ["level_2", "level_5"]:
+		_check(not levels.has(level_id), "%s teaches nothing of its own" % level_id,
+			"no block" if not levels.has(level_id) else "HAS LESSONS")
+	var cards := 0
+	for level_id: String in levels:
+		if level_id == "level_1":
+			continue
+		for value: Variant in (levels[level_id] as Dictionary)["lessons"]:
+			var lesson: Dictionary = value
+			if String(lesson.get("mode", "")) == "say":
+				continue
+			cards += 1
+			_check(NECESSARY_CARDS.has(String(lesson["id"])),
+				"%s's card '%s' is one Level 1 cannot teach" % [level_id, lesson["id"]],
+				String(NECESSARY_CARDS.get(String(lesson["id"]), "NOT ON THE LIST")))
+	# ⚠ BOTH WAYS. A card converted away but left on the list would make the list a lie, and
+	# the rule above would still pass with no cards at all.
+	_check(cards == NECESSARY_CARDS.size(), "and every one on the list is still a card",
+		"%d cards, %d listed" % [cards, NECESSARY_CARDS.size()])
 
 
 func _audit_level(ledger: Dictionary, level_id: String) -> void:
