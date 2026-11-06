@@ -1012,13 +1012,57 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 		tutorial.note("first_obstacle")
 	# A node teaches all three of its routes' verbs BEFORE the choice, because a player
 	# cannot choose a path whose verb they have never been told.
-	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
-	if not teaches.is_empty():
-		if _teaches_on_entering(obstacle_id):
-			_speak(script_lines.fire("%s.teach" % obstacle_id))
+	if not (director.obstacle(obstacle_id).get("teaches_before_choice", []) as Array).is_empty():
 		director.teach_before_choice(obstacle_id)
-	_speak_current_stage(obstacle_id)
+	# ⚠ THE BEAT SAYS WHAT IT IS BEFORE IT SAYS WHAT TO DO. The scope volume is wider than the
+	# arrival's, so Ang Dayami's three ways went up as she crossed its edge, and her arrival
+	# took the bar off them a hundred pixels later: 0.3 s for the only statement of the puzzle.
+	if _arrival_is_still_ahead(obstacle_id):
+		_advice_held[obstacle_id] = true
+	else:
+		_advise_the_beat(obstacle_id)
 	_refresh_requirements()
+
+
+## What a beat says about what to do: its ways through, then what the current stage asks.
+func _advise_the_beat(obstacle_id: String) -> void:
+	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
+	if not teaches.is_empty() and _teaches_on_entering(obstacle_id) \
+			and not director.is_solved(obstacle_id) \
+			and director.committed_route(obstacle_id).is_empty():
+		_say_or_remind("%s.teach" % obstacle_id)
+	_speak_current_stage(obstacle_id)
+
+
+## Whether this beat's opening line is still to come, at its own narrower volume.
+func _arrival_is_still_ahead(obstacle_id: String) -> bool:
+	var hook := _arrival_hook(obstacle_id)
+	if hook.is_empty() or not script_lines.has_hook(hook) or script_lines.has_heard(hook):
+		return false
+	if player == null or not is_instance_valid(player):
+		return false
+	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+		var area := node as LevelObstacle2D
+		if area != null and area.obstacle_id == obstacle_id:
+			return area.arrival_is_ahead_of(player.global_position.x)
+	return false
+
+
+## ONCE, AND AFTER THAT ONLY AS A REMINDER. Walking back into a beat may repeat what it asks:
+## the player has been away. But only on the bar, and only if the bar is free. A respawn at
+## Payyo's first lantern re-enters Ang Hagdan, and "You cannot swim, apo" was replaced 0.03 s
+## later by an instruction about the wall she was standing on top of. A line for the story box
+## stops the world, so it is never said twice this way.
+func _say_or_remind(hook: String) -> void:
+	if not script_lines.has_heard(hook):
+		_speak(script_lines.fire(hook))
+		return
+	if hint_bar == null or hint_bar.is_showing():
+		return
+	for line_value: Variant in script_lines.peek(hook):
+		if script_lines.kind_of(line_value as Dictionary) != "hint":
+			return
+	_speak(script_lines.fire(hook))
 
 
 ## WHETHER A BEAT SAYS ITS WAYS THROUGH THE MOMENT IT IS ENTERED. True everywhere it has
@@ -1048,6 +1092,8 @@ func _on_obstacle_arrived(obstacle_id: String) -> void:
 		await read_diary_at(String(page.get("entry", "")), String(page.get("anchor", "")),
 			String(page.get("note", "")))
 	_speak_on_arrival(hook)
+	if _advice_held.erase(obstacle_id):
+		_advise_the_beat(obstacle_id)
 
 
 ## WHAT A BEAT SAYS WHEN SHE REACHES IT. A level answers "" for a beat whose opening is only true
@@ -1222,7 +1268,7 @@ func _speak_current_stage(obstacle_id: String) -> void:
 	var stage := director.stage_id(obstacle_id)
 	if stage.is_empty():
 		return
-	_speak(script_lines.fire("%s.%s" % [obstacle_id, stage]))
+	_say_or_remind("%s.%s" % [obstacle_id, stage])
 
 
 func _on_obstacle_exited(_obstacle_id: String) -> void:
@@ -4674,6 +4720,8 @@ const OPENING_DELAY := 0.8
 ## for it (`_until_she_can_listen`). See `_play_opening`.
 signal opening_finished
 var _opening_running := false
+## Beats she has entered whose advice waits for their arrival line. See `_on_obstacle_entered`.
+var _advice_held: Dictionary = {}
 
 
 ## THE LEVEL'S FIRST WORDS, chosen by whether the apo has been here before.

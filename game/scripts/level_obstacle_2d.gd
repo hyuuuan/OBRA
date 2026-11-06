@@ -165,6 +165,18 @@ func _build_announce_volume() -> void:
 var _announced := false
 
 
+## Whether somebody standing at `x` has the arrival still to reach. Not once it has been reported,
+## and not from beyond its box: a body put down there, or coming back from the far side, may never
+## cross it, and whoever waits on it must not wait for good.
+func arrival_is_ahead_of(x: float) -> bool:
+	if _announced or announce_size == Vector2.ZERO:
+		return false
+	var inner := get_node_or_null(^"AnnounceVolume") as Node2D
+	if inner == null:
+		return false
+	return x <= inner.global_position.x + minf(announce_size.x, trigger_size.x) * 0.5
+
+
 func _on_announce_entered(body: Node) -> void:
 	# ONE SHOT PER RUN. The arrival line is already once-guarded downstream by
 	# DialogueScript.has_heard, but a beat whose announce volume the player crosses four
