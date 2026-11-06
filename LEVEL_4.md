@@ -239,7 +239,7 @@ What the build does that the design above does not say, and what it does not do 
   lashes left are saved with the run, and every lash flashes its quick slot and is logged.
 - **What to do is said where it is done** (Kent, 2026-10-19: "the game's instructions are all
   unclear"). Inside an encounter not yet answered the banner names Lola's three ways past it, no
-  class named ("Show it light, put my back to a rock, or fight it."), each at the banner's full
+  class named ("Draw a light, put my back to a rock, or fight it."), each at the banner's full
   size; the first of each of Lola's things says what it does and its key ("Kandila -- a candle. X
   sets it down: light that costs no ink."); the santelmo's walk is taught ~3 s before it can see
   her, and the first salt lies past it so nothing takes the hint bar from that.
@@ -276,6 +276,30 @@ What the build does that the design above does not say, and what it does not do 
 - **The Makiling tileset** is used in part: the six plates, its seamless tiles and (below) its
   mud, stone, leaf cover, grassy edge, ferns and mushrooms; no slopes, root or log platforms,
   waterfall or flowers. The vine frame plate stands only behind her (in front of play it hid her).
+
+## Lola's things and the morning clock (2026-11-06)
+
+Kent: "not that clear to use and when to use"; "start off as a moon and then slowly transform into a sun".
+
+- **Each thing says what, which key and when.** On finding it (`found`), on its slot for as long as
+  she carries it (`does`), and at its moment: `level_4.gd` `_wanted_now` asks every tick what would
+  help now, and that slot wears a Now chip. Advice only; no press changes.
+- **A press that does nothing says why**: oil on a full lamp, a slot with none left, ash with nothing
+  in reach, a candle where only a drawn light answers.
+- **Garlic's ring** stands over the dark and closes as it runs out.
+- **`DawnClockHud`** is a window on the sky: a crescent among stars, full by halfway, silver warming
+  to gold, rays by morning, with the time in words and the two waves marked on its path. It pictures
+  a sun at Kent's request; no line names one.
+- **The night's words:** one line on arriving, the wave's line and her keys on the hint bar, the quest
+  card by what is after her (`_night_objective`).
+
+**For Kent to decide (design, left unchanged):**
+1. **Four slots, five placed kinds.** A player who saves everything finds the oil with no slot. It now
+   says so and takes the next slot spent, but she must spend something first. A fifth key would end it.
+2. **A set-down candle answers nothing.** It does not fill a clearing's lamp or drive off the sigbin or
+   tiyanak, though `_has_supplies_for` counts it as a supply for those two. She is now told; should it answer?
+3. **Ash reveals only within 160 px at the throw**, while the lamp leans at 220, so the window is about
+   1.5 s. The Now chip marks it; the dust could instead reveal what enters it while it hangs.
 
 ## The ground is built the way Mayon's is, in Makiling's mud (2026-11-02)
 
