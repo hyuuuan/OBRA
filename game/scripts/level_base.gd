@@ -1029,7 +1029,7 @@ func _teaches_on_entering(_obstacle_id: String) -> bool:
 ## Separate from _on_obstacle_entered because entering is a much wider event -- see
 ## LevelObstacle2D.announce_size.
 func _on_obstacle_arrived(obstacle_id: String) -> void:
-	var hook := "%s.enter" % obstacle_id
+	var hook := _arrival_hook(obstacle_id)
 	# HER DIARY FIRST, the first time (DIARY.md): a level that keeps a page about what is in front
 	# of her opens the book at it, and her own words come once it is put down.
 	var page := _diary_page_on_arrival(obstacle_id)
@@ -1037,6 +1037,14 @@ func _on_obstacle_arrived(obstacle_id: String) -> void:
 		await read_diary_at(String(page.get("entry", "")), String(page.get("anchor", "")),
 			String(page.get("note", "")))
 	_speak_on_arrival(hook)
+
+
+## WHAT A BEAT SAYS WHEN SHE REACHES IT. A level answers "" for a beat whose opening is only true
+## later: Dilim's tikbalang, where "I have passed it three times now" waits for her to have.
+func _arrival_hook(obstacle_id: String) -> String:
+	return "%s.enter" % obstacle_id
+
+
 
 
 ## THE PAGE OF HER DIARY A BEAT OPENS AT, the first time she reaches it: {"entry", "anchor",
