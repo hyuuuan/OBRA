@@ -401,8 +401,13 @@ func _coast_is_clear(lesson: Dictionary) -> bool:
 			return false
 	# Nor while the letterbox is in. It frames a beat and carries its own caption -- at a
 	# checkpoint, "Checkpoint" in the lower bar -- and a card over it was two things to read.
+	#
+	# ⚠ A CARD. LOLO'S LEAD IS SAID NOW. The bars do not stop her, so "A lantern!" waited two
+	# seconds and was said 480 px past the lantern, about something behind her. The line stops
+	# the world where she stands; its card still waits for the bars.
+	var about_to_speak := not lead_of(lesson).is_empty() and not _led.has(String(lesson.get("id", "")))
 	for bars in get_tree().get_nodes_in_group(CinematicBars.GROUP):
-		if bars.has_method(&"is_playing") and bool(bars.call(&"is_playing")):
+		if not about_to_speak and bars.has_method(&"is_playing") and bool(bars.call(&"is_playing")):
 			return false
 	# Lolo's own line waits for the bar to be free: the advice about the obstacle in front of
 	# the player outranks him remarking on the interface.
