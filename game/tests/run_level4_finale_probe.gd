@@ -368,6 +368,19 @@ func _a_knockout_starts_the_night_over() -> void:
 		"said so %d times, salt %d, now \"%s\"" % [openings, salts, said])
 
 
+## What the bar says once it comes to this, or what it says if it never does.
+##
+## ⚠ NOT ON THE SAME FRAME. This probe jumps straight to the night, so her first spend and her first
+## sight of the tik-tik fall here, and a remark is read before what follows takes the bar
+## (HintBar.show_beat). In play those were said long before.
+func _bar_comes_to(start: String) -> String:
+	var hints := level.get("hint_bar") as HintBar
+	var began := Time.get_ticks_msec()
+	while not hints.current_text().begins_with(start) and Time.get_ticks_msec() - began < 8000:
+		await _frames(1)
+	return hints.current_text()
+
+
 ## The shortened night's 27 s and 60 s, not the script's table, within half a second.
 func _the_waves_come_on_time() -> void:
 	finale.elapsed = 26.5
@@ -375,9 +388,8 @@ func _the_waves_come_on_time() -> void:
 	var before_second := finale.current_wave()
 	await _seconds(1.0)
 	var second := finale.current_wave()
-	var hints := level.get("hint_bar") as HintBar
 	var box := level.get("dialogue_box") as Node
-	var said_second := hints.current_text()
+	var said_second := await _bar_comes_to("Wings over the trees")
 	var boxed := bool(box.call("is_open"))
 	var fliers := []
 	for foe in finale.alive():
@@ -387,7 +399,7 @@ func _the_waves_come_on_time() -> void:
 	await _frames(2)
 	var before_third := finale.current_wave()
 	await _seconds(1.0)
-	var said_third := hints.current_text()
+	var said_third := await _bar_comes_to("Tik... tik...")
 	boxed = boxed or bool(box.call("is_open"))
 	_check(said_second.begins_with("Wings over the trees") and said_third.begins_with("Tik... tik...") and not boxed,
 		"and as each later wave comes she says what it is, on the hint bar and not the story box",
@@ -420,9 +432,9 @@ func _a_sun_hurries_the_morning() -> void:
 	var clock := level.get("dawn_clock") as DawnClockHud
 	var caption := clock.caption()
 	var gliding := clock.shown() < clock.progress()
-	var told := (level.get("hint_bar") as HintBar).current_text()
 	await _seconds(0.8)
 	var arrived := is_equal_approx(clock.shown(), clock.progress())
+	var told := await _bar_comes_to("The morning came nearer.")
 	_check(caption == "15 s nearer" and gliding and arrived and told == "The morning came nearer.",
 		"and the clock shows it: it says how much nearer, the body glides there, and she says so",
 		"\"%s\", gliding %s then there %s, \"%s\"" % [caption, gliding, arrived, told])
