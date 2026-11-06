@@ -267,6 +267,20 @@
           "lead": "One more thing, apo. Paint something alive and you do not carry it. You become it."
         },
         {
+          "id": "interact",
+          "at": "pickup_ready",
+          "after": "checkpoint",
+          "mode": "look",
+          "visual": "keys",
+          "context": "world",
+          "anchor": "pickup_prompt",
+          "action": "interact",
+          "delay": 0.4,
+          "caption": "Pick up or use what is near",
+          "text": "{keys} picks up or uses whatever is near you, apo.",
+          "lead": "See that key over your head? It works on whatever you are standing near."
+        },
+        {
           "id": "bag",
           "at": "item_stored",
           "mode": "do",

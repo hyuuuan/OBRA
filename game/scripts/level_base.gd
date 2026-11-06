@@ -3209,6 +3209,8 @@ func _refresh_action_prompts() -> void:
 	# A drawing within reach takes E first (see press_interact), so the level's own offer is
 	# only shown where there is none.
 	var offer: Dictionary = _level_interact_offer() if can_act and not can_pick_up else {}
+	if tutorial != null and (can_pick_up or not offer.is_empty()):
+		tutorial.note("pickup_ready")
 	if not offer.is_empty():
 		action_prompts.set_pickup_available(true, String(offer.get("name", "")),
 			String(offer.get("verb", "USE")))
