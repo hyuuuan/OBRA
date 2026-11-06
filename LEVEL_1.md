@@ -825,6 +825,12 @@ the rim, so the apo cannot wade it, and going under puts her back at her last ch
 stands in it, and rides a boat across. It is not in `GATES.md` and has no beat or hint of its
 own: the banner says "Follow the terraces east to the gorge" all the way across it.
 
+**The sky has a lid (`GameplayPlane/SkyLid`, underside y -440).** Kent: "when i try to fly up above
+in level 1, i get to go to the houses, hay". Both insides are parked over the valley (the heap at
+y -900, Ang Bale at y -1180) and a room is entered by position (`_room_holding_player`), so a bird
+flapped off the top of the painted sky and into them. The lid is world collision, and doors
+teleport past it. `run_level1_flight_ceiling_probe` flies at it with real flaps.
+
 ## What the player is told to do
 
 A line under the badge and a marker over the world, asked of the level five times a second
