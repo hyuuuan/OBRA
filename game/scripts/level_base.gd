@@ -1226,10 +1226,19 @@ func _read_nearest_sign() -> bool:
 ## first cut did neither and cost two hints: it overwrote "draw something that can span the
 ## gap" the moment the player stepped near the sign at the same beat, and then cleared
 ## whatever had replaced it on the way out.
+##
+## ⚠ AND NOT TO SOMEBODY WALKING PAST. It went up on the frame an arrival line ended, offering
+## the line she had just read, and was gone half a second later as she walked on -- at every
+## board in the game. The board lights at once; the sentence waits until she has stayed.
+const SIGN_PROMPT_AFTER := 0.9
+var _at_sign_for := 0.0
+
+
 func _offer_the_nearest_sign() -> void:
 	var board := _readable_sign()
 	if tutorial != null and board != null:
 		tutorial.note("sign_readable")
+	_at_sign_for = _at_sign_for + get_physics_process_delta_time() if board != null else 0.0
 	for node in get_tree().get_nodes_in_group(&"signposts"):
 		var other := node as Signpost2D
 		if other != null:
@@ -1246,7 +1255,7 @@ func _offer_the_nearest_sign() -> void:
 			hint_bar.clear()
 			_sign_prompt = ""
 		return
-	if not _sign_prompt.is_empty():
+	if not _sign_prompt.is_empty() or _at_sign_for < SIGN_PROMPT_AFTER:
 		return
 	# Somebody else is talking on this bar. The board is lit, which already says it can be
 	# read; the sentence can wait until the bar is free.
