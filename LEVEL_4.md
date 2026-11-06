@@ -245,6 +245,12 @@ What the build does that the design above does not say, and what it does not do 
   her, and the first salt lies past it so nothing takes the hint bar from that.
 - **No "?" boards.** They promised Lolo's help, and stood on the creature; every beat keeps its
   story board at its approach (`LevelObstacle2D.plants_hint_sign`).
+- **A beat speaks as its subject comes into the lamp**, within about 400 px of it (`announce_offset`,
+  with the board beside it). The volumes are as wide as the encounters and the lines fired at their
+  leading edge: "A mound on the path" 600 px out in the dark, and the bestiary page with it.
+- **"This is the same rock. I have passed it three times now" is said when she has**, the second
+  time she is led back (`_arrival_hook`, `LED_BACK_TO_NOTICE`). It was the tikbalang's arrival, so
+  it played on the first approach.
 - **A clearing is saved as she walks in**; its lantern stands where the light is made and her light
   lights it (`CheckpointArea2D.lights_on_entry`), with the lamp filled and a curse lifted.
 - **The mound is asked from its foot** (56 px), where a jump from standing clears it.

@@ -532,8 +532,9 @@ as its own literal so a bump fails loudly until the migration is confirmed.
 ## Arrival speaks once
 
 `<obstacle>.enter` and `L1_N2.inside` play themselves the **first** time and never again.
-`DialogueScript.has_heard` tracks it per hook; `game_level._speak_on_arrival` is the only
-caller allowed to fire an arrival.
+`DialogueScript.has_heard` tracks it per hook; `LevelBase._speak_on_arrival` is the only
+caller allowed to fire an arrival. What each beat says, in what order and where, follows
+**LEVEL_TEMPLATE.md, "When the game speaks"**, which `run_line_timing_probe` walks.
 
 This is not the same as a line's authored `once`, which means "spent, never again for
 anyone" and is right for the refusal beat. Arrival lore stays **readable** — it moves to
@@ -603,6 +604,14 @@ home. So the first thing a new player sees is this level's opening, and its orde
    draw, the climb and the lantern, on Terrace 2;
 4. `B0_HAGDAN.enter`, then **Draw** at the wall.
 
+⚠ **Nothing goes before the first of these.** A key already held as the level appeared counted
+as the first step, so Jump's lead was said before the apo woke up and Walk was spent unshown.
+Lessons wait for the opening now (`_tutorial_context`).
+
+**At the gorge the order is `L1_N1.enter`, its three ways (`kind: lore`, in the box), then the
+question.** The fork's box and the arrival's box both begin at x 2950. They used to open on one
+frame, and the key turning Lolo's pages answered the question.
+
 ⚠ **The greeting is not said on a first visit** (`_greets_on_first_visit`). It came straight
 after the intro, at the spawn — "press R and draw", the first instruction in the game, with
 nothing in front of her to draw for — and the `draw` lesson's lead says the same thing at the
@@ -622,6 +631,13 @@ opening line was read through the card's dim. `run_opening_probe` walks it strai
 | `L1_N1` | 2850 – 3230 | the dialogue node (3010), the dead tree (3040), the ruined bridge (3080) |
 | `L1_N2` | 3640 – 4380 | the three straw piles (3654–4368), on Terrace5 |
 | `L1_N3` | 4430 – 4810 | the bale's floor (4520–4760) and both bululs |
+
+⚠ **`L1_N3`'s arrival box is 4430–4610, not centred on the house.** Centred, it began at 4530, and
+the post stops her at 4516: "There is the house… the way up is gone" played only once she had
+climbed onto the deck. Its board stands at 4370, 60 px before it.
+
+**The bulul speak to somebody who stays** (`Bulul2D.LINGER`, 1.2 s). "Do not" used to fire on
+anyone walking up to the house, a moment after Lolo's first words about it.
 
 No two overlap now; `L1_N2` and `L1_N3` used to share 20px.
 

@@ -34,9 +34,12 @@ signal player_arrived(obstacle_id: String)
 ## one. Narrowing the trigger to fix that is the trade nobody wants -- it takes the strip
 ## and the hints away from the ground the puzzle is solved from.
 ##
-## Two boxes, then. This one is a child Area2D centred on the STORY BOARD, because the
-## board is already planted where the story fires (see story_sign_offset) and a second
-## number for the same place is a second number to keep in sync.
+## Two boxes, then. This one is a child Area2D, placed by announce_offset.
+##
+## ⚠ THE BOARD DOES NOT FOLLOW IT. A board says "something is said here" (Signpost2D), and this
+## box and story_sign_offset are two numbers for one place: keep them within the board's reading
+## range of each other. Apart, she walks past a sign and nothing happens, and then something does
+## somewhere else. run_line_timing_probe holds it for every beat in the game.
 @export var announce_size := Vector2.ZERO
 ## WHERE IT STANDS, measured from the middle of the trigger -- the same frame of reference
 ## hint_sign_offset uses, and deliberately NOT the leading-edge one story_sign_offset uses.

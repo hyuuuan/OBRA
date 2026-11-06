@@ -228,7 +228,7 @@ choice_label  the button text at a dialogue node
 
 ```
 <OBSTACLE>.enter            arrival lore — fires ONCE, ever
-<OBSTACLE>.teach            the tags taught before the choice
+<OBSTACLE>.teach            the tags taught before the choice — `kind: lore` at a fork
 <OBSTACLE>.choice           the question
 <OBSTACLE>.<route>.commit   what the apo says when the button is pressed
 <OBSTACLE>.<route>.solved   what Lolo says when it works
@@ -253,6 +253,35 @@ Level 1's straw heap sits *inside* its own obstacle volume, so leaving it replay
 lines of Lolo with the world paused, every time. A narrower box does not fix it. The beat
 needs a memory. A line's authored `once: true` is different: it means spent forever, and it
 is right for the refusal beat, not for lore.
+
+### When the game speaks
+
+A playtester: *"the dialogues do not play at the right moment like some dialogues start at
+moments that should not be or like some are late and stuff especially the signs"*. Every probe
+then fired lines through `set_auto_dismiss`, so none could see where a line started or what it
+landed on. `run_line_timing_probe` walks up with the keys held and turns the pages with the key
+a player presses. These rules are what it found, and they hold for every level:
+
+| Rule | Where it lives | What it was |
+|---|---|---|
+| **The level's opening is its first words.** Nothing speaks, teaches or frames a lantern until it has been said. | `_opening_running`, `_until_she_can_listen`, `_tutorial_context` | A key held as the level appeared: Payyo's Jump lead before the apo woke, Piyesta's first beat before its own opening. |
+| **A fork says its opening line, then its ways through, then asks. Never two at once.** Its `.teach` lines are `kind: lore`, because the bar is hidden under the question. | `_on_dialogue_node_approached` | Payyo's gorge opened the question and seven lines on one frame, and **the key turning the pages committed the route**. |
+| **A beat says what it is before what to do.** Its advice waits for its arrival line, unless she is already past that line's box. | `_advise_the_beat`, `LevelObstacle2D.arrival_is_ahead_of` | `L1_N2.teach`, the only statement of the heap's puzzle, stood for 0.3 s at the volume's edge. |
+| **A story line does not take the bar down.** The bar stands itself down and comes back. | `_speak`, `HintBar._someone_is_speaking` | `_speak` cleared it, so every line of story threw away whatever advice was up. |
+| **Advice ends with its beat**: 1.2 s after she leaves, or when it is solved or answered. Advice with no beat times out. | `_retire_beat_advice`, `HintBar.show_beat(stands)` | A standing "Look up. Draw…" was still up at the far end of the level, holding back everything that yields to a busy bar. |
+| **Walking back in reminds her, on a free bar only.** Never story, never a solved or answered beat. | `_say_or_remind` | A respawn replaced "You cannot swim" in 0.03 s with advice about a wall she was on top of. |
+| **A remark or a prompt is an aside.** It gives the bar back, with the rest of the beat. | `HintBar.interject`, `take_down` | Each door and heap, and every checkpoint, replaced advice for good. `show_hint` is for words that really do replace. |
+| **A line waits for her to land** (at most 1.2 s), and for a placement to finish. | `_until_she_can_listen` | The world froze mid-jump with the camera pushing in. |
+| **A lantern's moment waits for the words.** The letterbox does not come in under a line, or take the camera from one. | `_stage_the_checkpoint` | A route's commit line and its lantern began on one frame. |
+| **A lesson's lead does not wait for the letterbox; its card does.** The bars do not stop her. | `TutorialDirector._coast_is_clear` | "A lantern!" was said 480 px past the lantern. |
+| **A board stands where its line fires,** within `Signpost2D.READ_RANGE`. A board and an announce box are two numbers for one place. | `story_sign_offset`, `announce_offset` | She walked past a sign and nothing happened: L1_N3 by 160 px, L5_SPAN by 360, L3_N1 by 800. |
+| **An arrival must be reachable on foot.** | `announce_offset` | `L1_N3`'s box began behind the post that stops her, so "There is the house" played only once she had climbed onto the deck. |
+| **A line about something fires as it comes into view,** and is true when it is said. | `announce_offset`, `_arrival_hook` | Dilim's "A mound on the path" 600 px out in the dark, and "I have passed it three times now" on the first approach. |
+| **The sign's sentence is for somebody who stayed** (0.9 s). The board lights at once. | `SIGN_PROMPT_AFTER` | "Press E to read the sign" went up the frame a line ended and was gone half a second later, at every board. |
+
+⚠ **`hint_bar.is_showing()` is still a yield.** A `say` lesson and the sign's sentence wait for an
+empty bar, and advice now stands until its beat ends instead of until somebody speaks. If a level's
+`say` lesson has to land inside a beat with standing advice, it will wait for the beat to end.
 
 ⚠ **`condition` has no `unless`.** A hook fires *every* matching line, so a conditional pair
 ("you combed the straw" / "you did not") needs either an `unless` key added to
