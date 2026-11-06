@@ -19,7 +19,8 @@ extends Control
 
 ## Every picture `_draw` knows. `keys` is the plain row of caps; anything unknown draws as that.
 const KINDS := ["keys", "walk", "jump", "hold", "draw_key", "revert", "place", "take_back",
-	"rotate", "resize", "draw", "click", "clock", "ink", "checkpoint", "requirement", "lamp"]
+	"rotate", "resize", "draw", "click", "clock", "ink", "checkpoint", "requirement", "lamp",
+	"become", "quest"]
 const SIZE := Vector2(440.0, 150.0)
 const CAP_HEIGHT := 50.0
 const CAP_TRAVEL := 5.0
@@ -114,6 +115,10 @@ func _draw() -> void:
 			_draw_requirement()
 		"lamp":
 			_draw_lamp()
+		"become":
+			_draw_become()
+		"quest":
+			_draw_quest()
 		_:
 			_draw_keys()
 	if waits_for_click:
@@ -501,6 +506,41 @@ func _draw_requirement() -> void:
 			draw_line(Vector2(at.x - 18.0 - i * 4.0, y), Vector2(at.x - 36.0 - i * 6.0, y),
 				Color(LIT, 0.8), 2.0, true)
 	_figure(at, 1.0, go > 0.0 and go < 1.0)
+
+
+## A drawing comes down on the apo and goes on in her place. ⚠ It stays a scrap of paper: a
+## picture of what she turned into would be the answer to somebody's gate (see the top).
+func _draw_become() -> void:
+	var p := _phase(3.0)
+	var spot := Vector2(190.0, 134.0)
+	draw_line(Vector2(90.0, 134.0), Vector2(350.0, 134.0), DIM_LINE, 2.0, true)
+	var arrives := _ease(clampf(p / 0.32, 0.0, 1.0))
+	var turned := clampf((p - 0.32) / 0.12, 0.0, 1.0)
+	_figure(spot, 1.0, false, 1.0 - turned)
+	var above := spot + Vector2(0.0, -30.0)
+	if turned <= 0.0:
+		_scrap(above + Vector2(0.0, (arrives - 1.0) * 70.0), Vector2(60.0, 46.0), 0.0, arrives)
+		return
+	if turned < 1.0:
+		draw_arc(above, 20.0 + turned * 40.0, 0.0, TAU, 32, Color(LIT, 1.0 - turned), 3.0, true)
+	var go := _ease(clampf((p - 0.44) / 0.5, 0.0, 1.0))
+	var hop := absf(sin(go * TAU * 2.0)) * 16.0
+	_scrap(above + Vector2(go * 130.0, -hop), Vector2(60.0, 46.0), 0.0, turned)
+
+
+## The quest card, and the apo setting off for the mark it points at.
+func _draw_quest() -> void:
+	var plate := Rect2(110.0, 8.0, 220.0, 56.0)
+	_rounded("plate", plate, UISkin.PANEL_LIT, 12.0, LIT, 3.0)
+	_rounded("plate_tag", Rect2(plate.position + Vector2(14.0, 16.0), Vector2(48.0, 24.0)), LIT, 8.0)
+	for i in 2:
+		_rounded("plate_word", Rect2(plate.position + Vector2(74.0, 15.0 + i * 16.0),
+			Vector2(128.0 - i * 40.0, 10.0)), UISkin.CREAM_TEXT, 5.0)
+	var ground := 138.0
+	draw_line(Vector2(90.0, ground), Vector2(350.0, ground), DIM_LINE, 2.0, true)
+	var go := _ease(clampf(_phase(2.8) / 0.7, 0.0, 1.0))
+	_figure(Vector2(lerpf(120.0, 300.0, go), ground), 1.0, go > 0.0 and go < 1.0)
+	_chevron(Vector2(336.0, 112.0 + sin(_t * 5.0) * 4.0), Vector2.DOWN, 1.0, 14.0)
 
 
 ## A row of caps pressed in turn: one key, or a run of them like the bag's 1 to 6.
