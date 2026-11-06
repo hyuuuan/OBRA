@@ -1473,6 +1473,7 @@ func _prompt_named(prompt_name: StringName) -> Control:
 ## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph
 ## on the route is protected and a death cannot make the player answer Lolo twice.
 func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
+	_retire_beat_advice()
 	if not _defer_route_commit_dialogue(obstacle_id, route):
 		_speak(script_lines.fire("%s.%s.commit" % [obstacle_id, route]))
 	var checkpoint_id := String(director.obstacle(obstacle_id).get("checkpoint_on_commit", ""))
@@ -1495,6 +1496,7 @@ func _light_commit_mark(obstacle_id: String) -> void:
 
 
 func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
+	_retire_beat_advice()
 	# THE ONE MOMENT HE REACTS TO THE PLAYER rather than to the place. The cheer frame was
 	# delivered with the rest of his sheet and had never been drawn on screen.
 	if lolo != null and is_instance_valid(lolo) and lolo.has_method("cheer"):
@@ -2227,11 +2229,11 @@ func _speak(lines: Array) -> void:
 			status_label.text = String(beat[-1]["text"])
 		_post_advice(advice)
 		return
-	# A hint left on screen under a conversation is the two channels talking at once. Taken
-	# down BEFORE the advice of this same beat goes up, not after -- clearing afterwards is
-	# what used to throw the hints away in a beat that carried both kinds.
-	if hint_bar != null:
-		hint_bar.clear()
+	# ⚠ THE BAR IS LEFT ALONE. It stands itself down while anybody is speaking and comes back
+	# with its dwell intact (HintBar._someone_is_speaking), and this used to take it down as
+	# well, so every line of story threw away whatever advice was up: L1_N1's three ways after
+	# 0.35 s, Ang Hagdan's instruction for good when a lesson's lead spoke over it. Advice
+	# ends when its beat does (`_retire_beat_advice`), not when somebody says something.
 	_focus_camera_for(String(beat[0]["at"]))
 	dialogue_box.speak(beat)
 	# The bar fades itself out and freezes its dwell while anybody is speaking, so advice
@@ -2269,7 +2271,51 @@ func _post_advice(advice: Array[Dictionary]) -> void:
 	if hint_bar == null:
 		status_label.text = String(advice[-1]["text"])
 		return
+	# The opening's words are the level's, even for somebody already standing in its first beat.
+	var beat := director.current_obstacle() if director != null and not _opening_running else ""
+	if beat.is_empty():
+		# No beat to end it, so its last line does not stand: it would still be up at the far
+		# end of the level.
+		hint_bar.show_beat(advice, "", false)
+		return
+	if beat != _beat_advice_of:
+		_beat_advice.clear()
+		_beat_advice_of = beat
+		_beat_advice_orphaned = 0.0
+	for line: Dictionary in advice:
+		_beat_advice.append(String(line.get("text", "")))
 	hint_bar.show_beat(advice)
+
+
+## ADVICE IS ABOUT A BEAT AND ENDS WITH IT. The bar's last line stands until something replaces
+## it, which is right while she is at the obstacle, and it was still standing a thousand pixels
+## later: "Look up. Draw something you can CLIMB" over the far end of the level, and every
+## lesson and sign prompt that yields to a busy bar waiting behind it. Only its own words are
+## taken down, and not the moment she leaves: a body swap or a step back over the edge is not
+## the end of anything.
+const ADVICE_OUTLIVES_BEAT := 1.2
+var _beat_advice: Array[String] = []
+var _beat_advice_of := ""
+var _beat_advice_orphaned := 0.0
+
+
+func _tend_beat_advice(delta: float) -> void:
+	if _beat_advice.is_empty():
+		return
+	if director.current_obstacle() == _beat_advice_of:
+		_beat_advice_orphaned = 0.0
+		return
+	_beat_advice_orphaned += delta
+	if _beat_advice_orphaned >= ADVICE_OUTLIVES_BEAT:
+		_retire_beat_advice()
+
+
+func _retire_beat_advice() -> void:
+	if hint_bar != null and _beat_advice.has(hint_bar.current_text()):
+		hint_bar.clear()
+	_beat_advice.clear()
+	_beat_advice_of = ""
+	_beat_advice_orphaned = 0.0
 
 
 ## Push the camera in on whoever is talking, and give it back when the beat is over.
@@ -3907,6 +3953,7 @@ func _physics_process(_delta: float) -> void:
 		_objective_clock = OBJECTIVE_EVERY
 		refresh_objective()
 	_offer_the_nearest_sign()
+	_tend_beat_advice(_delta)
 	var anchor_position := player.global_position
 	if player.has_method("get_physics_anchor"):
 		var anchor := player.call("get_physics_anchor") as Node2D

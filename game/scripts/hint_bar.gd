@@ -88,6 +88,8 @@ var _life := 0.0
 ## The rest of a beat, waiting its turn: [{text, speaker, seconds?}]. Empty for every ordinary
 ## hint, which is one line that stands until something replaces it.
 var _queue: Array[Dictionary] = []
+## Whether the last line of the queue stands, or goes after its reading time. See show_beat.
+var _last_stands := true
 ## Who is saying the current line, as given: `_speaker` holds it as printed.
 var _speaker_id := ""
 ## The fade this node's own alpha is currently under, so the next one can cancel it.
@@ -359,8 +361,9 @@ func _show(speaker: String, seconds: float) -> void:
 ## Only the last survived." -- and the hint channel was left with it.
 ##
 ## The LAST line stands indefinitely, like any ordinary hint: the beat ends with the advice
-## still on screen rather than with the bar going blank.
-func show_beat(entries: Array, speaker: String = "") -> void:
+## still on screen rather than with the bar going blank. `stands` false has it go after its
+## reading time, for words with nothing to end them (LevelBase._post_advice).
+func show_beat(entries: Array, speaker: String = "", stands: bool = true) -> void:
 	var lines: Array[Dictionary] = []
 	for value: Variant in entries:
 		if value is Dictionary:
@@ -374,8 +377,10 @@ func show_beat(entries: Array, speaker: String = "") -> void:
 			lines.append({"text": value as String, "speaker": speaker})
 	if lines.is_empty():
 		return
+	_last_stands = stands
 	if lines.size() == 1:
-		show_hint(String(lines[0]["text"]), String(lines[0]["speaker"]))
+		var only := String(lines[0]["text"])
+		show_hint(only, String(lines[0]["speaker"]), 0.0 if stands else _dwell_for(only))
 		return
 	var head: Dictionary = lines[0]
 	_queue = lines.slice(1)
@@ -508,8 +513,9 @@ func _process(delta: float) -> void:
 	# NOT clear() -- that drops the queue, which is the whole thing being advanced.
 	var next: Dictionary = _queue.pop_front()
 	var text := String(next["text"])
-	# The last line of a beat stands, like any ordinary hint; the ones before it are timed.
-	var dwell := 0.0 if _queue.is_empty() else _dwell_for(text)
+	# The last line of a beat stands, like any ordinary hint; the ones before it are timed. A
+	# line put back by `interject` keeps the time it had.
+	var dwell := _dwell_for(text) if not _queue.is_empty() or not _last_stands else 0.0
 	if next.has("seconds"):
 		dwell = float(next["seconds"])
 	var rest := _queue.duplicate()
