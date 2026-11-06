@@ -419,7 +419,13 @@ func _a_clearing_fills_the_ink() -> void:
 	ink.drain(ink.remaining())
 	await _frames(2)
 	var screen := (level.get("out_of_ink_overlay") as ModalOverlay).is_open()
-	var said := (level.get("hint_bar") as HintBar).current_text()
+	# ⚠ NOT ON THE SAME FRAME. Emptying it in one go is also her first spend, so the lesson about
+	# ink has the bar, and a remark is read before advice takes it (HintBar.show_beat).
+	var bar := level.get("hint_bar") as HintBar
+	var began := Time.get_ticks_msec()
+	while not bar.current_text().begins_with("No more ink") and Time.get_ticks_msec() - began < 9000:
+		await _frames(1)
+	var said := bar.current_text()
 	_check(not screen and said.begins_with("No more ink"),
 		"running dry is not a loss: no out-of-ink screen, and she says where more is",
 		"screen open %s, said \"%s\"" % [screen, said])
