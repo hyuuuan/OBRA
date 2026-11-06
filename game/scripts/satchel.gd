@@ -25,6 +25,8 @@ const CONFIG := "res://config/satchel.json"
 const SLOTS := 4
 
 var _rows: Dictionary = {}
+## What she says of any of them, whichever it is (the file's `lines`).
+var _lines: Dictionary = {}
 var _counts: Dictionary = {}
 var _slots: Array[String] = []
 
@@ -34,6 +36,9 @@ func _init(config_path: String = CONFIG) -> void:
 	var items: Variant = (parsed as Dictionary).get("items", {}) if parsed is Dictionary else {}
 	if items is Dictionary:
 		_rows = (items as Dictionary).duplicate(true)
+	var lines: Variant = (parsed as Dictionary).get("lines", {}) if parsed is Dictionary else {}
+	if lines is Dictionary:
+		_lines = (lines as Dictionary).duplicate(true)
 	_slots.resize(SLOTS)
 	_slots.fill("")
 
@@ -48,6 +53,12 @@ func ids() -> Array[String]:
 
 func row(id: String) -> Dictionary:
 	return _rows.get(id, {}) as Dictionary
+
+
+## One of the file's `lines`, with {name} and {gloss} written in for `id`. {key} is the level's.
+func line(line_id: String, id: String) -> String:
+	return String(_lines.get(line_id, "")).replace("{name}", String(row(id).get("display_name", id))) \
+		.replace("{gloss}", String(row(id).get("gloss", "")).to_lower())
 
 
 func count(id: String) -> int:

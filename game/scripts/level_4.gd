@@ -598,6 +598,7 @@ func _build_level_furniture() -> void:
 	$CanvasLayer.add_child(dawn_clock)
 	# Bottom centre: Lola's things on Z, X, C and V.
 	satchel = Satchel.new()
+	satchel.moved_in.connect(_on_satchel_moved_in)
 	quick_slots = QuickSlotBar.new()
 	quick_slots.name = "QuickSlots"
 	quick_slots.bind(satchel)
@@ -1060,17 +1061,29 @@ func _on_pickup_touched(pickup: SatchelPickup2D) -> void:
 	if first:
 		_met[pickup.item] = true
 		quick_slots.welcome(index)
-		var row := satchel.row(pickup.item)
-		# Named through the same lookup the prompts use, so a rebinding is named as bound. Not by
-		# with_keys: its {key:...} takes no digits, and every slot's action has one.
-		var key := ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) if index >= 0 else ""
-		var said := String(row.get("found", ""))
-		if said.is_empty() or key.is_empty():
-			said = "%s -- %s.%s" % [row.get("display_name", pickup.item), String(row.get("gloss", "")).to_lower(),
-				" It is on %s." % key if not key.is_empty() else ""]
-		# What it is for, and which key: a name and a key alone left her holding a candle with no
-		# idea what it was for. Up long enough to read.
-		hint_bar.show_hint(said.replace("{key}", key), _companion_speaker(), 6.0)
+		# What it is for, which key and when: a name and a key alone left her holding a candle with
+		# no idea what it was for. And with all four slots full it says so: it used to say its name
+		# and nothing else, and she carried the oil the rest of the way with no way to pour it.
+		var said := String(satchel.row(pickup.item).get("found", "")) if index >= 0 \
+			else satchel.line("no_slot", pickup.item)
+		hint_bar.show_hint(said.replace("{key}", _slot_key(index)), _companion_speaker(), FOUND_SECONDS)
+
+
+## Up long enough to read the longest of them, with a fight perhaps starting.
+const FOUND_SECONDS := 7.0
+
+
+## The key on slot `index`, named through the same lookup the prompts use, so a rebinding is named
+## as bound. Not by with_keys: its {key:...} takes no digits, and every slot's action has one.
+func _slot_key(index: int) -> String:
+	return ControlsKeys.key_cap_for("quick_slot_%d" % (index + 1)) if index >= 0 else ""
+
+
+## One that had no slot has been given one: it is said, and rung, as a find is.
+func _on_satchel_moved_in(id: String, index: int) -> void:
+	quick_slots.welcome(index)
+	hint_bar.show_hint(satchel.line("moved_in", id).replace("{key}", _slot_key(index)),
+		_companion_speaker(), FOUND_SECONDS)
 
 
 # --- What a fallen aswang drops -----------------------------------------------------------

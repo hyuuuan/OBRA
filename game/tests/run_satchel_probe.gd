@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 39
+const CHECKS := 40
 
 
 func _initialize() -> void:
@@ -104,7 +104,7 @@ func _it_knows_lolas_six_things() -> void:
 		"it knows Lola's six things, with their caps", "%s" % [ids])
 
 
-## Found, each says what it does and which key it is on -- never only its name.
+## Found, each says what it does and which key it is on -- never only its name -- and when it is for.
 func _each_says_what_it_is_for() -> void:
 	var satchel = SatchelScript.new()
 	var silent: Array[String] = []
@@ -115,6 +115,15 @@ func _each_says_what_it_is_for() -> void:
 			silent.append(id)
 	_check(silent.is_empty(), "each of Lola's things, found, says what it does and its key",
 		"all six" if silent.is_empty() else "only named: %s" % [silent])
+	# The things it took a player to be told are the ones the old words left out.
+	var said := {}
+	for id: String in satchel.ids():
+		said[id] = String(satchel.row(id).get("found", "")).to_lower()
+	_check(said["abo"].contains("keep it") and said["langis"].contains("low")
+			and said["kandila"].contains("when the lamp is low") and said["bawang"].contains("ten seconds")
+			and said["asin"].contains("ahead of me"),
+		"and when: ash kept for what she cannot see, oil and the candle for a low lamp, garlic's ten seconds",
+		"%s" % [said])
 
 
 func _a_stack_stops_at_its_cap() -> void:
@@ -326,7 +335,7 @@ func _walking_into_one_takes_it() -> void:
 	var said := (level.get("hint_bar") as HintBar).current_text()
 	_check(satchel.count("asin") == 2 and (pickup == null or not is_instance_valid(pickup)
 			or (pickup.is_taken() and pickup.tag_shown() == 0.0))
-			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said == "Asin -- salt. It burns them. Z throws it.",
+			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said == "Asin, salt. Z throws it ahead of me, and it burns whatever it lands on.",
 		"walking into one takes it, and the first of a kind says what it does and its key",
 		"asin %d, said \"%s\"" % [satchel.count("asin"), said])
 
