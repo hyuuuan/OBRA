@@ -413,16 +413,19 @@
     {
       "id": "L1_N1_008",
       "at": "L1_N1.teach",
+      "kind": "lore",
       "text": "I know only three ways. One: make something that can **span** it."
     },
     {
       "id": "L1_N1_009",
       "at": "L1_N1.teach",
+      "kind": "lore",
       "text": "Two: follow the walls. Something that can **leap**, or something that can **climb**."
     },
     {
       "id": "L1_N1_010",
       "at": "L1_N1.teach",
+      "kind": "lore",
       "text": "Three: there is old growth at the forest's edge. Something that can **cut**."
     },
     {

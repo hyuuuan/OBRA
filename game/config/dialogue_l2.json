@@ -64,19 +64,19 @@
     {
       "id": "L2_N1_003",
       "at": "L2_N1.teach",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Three ways, and one is not drawing. Ask the dancers. They will want something back."
     },
     {
       "id": "L2_N1_004",
       "at": "L2_N1.teach",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Or the houses. One has a light in the window, and something that can **unlock** gets you in."
     },
     {
       "id": "L2_N1_005",
       "at": "L2_N1.teach",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Or clear them out. Something that can **startle** — big enough a crowd does not argue."
     },
     {
@@ -193,19 +193,19 @@
     {
       "id": "L2_N2_003",
       "at": "L2_N2.teach",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Three ways again. Bring them down gently — something that can **feed**, set down where they can see it."
     },
     {
       "id": "L2_N2_004",
       "at": "L2_N2.teach",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Or go up after the nests — something that can **climb**, then something that can **cut**. Down come the strings, and they let go."
     },
     {
       "id": "L2_N2_005",
       "at": "L2_N2.teach",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Or knock them out of the air. Something that can **strike**, thrown. They will not come to you."
     },
     {
@@ -268,19 +268,19 @@
     {
       "id": "L2_N3_003",
       "at": "L2_N3.teach",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Same three ways. Something that can **feed**, and they come down to it."
     },
     {
       "id": "L2_N3_004",
       "at": "L2_N3.teach",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Something that can **climb**, then something that can **cut**, and the strings come down."
     },
     {
       "id": "L2_N3_005",
       "at": "L2_N3.teach",
-      "kind": "hint",
+      "kind": "lore",
       "text": "Or something that can **strike**, and a good arm."
     },
     {

@@ -917,7 +917,10 @@ func _checkpoint_is_declared(checkpoint_id: String) -> bool:
 
 func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 	_write_checkpoint(checkpoint_id)
-	if _saves_silently():
+	# ⚠ NOT WHILE THE LEVEL IS STILL OPENING. Piyesta's first lantern stands where she wakes, so
+	# it was "reached" before anybody had said a word: the letterbox and the camera took the
+	# lantern under the opening's first line, for a place she had not walked to.
+	if _saves_silently() or _opening_running:
 		return
 	_say_checkpoint()
 	var area := _checkpoint_area_for(checkpoint_id)
@@ -947,6 +950,13 @@ func _stage_the_checkpoint(mark: Node2D) -> void:
 	# decides whether the moment also takes the camera and the bars.
 	if not _may_frame_the_checkpoint(mark):
 		return
+	# ⚠ AFTER THE WORDS, NOT UNDER THEM. A route's commit line and its lantern start on one
+	# frame, so the letterbox came in over "Let us put it back" and the camera went to the
+	# lantern while the apo was talking, then let go of whoever was speaking a second later.
+	if dialogue_box != null and dialogue_box.is_open():
+		await dialogue_box.conversation_finished
+		if not is_inside_tree() or not is_instance_valid(mark) or cinematic.is_playing():
+			return
 	var world_camera := _world_camera()
 	cinematic.close("CHECKPOINT")
 	if world_camera != null:
@@ -957,7 +967,9 @@ func _stage_the_checkpoint(mark: Node2D) -> void:
 	if is_instance_valid(mark) and mark.has_method("light"):
 		mark.call("light", Vector2(0.0, -60.0))
 	await get_tree().create_timer(1.35, true, false, true).timeout
-	if world_camera != null:
+	# A line that began under the bars has the camera now, and gives it back when it ends.
+	var someone_talking := dialogue_box != null and dialogue_box.is_open()
+	if world_camera != null and not someone_talking:
 		world_camera.release_focus()
 	if cinematic != null:
 		cinematic.open()
@@ -995,7 +1007,9 @@ func _say_checkpoint() -> void:
 		tutorial.note("checkpoint")
 		explained = not before and tutorial.is_coming("checkpoint")
 	if hint_bar != null and not explained:
-		hint_bar.show_hint("Checkpoint. If you fall, you start again from here.", "", 3.5)
+		# An aside, because a checkpoint is crossed in the middle of whatever Lolo is saying:
+		# Piyesta's first step replaced the two rules of the plaza with this, for good.
+		hint_bar.interject("Checkpoint. If you fall, you start again from here.", "", 3.5)
 	var audio := get_node_or_null(^"/root/AudioDirector")
 	if audio != null:
 		audio.call("play_sfx", &"checkpoint")
@@ -1007,13 +1021,57 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 		tutorial.note("first_obstacle")
 	# A node teaches all three of its routes' verbs BEFORE the choice, because a player
 	# cannot choose a path whose verb they have never been told.
-	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
-	if not teaches.is_empty():
-		if _teaches_on_entering(obstacle_id):
-			_speak(script_lines.fire("%s.teach" % obstacle_id))
+	if not (director.obstacle(obstacle_id).get("teaches_before_choice", []) as Array).is_empty():
 		director.teach_before_choice(obstacle_id)
-	_speak_current_stage(obstacle_id)
+	# ⚠ THE BEAT SAYS WHAT IT IS BEFORE IT SAYS WHAT TO DO. The scope volume is wider than the
+	# arrival's, so Ang Dayami's three ways went up as she crossed its edge, and her arrival
+	# took the bar off them a hundred pixels later: 0.3 s for the only statement of the puzzle.
+	if _arrival_is_still_ahead(obstacle_id):
+		_advice_held[obstacle_id] = true
+	else:
+		_advise_the_beat(obstacle_id)
 	_refresh_requirements()
+
+
+## What a beat says about what to do: its ways through, then what the current stage asks.
+func _advise_the_beat(obstacle_id: String) -> void:
+	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
+	if not teaches.is_empty() and _teaches_on_entering(obstacle_id) \
+			and not director.is_solved(obstacle_id) \
+			and director.committed_route(obstacle_id).is_empty():
+		_say_or_remind("%s.teach" % obstacle_id)
+	_speak_current_stage(obstacle_id)
+
+
+## Whether this beat's opening line is still to come, at its own narrower volume.
+func _arrival_is_still_ahead(obstacle_id: String) -> bool:
+	var hook := _arrival_hook(obstacle_id)
+	if hook.is_empty() or not script_lines.has_hook(hook) or script_lines.has_heard(hook):
+		return false
+	if player == null or not is_instance_valid(player):
+		return false
+	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+		var area := node as LevelObstacle2D
+		if area != null and area.obstacle_id == obstacle_id:
+			return area.arrival_is_ahead_of(player.global_position.x)
+	return false
+
+
+## ONCE, AND AFTER THAT ONLY AS A REMINDER. Walking back into a beat may repeat what it asks:
+## the player has been away. But only on the bar, and only if the bar is free. A respawn at
+## Payyo's first lantern re-enters Ang Hagdan, and "You cannot swim, apo" was replaced 0.03 s
+## later by an instruction about the wall she was standing on top of. A line for the story box
+## stops the world, so it is never said twice this way.
+func _say_or_remind(hook: String) -> void:
+	if not script_lines.has_heard(hook):
+		_speak(script_lines.fire(hook))
+		return
+	if hint_bar == null or hint_bar.is_showing():
+		return
+	for line_value: Variant in script_lines.peek(hook):
+		if script_lines.kind_of(line_value as Dictionary) != "hint":
+			return
+	_speak(script_lines.fire(hook))
 
 
 ## WHETHER A BEAT SAYS ITS WAYS THROUGH THE MOMENT IT IS ENTERED. True everywhere it has
@@ -1021,15 +1079,21 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 ## the fork instead -- Dagat's crossing is entered beside the brush, and its two ways across
 ## piled up on the brush's own lines a fork's length before the choice they introduce. The tags
 ## are taught on entering either way; only the words wait.
-func _teaches_on_entering(_obstacle_id: String) -> bool:
-	return true
+##
+## ⚠ AND A FORK ALWAYS DOES. Its question follows its opening line and its ways through, in that
+## order, so all three belong at the fork (`_on_dialogue_node_approached`).
+func _teaches_on_entering(obstacle_id: String) -> bool:
+	return obstacle_id != _dialogue_node_obstacle_id()
 
 
 ## The player has reached what the beat is about, which is where its opening line belongs.
 ## Separate from _on_obstacle_entered because entering is a much wider event -- see
 ## LevelObstacle2D.announce_size.
 func _on_obstacle_arrived(obstacle_id: String) -> void:
-	var hook := "%s.enter" % obstacle_id
+	await _until_she_can_listen()
+	if not is_inside_tree():
+		return
+	var hook := _arrival_hook(obstacle_id)
 	# HER DIARY FIRST, the first time (DIARY.md): a level that keeps a page about what is in front
 	# of her opens the book at it, and her own words come once it is put down.
 	var page := _diary_page_on_arrival(obstacle_id)
@@ -1037,6 +1101,40 @@ func _on_obstacle_arrived(obstacle_id: String) -> void:
 		await read_diary_at(String(page.get("entry", "")), String(page.get("anchor", "")),
 			String(page.get("note", "")))
 	_speak_on_arrival(hook)
+	if _advice_held.erase(obstacle_id):
+		_advise_the_beat(obstacle_id)
+
+
+## WHAT A BEAT SAYS WHEN SHE REACHES IT. A level answers "" for a beat whose opening is only true
+## later: Dilim's tikbalang, where "I have passed it three times now" waits for her to have.
+func _arrival_hook(obstacle_id: String) -> String:
+	return "%s.enter" % obstacle_id
+
+
+## ⚠ A LINE STOPS THE WORLD, SO IT WAITS UNTIL THE WORLD CAN BE STOPPED. Crossing a volume in the
+## air froze her mid-jump with the camera pushing in, and one crossed with a drawing on the end of
+## the mouse froze it there. Not for long: a long fall is still interrupted, a held line is not
+## worth losing the player to a wall they cannot see past. And never before the level's opening,
+## which has to be its first words: Piyesta's spawn is ten pixels from its first volume, so a key
+## already held when the level appeared had that beat speak first and the opening after it.
+const LISTEN_PATIENCE := 1.2
+
+
+func _until_she_can_listen() -> void:
+	if _opening_running:
+		await opening_finished
+	var waited := 0.0
+	while waited < LISTEN_PATIENCE and is_inside_tree() and _is_busy_for_a_line():
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+
+
+func _is_busy_for_a_line() -> bool:
+	if placement_controller != null and placement_controller.is_placing():
+		return true
+	var walker := player as Wanderer
+	return walker != null and is_instance_valid(walker) and not walker.is_on_floor() \
+		and not walker.is_in_water()
 
 
 ## THE PAGE OF HER DIARY A BEAT OPENS AT, the first time she reaches it: {"entry", "anchor",
@@ -1128,10 +1226,19 @@ func _read_nearest_sign() -> bool:
 ## first cut did neither and cost two hints: it overwrote "draw something that can span the
 ## gap" the moment the player stepped near the sign at the same beat, and then cleared
 ## whatever had replaced it on the way out.
+##
+## ⚠ AND NOT TO SOMEBODY WALKING PAST. It went up on the frame an arrival line ended, offering
+## the line she had just read, and was gone half a second later as she walked on -- at every
+## board in the game. The board lights at once; the sentence waits until she has stayed.
+const SIGN_PROMPT_AFTER := 0.9
+var _at_sign_for := 0.0
+
+
 func _offer_the_nearest_sign() -> void:
 	var board := _readable_sign()
 	if tutorial != null and board != null:
 		tutorial.note("sign_readable")
+	_at_sign_for = _at_sign_for + get_physics_process_delta_time() if board != null else 0.0
 	for node in get_tree().get_nodes_in_group(&"signposts"):
 		var other := node as Signpost2D
 		if other != null:
@@ -1148,7 +1255,7 @@ func _offer_the_nearest_sign() -> void:
 			hint_bar.clear()
 			_sign_prompt = ""
 		return
-	if not _sign_prompt.is_empty():
+	if not _sign_prompt.is_empty() or _at_sign_for < SIGN_PROMPT_AFTER:
 		return
 	# Somebody else is talking on this bar. The board is lit, which already says it can be
 	# read; the sentence can wait until the bar is free.
@@ -1179,7 +1286,7 @@ func _speak_current_stage(obstacle_id: String) -> void:
 	var stage := director.stage_id(obstacle_id)
 	if stage.is_empty():
 		return
-	_speak(script_lines.fire("%s.%s" % [obstacle_id, stage]))
+	_say_or_remind("%s.%s" % [obstacle_id, stage])
 
 
 func _on_obstacle_exited(_obstacle_id: String) -> void:
@@ -1397,6 +1504,10 @@ func _tutorial_context(context: String) -> bool:
 			return true
 	if canvas_open or _level_completed or player == null or not is_instance_valid(player):
 		return false
+	# ⚠ NOT BEFORE THE LEVEL'S FIRST WORDS. A key already held when the level appeared noted the
+	# first step, so "Can you still jump, apo?" was said before the apo had woken up.
+	if _opening_running:
+		return false
 	var placing := placement_controller.is_placing()
 	match context:
 		"placing":
@@ -1431,6 +1542,7 @@ func _prompt_named(prompt_name: StringName) -> Control:
 ## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph
 ## on the route is protected and a death cannot make the player answer Lolo twice.
 func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
+	_retire_beat_advice()
 	if not _defer_route_commit_dialogue(obstacle_id, route):
 		_speak(script_lines.fire("%s.%s.commit" % [obstacle_id, route]))
 	var checkpoint_id := String(director.obstacle(obstacle_id).get("checkpoint_on_commit", ""))
@@ -1453,6 +1565,7 @@ func _light_commit_mark(obstacle_id: String) -> void:
 
 
 func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
+	_retire_beat_advice()
 	# THE ONE MOMENT HE REACTS TO THE PLAYER rather than to the place. The cheer frame was
 	# delivered with the rest of his sheet and had never been drawn on screen.
 	if lolo != null and is_instance_valid(lolo) and lolo.has_method("cheer"):
@@ -2185,11 +2298,11 @@ func _speak(lines: Array) -> void:
 			status_label.text = String(beat[-1]["text"])
 		_post_advice(advice)
 		return
-	# A hint left on screen under a conversation is the two channels talking at once. Taken
-	# down BEFORE the advice of this same beat goes up, not after -- clearing afterwards is
-	# what used to throw the hints away in a beat that carried both kinds.
-	if hint_bar != null:
-		hint_bar.clear()
+	# ⚠ THE BAR IS LEFT ALONE. It stands itself down while anybody is speaking and comes back
+	# with its dwell intact (HintBar._someone_is_speaking), and this used to take it down as
+	# well, so every line of story threw away whatever advice was up: L1_N1's three ways after
+	# 0.35 s, Ang Hagdan's instruction for good when a lesson's lead spoke over it. Advice
+	# ends when its beat does (`_retire_beat_advice`), not when somebody says something.
 	_focus_camera_for(String(beat[0]["at"]))
 	dialogue_box.speak(beat)
 	# The bar fades itself out and freezes its dwell while anybody is speaking, so advice
@@ -2227,7 +2340,54 @@ func _post_advice(advice: Array[Dictionary]) -> void:
 	if hint_bar == null:
 		status_label.text = String(advice[-1]["text"])
 		return
+	# The opening's words are the level's, even for somebody already standing in its first beat.
+	var beat := director.current_obstacle() if director != null and not _opening_running else ""
+	if beat.is_empty():
+		# No beat to end it, so its last line does not stand: it would still be up at the far
+		# end of the level.
+		hint_bar.show_beat(advice, "", false)
+		return
+	if beat != _beat_advice_of:
+		_beat_advice.clear()
+		_beat_advice_of = beat
+		_beat_advice_orphaned = 0.0
+	for line: Dictionary in advice:
+		_beat_advice.append(String(line.get("text", "")))
 	hint_bar.show_beat(advice)
+
+
+## ADVICE IS ABOUT A BEAT AND ENDS WITH IT. The bar's last line stands until something replaces
+## it, which is right while she is at the obstacle, and it was still standing a thousand pixels
+## later: "Look up. Draw something you can CLIMB" over the far end of the level, and every
+## lesson and sign prompt that yields to a busy bar waiting behind it. Only its own words are
+## taken down, and not the moment she leaves: a body swap or a step back over the edge is not
+## the end of anything.
+const ADVICE_OUTLIVES_BEAT := 1.2
+var _beat_advice: Array[String] = []
+var _beat_advice_of := ""
+var _beat_advice_orphaned := 0.0
+
+
+func _tend_beat_advice(delta: float) -> void:
+	if _beat_advice.is_empty():
+		return
+	if director.current_obstacle() == _beat_advice_of:
+		_beat_advice_orphaned = 0.0
+		return
+	_beat_advice_orphaned += delta
+	if _beat_advice_orphaned >= ADVICE_OUTLIVES_BEAT:
+		_retire_beat_advice()
+
+
+func _retire_beat_advice() -> void:
+	# ⚠ TAKEN DOWN WHEREVER IT IS. Lolo can be remarking over it, with the advice waiting to come
+	# back, and it would have come back at the far end of the level with nothing left to end it.
+	if hint_bar != null:
+		for line: String in _beat_advice:
+			hint_bar.take_down(line)
+	_beat_advice.clear()
+	_beat_advice_of = ""
+	_beat_advice_orphaned = 0.0
 
 
 ## Push the camera in on whoever is talking, and give it back when the beat is over.
@@ -3880,6 +4040,7 @@ func _physics_process(_delta: float) -> void:
 		_objective_clock = OBJECTIVE_EVERY
 		refresh_objective()
 	_offer_the_nearest_sign()
+	_tend_beat_advice(_delta)
 	var anchor_position := player.global_position
 	if player.has_method("get_physics_anchor"):
 		var anchor := player.call("get_physics_anchor") as Node2D
@@ -4593,6 +4754,12 @@ var resume_enabled := not preload("res://scripts/user_data.gd").is_test_run()
 ## How long the level is on screen before the opening speaks, so the first line does not land
 ## on the frame the scene appears.
 const OPENING_DELAY := 0.8
+## The level's first words have been said, or it has none. Everything else that speaks waits
+## for it (`_until_she_can_listen`). See `_play_opening`.
+signal opening_finished
+var _opening_running := false
+## Beats she has entered whose advice waits for their arrival line. See `_on_obstacle_entered`.
+var _advice_held: Dictionary = {}
 
 
 ## THE LEVEL'S FIRST WORDS, chosen by whether the apo has been here before.
@@ -4603,6 +4770,13 @@ const OPENING_DELAY := 0.8
 ## replaying does not mean hearing the same welcome twice. Either way the tutorial waits: it
 ## shows nothing over anyone talking (TutorialDirector), so Walk comes after the last word.
 func _play_opening() -> void:
+	_opening_running = true
+	await _say_the_opening()
+	_opening_running = false
+	opening_finished.emit()
+
+
+func _say_the_opening() -> void:
 	var level_id := LevelManager.current_level_id
 	var visits := 1
 	if PlayerProfile.has_method("record_level_visit"):
@@ -4845,6 +5019,25 @@ func _on_dialogue_node_approached() -> void:
 		# the re-arm a player turned away once has lost the fork for the rest of the run.
 		if dialogue_node != null and dialogue_node.has_method("rearm"):
 			dialogue_node.call("rearm")
+		return
+	await _until_she_can_listen()
+	if not is_inside_tree():
+		return
+	# ⚠ ITS OPENING LINE, ITS WAYS THROUGH, THEN THE QUESTION, AND NEVER TWO AT ONCE. At Payyo's
+	# gorge the fork's box and the arrival's box begin at the same x, so the question and seven
+	# lines of Lolo opened on one frame, in whichever order the physics server reported them.
+	# Fork first, and the lines ran under the question and the key turning their pages answered
+	# it: the route was committed by reading. Arrival first, and opening the question would have
+	# ended the conversation unread. Each is said once, so the second pass through here (after
+	# they are read) goes straight to the question.
+	var setting_up := _dialogue_node_obstacle_id()
+	if not setting_up.is_empty() and script_lines != null:
+		_speak_on_arrival(_arrival_hook(setting_up))
+		_speak_on_arrival("%s.teach" % setting_up)
+	if dialogue_box != null and dialogue_box.is_open():
+		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
+			dialogue_box.conversation_finished.connect(_on_dialogue_node_approached,
+				CONNECT_ONE_SHOT)
 		return
 	if lolo != null and is_instance_valid(lolo):
 		lolo.hush()

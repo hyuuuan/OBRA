@@ -12,14 +12,13 @@ extends Node2D
 ## here as code -- no collision shape is ever built -- and asserted in run_level1_audit
 ## rather than left to whoever edits the scene next.
 ##
-## The only thing it does is make Lolo speak, once, if the player comes close: "Do not.
+## The only thing it does is make Lolo speak, once, if the player stays close: "Do not.
 ## Those are not decoration, and they are not yours." That is a refusal, not a hint, and it
 ## unlocks nothing.
 
 signal approached()
 
-## How near the player has to come before Lolo says anything. Generous -- the line is
-## meant to land as they walk up to it, not as they collide with it.
+## How near the player has to stay before Lolo says anything. See LINGER.
 @export var notice_radius := 96.0
 
 var _spoken := false
@@ -28,6 +27,7 @@ var _sensor: Area2D
 
 func _ready() -> void:
 	add_to_group(&"bulul")
+	set_physics_process(false)
 	_build_figure()
 	_build_sensor()
 
@@ -107,13 +107,40 @@ func _build_sensor() -> void:
 	_sensor.body_entered.connect(_on_body_entered)
 
 
+## ⚠ LINGERING, NOT PASSING. The line is Lolo telling her not to touch, and it fired on anybody
+## walking up to the house: "Do not." with her hands at her sides, on top of his first words
+## about the house, which took the advice off the bar a third of a second after it went up.
+const LINGER := 1.2
+var _someone_near := 0.0
+
+
 func _on_body_entered(body: Node) -> void:
-	if _spoken:
+	if _spoken or not _is_a_person(body):
 		return
+	set_physics_process(true)
+
+
+func _is_a_person(body: Node) -> bool:
 	var node := body as Node
 	while node != null:
 		if node.is_in_group(&"player_character"):
-			_spoken = true
-			approached.emit()
-			return
+			return true
 		node = node.get_parent()
+	return false
+
+
+func _physics_process(delta: float) -> void:
+	var near := false
+	for body in _sensor.get_overlapping_bodies():
+		if _is_a_person(body):
+			near = true
+			break
+	if not near:
+		_someone_near = 0.0
+		set_physics_process(false)
+		return
+	_someone_near += delta
+	if _someone_near >= LINGER:
+		_spoken = true
+		set_physics_process(false)
+		approached.emit()

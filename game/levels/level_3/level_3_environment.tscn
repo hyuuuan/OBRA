@@ -271,6 +271,7 @@ trigger_size = Vector2(1250.0, 420.0)
 position = Vector2(1250.0, 420.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L3_N1"
+story_sign_offset = 800.0
 trigger_size = Vector2(1100.0, 420.0)
 checkpoint_mark_offset = -1000.0
 

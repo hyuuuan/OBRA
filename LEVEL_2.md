@@ -16,6 +16,16 @@ what is left. The superseded provisional design is folded away at the bottom.
 
 ---
 
+
+> **What the plaza says, in order (2026-11-06).** The opening and its two rules, then at the fork:
+> `L2_N1.enter`, its three ways (`kind: lore`), the question. The volume begins ten pixels from
+> where she wakes, so `.enter` used to fire on her first step and its ways were gone the same frame.
+> The dancers' warning waits for the plaza to have been introduced and is not said to somebody who
+> chose another way (`_warn_about_the_dancers`). The doors are asides (`HintBar.interject`), so
+> walking past one no longer costs the two rules. Alleys: `.enter`, `.teach`, question, at the fork.
+> ⚠ `Signpost2D._yield_if_crowded` compared only x, and the two alleys are stacked rooms: the second
+> had no boards at all.
+
 ## What the first playthrough found
 
 The suites were green and the level was not finished. Every one of these passed

@@ -34,9 +34,12 @@ signal player_arrived(obstacle_id: String)
 ## one. Narrowing the trigger to fix that is the trade nobody wants -- it takes the strip
 ## and the hints away from the ground the puzzle is solved from.
 ##
-## Two boxes, then. This one is a child Area2D centred on the STORY BOARD, because the
-## board is already planted where the story fires (see story_sign_offset) and a second
-## number for the same place is a second number to keep in sync.
+## Two boxes, then. This one is a child Area2D, placed by announce_offset.
+##
+## ⚠ THE BOARD DOES NOT FOLLOW IT. A board says "something is said here" (Signpost2D), and this
+## box and story_sign_offset are two numbers for one place: keep them within the board's reading
+## range of each other. Apart, she walks past a sign and nothing happens, and then something does
+## somewhere else. run_line_timing_probe holds it for every beat in the game.
 @export var announce_size := Vector2.ZERO
 ## WHERE IT STANDS, measured from the middle of the trigger -- the same frame of reference
 ## hint_sign_offset uses, and deliberately NOT the leading-edge one story_sign_offset uses.
@@ -163,6 +166,18 @@ func _build_announce_volume() -> void:
 
 
 var _announced := false
+
+
+## Whether somebody standing at `x` has the arrival still to reach. Not once it has been reported,
+## and not from beyond its box: a body put down there, or coming back from the far side, may never
+## cross it, and whoever waits on it must not wait for good.
+func arrival_is_ahead_of(x: float) -> bool:
+	if _announced or announce_size == Vector2.ZERO:
+		return false
+	var inner := get_node_or_null(^"AnnounceVolume") as Node2D
+	if inner == null:
+		return false
+	return x <= inner.global_position.x + minf(announce_size.x, trigger_size.x) * 0.5
 
 
 func _on_announce_entered(body: Node) -> void:

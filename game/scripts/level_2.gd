@@ -454,6 +454,8 @@ func _build_the_dance_screen() -> void:
 
 
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	if obstacle_id == "L2_N1" and route == "protector":
+		_warn_about_the_dancers()
 	if obstacle_id != "L2_N1" or route != "artist" or dance_screen == null:
 		return
 	# FIRST THE DANCERS, THEN THE PUZZLE. Restart their authored three-frame phrase and wait
@@ -510,7 +512,28 @@ func _bring_out_the_dancers() -> void:
 ## signal to arrive BEFORE the commit, and this fires off the dancers' own approach volume
 ## rather than off the choice screen -- so it is said about the people it is about, while the
 ## player is looking at them.
+##
+## ⚠ BUT NOT BEFORE THE PLAZA HAS BEEN INTRODUCED, AND NOT TO SOMEBODY DOING SOMETHING ELSE. The
+## volume begins almost at her feet, so "If you do this they will not come back" was the first
+## thing the level said to somebody who had taken one step and been asked to do nothing. It waits
+## for the fork to have said what they are; a player who chose to clear them, and is still among
+## them, hears it then, with the deed still ahead of them.
 func _on_dancers_noticed(_text: String) -> void:
+	_among_the_dancers = true
+	_warn_about_the_dancers()
+
+
+func _warn_about_the_dancers() -> void:
+	if not _among_the_dancers:
+		return
+	if not script_lines.has_heard("L2_N1.enter"):
+		# They only tell once, and this was not it: the next time she comes up to them can be.
+		if dancers != null:
+			dancers.forget_telling()
+		return
+	var route: String = director.committed_route("L2_N1")
+	if not route.is_empty() and route != "protector":
+		return
 	var lines := script_lines.fire("L2_N1.protector.warn")
 	# Remember which of them is the HINT, because that is the one that lands on the bar and
 	# the one walking away should take back down. The rest is a story beat and dismisses
@@ -529,6 +552,7 @@ func _on_dancers_noticed(_text: String) -> void:
 ## about to do. Cleared only if the bar is still saying it, because one channel carries
 ## several voices and taking down somebody else's message is worse than leaving this one up.
 func _on_dancers_notice_left() -> void:
+	_among_the_dancers = false
 	if hint_bar == null or _warning.is_empty():
 		return
 	if hint_bar.current_text() == _warning:
@@ -718,6 +742,26 @@ func _wire_dialogue_node() -> void:
 		alley.fork.route_chosen.connect(_on_route_chosen)
 
 
+## Standing in the dancers' notice. See `_on_dancers_noticed`.
+var _among_the_dancers := false
+
+
+## ⚠ THE PLAZA'S OPENING LINE WAITS FOR ITS FORK. Its volume begins ten pixels from where she
+## wakes, so "The church first" was said on her first step, straight after the level's own
+## opening, and its three ways were gone the same frame. Both are said at the fork now, just
+## before the question they introduce -- as Dagat's crossing does.
+func _on_obstacle_arrived(obstacle_id: String) -> void:
+	if obstacle_id == "L2_N1":
+		return
+	super._on_obstacle_arrived(obstacle_id)
+
+
+## Every beat in Piyesta is a fork, and `_dialogue_node_obstacle_id()` answers for whichever is
+## live, not for the one being entered.
+func _teaches_on_entering(_obstacle_id: String) -> bool:
+	return false
+
+
 ## A FORK IS APPROACHED. The base's handler reads `dialogue_node` and
 ## `_dialogue_node_obstacle_id()`, so both are pointed at this one before it runs.
 func _on_fork_approached(fork: DialogueNode2D, obstacle_id: String) -> void:
@@ -732,6 +776,7 @@ func _on_fork_approached(fork: DialogueNode2D, obstacle_id: String) -> void:
 		# four verbs -- and Lolo's arrival is said first, and the choice waits for him.
 		director.enter_obstacle(obstacle_id)
 		_speak_on_arrival("%s.enter" % obstacle_id)
+		_speak_on_arrival("%s.teach" % obstacle_id)
 	# The choice after the conversation that sets it up, never over it.
 	if dialogue_box != null and dialogue_box.is_open():
 		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
@@ -1232,10 +1277,11 @@ func _on_at_door(standing: bool, door: PiyestaDoor2D) -> void:
 	if not standing:
 		# Only if the bar is still saying what this door put there -- one channel carries
 		# several voices, and clearing unconditionally takes somebody else's message with it.
-		if hint_bar.current_text() == door.prompt():
-			hint_bar.clear()
+		hint_bar.take_down(door.prompt())
 		return
-	hint_bar.show_hint(door.prompt(), Lolo.SPEAKER)
+	# An aside. The plaza's two rules are going up as she takes her first steps past these doors,
+	# and a door replacing them replaced them for good.
+	hint_bar.interject(door.prompt(), Lolo.SPEAKER, 0.0)
 
 
 ## E at an open door. Tried between a placed drawing and a signpost, which is where the base

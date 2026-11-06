@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 64
+const CHECKS := 67
 
 
 func _initialize() -> void:
@@ -83,6 +83,7 @@ func _run() -> void:
 	await _frames(3)
 	level = await _open_level()
 	await _the_oil_is_asked_for_when_the_lamp_is_low()
+	await _a_slots_words_speak_over_advice_that_has_been_read()
 	await _a_press_that_does_nothing_says_why()
 	level.queue_free()
 	await _frames(3)
@@ -912,6 +913,32 @@ func _the_oil_is_asked_for_when_the_lamp_is_low() -> void:
 		"full %s, low %s, said \"%s\", then \"%s\"" % [at_full, low, said, again])
 
 
+## Advice stands through its beat, so a slot's words cannot wait for an empty bar: the chip said Now
+## and no words came. They wait for it to be read, and it comes back after them. Run straight after
+## the oil's check: the lamp is still low.
+func _a_slots_words_speak_over_advice_that_has_been_read() -> void:
+	var slot := (level.get("satchel") as Satchel).slots().find("langis")
+	var hints := level.get("hint_bar") as HintBar
+	var advice := "Advice that stands until its beat is over."
+	var words := "The lamp is low. %s pours the oil." % _key_on(slot)
+	await _quiet()
+	hints.show_beat([{"text": advice, "speaker": "Apo"}])
+	(level.get("_moments_told") as Dictionary).clear()
+	await _frames(20)
+	var while_read := _said()
+	var began := Time.get_ticks_msec()
+	while _said() != words and Time.get_ticks_msec() - began < 8000:
+		await _frames(1)
+	var then := _said()
+	while _said() != advice and Time.get_ticks_msec() - began < 16000:
+		await _frames(1)
+	var after := _said()
+	_check(while_read == advice, "a slot's words wait while advice is being read", "\"%s\"" % while_read)
+	_check(then == words, "and speak once it has been read, though it still stands", "\"%s\"" % then)
+	_check(after == advice, "and the advice comes back after them", "\"%s\"" % after)
+	await _quiet()
+
+
 func _key_on(slot: int) -> String:
 	return String(level.call("_slot_key", slot))
 
@@ -969,7 +996,7 @@ func _a_candle_is_a_light() -> void:
 	await _quiet()
 	await _stand_her_at(6800.0)
 	var chip_at_sigbin := bool(level.call("_wanted_now", "kandila"))
-	# Past the arrival's line, which takes down any hint it finds: the words are still there to read.
+	# Past the arrival's line: the words come after it, and are still there to read.
 	await _frames(45)
 	var told_at_sigbin := _said()
 	level.call("use_quick_slot", slot)

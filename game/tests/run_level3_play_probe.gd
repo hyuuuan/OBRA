@@ -165,8 +165,13 @@ func _boat(director) -> void:
 	await _drain_dialogue("boat")
 	_check(int(director.call("stage", "L3_N1")) == 1 and _objective_key() == "drag_the_boat_now",
 		"a strong shape is accepted, and the line says E (boat)", "key '%s'" % _objective_key())
+	# Lolo lets the advice up be read first, so this is a wait and not a moment.
+	var waited := 0.0
+	while tutorial != null and not bool(tutorial.call("has_taught", "drain")) and waited < 10.0:
+		await _wait(0.1)
+		waited += 0.1
 	_check(tutorial != null and bool(tutorial.call("has_taught", "drain")),
-		"and the first shape held teaches the drain (boat)", "that bar is your ink now")
+		"and the first shape held teaches the drain (boat)", "that bar is your ink now, %.1f s on" % waited)
 	# Half buried or not, E does the whole job, so it says the one thing.
 	_check(String((level.call("_level_interact_offer") as Dictionary).get("verb", "")) == "DRAG IN",
 		"and E over the hull now says it drags it in (boat)", "the prompt changes with the body")

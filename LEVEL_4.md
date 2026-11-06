@@ -246,6 +246,12 @@ What the build does that the design above does not say, and what it does not do 
   her, and the first salt lies past it so nothing takes the hint bar from that.
 - **No "?" boards.** They promised Lolo's help, and stood on the creature; every beat keeps its
   story board at its approach (`LevelObstacle2D.plants_hint_sign`).
+- **A beat speaks as its subject comes into the lamp**, within about 400 px of it (`announce_offset`,
+  with the board beside it). The volumes are as wide as the encounters and the lines fired at their
+  leading edge: "A mound on the path" 600 px out in the dark, and the bestiary page with it.
+- **"This is the same rock. I have passed it three times now" is said when she has**, the second
+  time she is led back (`_arrival_hook`, `LED_BACK_TO_NOTICE`). It was the tikbalang's arrival, so
+  it played on the first approach.
 - **A clearing is saved as she walks in**; its lantern stands where the light is made and her light
   lights it (`CheckpointArea2D.lights_on_entry`), with the lamp filled and a curse lifted.
 - **The mound is asked from its foot** (56 px), where a jump from standing clears it.
@@ -284,7 +290,8 @@ Kent: "not that clear to use and when to use"; "start off as a moon and then slo
 
 - **Each thing says what, which key and when.** On finding it (`found`), on its slot for as long as
   she carries it (`does`), and at its moment: `level_4.gd` `_wanted_now` asks every tick what would
-  help now, and that slot wears a Now chip. Advice only; no press changes.
+  help now, and that slot wears a Now chip. Advice only; no press changes. The words wait for what
+  is up to be read and speak as an aside, so advice standing through a beat comes back after them.
 - **Everything lying in the woods has a slot.** Only the whip, which drops late in the night, can find
   all five held: it then says so, stands on the bar with no key and takes the next slot spent.
 - **A press that does nothing says why**: oil on a full lamp, a slot with none left, ash with nothing

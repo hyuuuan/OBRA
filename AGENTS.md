@@ -107,7 +107,8 @@ back out of reach without anything noticing.
 every time the player crosses back into a trigger, and Level 1's triggers are wide on
 purpose. `_speak_on_arrival` was given a memory for this; `_speak_current_stage` was not, so
 the half of the dialogue that TEACHES kept re-teaching after the beat was solved. Both are
-guarded now, and `DialogueScript.lines_spoken()` exists so a test can tell.
+guarded now, and `DialogueScript.lines_spoken()` exists so a test can tell. `.teach` was still
+unguarded until 2026-11: it replayed over a solved or answered beat. `_advise_the_beat` holds it.
 
 ⚠ **`heard_count()` WAS A VACUOUS ASSERTION AND IT CERTIFIED THE BUG.** `_heard` is a set of
 hook NAMES, so firing the same hook twice cannot change its size; the probe passed with the
@@ -131,6 +132,12 @@ used for facing.
 re-measuring: both cuts now land at the HANDS (the widest thing in frame) and on a 215px
 source, which is what keeps the two speakers' pixels the same size as each other's.
 
+⚠ **`set_auto_dismiss` CANNOT SEE TIMING.** It reads every line away on the frame it begins, so
+no probe could tell that Payyo's fork and its seven-line arrival opened on one frame, that the
+page-turn key committed the route, or that `L1_N2.teach` stood for 0.3 s. `run_line_timing_probe`
+walks with held keys and turns pages with the key; a change to when anything speaks belongs there.
+The rules it holds are in **LEVEL_TEMPLATE.md**, "When the game speaks".
+
 ⚠ **A THING THAT WORKS AND NEVER SAYS SO IS A THING THAT DOES NOT WORK.** Three separate
 player reports this session were all this shape, and none of them was a broken mechanism:
 the key found in the hay opened Ang Bale and the sentence saying so was starved off the hint
@@ -138,7 +145,7 @@ bar by a standing hint; the ladder climbed but only after E, which is the pick-u
 pressing it pocketed the ladder; the Protector scare emptied the plaza in data while the
 dancers were painted into the backdrop. **Check what the player is told, not only what the
 code does** — and prefer a channel that cannot be starved (`hint_bar.is_showing()` is a
-yield, and a standing hint never clears).
+yield, and a standing hint stands until its beat ends: `_retire_beat_advice`).
 
 ⚠ **PRESS WHAT A PLAYER PRESSES.** `run_behaviour_audit`'s ladder rows called `interact()`
 directly, so they proved the ladder attaches when told to attach — which is not the thing
@@ -178,8 +185,8 @@ lesson, read off `controls.json`, so a new control fails until it is taught; `pa
 `skip_tutorial` is printed on every card. Outside Level 1 a card must be on `NECESSARY_CARDS`, each
 with the reason Level 1 cannot be where it is taught: Dagat's `new_brush` and `jars`, Dilim's `lamp`
 and `swing`. Piyesta and Mayon teach nothing of their own. Anything else a later level says is a
-`say` line on the hint bar. ⚠ **A line on the bar waits for the bar and Lolo is on it for most of
-Dagat, so nothing the player cannot do without may live only there.** That is why `jars` is a card
+`say` line on the hint bar. ⚠ **A line on the bar waits for what is up to be read and Lolo is on it
+for most of Dagat, so nothing the player cannot do without may live only there.** That is why `jars` is a card
 and why `new_brush` now states the whole ink rule.
 
 **A ROUTE CAN MISS A LESSON, AND THE LESSON IS OWED.** Most of Level 1's lessons wait for the player

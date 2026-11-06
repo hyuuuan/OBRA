@@ -686,6 +686,10 @@ func _drop_the_bestiary() -> void:
 	plane.add_child(page)
 
 
+func _arrival_hook(obstacle_id: String) -> String:
+	return "" if obstacle_id == "L4_TIKBALANG" else super._arrival_hook(obstacle_id)
+
+
 func _diary_page_on_arrival(obstacle_id: String) -> Dictionary:
 	if not BESTIARY_PAGES.has(obstacle_id):
 		return {}
@@ -1266,9 +1270,8 @@ const CANDLE_LIGHTS_WITHIN := 120.0
 const DARK_ENOUGH := 0.5
 
 ## ⚠ THE WORDS WAIT A MOMENT; THE CHIP DOES NOT. Stepping into a beat is also when its story line goes
-## up, and that takes any hint down with it: said on the same tick, a moment was marked told and
-## never read. This much play first, and the arrival has been and gone. The tree stops for a line, so
-## this does not count while one is up. The ash does not wait: its moment is a second long.
+## up. This much play first, and the words come after it and not under it. The tree stops for a line,
+## so this does not count while one is up. The ash does not wait: its moment is a second long.
 const MOMENT_AFTER := 0.5
 var _wanted_for: Dictionary = {}
 
@@ -1396,18 +1399,22 @@ func _whip_would_reach() -> bool:
 	return false
 
 
-## The first time, with its key, over her head where she is looking. Waits for the bar to be free,
-## but for the ash: the Now chip is up meanwhile. A candle has two moments, and each is said once.
+## The first time, with its key, over her head where she is looking. Waits for what is up to be
+## read, but for the ash: the Now chip is up meanwhile. A candle has two moments, and each is said
+## once.
+##
+## ⚠ NOT FOR AN EMPTY BAR. Advice stands through its beat and a wave's brief through its wave, so the
+## chip said Now and the words waited for the beat to end. Said as an aside, what was up comes back.
 func _tell_the_moment(id: String, index: int) -> void:
 	if hint_bar == null:
 		return
 	var row := satchel.row(id)
 	var said := String(row.get("moment_answers" if _candle_would_answer() and row.has("moment_answers") else "moment", ""))
 	if said.is_empty() or _moments_told.has(said) \
-			or (hint_bar.is_showing() and String(row.get("use", "")) != "dust"):
+			or (hint_bar.is_being_read() and String(row.get("use", "")) != "dust"):
 		return
 	_moments_told[said] = true
-	hint_bar.show_hint(said.replace("{key}", _slot_key(index)), _companion_speaker(), MOMENT_SECONDS)
+	hint_bar.interject(said.replace("{key}", _slot_key(index)), _companion_speaker(), MOMENT_SECONDS)
 
 
 const MOMENT_SECONDS := 5.0
@@ -1753,6 +1760,11 @@ const LED_BACK_TO := 8350.0
 const RACE_REACH := 150.0
 
 var _tikbalang: Tikbalang2D
+## ⚠ "THIS IS THE SAME ROCK. I HAVE PASSED IT THREE TIMES NOW." was its arrival line, so it was said
+## on the first approach, before she had passed anything. It is said when it is true: past it once
+## on the way in, and twice more led back. See `_arrival_hook`.
+const LED_BACK_TO_NOTICE := 2
+var _times_led_back := 0
 ## Where she was last tick, and the most a tick of her own going could carry her.
 var _her_last_x := INF
 const CROSSING_STEP := 120.0
@@ -1770,7 +1782,11 @@ func _lead_her_round() -> void:
 		return
 	_put_her_back_at_the_rock()
 	_her_last_x = PlayerHurtbox2D.middle_of(player).x
-	_speak(script_lines.fire("L4_TIKBALANG.led_back"))
+	_times_led_back += 1
+	if _times_led_back == LED_BACK_TO_NOTICE:
+		_speak_on_arrival("L4_TIKBALANG.enter")
+	else:
+		_speak(script_lines.fire("L4_TIKBALANG.led_back"))
 
 
 func _put_her_back_at_the_rock() -> void:

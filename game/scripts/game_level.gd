@@ -19,6 +19,8 @@ var _bale_return := Vector2.ZERO
 var _straw_return := Vector2.ZERO
 ## Whether she is standing in the heap's doorway, and so whether Down means "go in".
 var _at_straw_mouth := false
+## What the mouth of the heap last put on the bar, so leaving it takes down only that.
+var _straw_prompt := ""
 ## The "press E to read" prompt while it is up, so the hint bar is written to on the frame
 ## it changes rather than on every frame the player stands still -- and so it can be taken
 ## down again only while it is still the thing on the bar.
@@ -212,16 +214,20 @@ func _on_straw_mouth(standing: bool) -> void:
 	if hint_bar == null:
 		return
 	if not standing:
-		hint_bar.clear()
+		# ⚠ ONLY ITS OWN WORDS. There are three heaps along the beat, and walking off one took
+		# whatever was on the bar with it: Lolo's three ways, if they had got that far.
+		hint_bar.take_down(_straw_prompt)
+		_straw_prompt = ""
 		return
 	if _fits_through_the_straw():
-		hint_bar.show_hint("There is a way in under the straw  —  press %s"
-			% ControlsKeys.keys_for("interact"))
-		return
-	# The requirement, in the same words the strip and the route buttons use, so the heap
-	# cannot describe itself differently from everything else that asks for something.
-	hint_bar.show_hint("There is a way in under the straw, and you are too big for it.  %s"
-		% RequirementStrip.phrase([BURROW_TAG]).replace("\n", "  —  "))
+		_straw_prompt = "There is a way in under the straw  —  press %s" \
+			% ControlsKeys.keys_for("interact")
+	else:
+		# The requirement, in the same words the strip and the route buttons use, so the heap
+		# cannot describe itself differently from everything else that asks for something.
+		_straw_prompt = "There is a way in under the straw, and you are too big for it.  %s" \
+			% RequirementStrip.phrase([BURROW_TAG]).replace("\n", "  —  ")
+	hint_bar.interject(_straw_prompt, "", 0.0)
 
 
 ## Ducking into the heap, which is the only place in Level 1 with an inside -- and the

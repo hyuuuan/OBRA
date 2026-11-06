@@ -395,8 +395,9 @@ func _show(lesson: Dictionary) -> void:
 	var id := String(lesson["id"])
 	_seen[id] = "shown"
 	if _mode_of(lesson) == "say":
-		if _hint_bar != null and _hint_bar.has_method("show_hint"):
-			_hint_bar.call("show_hint", resolve(lesson), String(lesson.get("speaker", "Lolo")),
+		# In passing, because what it speaks over is still true: the advice comes back after him.
+		if _hint_bar != null and _hint_bar.has_method("interject"):
+			_hint_bar.call("interject", resolve(lesson), String(lesson.get("speaker", "Lolo")),
 				float(lesson.get("seconds", 6.0)))
 		_gap = GAP_AFTER
 		lesson_taught.emit(id)
@@ -449,13 +450,22 @@ func _coast_is_clear(lesson: Dictionary) -> bool:
 			return false
 	# Nor while the letterbox is in. It frames a beat and carries its own caption -- at a
 	# checkpoint, "Checkpoint" in the lower bar -- and a card over it was two things to read.
+	#
+	# ⚠ A CARD. LOLO'S LEAD IS SAID NOW. The bars do not stop her, so "A lantern!" waited two
+	# seconds and was said 480 px past the lantern, about something behind her. The line stops
+	# the world where she stands; its card still waits for the bars.
+	var about_to_speak := not lead_of(lesson).is_empty() and not _led.has(String(lesson.get("id", "")))
 	for bars in get_tree().get_nodes_in_group(CinematicBars.GROUP):
-		if bars.has_method(&"is_playing") and bool(bars.call(&"is_playing")):
+		if not about_to_speak and bars.has_method(&"is_playing") and bool(bars.call(&"is_playing")):
 			return false
-	# Lolo's own line waits for the bar to be free: the advice about the obstacle in front of
+	# Lolo's own line waits for what is up to be read: the advice about the obstacle in front of
 	# the player outranks him remarking on the interface.
-	if _mode_of(lesson) == "say" and _hint_bar != null and _hint_bar.has_method(&"is_showing") \
-			and bool(_hint_bar.call(&"is_showing")):
+	#
+	# ⚠ READ, NOT GONE. Advice stands until its beat ends, so waiting for an empty bar meant
+	# "That bar is your ink now" was not said while the bangka's advice stood, which is the whole
+	# time she holds the shape it is about.
+	if _mode_of(lesson) == "say" and _hint_bar != null and _hint_bar.has_method(&"is_being_read") \
+			and bool(_hint_bar.call(&"is_being_read")):
 		return false
 	return true
 
