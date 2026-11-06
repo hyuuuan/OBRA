@@ -13,7 +13,7 @@ extends SceneTree
 ## The list of what it found is in LEVEL_TEMPLATE.md, "When the game speaks".
 
 ## Every check this probe makes, so a crash part-way cannot print OK.
-const CHECKS := 46
+const CHECKS := 52
 
 const LEVELS := {
 	"level_1": "res://game_level.tscn",
@@ -661,6 +661,58 @@ func _an_aside_gives_the_bar_back() -> void:
 	await _wait(0.5)
 	_check(bar.current_text() == "Something he is saying.", "a prompt she has left does not come back later",
 		bar.current_text().left(40))
+	bar.clear()
+	await _wait(0.3)
+	await _a_remark_lets_advice_be_read()
+
+
+## LOLO'S REMARKS AND A BEAT'S ADVICE SHARE ONE BAR, and the advice now stands as long as its beat.
+func _a_remark_lets_advice_be_read() -> void:
+	var tutorial = level.get("tutorial")
+	var remark := {"id": "probe_remark", "mode": "say", "speaker": "Lolo", "seconds": 0.5,
+		"text": "A remark about the interface."}
+	while bars != null and bool(bars.call("is_playing")):
+		await process_frame
+	bar.show_beat(["Draw something for this wall."], "Lolo")
+	_check(not bool(tutorial.call("_coast_is_clear", remark)),
+		"a remark waits while the advice is still being read", bar.current_text())
+	var waited := 0.0
+	while waited < 6.0 and not bool(tutorial.call("_coast_is_clear", remark)):
+		await process_frame
+		waited += root.get_process_delta_time()
+	_check(waited < 6.0 and bar.current_text() == "Draw something for this wall.",
+		"and speaks once it has been read, though it still stands", "after %.1f s" % waited)
+	tutorial.call("_show", remark)
+	var over := bar.current_text()
+	await _wait(0.8)
+	_check(over == "A remark about the interface." and bar.current_text() == "Draw something for this wall.",
+		"and the advice comes back after him", "%s, then %s" % [over.left(20), bar.current_text().left(20)])
+	# New advice arrives while he is part-way through. Remarks are spent as they go up.
+	var long_remark := "A remark she is part-way through reading, and long enough for it."
+	bar.interject(long_remark, "Lolo", 6.0)
+	await _wait(0.2)
+	bar.show_beat(["Advice for the next step."], "Lolo")
+	_check(bar.current_text() == long_remark, "advice that comes under a remark waits for it to be read",
+		bar.current_text().left(40))
+	waited = 0.0
+	while waited < 7.0 and bar.current_text() == long_remark:
+		await process_frame
+		waited += root.get_process_delta_time()
+	_check(bar.current_text() == "Advice for the next step." and waited < 4.5,
+		"and takes the bar then, not after his whole time", "%.1f s of 6" % waited)
+	# Her beat ends while Lolo is talking over its advice.
+	bar.clear()
+	await _wait(0.3)
+	var ended := "Advice for a beat she is leaving."
+	(level.get("_beat_advice") as Array).append(ended)
+	bar.show_beat([ended], "Lolo")
+	await _wait(0.1)
+	bar.interject("A remark over it.", "Lolo", 0.3)
+	await _wait(0.1)
+	level.call("_retire_beat_advice")
+	await _wait(0.5)
+	_check(bar.current_text() != ended, "advice retired under a remark does not come back",
+		"bar: '%s'" % bar.current_text().left(40))
 	bar.clear()
 
 
