@@ -31,10 +31,15 @@ class MayonJourneyArtTests(unittest.TestCase):
                 self.assertEqual(bounds,(0,0,image.width,image.height))
 
     def test_waterfall_has_a_scenery_silhouette(self):
-        with Image.open(ROOT/"game/assets/Level5/journey/waterfall.png") as image:
-            self.assertEqual(image.getpixel((0,0))[3],0)
-            self.assertEqual(image.getpixel((image.width-1,0))[3],0)
-            self.assertEqual(image.getpixel((image.width//2,image.height//2))[3],255)
+        data = json.loads((ROOT/"game/config/level_05.json").read_text())
+        waterfall = next(memory for memory in data["memories"] if memory["id"] == "waterfall")
+        self.assertEqual(waterfall["landmark_art"], waterfall["summit_art"])
+        with Image.open(ROOT/"game"/waterfall["landmark_art"].removeprefix("res://")) as image:
+            alpha = image.getchannel("A")
+            self.assertEqual(alpha.getpixel((0, 0)), 0)
+            self.assertEqual(alpha.getpixel((image.width - 1, 0)), 0)
+            self.assertGreater(alpha.getpixel((image.width // 2, image.height // 2)), 248)
+            self.assertGreater(alpha.crop((0, image.height - 1, image.width, image.height)).getextrema()[1], 128)
 
     def test_itinerary_and_preservation_ids_are_stable(self):
         data=json.loads((ROOT/"game/config/level_05.json").read_text())

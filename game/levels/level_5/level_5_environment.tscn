@@ -10,23 +10,23 @@
 [ext_resource type="Script" path="res://scripts/mayon_terrain_2d.gd" id="8_terrain"]
 [ext_resource type="Script" path="res://scripts/lola_2d.gd" id="10_lola"]
 [ext_resource type="Script" path="res://scripts/wind_streaks_2d.gd" id="11_wind"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/bell_tower.png" id="p_bell_tower"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/palm.png" id="p_palm"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/palm_short.png" id="p_palm_short"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/rock_big.png" id="p_rock_big"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/rock_low.png" id="p_rock_low"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/bell_tower.png" id="p_bell_tower"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/palm.png" id="p_palm"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/palm_short.png" id="p_palm_short"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/rock_big.png" id="p_rock_big"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/rock_low.png" id="p_rock_low"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/fern.png" id="p_fern"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/flowers_white.png" id="p_flowers_white"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/ruin_pillar.png" id="p_ruin_pillar"]
 
 [ext_resource type="Texture2D" path="res://assets/Level5/props/old_crossing.png" id="p_old_crossing"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/old_steps.png" id="p_old_steps"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/basalt_column.png" id="p_basalt_column"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/basalt_column.png" id="p_basalt_column"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/broken_arch.png" id="p_broken_arch"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/tree_broadleaf.png" id="p_tree_broadleaf"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/tree_tall.png" id="p_tree_tall"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/palm_pair.png" id="p_palm_pair"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/ash_snag.png" id="p_ash_snag"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/tree_broadleaf.png" id="p_tree_broadleaf"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/palm_pair.png" id="p_palm_pair"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/treeline_leafy.png" id="p_treeline_leafy"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/ash_snag.png" id="p_ash_snag"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Wall"]
 size = Vector2(40.0, 3000.0)
@@ -53,10 +53,10 @@ script = ExtResource("11_wind")
 ; Behind every band: the sunset's own colour, so a camera past a plate's edge meets more sky.
 [node name="SkyFill" type="Polygon2D" parent="."]
 z_index = -300
-color = Color(0.933, 0.533, 0.247, 1)
+color = Color(0.753, 0.369, 0.251, 1)
 polygon = PackedVector2Array(-3000, -4000, 20000, -4000, 20000, 3000, -3000, 3000)
 
-; The painting stays registered; foothill and forest ribbons scroll at separate depths.
+; The sunset, single cone, and foothill ribbons scroll at separate depths.
 [node name="SkyBand" type="Node2D" parent="."]
 z_index = -100
 script = ExtResource("7_backdrop")
@@ -105,14 +105,14 @@ texture_filter = 1
 position = Vector2(440, 600)
 scale = Vector2(0.68, 0.68)
 modulate = Color(0.74, 0.78, 0.66, 1)
-texture = ExtResource("p_tree_tall")
+texture = ExtResource("p_treeline_leafy")
 offset = Vector2(0, -200)
 flip_h = true
 
 [node name="TowerGrove" type="Sprite2D" parent="GameplayPlane/Dressing"]
 texture_filter = 1
 position = Vector2(1010, 600)
-texture = ExtResource("p_tree_tall")
+texture = ExtResource("p_treeline_leafy")
 offset = Vector2(0, -200)
 
 [node name="FootPalms" type="Sprite2D" parent="GameplayPlane/Dressing"]
@@ -144,7 +144,7 @@ texture_filter = 1
 position = Vector2(2080, 440)
 scale = Vector2(0.68, 0.68)
 modulate = Color(0.83, 0.84, 0.7, 1)
-texture = ExtResource("p_tree_tall")
+texture = ExtResource("p_treeline_leafy")
 offset = Vector2(0, -200)
 flip_h = true
 
@@ -170,7 +170,7 @@ texture_filter = 1
 position = Vector2(3650, 360)
 scale = Vector2(0.73, 0.73)
 modulate = Color(0.74, 0.73, 0.69, 1)
-texture = ExtResource("p_tree_tall")
+texture = ExtResource("p_treeline_leafy")
 offset = Vector2(0, -200)
 flip_h = true
 

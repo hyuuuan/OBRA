@@ -14,6 +14,16 @@ in the collision ground. Lava, embers and smoke are visible below its rim. Enter
 with the player's physics anchor starts the drop; there is no E interaction, death, ink charge
 or health system. Smoke covers the transfer to the first remembered place.
 
+**Mayon's ascent follows the supplied sunset vista.** The visible cone and grass bank use
+pixels from the reference. ImageGen filled the scenery behind the cone and trees and matched
+the bare basalt, ash, cliff caps, and loose rocks to the same palette. The sky, single cone,
+barren ridges, and forest crowns scroll at separate rates. The trees, palms, and Cagsawa tower
+stand on the existing route. The forest gives way to bare ridges as the apo climbs to the crater.
+The broadleaf trees, coconut palms and ash snags use Dilim's stepped outlines and bark in
+Mayon's sunset colours. Each sprite stands on its original anchor, including the palm the ash takes.
+Cagsawa's tower uses the same dark outlines around its silhouette, masonry and arches.
+The [art sources and prompts](LEVEL5_Mayon/authored/mayon_vista_prompts.md) describe the cuts.
+
 | Earlier painting | Short places, in order |
 |---|---|
 | Payyo | Terraces, Ang Tulay, Ang Bale |
@@ -51,10 +61,13 @@ the opening between the storefronts, and the wall continues in whole brick cours
   The preservation bakunawa uses thirteen original swimming frames, on one common
   canvas so its scale and the saved strokes stay registered. The island has a landing, shells,
   palms, passing gulls and an offshore bangka.
-- **Dilim:** the delivered canopy frames the path; ferns, vines and moss surround the landmarks.
-  Fireflies brighten near the apo. Water moves through the waterfall into its mist; that
-  detail fades with the preservation landmark. The canopy opens to warm shafts and butterflies
-  in the dawn clearing, around the existing flower detour.
+- **Dilim:** the forest, waterfall, and dawn share Level 4's current sky, Makiling, canopy,
+  and supplied forest trees. The bands move at Dilim's parallax rates and the moonlit
+  ground kit follows Mayon's existing route and flower footholds. The forest landmark
+  uses Dilim's hollow tree, including when it returns at the summit. Fireflies brighten
+  near the apo. The [pixel-art waterfall](LEVEL5_Mayon/authored/dilim_waterfall.prompt.txt)
+  matches the same vista and keeps its moving water and mist. Warm shafts and butterflies
+  open up the dawn clearing.
 
 `mayon_memory_stage.gd` draws only scenery, light and wildlife. Its clocks run in the mounted
 pair, pause with drawing/dialogue, and hold decorative motion under Reduce Motion. It adds no
