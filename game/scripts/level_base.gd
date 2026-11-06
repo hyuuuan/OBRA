@@ -2380,8 +2380,11 @@ func _tend_beat_advice(delta: float) -> void:
 
 
 func _retire_beat_advice() -> void:
-	if hint_bar != null and _beat_advice.has(hint_bar.current_text()):
-		hint_bar.clear()
+	# ⚠ TAKEN DOWN WHEREVER IT IS. Lolo can be remarking over it, with the advice waiting to come
+	# back, and it would have come back at the far end of the level with nothing left to end it.
+	if hint_bar != null:
+		for line: String in _beat_advice:
+			hint_bar.take_down(line)
 	_beat_advice.clear()
 	_beat_advice_of = ""
 	_beat_advice_orphaned = 0.0
