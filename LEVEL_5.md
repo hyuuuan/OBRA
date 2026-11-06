@@ -51,10 +51,13 @@ the opening between the storefronts, and the wall continues in whole brick cours
   The preservation bakunawa uses thirteen original swimming frames, on one common
   canvas so its scale and the saved strokes stay registered. The island has a landing, shells,
   palms, passing gulls and an offshore bangka.
-- **Dilim:** the delivered canopy frames the path; ferns, vines and moss surround the landmarks.
-  Fireflies brighten near the apo. Water moves through the waterfall into its mist; that
-  detail fades with the preservation landmark. The canopy opens to warm shafts and butterflies
-  in the dawn clearing, around the existing flower detour.
+- **Dilim:** the forest, waterfall, and dawn share Level 4's current sky, Makiling, canopy,
+  and supplied forest trees. The bands move at Dilim's parallax rates and the moonlit
+  ground kit follows Mayon's existing route and flower footholds. The forest landmark
+  uses Dilim's hollow tree, including when it returns at the summit. Fireflies brighten
+  near the apo. The [pixel-art waterfall](LEVEL5_Mayon/authored/dilim_waterfall.prompt.txt)
+  matches the same vista and keeps its moving water and mist. Warm shafts and butterflies
+  open up the dawn clearing.
 
 `mayon_memory_stage.gd` draws only scenery, light and wildlife. Its clocks run in the mounted
 pair, pause with drawing/dialogue, and hold decorative motion under Reduce Motion. It adds no

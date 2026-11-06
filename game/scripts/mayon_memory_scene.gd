@@ -12,6 +12,7 @@ var view_size := Vector2(1600, 900)
 var _textures: Dictionary = {}
 var _ground: Node2D
 var _stage: Node2D
+var _dilim_ground_registered := false
 var staging: Dictionary = {}
 const StageScript = preload("res://scripts/mayon_memory_stage.gd")
 const TERRACE_GROUND := preload("res://shaders/mayon_terrace_ground.gdshader")
@@ -30,9 +31,20 @@ const BACKDROPS := {
  "bale": ["Level5/journey/payyo_sky.png"], "plaza": ["Level5/journey/plaza_sky.png"],
  "church": ["Level5/journey/church_sky.png"], "alley": ["Level5/journey/alley_plate.png"],
  "shore": ["Level5/journey/shore_sky.png"], "sea": ["Level5/journey/sea_sky.png"],
- "island": ["Level5/journey/shore_sky.png"], "forest": ["Level5/journey/forest_sky.png"],
- "waterfall": ["Level5/journey/forest_sky.png"], "dawn": ["Level5/journey/dawn_sky.png"], "summit": [],
+ "island": ["Level5/journey/shore_sky.png"], "summit": [],
 }
+const DILIM_LIGHT := {"forest": 0.22, "waterfall": 0.38, "dawn": 1.0}
+const DILIM_GROUND := "res://assets/Level4/ground_moonlit"
+const DILIM_SKY_EDGE := Color8(1, 119, 225)
+enum DilimRepeat { ONCE, STRAIGHT, MIRROR }
+# Level 4's own plates and sizes, with their tops relative to the remembered walk line.
+# Texture, scale, top, scroll rate, repeat mode.
+const DILIM_BANDS := [
+	["Level4/backdrop_reference/sky.png", Vector2(1, 1.1), -660.0, 0.02, DilimRepeat.MIRROR],
+	["Level4/backdrop_reference/makiling.png", Vector2(1.25, 0.83), -628.0, 0.044, DilimRepeat.ONCE],
+	["Level4/backdrop_reference/canopy.png", Vector2(1, 1.22), -745.0, 0.29, DilimRepeat.MIRROR],
+	["Level4/trees/forest_plate.png", Vector2.ONE, -740.0, 0.62, DilimRepeat.STRAIGHT],
+]
 # Match the registered sky above each plate, including a jump above the painted top.
 const SKY_COLOURS := {
 	"terraces": Color("208dee"),
@@ -43,9 +55,6 @@ const SKY_COLOURS := {
 	"shore": Color("2490f5"),
 	"sea": Color("0498cb"),
 	"island": Color("2490f5"),
-	"forest": Color("1c2739"),
-	"waterfall": Color("1c2739"),
-	"dawn": Color("434646"),
 }
 
 
@@ -75,6 +84,10 @@ func _ready() -> void:
 		plaza.to_x = span + 190.0
 		plaza.wall_extension = _art("Level5/journey/plaza_masonry.png")
 		_ground = plaza
+	elif kind in DILIM_LIGHT:
+		var cliff := CliffDressing2D.new()
+		cliff.kit = DILIM_GROUND
+		_ground = cliff
 	else:
 		_ground = Node2D.new()
 		_ground.draw.connect(_draw_walk_surface)
@@ -108,7 +121,15 @@ func frame(camera: Vector2, extent: Vector2, player_position := Vector2.INF) -> 
 		_stage.set("world_origin",global_position)
 		_stage.set("view_bounds", Rect2(camera - global_position - extent * 0.5, extent).grow(640))
 	queue_redraw()
-	if _ground != null and kind != "plaza":
+	if _ground is CliffDressing2D:
+		# The journey supplies the route and flower ledges after _ready.
+		if not _dilim_ground_registered:
+			var local_ground: Array[Rect2] = []
+			for rect in route + ledges:
+				local_ground.append(Rect2(rect.position - global_position, rect.size))
+			(_ground as CliffDressing2D).dress(local_ground)
+			_dilim_ground_registered = true
+	elif _ground != null and kind != "plaza":
 		_ground.queue_redraw()
 
 
@@ -121,6 +142,9 @@ func _art(path: String) -> Texture2D:
 func _draw() -> void:
 	var eye := camera_position - global_position
 	var bounds := Rect2(eye - view_size * 0.5 - Vector2(200, 200), view_size + Vector2(400, 400))
+	if kind in DILIM_LIGHT:
+		_draw_dilim_backdrop(eye.x, bounds)
+		return
 	var sky: Color = SKY_COLOURS.get(kind,Color("94c7ce"))
 	if kind == "church": sky = Color("6a5140")
 	elif kind == "summit": sky = Color("f4efe4")
@@ -173,14 +197,33 @@ func _draw() -> void:
 	# The island's palms are the stage's now: the surf passes behind them (RememberedLife).
 
 
+func _draw_dilim_backdrop(eye_x: float, bounds: Rect2) -> void:
+	var tint := MakilingBackdrop2D.NIGHT_TINT.lerp(MakilingBackdrop2D.MORNING_TINT, DILIM_LIGHT[kind])
+	draw_rect(bounds, DILIM_SKY_EDGE * tint)
+	var centre := span * 0.5
+	for band in DILIM_BANDS:
+		var texture := _art(band[0])
+		var size: Vector2 = texture.get_size() * band[1]
+		var left: float = centre - size.x * 0.5 + (eye_x - centre) * (1.0 - band[3])
+		var repeat_mode: int = band[4]
+		var first := 0
+		var last := 0
+		if repeat_mode != DilimRepeat.ONCE:
+			first = floori((bounds.position.x - left) / size.x)
+			last = floori((bounds.end.x - left) / size.x)
+		for index in range(first, last + 1):
+			var x := left + index * size.x
+			var mirrored := repeat_mode == DilimRepeat.MIRROR and posmod(index, 2) == 1
+			draw_set_transform(Vector2(x + size.x if mirrored else x, band[2]),
+				0.0, Vector2(-1 if mirrored else 1, 1))
+			draw_texture_rect(texture, Rect2(Vector2.ZERO, size), false, tint)
+	draw_set_transform(Vector2.ZERO)
+
+
 func _draw_walk_surface() -> void:
 	var eye := camera_position - global_position
 	var bounds := Rect2(eye-view_size*.5-Vector2(200,200),view_size+Vector2(400,400))
 	_draw_ground(bounds)
-	if kind == "dawn":
-		var rock := _art("Level5/terrain/basalt.png")
-		for ledge in ledges:
-			_ground.draw_texture_rect(rock,Rect2(ledge.position-global_position,ledge.size),false)
 
 
 func _draw_ground(bounds: Rect2) -> void:
@@ -192,9 +235,6 @@ func _draw_ground(bounds: Rect2) -> void:
 	elif kind in ["shore", "island", "sea"]:
 		surface = "Level3/authored/seabed_floor.png" if kind == "sea" else "Level5/journey/sand_ground.png"
 		ground = Color("a08661")
-	elif kind in ["forest", "waterfall", "dawn"]:
-		surface = "Level4/ground_forest/face.png"
-		ground = Color("35463a")
 	elif kind == "summit":
 		_ground.draw_rect(Rect2(bounds.position.x, 0, bounds.size.x, 1600), Color("ded9cf"))
 		return

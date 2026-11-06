@@ -849,7 +849,8 @@ func _rest_by_the_fire(clearing: String) -> void:
 
 ## Dawn arrives during the second half of the night; hold the finished morning before leaving.
 const MORNING_HOLD := 2.0
-const MORNING_SKY := Color(0.2, 0.58, 0.88, 1.0)
+# Top edge of the sky plate with the backdrop's morning tint applied.
+const MORNING_SKY := Color(0.0039, 0.4573, 0.7941, 1.0)
 var _morning := false
 var _night_sky := Color(0.039, 0.063, 0.141, 1.0)
 var _night_sky_saved := false

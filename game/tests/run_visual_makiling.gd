@@ -1,43 +1,34 @@
-extends SceneTree
-## Look at Dilim's painted world: the Makiling bands and the ground, composed at play framing.
+extends "res://tests/run_visual_dilim_creatures.gd"
+## Look at the live parallax composition at the entrance, a repeat join, the ravine, and the far end.
 ##
-##   godot -t --path game --script res://tests/run_visual_makiling.gd
+##   godot -w --resolution 1600x900 --path game --script res://tests/run_visual_makiling.gd
 ##
-## Windowed. Writes /tmp/obra_makiling.png for a person to look at; run_makiling_probe checks the
-## numbers.
-
-const CAMERA := Vector2(1400.0, 300.0)
-
-
-func _initialize() -> void:
-	call_deferred("_run")
+## Windowed. Writes /tmp/obra_makiling.png and /tmp/obra_makiling_route.png.
 
 
 func _run() -> void:
-	var world := Node2D.new()
-	root.add_child(world)
-	var camera := Camera2D.new()
-	world.add_child(camera)
-	camera.global_position = CAMERA
-	camera.make_current()
-	# Back to front, as EnvironmentBaseplate would sort them by depth.
-	var rows := [["sky", 0.02, -160.0, -10], ["mountain_far", 0.08, -120.0, -9],
-		["mountain_near", 0.18, 10.0, -8], ["ground_far", 0.38, 260.0, -7], ["frame", 1.08, -160.0, 5]]
-	for row in rows:
-		var band := MakilingBackdrop2D.new()
-		band.plate = row[0]
-		band.scroll_scale = row[1]
-		band.plate_top = row[2]
-		band.z_index = row[3]
-		world.add_child(band)
-		band.set_camera_origin(CAMERA)
-	var terrain := MakilingTerrain2D.new()
-	terrain.platforms = [Rect2(0.0, 600.0, 3000.0, 300.0), Rect2(1650.0, 470.0, 260.0, 130.0)]
-	terrain.branches = [Rect2(1100.0, 470.0, 220.0, 18.0)]
-	world.add_child(terrain)
-	for _frame in range(10):
-		await process_frame
-	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png("/tmp/obra_makiling.png")
+	level = (load("res://level_4.tscn") as PackedScene).instantiate()
+	level.get_node("BackendSupervisor").auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(40)
+	var camera := level.get_node("EnvironmentBaseplate/WorldCamera") as WorldCameraController
+	var sheet := Image.create(1600, 900, false, Image.FORMAT_RGBA8)
+	var points := [260.0, 2375.0, 19250.0, 21300.0]
+	for index in range(points.size()):
+		await _put_her(points[index])
+		camera.snap_to_target()
+		level.set_physics_process(false)
+		level.call("_apply_dawn_visuals", 1.0)
+		await RenderingServer.frame_post_draw
+		var shot := root.get_texture().get_image()
+		if index == 0:
+			shot.save_png("/tmp/obra_makiling.png")
+		shot.convert(Image.FORMAT_RGBA8)
+		shot.resize(800, 450, Image.INTERPOLATE_NEAREST)
+		sheet.blit_rect(shot, Rect2i(Vector2i.ZERO, shot.get_size()),
+			Vector2i((index % 2) * 800, (index / 2) * 450))
+		level.set_physics_process(true)
+	sheet.save_png("/tmp/obra_makiling_route.png")
 	print("OBRA_MAKILING_SHOT_DONE")
 	quit(0)
