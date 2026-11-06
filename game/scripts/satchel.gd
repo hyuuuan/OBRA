@@ -9,10 +9,17 @@ extends RefCounted
 ## for a menu. A slot keeps its thing while she has any; once it is spent the slot goes to the next
 ## new kind she picks up, and until then it stays put, empty, so nothing moves under her fingers.
 ##
+## ⚠ FIVE KINDS LIE IN THE WOODS AND THERE ARE FOUR SLOTS. Whoever saves everything -- which is what
+## a first run does -- finds the lamp oil with all four held, and it used to have no key for the rest
+## of the level, with nothing to say so. A kind that finds no slot now WAITS (`waiting`), and the
+## moment one of the four is spent it moves in (`moved_in`), rather than only on another pickup.
+##
 ## Plain data in and out (to_data / from_data): a checkpoint's run state drops any dictionary that
 ## holds an object, so the satchel is saved as counts and slot ids, never as itself.
 
 signal changed
+## A kind that was waiting has been given slot `index`, one of the four having been spent.
+signal moved_in(id: String, index: int)
 
 const CONFIG := "res://config/satchel.json"
 const SLOTS := 4
@@ -71,6 +78,8 @@ func take(id: String) -> bool:
 	if count(id) <= 0:
 		return false
 	_counts[id] = count(id) - 1
+	if count(id) == 0:
+		_hand_on_a_slot(id)
 	changed.emit()
 	return true
 
@@ -82,6 +91,15 @@ func slot_item(index: int) -> String:
 
 func slots() -> Array[String]:
 	return _slots.duplicate()
+
+
+## What she carries that has no slot, and so no key, in the file's order.
+func waiting() -> Array[String]:
+	var out: Array[String] = []
+	for id in ids():
+		if count(id) > 0 and not _slots.has(id):
+			out.append(id)
+	return out
 
 
 func to_data() -> Dictionary:
@@ -116,3 +134,13 @@ func _give_a_slot(id: String) -> void:
 		if count(_slots[index]) <= 0:
 			_slots[index] = id
 			return
+
+
+## The last of `spent` is gone: its slot goes to whatever has been waiting for one.
+func _hand_on_a_slot(spent: String) -> void:
+	var index := _slots.find(spent)
+	var next := waiting()
+	if index < 0 or next.is_empty():
+		return
+	_slots[index] = next[0]
+	moved_in.emit(next[0], index)

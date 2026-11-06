@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 38
+const CHECKS := 39
 
 
 func _initialize() -> void:
@@ -24,6 +24,7 @@ func _run() -> void:
 	_a_stack_stops_at_its_cap()
 	_the_slots_fill_in_pickup_order()
 	_a_spent_slot_goes_to_the_next_new_thing()
+	_a_fifth_kind_waits_then_moves_in()
 	_nothing_is_used_from_nothing()
 	_it_is_kept_as_plain_data()
 	_kept_data_is_held_to_the_file()
@@ -145,6 +146,24 @@ func _a_spent_slot_goes_to_the_next_new_thing() -> void:
 	_check(held == full and satchel.slots() == ["langis", "asin", "kandila", "abo"],
 		"a spent slot stays put, then goes to the next new thing",
 		"spent %s, then %s" % [held, satchel.slots()])
+
+
+## All four held, the fifth has no key -- and takes the first slot spent, at once, not on the next
+## pickup: the lamp oil she found at the second clearing is otherwise never usable.
+func _a_fifth_kind_waits_then_moves_in() -> void:
+	var satchel = SatchelScript.new()
+	for id in ["asin", "kandila", "abo", "bawang", "langis"]:
+		satchel.add(id)
+	var waited: Array[String] = satchel.waiting()
+	set_meta(&"moved_in", [])
+	satchel.moved_in.connect(func(id: String, index: int) -> void:
+		(get_meta(&"moved_in") as Array).append([id, index]))
+	satchel.take("kandila")
+	var said: Array = get_meta(&"moved_in")
+	_check(waited == ["langis"] and satchel.slots() == ["asin", "langis", "abo", "bawang"]
+			and satchel.waiting().is_empty() and said == [["langis", 1]],
+		"a fifth kind waits with no slot, and moves in as soon as one is spent",
+		"waited %s, then %s, said %s" % [waited, satchel.slots(), said])
 
 
 func _nothing_is_used_from_nothing() -> void:
