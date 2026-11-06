@@ -171,6 +171,24 @@ card hands presses to the world, so the button's own `pressed` never saw it. Car
 on a return visit, so a skipped level stays skipped; the next level's lessons still play. A probe
 clicking it headless must send the click in window pixels (`root.get_final_transform()`).
 
+**LEVEL 1 TEACHES THE GAME; A LATER LEVEL ONLY SAYS WHAT IT CHANGES** (Kent: "fix level 1 like
+tutorial part make sure it covers everything and other levels wont have any tutorials if
+necessary"). `run_tutorial_audit` holds both halves. Every control that works in Level 1 has a
+lesson, read off `controls.json`, so a new control fails until it is taught; `pause` stays cut and
+`skip_tutorial` is printed on every card. Outside Level 1 a card must be on `NECESSARY_CARDS`, each
+with the reason Level 1 cannot be where it is taught: Dagat's `new_brush` and `jars`, Dilim's `lamp`
+and `swing`. Piyesta and Mayon teach nothing of their own. Anything else a later level says is a
+`say` line on the hint bar. ⚠ **A line on the bar waits for the bar and Lolo is on it for most of
+Dagat, so nothing the player cannot do without may live only there.** That is why `jars` is a card
+and why `new_brush` now states the whole ink rule.
+
+**A ROUTE CAN MISS A LESSON, AND THE LESSON IS OWED.** Most of Level 1's lessons wait for the player
+to do the thing, and a run can finish it having never become anything. A lesson marked `carries`
+and still unspent when a level ends goes to `PlayerProfile.lessons_owed` (`LevelBase.mark_finished`)
+and is shown once, the first time its moment comes later, without its `lead`: those are Lolo's and
+he has gone by Dilim. A rule that changes later (`undo`, `ink`) must not carry. SKIP TUTORIAL, a
+replay and a save from before this all owe nothing. `run_tutorial_coverage_probe` plays all of it.
+
 ⚠ **`CanvasBriefing` IS THE ONE PLACE THE TUTORIAL MAY STOP THE WORLD**, and it does not
 contradict `TutorialDirector`'s rule against dialogue boxes. That rule is about cost, and
 the panel is already a modal — the world is stopped and the player asked to be shown this

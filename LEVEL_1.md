@@ -603,6 +603,20 @@ home. So the first thing a new player sees is this level's opening, and its orde
    draw, the climb and the lantern, on Terrace 2;
 4. `B0_HAGDAN.enter`, then **Draw** at the wall.
 
+After that, each lesson waits for its moment, and most of them only come if the player does the
+thing (`tutorial.json`). Three come for everyone once the first gate is behind her:
+
+5. the checkpoint, at Ang Hagdan's lantern;
+6. **Quest** (`quest`), which lights the quest card, then **Become** (`become`), six seconds on and
+   before the lake, the first place it can matter. It is spent unshown if she has already become
+   something;
+7. **E** (`interact`), the next time its prompt is up. ⚠ It waits for the checkpoint and it is a
+   `look` card, because E is first offered beside the first drawing she set down, among the lessons
+   about it, and a `do` card there would have her press E and pocket what she was about to climb.
+
+**Fly** and **Swim** come only to a form that can do them, and Swim only once it is in the water.
+A lesson a route never reached is owed to the next level: AGENTS.md has the rule.
+
 ⚠ **The greeting is not said on a first visit** (`_greets_on_first_visit`). It came straight
 after the intro, at the spawn — "press R and draw", the first instruction in the game, with
 nothing in front of her to draw for — and the `draw` lesson's lead says the same thing at the
