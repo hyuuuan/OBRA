@@ -248,7 +248,9 @@ func _the_night_says_what_is_happening() -> void:
 
 
 ## Wings, while there are wings; the ash, while the tik-tik is about and she has ash; and the plain
-## task once neither is true. Asked of what is after her, never of the wave.
+## task once neither is true. Asked of what is after her, never of the wave. And the ash's key is said
+## this time round though the clock already ran through this wave once: the knockout that started the
+## night over cut that telling off, and a line she never read has not been said.
 func _the_banner_goes_with_what_is_after_her() -> void:
 	var banner := level.get("objective_banner") as ObjectiveBanner
 	var satchel := level.get("satchel") as Satchel
@@ -257,16 +259,18 @@ func _the_banner_goes_with_what_is_after_her() -> void:
 		% String(level.call("_slot_key", slots.find("abo")))
 	await _seconds(4.5)
 	_check(heard.has(told), "and as the third wave came she said which key is the ash, and when", "%s" % [heard.slice(-3)])
+	# Asked directly: the card refreshes on a timer, and these are about what it says, not when.
+	level.call("refresh_objective")
 	var words := [banner.text()]
 	# A fall may have dropped more of it by now.
 	while satchel.count("abo") > 0:
 		satchel.take("abo")
-	await _frames(3)
+	level.call("refresh_objective")
 	words.append(banner.text())
 	for foe in finale.alive():
 		if foe is FlyingEnemy2D:
 			foe.crush(99)
-	await _frames(3)
+	level.call("refresh_objective")
 	words.append(banner.text())
 	satchel.add("abo", 1)
 	_check(words == ["Last until morning. Ash shows what I cannot see.", "Last until morning. Step aside when they dive.",

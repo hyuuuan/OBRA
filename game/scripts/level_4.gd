@@ -362,6 +362,10 @@ func _arm_player_health() -> void:
 ## way it was then: a santelmo home, an aswang where it waited, at full strength. Before any
 ## checkpoint is written as well, when the moment is the start.
 func _restore_checkpoint() -> String:
+	# Whatever she was being told as the lamp went out she may never have read, and a line that goes
+	# up with a fight on is the likeliest to be cut off. The wave she was in says its help again.
+	if _finale != null:
+		_night_helped.erase(_finale.current_wave())
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
 	_morning = false
@@ -913,7 +917,7 @@ const NIGHT_BRIEF_AFTER := 0.5
 
 var _night_brief_due := false
 ## What she has been told helps, wave by wave, for the run: a retried night says what is happening
-## again, and leaves out the rest. The Now chips go on saying it.
+## again, and leaves out the rest, but for the wave that knocked her out. The Now chips go on saying it.
 var _night_helped: Dictionary = {}
 
 
