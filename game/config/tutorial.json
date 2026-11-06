@@ -20,7 +20,9 @@
     "",
     "`lead` is what Lolo says in the story box BEFORE a card shows, so the card answers something he asked: 'Come, apo, walk with me' and then the keys. Said once, through TutorialDirector.bind_lead. Not used on `say` lessons (they are Lolo already) or on the canvas, whose story box is hidden under the drawing panel -- the `draw` lesson leads into it. Cards do not play at all on a return visit.",
     "",
-    "LEVEL 1 TEACHES THE GAME; A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: 'fix level 1 like tutorial part make sure it covers everything and other levels wont have any tutorials if necessary'. run_tutorial_audit holds both halves: every control that works in Level 1 has a lesson here, and a later level may show a card only for a rule or control Level 1 cannot teach. Everything else a later level says goes to the hint bar (`say`), which dims nothing and stops nothing."
+    "LEVEL 1 TEACHES THE GAME; A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: 'fix level 1 like tutorial part make sure it covers everything and other levels wont have any tutorials if necessary'. run_tutorial_audit holds both halves: every control that works in Level 1 has a lesson here, and a later level may show a card only for a rule or control Level 1 cannot teach. Everything else a later level says goes to the hint bar (`say`), which dims nothing and stops nothing.",
+    "",
+    "`carries` IS WHAT A ROUTE CAN MISS. Most of Level 1's lessons wait for the player to do the thing, and a run can finish it having never become anything. A `carries` lesson still unspent when the level ends is owed (PlayerProfile.lessons_owed) and is shown once, the first time its moment comes in a later level, without its `lead`: Lolo is not in every level, and nobody there was building up to it. A press on SKIP TUTORIAL owes nothing. A lesson that is not true everywhere (`undo`, `ink`: the ink rules change) does not carry."
   ],
   "version": 2,
   "levels": {
@@ -105,6 +107,7 @@
         },
         {
           "id": "place",
+          "carries": true,
           "at": "placement_started",
           "mode": "do",
           "visual": "place",
@@ -121,6 +124,7 @@
         },
         {
           "id": "resize",
+          "carries": true,
           "at": "placement_started",
           "after": "place",
           "mode": "do",
@@ -141,6 +145,7 @@
         },
         {
           "id": "rotate",
+          "carries": true,
           "at": "placement_started",
           "after": "resize",
           "mode": "do",
@@ -175,6 +180,7 @@
         },
         {
           "id": "revert",
+          "carries": true,
           "at": "became_creature",
           "mode": "look",
           "visual": "revert",
@@ -188,6 +194,7 @@
         },
         {
           "id": "fly",
+          "carries": true,
           "at": "can_fly",
           "after": "revert",
           "mode": "do",
@@ -203,6 +210,7 @@
         },
         {
           "id": "swim",
+          "carries": true,
           "at": "swimming",
           "mode": "do",
           "visual": "keys",
@@ -219,6 +227,7 @@
         },
         {
           "id": "clock",
+          "carries": true,
           "at": "morph_running",
           "after": "revert",
           "mode": "look",
@@ -252,6 +261,7 @@
         },
         {
           "id": "requirement",
+          "carries": true,
           "at": "requirement_shown",
           "after": "draw",
           "mode": "look",
@@ -301,6 +311,7 @@
         },
         {
           "id": "interact",
+          "carries": true,
           "at": "pickup_ready",
           "after": "checkpoint",
           "mode": "look",
@@ -315,6 +326,7 @@
         },
         {
           "id": "bag",
+          "carries": true,
           "at": "item_stored",
           "mode": "do",
           "visual": "keys",
@@ -330,6 +342,7 @@
         },
         {
           "id": "bag_open",
+          "carries": true,
           "at": "item_stored",
           "after": "bag",
           "mode": "look",
@@ -343,6 +356,7 @@
         },
         {
           "id": "climb",
+          "carries": true,
           "at": "climb_ready",
           "mode": "do",
           "visual": "hold",
@@ -357,6 +371,7 @@
         },
         {
           "id": "hold",
+          "carries": true,
           "at": "tool_held",
           "mode": "look",
           "visual": "keys",

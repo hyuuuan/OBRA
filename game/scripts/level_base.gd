@@ -4999,6 +4999,10 @@ func _complete_level() -> void:
 ## The level is finished -- and if that is what opens the next one, the house is told to open
 ## it in front of the player (LevelManager.pending_reveal, Painting2D.reveal).
 func mark_finished(level_id: String) -> void:
+	# What this route never reached is owed to the next level. Not on a replay: its tutorial is
+	# off, so nothing was spent there and it has no idea what the first time through covered.
+	if tutorial != null and tutorial.is_enabled():
+		PlayerProfile.set_lessons_owed(tutorial.owed_ids())
 	var next := LevelManager.next_level_id(level_id)
 	var was_open := next.is_empty() or LevelManager.is_unlocked(next)
 	PlayerProfile.mark_level_completed(level_id)

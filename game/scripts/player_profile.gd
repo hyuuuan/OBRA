@@ -90,6 +90,7 @@ func _default_profile() -> Dictionary:
 		"route_history": [],             # every route taken, oldest first
 		"collectibles": [],
 		"diary_pages": [],               # Lola's diary entries found, by config/diary.json id
+		"lessons_owed": [],              # Level 1 lessons this route missed, taught when first needed
 		"used_items": [],                # found things given up: the brass key left in the lock
 		"counts": {"submissions": 0, "declines": 0},
 		"settings": _default_settings(),
@@ -319,6 +320,20 @@ func record_new_brush() -> void:
 
 func has_new_brush() -> bool:
 	return bool(_data.get("new_brush", false))
+
+
+## THE LESSONS LEVEL 1 COULD NOT REACH ON THIS ROUTE, shown once by a later level when their
+## moment comes (TutorialDirector._take_on_what_is_owed).
+##
+## No schema bump, and the default is the point of it: a save from before this has no such key
+## and owes nothing, which is right for somebody who is already past the tutorial.
+func set_lessons_owed(ids: Array) -> void:
+	_data["lessons_owed"] = ids.duplicate()
+	_commit()
+
+
+func lessons_owed() -> Array:
+	return (_data.get("lessons_owed", []) as Array).duplicate()
 
 
 ## Lolo stops at the island at the end of Dagat, because beyond it is past what he remembers.

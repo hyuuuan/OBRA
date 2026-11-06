@@ -96,6 +96,7 @@ func _initialize() -> void:
 
 	_audit_level_1_covers_every_control(lessons, director)
 	_audit_later_levels_only_say_what_changes(ledger)
+	_audit_what_a_route_can_miss(ledger)
 
 	print("--- %d passed, %d failed ---" % [_passed, _failed])
 	print("OBRA_TUTORIAL_FAILED=%d" % _failed if _failed > 0 else "OBRA_TUTORIAL_OK")
@@ -166,6 +167,39 @@ func _audit_later_levels_only_say_what_changes(ledger: Dictionary) -> void:
 	# the rule above would still pass with no cards at all.
 	_check(cards == NECESSARY_CARDS.size(), "and every one on the list is still a card",
 		"%d cards, %d listed" % [cards, NECESSARY_CARDS.size()])
+
+
+## WHAT A ROUTE CAN MISS comes back in a later level, so it has to make sense in one.
+func _audit_what_a_route_can_miss(ledger: Dictionary) -> void:
+	print("  -- what a route can miss --")
+	var source := FileAccess.get_file_as_string(LEVEL_BASE)
+	var carried := 0
+	var later := {}
+	for level_id: String in ledger["levels"]:
+		if level_id != "level_1":
+			for value: Variant in (ledger["levels"][level_id] as Dictionary)["lessons"]:
+				later[String((value as Dictionary)["id"])] = level_id
+	for value: Variant in ledger["levels"]["level_1"]["lessons"]:
+		var lesson: Dictionary = value
+		if not bool(lesson.get("carries", false)):
+			continue
+		carried += 1
+		var id := String(lesson["id"])
+		# The event has to fire in every level, not only the level that owns the lesson.
+		_check(source.contains('tutorial.note("%s")' % String(lesson["at"])),
+			"'%s' can come round in any level" % id, String(lesson["at"]))
+		_check(not later.has(id), "'%s' is not a later level's id too" % id,
+			String(later.get(id, "unique")))
+		# Their mode is theirs: a `say` line would go out as "Lolo" in a level he has left.
+		_check(String(lesson.get("mode", "")) != "say", "'%s' speaks as nobody if it carries" % id,
+			String(lesson.get("mode", "")))
+	_check(carried >= 10, "and the things a route can skip do carry", "%d lessons" % carried)
+	# The ones whose rule is not true everywhere must not: the ink changes level by level.
+	for value: Variant in ledger["levels"]["level_1"]["lessons"]:
+		var lesson: Dictionary = value
+		if String(lesson["id"]) in ["undo", "ink", "checkpoint"]:
+			_check(not bool(lesson.get("carries", false)), "'%s' stays in Level 1" % lesson["id"],
+				"its rule changes later")
 
 
 func _audit_level(ledger: Dictionary, level_id: String) -> void:
