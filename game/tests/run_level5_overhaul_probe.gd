@@ -2,7 +2,7 @@ extends SceneTree
 ## Contracts that teleport-driven old probes could not establish: locked context, paused
 ## clocks, exact saved ink, real canvas input, no recognition for quiet/free drawing,
 ## a mid-line disappearance, and a visible ordinary brush.
-const CHECKS := 15
+const CHECKS := 16
 var checked := 0
 var failures := 0
 var level: Node
@@ -91,6 +91,15 @@ func _run() -> void:
 	_check(bool(level.call("_may_use_hidden_ink", "bridge")) and not bool(level.call("_may_use_hidden_ink", "sword"))
 		and not bool(level.call("_may_use_hidden_ink", "bat")), "an unrelated drawing cannot spend a gate's reserve")
 	director.exit_obstacle("L5_SPAN")
+	ink.committed = ink.capacity - InkManager.UNIT
+	var apo: Node2D = level.get("player")
+	panel.drawing_ready.emit("monkey", "Monkey", image, {}, strokes, 0.0)
+	await physics_frame
+	_check(level.get("player") == apo and is_equal_approx(ink.remaining(), InkManager.UNIT)
+		and is_equal_approx(ink.hidden_reserve, 2.0),
+		"a creature that would immediately revert leaves the last ink unit available")
+	if level.get("player") != apo:
+		level.call("_revert_to_base_form")
 	ink.committed = ink.capacity
 	_check(not bool(level.call("_spawn_or_replace", "monkey", "Monkey", image, strokes)) and is_equal_approx(ink.hidden_reserve, 2),
 		"an empty brush cannot borrow reserve for a creature")
@@ -126,8 +135,10 @@ func _run() -> void:
 	_check(panel.canvas_frame.visible and not optional_ui.visible,
 		"returning to normal restores the caller's original UI visibility")
 	panel.close_panel()
-	# Real dialogue typing: he must be gone while the interrupted line is still on screen.
+	# Real dialogue typing: his interrupted line ends the conversation without a second press.
 	var box: DialogueBox = level.get("dialogue_box")
+	var hint: HintBar = level.get("hint_bar")
+	hint.show_hint("Lolo's last standing hint.", Lolo.SPEAKER)
 	box.set_auto_dismiss(false)
 	level.set("_lolo_moment", "going")
 	level.call("_let_him_go")
@@ -135,7 +146,10 @@ func _run() -> void:
 	box.complete()
 	box.call("_advance")
 	var gone := await _until(func() -> bool: return (level.get("lolo") as Lolo).is_gone(), 7.0)
-	_check(gone and box.is_visible_in_tree() and box.current_line().ends_with("kept m"), "Lolo goes during his unfinished line, before dismissal")
+	await _wait(.25)
+	_check(gone and box.current_line().ends_with("kept m") and not box.is_open()
+		and not box.is_visible_in_tree() and not hint.is_showing() and not paused,
+		"Lolo's interrupted line clears the dialogue and hints without dismissal")
 	box.skip_all()
 	box.set_auto_dismiss(true)
 	# The frame performance is checked in its existing probe; keep this runner's expected count exact.

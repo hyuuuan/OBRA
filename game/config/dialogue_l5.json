@@ -114,6 +114,13 @@
       "text": "You need one ink to keep a memory. You can still walk on."
     },
     {
+      "id": "L5_morph_no_ink",
+      "at": "MORPH.no_ink",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Not enough ink to stay transformed."
+    },
+    {
       "id": "L5_flower",
       "at": "FLOWER.saved",
       "speaker": "lolo",

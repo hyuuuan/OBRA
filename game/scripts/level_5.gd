@@ -407,8 +407,10 @@ func _free_paint_completed(strokes: Array) -> void:
 
 
 func _spawn_or_replace(entity_id: String, display_name: String, drawing: Image, strokes: Array) -> bool:
-	if ink_manager.remaining() < InkManager.UNIT:
-		_say_why(_line("FRAGMENT.no_ink"))
+	# Leave enough to survive the first drain tick after paying for the drawing.
+	var first_tick_cost := _drain.rate_for(entity_id) / Engine.physics_ticks_per_second
+	if ink_manager.remaining() <= InkManager.UNIT + first_tick_cost + InkManager.EMPTY_THRESHOLD:
+		_say_why(_line("MORPH.no_ink"))
 		return false
 	var became := super(entity_id, display_name, drawing, strokes)
 	if became:
@@ -642,6 +644,7 @@ func _let_him_go() -> void:
 		dialogue_box.line_progress.connect(_on_lolo_line_progress)
 	_framing_lolo = true
 	await _speak_and_wait(script_lines.fire("LOLO.goes") + script_lines.fire(lolo_last_hook()))
+	dialogue_box.line_progress.disconnect(_on_lolo_line_progress)
 	_vanish_lolo()
 	_framing_lolo = false
 	_release_camera_focus()
@@ -665,8 +668,10 @@ func lolo_last_hook() -> String:
 
 
 func _on_lolo_line_progress(text: String, characters: int) -> void:
-	if _lolo_moment == "going" and text.ends_with("kept m") and characters >= text.length() - 2:
+	if _lolo_moment == "going" and text.ends_with("kept m") and characters >= text.length():
 		_vanish_lolo()
+		# Close the box after its typing callback finishes so the summit can begin.
+		dialogue_box.hide_line.call_deferred()
 
 
 func _vanish_lolo() -> void:
@@ -674,6 +679,8 @@ func _vanish_lolo() -> void:
 		return
 	lolo.vanish()
 	dialogue_box.hide_speaker()
+	if hint_bar != null:
+		hint_bar.clear()
 	status_label.text = ""
 	_lolo_moment = "gone"
 	refresh_objective()
