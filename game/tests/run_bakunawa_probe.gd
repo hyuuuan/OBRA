@@ -65,6 +65,10 @@ func _the_light() -> void:
 	_check(creature.state() == BakunawaClass.State.FOLLOWING,
 		"the light: it goes to the light",
 		"state %d" % creature.state())
+	await process_frame
+	_check(not (creature.get("_beams")[0] as Polygon2D).visible
+			and not (creature.get("_beams")[1] as Polygon2D).visible,
+		"and its own lamp is out while it follows", "nothing to be caught by")
 	# ⚠ LED HOME, THEN IT GIVES (2026-10-05). Kent: the light follows the pointer, the creature
 	# follows the light, and it is brought home to a cave under the first beach -- where it goes in,
 	# and what it had lost comes out to the apo. Brought within reach of the cave here; the sea
@@ -142,6 +146,10 @@ func _the_dark() -> void:
 		most = maxf(most, creature.global_position.x)
 	_check(most - least > 60.0, "and it goes back and forth over its stretch",
 		"%.0f px of drift in seven seconds" % (most - least))
+	await _its_light_is_the_rule(creature, "at depth")
+	var skin: Node = creature.get("_skin")
+	_check((creature.get("_beams")[1] as Node).get_index() < skin.get_index(),
+		"and its body is drawn over its own light", "the lens is behind it")
 	# THE SWEEP HAS TO CATCH SOMEBODY. A cone that never returns true is a stealth section
 	# with no stealth in it, and it looks identical to a well-played one in a report.
 	var caught := false
@@ -227,6 +235,7 @@ func _the_dark() -> void:
 	var surfaced_home: Vector2 = creature.get("_home")
 	_check(is_equal_approx(creature.reach(), BakunawaClass.CONE_LENGTH),
 		"and from the boat its light is the short sweep", "reach %.0f" % creature.reach())
+	await _its_light_is_the_rule(creature, "from the boat")
 	var boat_period := 2.0 * (creature.sweep_range().y - creature.sweep_range().x) / BakunawaClass.SWEEP_SPEED
 	var boat_stuck := 0
 	for phase in range(4):
@@ -377,6 +386,12 @@ func _the_fight() -> void:
 	((profile.get("_data") as Dictionary)["diary_pages"] as Array).erase("dagat")
 	_check(creature.state() == BakunawaClass.State.FIGHTING,
 		"the fight: it turns on the commit", "state %d" % creature.state())
+	await process_frame
+	await _its_light_is_the_rule(creature, "in the fight")
+	var shade := (creature.get("_beams")[0] as Polygon2D).material as ShaderMaterial
+	var lamp: Vector3 = shade.get_shader_parameter(&"lamp")
+	_check(lamp.x > lamp.y + 0.4 and float(shade.get_shader_parameter(&"underwater")) < 0.5,
+		"and its lamp has gone red", "lamp %s, water %s" % [lamp, shade.get_shader_parameter(&"underwater")])
 	_check(not await _channel_is_open(creature), "and the channel stays shut", "coils active")
 	# ⚠ EVERY `strike` CLASS HAS TO BITE. The tag resolves five and the design asks that they
 	# differ in more than damage -- which is only true if they all work at all.
@@ -463,6 +478,35 @@ func _the_fight() -> void:
 
 ## Put the run at the encounter with a route committed, the way a player arrives: the shore
 ## beat answered, the crossing taken, and the fork answered out loud.
+## ⚠ THE LIGHT IS THE ONLY WAY A PLAYER SEES THE RULE, so it has to stand where the rule is. Its
+## pixels are a shader and cannot be read headless (run_visual_level3.gd is for looking at them);
+## what can be asked is that the lens is on the point `sees()` measures from, each beam is turned
+## the way `facings()` says, and the light goes out only past what `sees()` catches -- never short
+## of it, or a player is caught standing in what looks like the dark.
+func _its_light_is_the_rule(creature: BakunawaClass, where: String) -> void:
+	await process_frame
+	var beams: Array = creature.get("_beams")
+	var ways: Array[float] = creature.facings()
+	var placed := beams.size() == 2
+	for index in range(beams.size()):
+		var beam := beams[index] as Polygon2D
+		var lens := beam.position + Vector2(BakunawaClass.BEAM_LENS_X, 0.0).rotated(beam.rotation)
+		placed = placed and beam.visible and is_equal_approx(beam.rotation, ways[index]) \
+			and lens.length() < 0.5
+	_check(placed, "and its light stands where the rule is, %s" % where,
+		"lens on its point, turned %s" % [ways])
+	var beam := beams[0] as Polygon2D
+	var shade := beam.material as ShaderMaterial
+	var length := float(shade.get_shader_parameter(&"beam_length"))
+	var spread := float(shade.get_shader_parameter(&"half_angle"))
+	var drawn := beam.polygon[1].x - BakunawaClass.BEAM_LENS_X
+	_check(length > creature.reach() and is_equal_approx(drawn, length)
+			and spread > BakunawaClass.CONE_HALF_ANGLE,
+		"and goes out only past its edge, %s" % where,
+		"%.0f px against a reach of %.0f, %.2f rad against %.2f"
+			% [length, creature.reach(), spread, BakunawaClass.CONE_HALF_ANGLE])
+
+
 func _open_at_the_encounter(route: String) -> Dictionary:
 	level = (load("res://level_3.tscn") as PackedScene).instantiate()
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
