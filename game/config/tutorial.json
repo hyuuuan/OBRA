@@ -10,7 +10,7 @@
     "",
     "`delay` is how long a lesson waits, once its moment has come, before it shows. If the player does the thing in that time it is spent unshown: a player who walks at once is never told how to walk.",
     "",
-    "`context` (world / placing / creature / canvas / any) is when it may show; `anchor` is what it lights up, resolved by LevelBase._tutorial_target -- the tutorial's own vocabulary, not node paths. A lesson whose context or anchor does not hold waits for it, and gives up after `patience` seconds (default 8) to be offered again by its event.",
+    "`context` is when a lesson may show; `anchor` is what it lights up, resolved by LevelBase._tutorial_target. A lesson whose context or anchor does not hold waits for it, and gives up after `patience` seconds (default 8) to be offered again by its event. A `say` reminder also gives up if it waits too long for the hint bar.",
     "",
     "KEYS ARE NOT WRITTEN HERE. `action` (plus `through` for a pair or a numbered run) is read off the live InputMap and drawn as caps, so a rebinding cannot leave a lesson showing a key that no longer does anything. `mouse` lists the mouse inputs a lesson teaches: left, right, wheel, shift_wheel. `text` is the full sentence, still what the hint bar says when there is no spotlight, and what the audits read.",
     "",
@@ -428,6 +428,7 @@
           "at": "ink_draining",
           "after": "new_brush",
           "mode": "say",
+          "context": "creature",
           "speaker": "Lolo",
           "seconds": 7.0,
           "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape."
@@ -437,6 +438,7 @@
           "at": "ink_draining",
           "after": "drain",
           "mode": "say",
+          "context": "creature",
           "speaker": "Lolo",
           "seconds": 7.0,
           "action": "revert_form",
@@ -446,6 +448,7 @@
           "id": "refill",
           "at": "ink_low",
           "mode": "say",
+          "context": "low_ink",
           "speaker": "Lolo",
           "seconds": 7.0,
           "text": "You are nearly out. It does not come back on its own out here — you have to find more of it."
@@ -454,6 +457,8 @@
           "id": "no_drowning",
           "at": "ink_emptied",
           "mode": "say",
+          "context": "underwater",
+          "patience": 1.0,
           "speaker": "Lolo",
           "seconds": 7.0,
           "text": "Up you come. You lost the crossing, not anything else. Go again."
@@ -462,6 +467,7 @@
           "id": "belongs_down_here",
           "at": "underwater",
           "mode": "say",
+          "context": "underwater",
           "speaker": "Lolo",
           "seconds": 8.0,
           "text": "Only what belongs down here will hold, apo. Anything else will start drowning on you."

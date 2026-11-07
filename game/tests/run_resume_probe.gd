@@ -35,11 +35,12 @@ func _wait(seconds: float) -> void:
 	await create_timer(seconds, true).timeout
 
 
-func _open(spec: Dictionary) -> Node2D:
+func _open(spec: Dictionary, with_intro: bool = false) -> Node2D:
 	root.get_node("LevelManager").set("current_level_id", spec["level"])
 	var level := (load(String(spec["scene"])) as PackedScene).instantiate() as Node2D
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	level.set("resume_enabled", true)
+	level.set("intro_enabled", with_intro)
 	root.add_child(level)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	return level
@@ -70,7 +71,7 @@ func _run() -> void:
 		level.queue_free()
 		await _wait(0.4)
 
-		level = _open(spec)
+		level = _open(spec, true)
 		await _wait(1.8)
 		var back := _anchor(level)
 		# Across, not up and down: the probe drops the apo at the fork's marker, which can be in
@@ -78,6 +79,13 @@ func _run() -> void:
 		_check(absf(back.x - where.x) < 120.0 and absf(back.x - start.x) > 150.0,
 			"coming back puts the apo at the checkpoint, not the start",
 			"back at %s, checkpoint at %s, start %s" % [back.round(), where.round(), start.round()])
+		var lines: DialogueScript = level.get("script_lines")
+		var arrivals: Array[String] = []
+		for hook: String in lines.hooks():
+			if (hook.begins_with("INTRO.") or hook.begins_with("RETURN.") or hook == "L2_START.enter") \
+					and lines.has_heard(hook):
+				arrivals.append(hook)
+		_check(arrivals.is_empty(), "continuing at the checkpoint skips entrance dialogue", str(arrivals))
 		director = level.get("director")
 		var committed: Dictionary = (director.call("obstacle_state") as Dictionary).get("committed", {})
 		_check(String(committed.get(spec["obstacle"], "")) == spec["route"],

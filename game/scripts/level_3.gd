@@ -1422,6 +1422,15 @@ func _on_low_ink(_remaining: float, _capacity: float) -> void:
 	_say_why("It is nearly gone, apo.")
 
 
+func _tutorial_context(context: String) -> bool:
+	match context:
+		"low_ink":
+			return super("creature") and _drain != null and ink_manager.remaining_ratio() <= _drain.warning_ratio
+		"underwater":
+			return super("world") and _anchor_now().y > _waterline_y
+	return super(context)
+
+
 ## THE ZERO CASE. Revert, lose the stretch, never die. There is no death state anywhere in this
 ## game and none is being added here.
 func _on_drain_emptied() -> void:
@@ -2673,17 +2682,17 @@ const STEERING_ACTIONS: Array[StringName] = [
 	&"move_left", &"move_right", &"move_up", &"move_down", &"jump"]
 
 
-func _post_advice(advice: Array[Dictionary]) -> void:
-	if advice.is_empty():
+func _post_advice(advice: Array[Dictionary], while_relevant := Callable()) -> void:
+	if advice.is_empty() or (while_relevant.is_valid() and not while_relevant.call()):
 		return
 	if _advice_left > 0.0 or not _advice_waiting.is_empty():
-		_advice_waiting.append(advice)
+		_advice_waiting.append({"lines": advice, "while_relevant": while_relevant})
 		return
-	_advise_now(advice)
+	_advise_now(advice, while_relevant)
 
 
-func _advise_now(advice: Array[Dictionary]) -> void:
-	super._post_advice(advice)
+func _advise_now(advice: Array[Dictionary], while_relevant: Callable) -> void:
+	super._post_advice(advice, while_relevant)
 	var reading := 0.0
 	for line: Dictionary in advice:
 		reading += _reading_time(String(line.get("text", "")))
@@ -2708,9 +2717,12 @@ func _pace_the_advice(delta: float) -> void:
 	if _advice_left > 0.0:
 		_advice_left = maxf(0.0, _advice_left - delta)
 		return
-	if not _advice_waiting.is_empty():
-		_advise_now(_advice_waiting.pop_front())
-		return
+	while not _advice_waiting.is_empty():
+		var batch: Dictionary = _advice_waiting.pop_front()
+		var while_relevant: Callable = batch["while_relevant"]
+		if not while_relevant.is_valid() or while_relevant.call():
+			_advise_now(batch["lines"], while_relevant)
+			return
 	if _coral_waiting.is_empty():
 		return
 	var field := coral_field()
@@ -3445,18 +3457,23 @@ func _told_the_dive(anchor_position: Vector2) -> void:
 	for step in [[2100.0, "L3_DIVE.lore1"], [2900.0, "L3_DIVE.lore2"],
 			[3700.0, "L3_DIVE.lore3"], [4500.0, "L3_DIVE.lore4"], [5150.0, "L3_DIVE.light"]]:
 		if anchor_position.x >= float(step[0]):
-			_tell(String(step[1]))
+			var hook := String(step[1])
+			# The two lines that ask the player to do something belong in the water.
+			var context := Callable()
+			if hook in ["L3_DIVE.lore1", "L3_DIVE.light"]:
+				context = func() -> bool: return not _arrived and _anchor_now().y > _waterline_y
+			_tell(hook, context)
 	if _told.has("L3_DIVE.lore4"):
 		script_lines.set_flag("heard_about_lola")
 
 
 ## Once each, and remembered in the run state so a checkpoint restore does not replay the
 ## crossing from the top.
-func _tell(hook: String) -> void:
-	if _told.has(hook):
+func _tell(hook: String, advice_context := Callable()) -> void:
+	if _told.has(hook) or (advice_context.is_valid() and not advice_context.call()):
 		return
 	_told[hook] = true
-	_speak(script_lines.fire(hook))
+	_speak(script_lines.fire(hook), advice_context)
 
 
 ## THE CREATURE'S OWN SILHOUETTE, passing under the hull and going the wrong way round. The

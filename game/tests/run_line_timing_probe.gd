@@ -13,7 +13,7 @@ extends SceneTree
 ## The list of what it found is in LEVEL_TEMPLATE.md, "When the game speaks".
 
 ## Every check this probe makes, so a crash part-way cannot print OK.
-const CHECKS := 52
+const CHECKS := 54
 
 const LEVELS := {
 	"level_1": "res://game_level.tscn",
@@ -714,6 +714,22 @@ func _a_remark_lets_advice_be_read() -> void:
 	_check(bar.current_text() != ended, "advice retired under a remark does not come back",
 		"bar: '%s'" % bar.current_text().left(40))
 	bar.clear()
+	await _wait(0.3)
+	var diving := [true]
+	var underwater := func() -> bool: return diving[0]
+	bar.show_beat(["Advice that still applies."], "Lolo")
+	bar.interject("A reminder for the dive.", "Lolo", 6.0, underwater)
+	diving[0] = false
+	await _wait(0.2)
+	_check(bar.current_text() == "Advice that still applies.",
+		"surfacing dismisses the dive reminder and restores relevant advice", bar.current_text())
+	diving[0] = true
+	bar.show_beat(["Advice for the dive."], "Lolo", true, underwater)
+	bar.interject("A remark over it.", "Lolo", 0.3)
+	diving[0] = false
+	await _wait(0.6)
+	_check(not bar.is_showing(), "dive advice cannot come back under a remark after surfacing",
+		bar.current_text())
 
 
 ## WHERE A BOARD STANDS IS WHERE SOMETHING IS SAID. Signpost2D says so and the player believes it:

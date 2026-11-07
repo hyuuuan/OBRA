@@ -1600,6 +1600,8 @@ func _judge_submission(entity_id: String, strokes: Array = []) -> void:
 	if not bool(verdict["solves"]):
 		_say_it_did_not_fit(entity_id, verdict)
 		return
+	if bool(verdict["stage_advanced"]):
+		_retire_beat_advice()
 	# ⚠ THE OTHER HALF OF THE REFUSAL BEAT, and it had no call site in either level.
 	# `on_first_decline` is Lolo saying "I could not read it, apo. Not wrong -- too like
 	# something else"; `after_first_decline_solved` is "There. Now I see it." Both are
@@ -1659,8 +1661,9 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 	# (ShuffleBag). {fact} is the drawing's own ConceptNet assertion from the verified ability
 	# table -- something true about what they drew -- and a line needing a value the moment
 	# lacks (no {can} for an unhintable class, no {fact} that is safe to say) sits out.
+	var obstacle_id := String(verdict.get("obstacle_id", director.current_obstacle()))
 	if _say_from_pool("comment.not_fit", {"who": who, "thing": who.left(1).to_lower() + who.substr(1),
-			"needed": needed, "can": can, "fact": _safe_fact(entity_id)}):
+			"needed": needed, "can": can, "fact": _safe_fact(entity_id)}, obstacle_id):
 		return
 	if mine.is_empty():
 		# Nothing this level knows the drawing can do -- either one of the roster's
@@ -1670,6 +1673,7 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 		text = "%s cannot do this. It needs something that can %s." % [who, needed]
 	else:
 		text = "%s can %s. This needs something that can %s." % [who, can, needed]
+	_remember_beat_advice(obstacle_id, text)
 	hint_bar.show_hint(text, _companion_speaker())
 
 
@@ -1677,7 +1681,7 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 ## with {placeholders} filled from `values`. A line that needs a value the moment does not
 ## have is left out of the draw. False when nothing could be said, so the caller can fall
 ## back. Pool lines go to the hint bar: they comment on play and must never stop it.
-func _say_from_pool(hook: String, values: Dictionary) -> bool:
+func _say_from_pool(hook: String, values: Dictionary, obstacle_id: String = "") -> bool:
 	if hint_bar == null or script_lines == null:
 		return false
 	var candidates: Array = []
@@ -1695,6 +1699,8 @@ func _say_from_pool(hook: String, values: Dictionary) -> bool:
 		return false
 	var chosen: Dictionary = candidates[index]
 	PlayerProfile.note_pool_pick(bag, String(chosen.get("id", "")))
+	if not obstacle_id.is_empty():
+		_remember_beat_advice(obstacle_id, texts[index])
 	hint_bar.show_hint(texts[index], _speaker_display(script_lines.speaker_of(chosen)))
 	return true
 
@@ -2275,7 +2281,7 @@ func _restore_placed_entities(records: Array) -> void:
 ##
 ## Unread is not an exaggeration. This used to hand a whole beat over in one synchronous
 ## loop, writing five lines into the same label in the same frame. Only the last survived.
-func _speak(lines: Array) -> void:
+func _speak(lines: Array, advice_context := Callable()) -> void:
 	var beat: Array[Dictionary] = []
 	# GATHERED, NOT WRITTEN STRAIGHT THROUGH. Handing each hint to the bar as it came out of
 	# the loop meant a beat of several hints was several writes to one label inside one frame,
@@ -2296,7 +2302,7 @@ func _speak(lines: Array) -> void:
 	if beat.is_empty() or dialogue_box == null:
 		if not beat.is_empty():
 			status_label.text = String(beat[-1]["text"])
-		_post_advice(advice)
+		_post_advice(advice, advice_context)
 		return
 	# ⚠ THE BAR IS LEFT ALONE. It stands itself down while anybody is speaking and comes back
 	# with its dwell intact (HintBar._someone_is_speaking), and this used to take it down as
@@ -2307,7 +2313,7 @@ func _speak(lines: Array) -> void:
 	dialogue_box.speak(beat)
 	# The bar fades itself out and freezes its dwell while anybody is speaking, so advice
 	# posted now waits under the conversation and plays out when the player has read it.
-	_post_advice(advice)
+	_post_advice(advice, advice_context)
 
 
 ## WHO A LINE'S `speaker` IS ON SCREEN. Lolo and the apo are in every level; anybody else is
@@ -2334,11 +2340,14 @@ func _speaker_subject(speaker_id: String) -> Node2D:
 	return player
 
 
-func _post_advice(advice: Array[Dictionary]) -> void:
+func _post_advice(advice: Array[Dictionary], while_relevant := Callable()) -> void:
 	if advice.is_empty():
 		return
 	if hint_bar == null:
 		status_label.text = String(advice[-1]["text"])
+		return
+	if while_relevant.is_valid():
+		hint_bar.show_beat(advice, "", false, while_relevant)
 		return
 	# The opening's words are the level's, even for somebody already standing in its first beat.
 	var beat := director.current_obstacle() if director != null and not _opening_running else ""
@@ -2347,12 +2356,8 @@ func _post_advice(advice: Array[Dictionary]) -> void:
 		# end of the level.
 		hint_bar.show_beat(advice, "", false)
 		return
-	if beat != _beat_advice_of:
-		_beat_advice.clear()
-		_beat_advice_of = beat
-		_beat_advice_orphaned = 0.0
 	for line: Dictionary in advice:
-		_beat_advice.append(String(line.get("text", "")))
+		_remember_beat_advice(beat, String(line.get("text", "")))
 	hint_bar.show_beat(advice)
 
 
@@ -2366,6 +2371,14 @@ const ADVICE_OUTLIVES_BEAT := 1.2
 var _beat_advice: Array[String] = []
 var _beat_advice_of := ""
 var _beat_advice_orphaned := 0.0
+
+
+func _remember_beat_advice(beat: String, text: String) -> void:
+	if beat != _beat_advice_of:
+		_beat_advice.clear()
+		_beat_advice_of = beat
+		_beat_advice_orphaned = 0.0
+	_beat_advice.append(text)
 
 
 func _tend_beat_advice(delta: float) -> void:
@@ -4781,14 +4794,14 @@ func _say_the_opening() -> void:
 	var visits := 1
 	if PlayerProfile.has_method("record_level_visit"):
 		visits = int(PlayerProfile.record_level_visit(level_id))
-	# BACK AT THE LAST CHECKPOINT, if they left part way through. Before anything is said, so
-	# the welcome is spoken where they are standing and not at the start of the level.
+	# Restore first so we can distinguish a checkpoint continuation from a fresh arrival.
 	var resumed := _resume_saved_checkpoint()
 	# Both story and the short greeting wait until the painting has become the world.
 	if LevelManager.is_transitioning():
 		await LevelManager.transition_finished
 	if not intro_enabled or script_lines == null or dialogue_box == null:
-		_greet()
+		if not resumed:
+			_greet()
 		return
 	# A profile that finished the level before visits were counted is a return, not a first.
 	var first_time := visits <= 1 and not PlayerProfile.is_level_completed(level_id)
@@ -4801,6 +4814,8 @@ func _say_the_opening() -> void:
 	if not first_time and resumed and PlayerProfile.is_level_completed(level_id) \
 			and tutorial != null:
 		tutorial.set_enabled(false)
+	if resumed:
+		return
 	await get_tree().create_timer(OPENING_DELAY).timeout
 	if not is_inside_tree():
 		return

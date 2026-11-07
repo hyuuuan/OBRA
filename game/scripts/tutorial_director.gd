@@ -351,14 +351,18 @@ func _pump(delta: float) -> void:
 		if lesson.is_empty():
 			_queue.erase(id)
 			continue
-		if not _context_holds(lesson) or not _anchor_ready(lesson):
+		var ready := _context_holds(lesson) and _anchor_ready(lesson)
+		var can_show := ready and _gap <= 0.0 and _coast_is_clear(lesson)
+		# Optional reminders can go stale while waiting behind another line.
+		if not ready or (_mode_of(lesson) == "say" and not can_show):
 			_ready_for[id] = 0.0
-			_unready_for[id] = float(_unready_for.get(id, 0.0)) + delta
+			if not ready or not get_tree().paused:
+				_unready_for[id] = float(_unready_for.get(id, 0.0)) + delta
 			if float(_unready_for[id]) > float(lesson.get("patience", PATIENCE)):
 				_queue.erase(id)
 			continue
 		_unready_for[id] = 0.0
-		if _gap > 0.0 or not _coast_is_clear(lesson):
+		if not can_show:
 			continue
 		_ready_for[id] = float(_ready_for.get(id, 0.0)) + delta
 		if float(_ready_for[id]) < float(lesson.get("delay", 0.0)):
@@ -397,8 +401,11 @@ func _show(lesson: Dictionary) -> void:
 	if _mode_of(lesson) == "say":
 		# In passing, because what it speaks over is still true: the advice comes back after him.
 		if _hint_bar != null and _hint_bar.has_method("interject"):
+			var while_relevant := Callable()
+			if lesson.has("context"):
+				while_relevant = func() -> bool: return _context_holds(lesson)
 			_hint_bar.call("interject", resolve(lesson), String(lesson.get("speaker", "Lolo")),
-				float(lesson.get("seconds", 6.0)))
+				float(lesson.get("seconds", 6.0)), while_relevant)
 		_gap = GAP_AFTER
 		lesson_taught.emit(id)
 		return
