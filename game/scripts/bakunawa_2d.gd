@@ -47,6 +47,7 @@ const BODY_LENGTH := 700.0
 const BODY_DEPTH := 130.0
 const SEGMENTS := 14
 
+const BEAM_SHADER := preload("res://shaders/flashlight_beam.gdshader")
 const CONE_LENGTH := 460.0
 const CONE_HALF_ANGLE := 0.42
 ## How fast the sweep travels, and how far either side of straight ahead it goes. Slow enough
@@ -186,15 +187,8 @@ var _meter: _HitMeter
 
 func _ready() -> void:
 	z_index = 4
-	# ⚠ THE CONE IS LIGHT, SO IT IS ADDED RATHER THAN LAID OVER. A translucent polygon on top
-	# of a dark blue seabed is a grey wedge however it is tinted -- it takes brightness out of
-	# what it covers and puts its own flat colour in. Added, the same shape brightens what is
-	# under it and disappears where there is nothing, which is what a beam in water does. The
-	# material is on THIS node, so it applies to _draw() and not to the creature's sprite,
-	# which is a child with its own.
-	var beam := CanvasItemMaterial.new()
-	beam.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	material = beam
+	# First, so the creature's body is drawn over its own light.
+	_build_beams()
 	_load_clips()
 	_build_bodies()
 	_build_skin()
@@ -284,7 +278,7 @@ func stage_at(depth_y: float, surfaced: bool = true) -> void:
 	_home.y = depth_y
 	_surfaced = surfaced
 	_fit_the_coils()
-	queue_redraw()
+	_sync_beams()
 
 
 ## Back to a place and a fresh search, as it was before anything happened to it -- what a
@@ -346,7 +340,7 @@ func _fit_the_coils() -> void:
 func begin_search() -> void:
 	_state = State.SEARCHING
 	_set_channel_open(false)
-	queue_redraw()
+	_sync_beams()
 
 
 ## The Pragmatist resolution. It is still searching and still dangerous -- what changes is
@@ -354,7 +348,7 @@ func begin_search() -> void:
 func open_a_gap() -> void:
 	_state = State.SEARCHING
 	_set_channel_open(true)
-	queue_redraw()
+	_sync_beams()
 
 
 ## The Artist resolution. Something is throwing light and it goes to it.
@@ -363,7 +357,7 @@ func follow_the_light(point: Vector2) -> void:
 		return
 	_state = State.FOLLOWING
 	_follow_target = point
-	queue_redraw()
+	_sync_beams()
 
 
 ## ⚠ LED, NOT SENT. Kent: "the flashlight should follow where my mouse is pointing and the sea
@@ -380,7 +374,7 @@ func be_guided(point: Vector2) -> void:
 		_guided = true
 		_set_channel_open(true)
 	_follow_target = point
-	queue_redraw()
+	_sync_beams()
 
 
 func is_guided() -> bool:
@@ -428,7 +422,7 @@ func enter_fight(keep_hits: bool = false) -> void:
 		_meter.hits = int(_hits)
 		_meter.queue_redraw()
 	_set_channel_open(false)
-	queue_redraw()
+	_sync_beams()
 
 
 ## What it swims off with when it is fought off: whatever it was searching for, held where it
@@ -570,7 +564,7 @@ func apply_tool_hit(tool: String, _impulse: float, _actor: Node2D) -> bool:
 		_meter.hits = int(_hits)
 		_meter.flash = 1.0
 		_meter.queue_redraw()
-	queue_redraw()
+	_sync_beams()
 	hit_taken.emit(int(_hits), HITS_TO_SUBDUE)
 	if _hits >= float(HITS_TO_SUBDUE):
 		_subdue()
@@ -587,7 +581,7 @@ func _subdue() -> void:
 	# exactly that.
 	_state = State.SUBDUED
 	_set_channel_open(true)
-	queue_redraw()
+	_sync_beams()
 	went_quiet.emit("FOUGHT")
 	_leave_after(1.6)
 
@@ -597,7 +591,7 @@ func give_it_up() -> void:
 	_state = State.CALM
 	_set_channel_open(true)
 	_home = global_position
-	queue_redraw()
+	_sync_beams()
 	gift_offered.emit()
 	# After what it found has been given: the corner comes up and goes to the apo, and the
 	# flower after it, over about five seconds.
@@ -671,7 +665,8 @@ func _process(delta: float) -> void:
 		if _meter.visible:
 			_meter.queue_redraw()
 	_animate(delta)
-	queue_redraw()
+	_advance_beam_water(delta)
+	_sync_beams()
 
 
 ## Back and forth over its stretch, and up and down a little, never far from where it was set.
@@ -748,114 +743,110 @@ func _animate(delta: float) -> void:
 		_carried.position.x = absf(_carried.position.x) * (1.0 if wanted == "turned" else -1.0)
 
 
-## ⚠ ONLY THE SWEEP. The body is a Sprite2D now, but the cone stays hand-drawn because it is
-## not decoration -- it is the rule `sees()` answers about, and a boundary the player cannot
-## see is one they learn by being put back.
-func _draw() -> void:
-	if _state != State.SEARCHING and _state != State.FIGHTING:
-		return
-	# ⚠ WHAT `sees()` ANSWERS ABOUT DOES NOT MOVE. The angle and the reach are the rule's;
-	# what has changed twice here is only how the inside of it is shaded, and both earlier
-	# answers were reported as ugly. Flat, one alpha corner to corner, it was a grey wedge
-	# laid over the ruins -- a translucent polygon takes brightness OUT of what it covers and
-	# puts its own colour in. Added instead (see the material in _ready), and shaded across
-	# its width as well as down its length, it brightens what is under it and disappears where
-	# there is nothing, which is what a beam in water does.
-	#
-	# ⚠ AND IT IS DRAWN A LITTLE WIDER THAN THE RULE, fading to nothing past it. A beam whose
-	# light stops exactly on the boundary teaches a player that the edge of the light is the
-	# edge of the danger, and they are then caught a pixel outside it. Wider, the faint fringe
-	# lies outside the rule, so "out of the light" is true whenever it looks true.
-	#
-	# The rim lines this carried are gone. The two cones are drawn back to back, so a rim
-	# joined its opposite number into one straight line 920 px long across the whole screen --
-	# on a seabed that is not a beam, it is a scratch on the picture, and was reported as one.
-	#
-	# ⚠ AND IT HAS TO BE SEEN, WHICH IS THE WHOLE OF THE STEALTH RULE. At 0.34 at its head and
-	# 0.13 across its body, added onto a seabed the storm has already darkened, the beam was a
-	# faint pale wedge a first-time player swam into without noticing -- recorded: caught four
-	# times in twenty seconds holding right along the bed, from a light they could barely see. It
-	# is half as bright again, and the water in it is full of motes that drift through the light
-	# and are gone outside it, which is how a beam in murky water reads before anything else does.
-	var tint := Color(0.85, 0.92, 0.70, 1.0)
-	if _state == State.FIGHTING:
-		tint = Color(0.97, 0.70, 0.58, 1.0)
-	# A slow swell, so the beam is alive while it is holding still at the end of a sweep.
-	var clock := float(Time.get_ticks_msec()) * 0.001
-	var swell := 1.0 + 0.14 * sin(clock * 2.1)
-	# ⚠ RINGS AND SPOKES, NOT ONE FAN. A fan from a single bright vertex at the creature is bright
-	# all along each of its two edge rays near that vertex -- the colour of every triangle runs
-	# from the bright middle to the dark rim -- so close in, the beam had a hard straight side.
-	# Cut into cells, the light goes to nothing across the width at every distance.
-	var spread := CONE_HALF_ANGLE * 1.18
-	var length := reach()
-	for facing in facings():
-		for ring in range(BEAM_RINGS):
-			var near := float(ring) / float(BEAM_RINGS)
-			var far := float(ring + 1) / float(BEAM_RINGS)
-			for spoke in range(BEAM_SPOKES):
-				var left := float(spoke) / float(BEAM_SPOKES)
-				var right := float(spoke + 1) / float(BEAM_SPOKES)
-				var cell := PackedVector2Array()
-				var shades := PackedColorArray()
-				for corner: Vector2 in [Vector2(left, far), Vector2(right, far),
-						Vector2(right, near), Vector2(left, near)]:
-					if ring == 0 and corner.y == 0.0 and corner.x == right:
-						continue  # the cell against the creature is a triangle
-					var angle: float = facing - spread + spread * 2.0 * corner.x
-					var middle := corner.x if ring > 0 or corner.y > 0.0 else (left + right) * 0.5
-					if ring == 0 and corner.y == 0.0:
-						angle = facing - spread + spread * 2.0 * middle
-					cell.append(Vector2(cos(angle), sin(angle)) * length * corner.y)
-					shades.append(Color(tint.r, tint.g, tint.b,
-						_beam_strength(middle, corner.y) * swell))
-				draw_polygon(cell, shades)
-		_draw_motes(facing, tint, clock, length)
-
-
-const BEAM_RINGS := 5
-const BEAM_SPOKES := 12
-
-
-## How bright the beam is at a point, by how far across it (0..1, the axis at 0.5) and how far
-## along it (0..1): brightest close in, a little brighter on the axis.
+## ⚠ ITS LIGHT IS A FLASHLIGHT'S, THE PLAYER'S OWN SHADER. Kent: "the light of bakunawa is weird
+## like its nothing similar to how light is presented in a flashlight". It was a wedge cut by hand
+## out of polygons, coming to a point in the creature and stopping dead on a round arc at the
+## rule's own radius. Now it opens from a lit lens and goes out with distance, with no edge at all,
+## and its specks stay in the water the way the player's do.
 ##
-## ⚠ LIT ALL THE WAY TO THE RULE'S EDGE, AND FADING ONLY OUTSIDE IT. The cells are drawn 1.18
-## times the rule's width. A falloff across the whole of that left the rule's own edge at a
-## fifteenth of the axis's light, so the part of the beam that looked lit was narrower than the
-## part that catches you, and a player would be seen standing in what looked like the dark.
-## Full strength to three quarters of the rule's angle, then down to nothing just past it: at
-## the rule's edge the light is still two fifths on, and gone by the fringe.
-static func _beam_strength(across: float, along: float) -> float:
-	var off_axis := absf(across * 2.0 - 1.0) * 1.18
-	var body := 1.0 - smoothstep(0.75, 1.18, off_axis)
-	return (0.16 + 0.3 * pow(1.0 - along, 2.0)) * body * (0.8 + 0.2 * (1.0 - off_axis))
+## ⚠ WHAT `sees()` ANSWERS ABOUT DOES NOT MOVE. The angle and the reach are the rule's, and this
+## is still the only way a player can see them -- a boundary they cannot see is one they learn by
+## being put back. Recorded on an earlier, fainter beam: caught four times in twenty seconds by a
+## light they could barely see, which is why the numbers below are not the hand flashlight's.
+const BEAM_LENS_X := 20.0  # where the shader puts the lens, along its quad
+## ⚠ DRAWN WIDER AND LONGER THAN THE RULE, going out only past it. A light that stops exactly on
+## the boundary teaches a player that its edge is the edge of the danger, and they are caught a
+## pixel outside it. This way the faint fringe lies outside the rule, so "out of the light" is
+## true whenever it looks true.
+const BEAM_WIDER := 1.18
+const BEAM_LONGER := 1.3
+## ⚠ THE HAND FLASHLIGHT'S FALLOFF WOULD HIDE THE RULE. It lights a few hundred px at most; left at
+## its numbers this one is 3% at the end of what it can see. `carry` keeps the light going out
+## with distance but not gone, `side_from` holds the sides on until nearly the rule's edge (still
+## two fifths lit there), and `gain` is what a storm-dark sea needs.
+const BEAM_GAIN := 2.0
+const BEAM_CARRY := 0.4
+const BEAM_SIDE_FROM := 0.6
+const BEAM_SEARCHING := Color(1.0, 0.94, 0.73)
+## A fight is the same lamp gone red, so a player can tell at a glance it has turned on them.
+const BEAM_FIGHTING := Color(1.0, 0.45, 0.32)
+const BEAM_FIGHTING_WATER := 0.25
+
+var _beams: Array[Polygon2D] = []
+var _beam_material: ShaderMaterial
+var _beam_length := -1.0
+var _beam_fighting := false
+var _beam_clock := 0.0
+var _beam_frame := -1
 
 
-## Specks in the water, lit only while they are inside the beam: each drifts slowly outward
-## along its own line through the cone and wraps, whole pixels, brightest near the axis.
-const MOTES := 26
+## ⚠ TWO QUADS, ONE MATERIAL, AND NOT ONE _draw(). The shader shapes the light from where it lies
+## along its own quad, so each beam needs a quad turned its own way. There are always two
+## (`facings`), and a material on them does not touch the creature's sprite or its meter.
+func _build_beams() -> void:
+	_beam_material = ShaderMaterial.new()
+	_beam_material.shader = BEAM_SHADER
+	_beam_material.set_shader_parameter(&"half_angle", CONE_HALF_ANGLE * BEAM_WIDER)
+	_beam_material.set_shader_parameter(&"underwater", 1.0)  # it is never anywhere else
+	_beam_material.set_shader_parameter(&"gain", BEAM_GAIN)
+	_beam_material.set_shader_parameter(&"carry", BEAM_CARRY)
+	_beam_material.set_shader_parameter(&"side_from", BEAM_SIDE_FROM)
+	_beam_material.set_shader_parameter(&"lamp", Vector3(BEAM_SEARCHING.r, BEAM_SEARCHING.g,
+		BEAM_SEARCHING.b))
+	for index in range(2):
+		var beam := Polygon2D.new()
+		beam.name = "Beam%d" % index
+		beam.color = Color.WHITE
+		beam.material = _beam_material
+		add_child(beam)
+		_beams.append(beam)
+	_sync_beams()
 
 
-func _draw_motes(facing: float, tint: Color, clock: float, length: float) -> void:
-	# As thick in a long beam as in a short one.
-	for index in range(int(round(MOTES * length / CONE_LENGTH))):
-		var seed := float(index) * 12.9898
-		var across := fposmod(sin(seed) * 43758.5453, 1.0) * 2.0 - 1.0
-		var out := fposmod(fposmod(sin(seed * 1.7) * 24634.6345, 1.0) + clock * 0.05, 1.0)
-		var angle := facing + across * CONE_HALF_ANGLE
-		var at := (Vector2(cos(angle), sin(angle)) * out * length).round()
-		var bright := (1.0 - absf(across)) * (1.0 - out) * 0.9
-		if bright < 0.08:
-			continue
-		var size := 2.0 if index % 3 == 0 else 1.0
-		draw_rect(Rect2(at, Vector2(size, size)), Color(tint.r, tint.g, tint.b, bright))
+## Puts the light where the rule is, this moment: lens on the point `sees()` measures from, turned
+## the way it is looking, as long as it can see, and out altogether when it is not looking.
+func _sync_beams() -> void:
+	var lit := _state == State.SEARCHING or _state == State.FIGHTING
+	for beam in _beams:
+		beam.visible = lit
+	if not lit or _beams.is_empty():
+		return
+	var length := snappedf(reach() * BEAM_LONGER, 2.0)
+	if not is_equal_approx(length, _beam_length):
+		_beam_length = length
+		var half_width := 8.0 + length * tan(CONE_HALF_ANGLE * BEAM_WIDER)
+		var quad := PackedVector2Array([Vector2(0.0, -half_width),
+			Vector2(BEAM_LENS_X + length, -half_width), Vector2(BEAM_LENS_X + length, half_width),
+			Vector2(0.0, half_width)])
+		for beam in _beams:
+			beam.polygon = quad
+		_beam_material.set_shader_parameter(&"beam_length", length)
+	var fighting := _state == State.FIGHTING
+	if fighting != _beam_fighting:
+		_beam_fighting = fighting
+		var lamp := BEAM_FIGHTING if fighting else BEAM_SEARCHING
+		_beam_material.set_shader_parameter(&"lamp", Vector3(lamp.r, lamp.g, lamp.b))
+		# ⚠ The shader takes the far end of an underwater beam toward blue, which turns red purple.
+		_beam_material.set_shader_parameter(&"underwater",
+			BEAM_FIGHTING_WATER if fighting else 1.0)
+	var ways := facings()
+	for index in range(_beams.size()):
+		_beams[index].rotation = ways[index]
+		_beams[index].position = Vector2(-BEAM_LENS_X, 0.0).rotated(ways[index])
+
+
+## The water moves through the light at the game's stepped rate, and not at all under Reduce Motion.
+func _advance_beam_water(delta: float) -> void:
+	_beam_clock += delta
+	var frame := 0 if Motion.reduced() else int(_beam_clock * Motion.PIXEL_FPS)
+	if frame != _beam_frame:
+		_beam_frame = frame
+		_beam_material.set_shader_parameter(&"phase", float(frame) / Motion.PIXEL_FPS)
 
 
 ## THE BLOWS IT HAS LEFT, over its back while it fights: a row of pips that go out as it is hit,
 ## and blink red on the one that just went. A fight of fifteen with no count is a fight a player
-## gives up on at nine, not knowing it was nearly over. Drawn with its own (normal) blend, not the
-## creature's additive one -- see the material in _ready, which is on the parent alone.
+## gives up on at nine, not knowing it was nearly over.
 class _HitMeter extends Node2D:
 	var needed := 15
 	var hits := 0
