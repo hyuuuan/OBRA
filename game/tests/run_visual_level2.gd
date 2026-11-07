@@ -71,9 +71,12 @@ func _run() -> void:
 	# called it "the church".
 	var church_mark := level.get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/Marks/ChurchDoor") as Node2D
+	var hut_mark := level.get_node_or_null(
+		^"EnvironmentBaseplate/GameplayPlane/Marks/LitHouse") as Node2D
 	var church_x := church_mark.global_position.x if church_mark != null else 1250.0
+	var hut_x := hut_mark.global_position.x if hut_mark != null else 600.0
 	for step in [[220.0, "02_kiosko"], [450.0, "03_start"], [720.0, "04_dancers"],
-			[1060.0, "05_lit_house"], [church_x, "06_church"]]:
+			[hut_x, "05_lit_house"], [church_x, "06_church"]]:
 		var at := Vector2(float(step[0]), 480.0)
 		if player.has_method("apply_morph_state"):
 			player.call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})

@@ -12,7 +12,13 @@
 [ext_resource type="Script" path="res://scripts/alley_2_room_2d.gd" id="22_alley2"]
 [ext_resource type="Texture2D" path="res://assets/Level2/alley_1/bandaritas.png" id="21_alley1_bunting"]
 [ext_resource type="Script" path="res://scripts/piyesta_plaza_2d.gd" id="18_plazabuild"]
-[ext_resource type="Texture2D" path="res://assets/Level2/plaza_backdrop.png" id="19_backdrop"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza_reference/base_background.png" id="19_backdrop"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza_reference/bunting.png" id="23_bunting"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza_reference/festival_banners.png" id="24_banners"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza_reference/festival_arch.png" id="25_arch"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza_reference/pavilion.png" id="26_pavilion"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza_reference/timber_hut.png" id="27_timber_hut"]
+[ext_resource type="Texture2D" path="res://assets/Level2/plaza_reference/paving.png" id="28_paving"]
 
 [sub_resource type="RectangleShape2D" id="Rect_PlazaFloor"]
 size = Vector2(1740.0, 200.0)
@@ -40,7 +46,7 @@ script = ExtResource("4_ambience")
 
 [node name="SkyFill" type="Polygon2D" parent="."]
 z_index = -200
-color = Color(0, 0.533, 0.992, 1)
+color = Color(0.004, 0.549, 0.988, 1)
 polygon = PackedVector2Array(-3000, -3000, 13000, -3000, 13000, 2400, -3000, 2400)
 
 [node name="GroundFill" type="Polygon2D" parent="."]
@@ -49,15 +55,51 @@ color = Color(0.125, 0.094, 0.043, 1)
 polygon = PackedVector2Array(-3000, 652, 13000, 652, 13000, 2400, -3000, 2400)
 
 [node name="PlazaBackdrop" type="Sprite2D" parent="."]
+texture_filter = 1
 z_index = -110
-position = Vector2(960, 179.5)
+position = Vector2(960, 152)
 texture = ExtResource("19_backdrop")
+
+[node name="PlazaScenery" type="Node2D" parent="."]
+texture_filter = 1
+z_index = -109
+
+[node name="Bunting" type="Sprite2D" parent="PlazaScenery"]
+position = Vector2(168, 62)
+texture = ExtResource("23_bunting")
+centered = false
+
+[node name="FestivalBanners" type="Sprite2D" parent="PlazaScenery"]
+position = Vector2(365, -71)
+texture = ExtResource("24_banners")
+centered = false
+
+[node name="FestivalArch" type="Sprite2D" parent="PlazaScenery"]
+position = Vector2(598, 49)
+texture = ExtResource("25_arch")
+centered = false
+
+[node name="Pavilion" type="Sprite2D" parent="PlazaScenery"]
+position = Vector2(95, 29)
+texture = ExtResource("26_pavilion")
+centered = false
+
+[node name="TimberHut" type="Sprite2D" parent="PlazaScenery"]
+position = Vector2(1542, 285)
+texture = ExtResource("27_timber_hut")
+centered = false
 
 [node name="Plaza" type="Node2D" parent="."]
 script = ExtResource("18_plazabuild")
 ground = 560.0
 from_x = 80.0
 to_x = 1790.0
+
+[node name="PlazaPaving" type="Sprite2D" parent="Plaza"]
+z_index = 1
+texture = ExtResource("28_paving")
+position = Vector2(0, 560)
+centered = false
 
 [node name="GameplayPlane" type="Node2D" parent="."]
 script = ExtResource("3_depth")
