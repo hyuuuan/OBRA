@@ -9,10 +9,8 @@ extends Node2D
 ## of the stone instead of a flat fill, each broken layer shadowing the one under it. Collision
 ## stays with each level's own bodies, which hand their rectangles over (`dress()`, or by group).
 ##
-## An open end is cut straight, shaded as it turns away from the light and outlined; the lip
-## overhangs it with a rounded corner drawn from the same world-anchored strip (so it cannot seam
-## with it), the level's grass spills a little way down the side, and a plant stands on the
-## corner. A step down to lower ground shadows the foot of the wall.
+## An open end rounds from the lip into a shaded wall, with grass spilling a little way down
+## the side and a plant on the corner. A step down to lower ground shadows the foot of the wall.
 ##
 ## ⚠ NOT Mayon's enlarged end caps. Enlarged, a tileset painted one pixel to a pixel blurs; and a
 ## cap of stones laid over the wall's own stones met them nowhere and read as a chewed edge.
@@ -25,6 +23,7 @@ extends Node2D
 ## the lip's band and the stone are in face.png, so the scene restates none of it.
 @export_dir var kit := ""
 const ShelfArt = preload("res://scripts/moonlit_shelf_art.gd")
+const EdgeArt = preload("res://scripts/terrain_edge_art.gd")
 ## The level's ground bodies, by group. Each answers `dressed_ground()` -- world rects this
 ## draws for it, standing its own art down -- and may answer `undressed_ground()`: ground that
 ## keeps its own top but whose face this draws, and which closes or lowers an end beside it.
@@ -76,6 +75,7 @@ var _others: Array[Rect2] = []
 var _neighbours: Array[Rect2] = []
 ## Every open end, as {rect, side (-1 left, 1 right), rise (0 at a free end)}.
 var _ends: Array[Dictionary] = []
+var _corners: Dictionary = {}
 var _caps: Node2D
 
 
@@ -137,6 +137,14 @@ func dress(ground: Array[Rect2], others: Array[Rect2] = [], neighbours: Array[Re
 	_others = others.duplicate()
 	_neighbours = neighbours.duplicate()
 	_ends = exposed_ends()
+	_corners.clear()
+	for end in _ends:
+		var rect: Rect2 = end.rect
+		var rise: float = end.rise
+		var limit := minf(rise, EdgeArt.RADIUS) if rise > 0.0 else EdgeArt.RADIUS
+		var corners: Vector2 = _corners.get(rect, Vector2.ZERO)
+		corners[int(end.side > 0)] = EdgeArt.radius(rect, limit)
+		_corners[rect] = corners
 	queue_redraw()
 	if _caps != null:
 		_caps.queue_redraw()
@@ -149,21 +157,8 @@ func exposed_ends() -> Array[Dictionary]:
 	var meets: Array[Rect2] = _ground + _others + _neighbours
 	for rect in _ground:
 		for side in [-1, 1]:
-			var edge := rect.position.x if side < 0 else rect.end.x
-			var lower := INF
-			var closed := false
-			for other in meets:
-				if other == rect:
-					continue
-				var touching := is_equal_approx(other.end.x, edge) if side < 0 \
-					else is_equal_approx(other.position.x, edge)
-				if not touching or other.end.y <= rect.position.y:
-					continue
-				if other.position.y <= rect.position.y + 0.5:
-					closed = true
-				else:
-					lower = minf(lower, other.position.y)
-			if not closed:
+			var lower := EdgeArt.neighbour_top(rect, side, meets)
+			if lower > rect.position.y + 0.5:
 				out.append({"rect": rect, "side": side,
 					"rise": lower - rect.position.y if lower < INF else 0.0})
 	return out
@@ -227,7 +222,7 @@ func _draw() -> void:
 	if _face == null:
 		return
 	for rect in _ground:
-		_draw_wall(rect, rect.position.y - lip, true)
+		_draw_wall(rect, rect.position.y - lip, true, _corners.get(rect, Vector2.ZERO))
 	# Mud keeps its own silt band; under it, the same stone as the banks either side.
 	for rect in _others:
 		_draw_wall(rect, rect.position.y, false)
@@ -238,8 +233,13 @@ func _draw() -> void:
 
 
 ## Deep fill, the darker repeats from deepest to nearest, then the strip itself over them.
-func _draw_wall(rect: Rect2, top: float, with_strip: bool) -> void:
-	draw_rect(rect, deep)
+func _draw_wall(rect: Rect2, top: float, with_strip: bool, corners := Vector2.ZERO) -> void:
+	var face := Rect2(rect.position.x, top, rect.size.x, rect.end.y - top)
+	var slices := EdgeArt.rows(face, corners)
+	for slice in slices:
+		var fill := slice.intersection(rect)
+		if fill.has_area():
+			draw_rect(fill, deep)
 	for layer in range(DEPTH_TINTS.size(), 0, -1):
 		var y := top + layer * DEPTH_STEP
 		if y < rect.end.y:
@@ -247,7 +247,10 @@ func _draw_wall(rect: Rect2, top: float, with_strip: bool) -> void:
 			_draw_tiles(rect, y, skip, minf(_face.get_height() - skip, rect.end.y - y),
 				DEPTH_TINTS[layer - 1], layer * 0.37 * _face.get_width())
 	if with_strip:
-		_draw_tiles(rect, top, 0.0, minf(rect.end.y - top, _face.get_height()), Color.WHITE, 0.0)
+		for slice in slices:
+			var source_y := slice.position.y - top
+			_draw_tiles(slice, slice.position.y, source_y,
+				minf(slice.size.y, _face.get_height() - source_y), Color.WHITE, 0.0)
 	else:
 		_draw_tiles(rect, top, skip, minf(rect.end.y - top, _face.get_height() - skip),
 			DEPTH_TINTS[0], 0.0)
@@ -297,16 +300,18 @@ func _draw_loose_rock(rect: Rect2) -> void:
 		ShelfArt.draw_on(self, _shelf, rect)
 		return
 	var width := rect.size.x
-	var under := band + 12.0 - lip
-	var outline := PackedVector2Array([Vector2(0, -lip), Vector2(width, -lip), Vector2(width, 0),
+	var under := band + 12.0
+	var outline := EdgeArt.top_edge(width, EdgeArt.radius(rect, 15.0))
+	var right_shoulder := outline.size() - 1
+	outline.append_array(PackedVector2Array([
 		Vector2(width - 6, under), Vector2(width - 30, under + 16), Vector2(width * .56, under + 24),
-		Vector2(width * .36, under + 17), Vector2(18, under + 12), Vector2(4, under), Vector2(0, 0)])
+		Vector2(width * .36, under + 17), Vector2(18, under + 12), Vector2(4, under)]))
 	var points := PackedVector2Array()
 	for point in outline:
-		points.append(rect.position + point)
+		points.append(rect.position - Vector2(0, lip) + point)
 	draw_polygon(points, PackedColorArray([Color.WHITE]), strip_uv(points, rect.position.y - lip),
 		_face)
-	draw_polyline(points.slice(2) + PackedVector2Array([points[0] + Vector2(0, lip)]), OUTLINE, 1.0)
+	draw_polyline(points.slice(right_shoulder) + PackedVector2Array([points[0]]), OUTLINE, 1.0)
 
 
 ## Grounded landmark rocks keep their depth; unsupported ledges share the raised path artwork.
@@ -321,7 +326,7 @@ func uses_floating_shelf(rect: Rect2) -> bool:
 
 
 ## One open end: the side shading away from the light, its outline, and -- at a step down -- the
-## wall's shadow on the lower step. Then the lip's rounded overhang, from the same strip.
+## wall's shadow on the lower step.
 func _draw_open_side(rect: Rect2, side: int, rise: float) -> void:
 	var edge := rect.position.x if side < 0 else rect.end.x
 	var from := rect.position.y - lip + band
@@ -329,9 +334,10 @@ func _draw_open_side(rect: Rect2, side: int, rise: float) -> void:
 	var inner := edge - side * SIDE_SHADE
 	var dark := Color(0.0, 0.0, 0.0, SIDE_DARK)
 	var clear := Color(0.0, 0.0, 0.0, 0.0)
-	draw_polygon(PackedVector2Array([Vector2(edge, from), Vector2(inner, from), Vector2(inner, to),
-		Vector2(edge, to)]), PackedColorArray([dark, clear, clear, dark]))
-	draw_rect(Rect2(edge - (2.0 if side > 0 else 0.0), from, 2.0, to - from), OUTLINE)
+	if to > from:
+		draw_polygon(PackedVector2Array([Vector2(edge, from), Vector2(inner, from), Vector2(inner, to),
+			Vector2(edge, to)]), PackedColorArray([dark, clear, clear, dark]))
+		draw_rect(Rect2(edge - (2.0 if side > 0 else 0.0), from, 2.0, to - from), OUTLINE)
 	if rise > 0.0:
 		var lower := rect.position.y + rise
 		var out := edge + side * CONTACT
@@ -339,21 +345,6 @@ func _draw_open_side(rect: Rect2, side: int, rise: float) -> void:
 		draw_polygon(PackedVector2Array([Vector2(edge, lower - lip), Vector2(out, lower - lip),
 			Vector2(out, lower + 48.0), Vector2(edge, lower + 48.0)]),
 			PackedColorArray([shade, clear, clear, shade]))
-	_draw_overhang(rect, edge, side)
-
-
-## The lip running on past the edge and rounding over it: cut from the strip itself at the same
-## world phase, so it is the same grass carrying on. Its band only: nothing below the grass.
-func _draw_overhang(rect: Rect2, edge: float, side: int) -> void:
-	var top := rect.position.y - lip
-	var grass := rect.position.y - lip + 8.0
-	var bottom := top + band
-	var tip := edge + side * overhang
-	var shape := PackedVector2Array([Vector2(edge - side, top), Vector2(tip - side * 3.0, top),
-		Vector2(tip - side * 3.0, grass), Vector2(tip - side, grass + 1.0), Vector2(tip, grass + 4.0),
-		Vector2(tip, bottom - 3.0), Vector2(tip - side * 2.0, bottom), Vector2(edge - side, bottom)])
-	draw_polygon(shape, PackedColorArray([Color.WHITE]), strip_uv(shape, top), _face)
-	draw_polyline(shape.slice(2, 7), OUTLINE, 1.0)
 
 
 func _draw_caps() -> void:
