@@ -788,6 +788,11 @@ on screen and photographing each step. Three things, each its own commit:
   times in twenty seconds by a light it could barely see. It is half as bright again, has motes
   drifting in it, is cut into cells so it has no hard side, and is lit all the way to the rule's
   edge -- fading only outside it, so it never looks dark where it can see you.
+  **Since then (2026-11-07) that light is a flashlight's** (Kent: "nothing similar to how light is
+  presented in a flashlight"): the hand-cut wedge stopped on a hard arc, so it now uses the player's
+  `flashlight_beam.gdshader`, with a lit lens and no edge. It asks the shader for more light, kept
+  further out, so it is lit as far as before; it still goes out only past what `sees()` catches, and
+  `sees()` did not change. In a fight the same lamp goes red.
 - **And there was no way through at a swimmer's speed.** Along the bed a swimmer makes about
   100 px/s. At the old sweep (1.05 either side, 0.55 a second) there was no moment at which a run
   straight through the reach went unseen; the dark under the belly was 34 px of unmarked seabed; a
