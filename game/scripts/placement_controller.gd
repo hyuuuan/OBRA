@@ -373,6 +373,16 @@ func _climb_budget() -> float:
 ## back onto the first surface beneath it, and a deliberate aim into open air with nothing
 ## within reach below stays where it was put rather than teleporting to the floor.
 func _settle_onto_support() -> void:
+	var utility := _preview as UtilityObject
+	if utility != null:
+		var water_y := utility.water_placement_y()
+		if is_finite(water_y):
+			var aimed := _preview.global_position
+			_preview.global_position.y = water_y
+			if not _position_is_clear():
+				_preview.global_position = aimed
+			_resting = true
+			return
 	var drop := _fall_distance(_climb_budget())
 	_resting = drop >= 0.0
 	if drop > 0.0:

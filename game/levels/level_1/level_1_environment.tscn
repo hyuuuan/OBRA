@@ -598,13 +598,16 @@ texture = ExtResource("29_oldsteps")
 centered = false
 
 [node name="CP0" type="Area2D" parent="GameplayPlane/Hagdan" unique_id=2079276445]
-position = Vector2(1250, 290)
+position = Vector2(1295, 270)
 script = ExtResource("20_y6bxt")
 checkpoint_id = "CP0"
 trigger_size = Vector2(150, 140)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/CP0" unique_id=318478695]
 shape = SubResource("RectangleShape2D_3uax6")
+
+[node name="Landing" type="Marker2D" parent="GameplayPlane/Hagdan/CP0"]
+position = Vector2(0, 66)
 
 [node name="Dayami" type="Node2D" parent="GameplayPlane" unique_id=291343289]
 

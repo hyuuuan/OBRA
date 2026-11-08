@@ -76,7 +76,7 @@ func _run() -> void:
 	# asserts what it spent. This one is about whether the mechanisms work at all.
 	for beat in [_cannot_be_climbed_bare, _one_step_is_not_enough, _can_be_climbed_with_a_stair,
 			_a_placement_can_be_taken_back, _the_ghost_is_where_it_lands,
-			_the_lake_is_a_lake, _the_lake_is_crossed_by_boat,
+			_the_lake_is_a_lake, _the_lake_is_crossed_by_boat, _the_submarine_can_be_boarded,
 			_the_apo_goes_into_the_straw, _her_chest_opens, _the_heap_has_an_inside,
 			_the_overlook_needs_a_climb,
 			_the_gorge_flower_and_return_are_reachable]:
@@ -835,27 +835,28 @@ func _the_lake_is_crossed_by_boat() -> void:
 		_fail("the lake is crossed by boat", "no lake")
 		return
 	var west_edge := water.global_position.x - water.surface_size.x * 0.5
-	var surface := water.global_position.y - water.surface_size.y * 0.5
-	var registry = level.get("registry")
-	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
-	sheet.fill(Color.WHITE)
-	var hull := PackedVector2Array([Vector2(0, 0), Vector2(120, 0), Vector2(100, 40), Vector2(20, 40),
-		Vector2(0, 0)])
-	var boat := registry.call("instantiate_entity", "sailboat") as UtilityObject
-	(level.get("world_item_root") as Node).add_child(boat)
-	boat.set_world_bounds(Rect2(level.get("environment").get("world_bounds")))
-	boat.apply_item_data(DrawnItemData.from_prediction("sailboat", "Sailboat", sheet,
-		[{"points": hull, "width": 6.0, "color": Color.BLACK}], 0.9,
-		registry.call("get_entity", "sailboat")))
-	boat.global_position = Vector2(west_edge + 80.0, surface - 10.0)
-	boat.confirm_placement()
-	level.call("_connect_utility", boat)
+	var surface := water.surface_y()
 	player.call("apply_morph_state", {"position": Vector2(west_edge - 30.0, surface - 10.0),
 		"velocity": Vector2.ZERO})
+	await _carry_on(12)
+	var boat := _draw_watercraft("sailboat", Vector2(west_edge + 120.0, surface + 35.0))
+	if boat == null:
+		_fail("sailboat placement", "the lake rejected the drawing")
+		return
+	_check(absf(boat.world_extent().end.y - surface - UtilityObject.HULL_DRAFT) < 2.0,
+		"a sailboat aimed into the lake is set down at the surface", str(boat.world_extent().end.y))
+	var ink := level.get("ink_manager") as InkManager
+	var paid := ink.committed
+	player.call("apply_morph_state", {"position": Vector2(west_edge + 20.0, surface + 55.0),
+		"velocity": Vector2.ZERO})
 	await _carry_on(90)
-	boat.interact(player)
-	await _carry_on(20)
-	_check(bool(player.call("is_riding")), "the lake: E puts the apo in the boat", "aboard")
+	_check(player.global_position.x < west_edge and is_instance_valid(boat) and is_equal_approx(ink.committed, paid),
+		"falling into the lake returns her to the bank with her drawing and ink charge intact",
+		"at x %.0f" % player.global_position.x)
+	if not is_instance_valid(boat):
+		return
+	await _interact_at_the_lake()
+	_check(bool(player.call("is_riding", boat)), "the lake: E puts the apo in the boat", "aboard")
 	Input.action_press(&"move_right")
 	var ashore := false
 	for _frame in range(360):
@@ -865,7 +866,7 @@ func _the_lake_is_crossed_by_boat() -> void:
 	Input.action_release(&"move_right")
 	_check(boat.global_position.x > east.global_position.x - 140.0, "and it sails to the far bank",
 		"the boat at x %.0f, the bank at %.0f" % [boat.global_position.x, east.global_position.x])
-	boat.interact(player)
+	await _interact_at_the_lake()
 	await _carry_on(10)
 	Input.action_press(&"move_right")
 	Input.action_press(&"jump")
@@ -884,6 +885,58 @@ func _the_lake_is_crossed_by_boat() -> void:
 			else "at %s, on floor %s" % [player.global_position.round(), player.call("is_on_floor")])
 	boat.queue_free()
 	await _carry_on(2)
+
+
+func _the_submarine_can_be_boarded() -> void:
+	var water := level.get_node(^"EnvironmentBaseplate/GameplayPlane/WaterAreas/CentralPaddy") as WaterArea2D
+	var west := water.global_position.x - water.surface_size.x * 0.5
+	var surface := water.surface_y()
+	player.call("apply_morph_state", {"position": Vector2(west - 30.0, surface - 4.0), "velocity": Vector2.ZERO})
+	await _carry_on(12)
+	# Clear of the bank's submerged slope while the hull is still in E's reach.
+	var aim := Vector2(west + 145.0, surface + 60.0)
+	var sub := _draw_watercraft("submarine", aim)
+	if sub == null:
+		_fail("submarine placement", "the lake rejected the drawing")
+		return
+	var placed_y := sub.global_position.y
+	await _carry_on(90)
+	_check(absf(placed_y - aim.y) < 4.0 and absf(sub.global_position.y - placed_y) < 4.0,
+		"an empty submarine waits at the depth she aimed at",
+		"aimed %.0f, placed %.0f, held at %.0f" % [aim.y, placed_y, sub.global_position.y])
+	await _interact_at_the_lake()
+	Input.action_press(&"move_right")
+	await _carry_on(90)
+	Input.action_release(&"move_right")
+	_check(is_instance_valid(sub) and bool(player.call("is_riding", sub)) and bool(player.call("is_in_water"))
+		and sub.global_position.x > aim.x + 80.0,
+		"E boards the submarine and its passenger can drive underwater without a rescue", "started at x %.0f" % aim.x)
+	if is_instance_valid(sub):
+		sub.queue_free()
+	await _carry_on(2)
+
+
+func _draw_watercraft(id: String, aim: Vector2) -> UtilityObject:
+	var sheet := Image.create(128, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	var hull := PackedVector2Array([Vector2(0, 0), Vector2(120, 0), Vector2(100, 40), Vector2(20, 40), Vector2.ZERO])
+	level.call("_on_drawing_ready", id, id.capitalize(), sheet, {"confidence": 0.99},
+		[{"points": hull, "width": 6.0, "color": Color.BLACK}], 1.0)
+	var inventory := level.get("inventory_manager") as Node
+	var slot := _slot_holding(inventory, id)
+	if slot < 0:
+		return null
+	level.call("_on_inventory_slot_pressed", slot)
+	var placement := level.get("placement_controller") as PlacementController
+	placement.update_target(aim)
+	return level.get("_last_placed") as UtilityObject if placement.confirm_placement() else null
+
+
+func _interact_at_the_lake() -> void:
+	Input.parse_input_event(_key(&"interact", true))
+	await _carry_on(1)
+	Input.parse_input_event(_key(&"interact", false))
+	await _carry_on(8)
 
 
 ## HER CHEST OPENS -- with something that can CUT or UNLOCK, and nothing else. Kent's friend:

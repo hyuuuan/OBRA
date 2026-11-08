@@ -758,6 +758,12 @@ func _audit_live_level() -> void:
 		"EnvironmentBaseplate/GameplayPlane/Hagdan/CP0") as CheckpointArea2D
 	_check(cp_area != null, "CP0 exists", "at the top of the flight")
 	if cp_area != null:
+		var apo := level.get("player") as CharacterBody2D
+		apo.global_position = Vector2(1160.0, 420.0)
+		apo.velocity = Vector2.ZERO
+		for _frame in range(5):
+			await physics_frame
+		_check(not cp_area.is_written(), "CP0 cannot be reached from below the lip", "still unlit")
 		(level.get("player") as Node2D).global_position = cp_area.global_position
 		for _frame in range(10):
 			await physics_frame
@@ -769,6 +775,15 @@ func _audit_live_level() -> void:
 		await process_frame
 		_check((level.get("checkpoints")).count() >= 1, "re-entry does not stack",
 			"%d snapshot(s)" % (level.get("checkpoints")).count())
+		var manager := level.get("checkpoints") as CheckpointManager
+		var saved := manager.peek("CP0")
+		saved["position"] = Vector2(1160.0, 420.0)
+		manager.write("CP0", saved)
+		level.call("_restore_checkpoint")
+		for _frame in range(12):
+			await physics_frame
+		_check(apo.global_position.x > 1180.0 and absf(apo.global_position.y - 340.0) < 5.0,
+			"CP0 restores her to the upper terrace even from an old mid-climb save", str(apo.global_position))
 
 	# --- falling puts you back, and brings your things with you --------------
 	# Writing a checkpoint was already covered; nothing called restore(), so the one

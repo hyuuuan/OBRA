@@ -368,6 +368,11 @@ func _drowning_words() -> PackedStringArray:
 	])
 
 
+func _rescue_from_water() -> void:
+	var words := _drowning_words()
+	_return_to_safety(words[0], words[1])
+
+
 ## The obstacle the scene's DialogueNode2D presents, or "" if the level has none.
 func _dialogue_node_obstacle_id() -> String:
 	return ""
@@ -4090,15 +4095,12 @@ func _physics_process(_delta: float) -> void:
 	# -- so without this the water is not a gate, it is a hole to be stuck in. A drawn
 	# creature that swims is not rescued: being in the water is the whole point of it.
 	# A level that lets the apo swim on a breath (Dagat) looks after its own water.
-	if player is Wanderer and bool(player.call("is_in_water")) and not _apo_can_swim():
+	if player is Wanderer and (player as Wanderer).is_in_water() \
+			and not (player as Wanderer).is_riding() and not _apo_can_swim():
 		_submerged_seconds += _delta
 		if _submerged_seconds > 1.1:
 			_submerged_seconds = 0.0
-			# POINTED AT THE ANSWER, not at the problem. It used to say "draw something that
-			# can cross it", which is what the beat asked for when Span came first -- and
-			# Span cannot cross three hundred pixels of water. The way over is the plank.
-			var words := _drowning_words()
-			_return_to_safety(words[0], words[1])
+			_rescue_from_water()
 			return
 	else:
 		_submerged_seconds = 0.0

@@ -664,7 +664,8 @@ cloth pennant, which read as one more signboard in a level that is already full 
 signboards ("you placed a sign in the checkpoint spots"). The state is LIGHT rather than
 colour, because a change from grey cloth to gold cloth is a change you have to be looking at
 it to notice. The two decorative fence sprites are deleted outright: one of them was standing
-on CP0.
+on CP0. Its trigger starts on the upper terrace, and its authored landing there also takes
+over from older CP0 snapshots written partway up the climb.
 
 **The gorge has a BOTTOM, and the cave is a hole you can see.** `has_a_floor` lays rubble and
 silt across the foot of the shaft with a column of daylight down the middle, and `cave_at` /
@@ -849,11 +850,11 @@ are not.
 **The lake before the gorge (`CentralPaddy`) is 600px, x 2280–2880** (Kent, 2026-10-03: "longer
 instead of a puddle"). It was a 300px paddy, which a 340px drawn bridge spanned; it grew west
 into the bank before it, so the gorge and everything after it did not move. A bridge no longer
-reaches across. A boat does, and so does something that swims. It is 160 deep and filled to
-the rim, so the apo cannot wade it, and going under puts her back at her last checkpoint.
-`run_walk_level1` holds the width, keeps water, bed and basin bank to bank, checks no signpost
-stands in it, and rides a boat across. It is not in `GATES.md` and has no beat or hint of its
-own: the banner says "Follow the terraces east to the gorge" all the way across it.
+reaches across. A boat does, and so does something that swims. Lolo explains the transformation
+on the west bank. The lake is 160 deep and filled to the rim, so an unboarded apo who wades in
+is rescued to a dry bank with her drawings and ink intact. Sailboats land at the waterline,
+and submarines placed in clear water wait at that depth until boarded. `run_walk_level1` checks both
+placements and rides the sailboat across.
 
 **The sky has a lid (`GameplayPlane/SkyLid`, underside y -440).** Kent: "when i try to fly up above
 in level 1, i get to go to the houses, hay". Both insides are parked over the valley (the heap at

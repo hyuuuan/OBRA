@@ -13,7 +13,7 @@ extends SceneTree
 ## The list of what it found is in LEVEL_TEMPLATE.md, "When the game speaks".
 
 ## Every check this probe makes, so a crash part-way cannot print OK.
-const CHECKS := 54
+const CHECKS := 55
 
 const LEVELS := {
 	"level_1": "res://game_level.tscn",
@@ -267,6 +267,7 @@ func _run() -> void:
 		"opening": _the_opening_comes_first,
 		"gorge": _the_gorge_asks_after_it_has_told,
 		"lantern": _the_lantern_is_named_where_it_stands,
+		"lake": _the_lake_teaches_a_swimming_form,
 		"heap": _the_heap_says_what_it_is_first,
 		"house": _the_house_speaks_on_foot,
 		"air": _a_line_waits_for_her_to_land,
@@ -342,6 +343,32 @@ func _the_gorge_asks_after_it_has_told() -> void:
 	await _wait(0.3)
 	_check(not under_the_bars.has(commit[0] if not commit.is_empty() else "") and bars_seen_since_marked,
 		"and the lantern has its moment after it", "bars after the line: %s" % bars_seen_since_marked)
+
+
+func _the_lake_teaches_a_swimming_form() -> void:
+	await _open("level_1")
+	var water := level.get_node(^"EnvironmentBaseplate/GameplayPlane/WaterAreas/CentralPaddy") as WaterArea2D
+	var west := water.global_position.x - water.surface_size.x * 0.5
+	var words := "Too deep to wade, apo. Draw an animal that can swim and become it to cross."
+	await _stand_at(west - 180.0, water.surface_y() - 100.0)
+	_hold(&"jump", true)
+	await _walk_to(west - 25.0, 2.0)
+	_hold(&"jump", false)
+	await _settle()
+	var reached := _player().global_position
+	var said_at := _said_entry(words)
+	await _turn_pages()
+	await _walk_to(west - 180.0, 2.0)
+	await _settle()
+	_hold(&"jump", true)
+	await _walk_to(west - 25.0, 2.0)
+	_hold(&"jump", false)
+	await _settle()
+	var heard := said.filter(func(entry: Dictionary) -> bool: return entry.get("text") == words).size()
+	_check(heard == 1 and bool(said_at.get("on_floor", false)) and float(said_at.get("x", 0.0)) >= west - 120.0
+		and float(said_at.get("x", INF)) < west and _x() >= west - 120.0 and _x() < west,
+		"Lolo teaches swimming forms once on the bank",
+		"said %d time(s) at x %.0f, reached %s" % [heard, float(said_at.get("x", 0.0)), reached.round()])
 
 
 func _the_lantern_is_named_where_it_stands() -> void:

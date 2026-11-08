@@ -363,6 +363,11 @@
       "text": "Up you go. She would have laughed at that, and then she would have used it."
     },
     {
+      "id": "L1_LAKE_001",
+      "at": "L1_LAKE.enter",
+      "text": "Too deep to wade, apo. Draw an animal that can swim and become it to cross."
+    },
+    {
       "id": "L1_B0_006",
       "at": "on_first_decline",
       "once": true,

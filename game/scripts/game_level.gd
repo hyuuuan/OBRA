@@ -31,6 +31,10 @@ var _key_prompt := ""
 	^"EnvironmentBaseplate/GameplayPlane/Gorge/CaveGate")
 @onready var hidden_flower: HiddenFlower2D = get_node_or_null(
 	^"EnvironmentBaseplate/GameplayPlane/Gorge/HiddenFlower")
+@onready var _lake: WaterArea2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/WaterAreas/CentralPaddy")
+@onready var _hagdan_landing: Marker2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/Hagdan/CP0/Landing")
 
 var _memory_shown := false
 func _offer_the_found_key() -> void:
@@ -953,6 +957,7 @@ func _level_answers_first() -> bool:
 
 func _level_physics(anchor_position: Vector2) -> void:
 	_offer_the_found_key()
+	_tell_her_about_the_lake(anchor_position)
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
 	#
@@ -961,6 +966,38 @@ func _level_physics(anchor_position: Vector2) -> void:
 	# the player was still falling into it.
 	if anchor_position.x > 3660.0:
 		_show_memory_if_earned()
+
+
+func _tell_her_about_the_lake(at: Vector2) -> void:
+	if _lake == null or _opening_running or not player is Wanderer or not (player as Wanderer).is_on_floor() \
+			or placement_controller.is_placing():
+		return
+	var west := _lake.global_position.x - _lake.surface_size.x * 0.5
+	if at.x >= west - 120.0 and at.x < west and absf(at.y - _lake.surface_y()) <= 24.0:
+		_speak_on_arrival("L1_LAKE.enter")
+
+
+func _rescue_from_water() -> void:
+	if _lake == null or not player.has_meta(&"water_area") or player.get_meta(&"water_area") != _lake:
+		super()
+		return
+	# A trip into the lake should not undo the drawing the player was trying to board.
+	var side := -1.0 if player.global_position.x < _lake.global_position.x else 1.0
+	var bank := Vector2(_lake.global_position.x + side * (_lake.surface_size.x * 0.5 + 32.0),
+		_lake.surface_y() - 4.0)
+	(player as Wanderer).apply_morph_state({"position": bank, "velocity": Vector2.ZERO})
+	_say_why("Back to the bank, apo. Draw an animal that can swim.")
+
+
+func _checkpoint_landing(state: Dictionary) -> Vector2:
+	if _hagdan_landing == null or checkpoints.latest_id() != "CP0":
+		return super(state)
+	var landing := _hagdan_landing.global_position
+	if is_instance_valid(player) and not player is Wanderer:
+		var lowest := lowest_point_of(player)
+		if is_finite(lowest):
+			landing.y -= maxf(0.0, lowest - _player_anchor_position().y)
+	return landing
 
 
 ## The cave, and the one optional collectible behind it. Wired before the base's own
