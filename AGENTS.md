@@ -1026,6 +1026,8 @@ fitting its page, and being given by some level's script.
 
 ## Working Notes
 
+- After completing a task that changes this repository, commit the task's changes and
+  push them to `origin/main`.
 - Prefer Python 3.11 or 3.12 for ONNX Runtime/PyTorch compatibility; local Python
   3.14 may be too new for wheels.
 - `model/data/`, `.venv/`, `.godot/`, and thesis working docs are intentionally
