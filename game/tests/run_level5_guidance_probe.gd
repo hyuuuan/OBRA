@@ -30,11 +30,20 @@ func _run() -> void:
 	var sketch: Node = level.get("memory_sketch")
 	var ink: InkManager = level.get("ink_manager")
 	var fragment: MemoryFragment2D = level.call("_fragment", "terraces")
+	preload("res://tests/level5_journey_fixture.gd").prepare(level,
+		fragment.global_position + Vector2(-fragment.reach - 60.0, 60.0))
+	await create_timer(0.3).timeout
+	level.call("refresh_objective")
+	_check(_objective().contains("Step close"), "an out-of-reach memory tells the player to approach before moving on")
 	preload("res://tests/level5_journey_fixture.gd").prepare(level, fragment.global_position + Vector2(0, 60))
 	await create_timer(0.3).timeout
 	var lines: DialogueScript = level.get("script_lines")
-	_check(lines.has_heard("L5_CORRIDOR.enter") and lines.lines_spoken() >= 3,
-		"Lolo explains preservation as part of entering the memories")
+	var lesson := ""
+	for line: Dictionary in lines.peek("L5_CORRIDOR.enter"):
+		lesson += lines.display_text(line) + "\n"
+	_check(lines.has_heard("L5_CORRIDOR.enter") and lesson.contains("glows") and lesson.contains("Press Preserve")
+		and lesson.contains("one drop of ink") and lesson.contains("fade") and lesson.contains("paintings at home"),
+		"Lolo explains how to preserve, what it costs, and what fading affects")
 	level.call("refresh_objective")
 	_check(_objective().contains("sketch and preserve"), "a reachable landmark explains how to preserve it")
 	await _photo("01_memory_target")
@@ -111,7 +120,11 @@ func _run() -> void:
 		"empty ink leaves the landmark available without opening the wrong canvas")
 	other.leave_behind()
 	await create_timer(4.2).timeout
-	_check(String(level.get("status_label").text).contains("left behind"), "a lost memory confirms the outcome without implying game over")
+	ink.committed = ink.capacity - InkManager.UNIT
+	level.call("refresh_objective")
+	_check(String(level.get("status_label").text).contains("left behind") and _objective().contains("Replay Mayon from home"),
+		"a lost memory explains that the player can try again from the house")
+	ink.committed = ink.capacity
 	level.get("lolo").vanish()
 	level.set("_lolo_moment", "gone")
 	preload("res://tests/level5_journey_fixture.gd").summit(level)
@@ -169,8 +182,8 @@ func _run() -> void:
 	await _photo("08_home_complete")
 	hub.queue_free()
 	await process_frame
-	print("OBRA_LEVEL5_GUIDANCE_%s (%d checks)" % ["OK" if failures == 0 and checked == 21 else "FAILED", checked])
-	quit(0 if failures == 0 and checked == 21 else 1)
+	print("OBRA_LEVEL5_GUIDANCE_%s (%d checks)" % ["OK" if failures == 0 and checked == 22 else "FAILED", checked])
+	quit(0 if failures == 0 and checked == 22 else 1)
 
 
 func _objective() -> String:

@@ -256,7 +256,9 @@ func _current_objective() -> Dictionary:
 			had_memory = true
 			open_here = open_here or fragment.is_open()
 			saved_here = saved_here or fragment.state() == "saved"
-		if not open_here and had_memory:
+		if open_here:
+			return {"key": "memory_approach"}
+		if had_memory:
 			return {"key": "memory_saved" if saved_here else "memory_lost"}
 		return {"key": "memories"}
 	match String(director.current_obstacle()):

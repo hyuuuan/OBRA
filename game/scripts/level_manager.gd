@@ -379,13 +379,15 @@ func _enter_painting(scene_path: String, level_id: String, painting: Node2D) -> 
 	prepare_level(level_id)
 	while _prepared_path != scene_path and not _preparing_path.is_empty():
 		await get_tree().process_frame
-	if _prepared_path != scene_path or _prepared_scene == null \
-			or not is_instance_valid(painting):
+	# Prefetch is an optimization. An unavailable result must not refuse an unlocked painting.
+	var destination := _prepared_scene if _prepared_path == scene_path else null
+	if destination == null and is_instance_valid(painting):
+		destination = load(scene_path) as PackedScene
+	if destination == null or not is_instance_valid(painting):
 		_release_players(frozen)
 		push_error("Could not prepare painting destination %s" % scene_path)
 		_finish_transition(scene_path)
 		return
-	var destination := _prepared_scene
 	_painting_transition.take_hall_interface(get_tree().current_scene)
 	var hall: Texture2D = _painting_transition.capture_world()
 	_painting_transition.prepare(painting.call("transition_source"), hall)

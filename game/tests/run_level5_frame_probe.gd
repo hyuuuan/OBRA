@@ -8,8 +8,9 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_frame_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 9
+const CHECKS := 12
 const HUB := "res://levels/hub/hub.tscn"
+const MAYON := "res://level_5.tscn"
 ## What is said in the house, and by whom, in order -- Kent's own words, near enough.
 const LINES := [
 	["lola", "Mahal! You look so young!"],
@@ -26,6 +27,9 @@ var _played := false
 
 
 func _initialize() -> void:
+	node_added.connect(func(node: Node) -> void:
+		if node is BackendSupervisor:
+			node.auto_start_backend = false)
 	call_deferred("_run")
 
 
@@ -43,6 +47,8 @@ func _run() -> void:
 	profile.call("reset_progress")
 	profile.call("mark_level_completed", "level_5")
 	await _while_she_talks_both_stand_above_the_box()
+	profile.call("reset_progress")
+	await _home_and_replay_with_no_memories(profile)
 	profile.call("reset_progress")
 	if failures == 0 and checked == CHECKS:
 		print("OBRA_LEVEL5_FRAME_OK")
@@ -221,6 +227,73 @@ func _open_hub(settle: bool = true) -> Node:
 	return hub
 
 
+func _home_and_replay_with_no_memories(profile: Node) -> void:
+	var manager := root.get_node("LevelManager")
+	profile.call("record_brush_acquired")
+	profile.call("record_new_brush")
+	for id: String in ["level_1", "level_2", "level_3", "level_4"]:
+		profile.call("mark_level_completed", id)
+	manager.set("current_level_id", "level_5")
+	var level := await _open_level()
+	current_scene = level
+	preload("res://tests/level5_journey_fixture.gd").summit(level)
+	(level.get("lolo") as Lolo).vanish()
+	level.set("_lolo_moment", "gone")
+	level.set("_summit", "places")
+	var player := level.get("player") as Node2D
+	player.global_position = Vector2(level.call("_anchor", "lola")) + Vector2(-250, 0)
+	player.set_physics_process(false)
+	var ink := level.get("ink_manager") as InkManager
+	ink.committed = ink.capacity
+	var empty: bool = (level.call("bloom_targets") as Array).is_empty()
+	level.call("_free_paint_completed", [{"points": PackedVector2Array([Vector2.ZERO, Vector2(90, 25)]),
+		"width": 6.0, "color": Color.BLACK}])
+	var home := await _until(func() -> bool:
+		for overlay in get_nodes_in_group(ModalOverlay.GROUP):
+			if overlay is DiaryOverlay and overlay.is_open():
+				overlay.close()
+		return current_scene != null and current_scene.scene_file_path == HUB \
+			and not bool(manager.call("is_transitioning")) and not bool(current_scene.call("is_revealing")), 30.0)
+	_check(empty and home and bool(profile.call("is_level_completed", "level_5")),
+		"Mayon finishes and returns to the house with no preserved memories", "home %s" % home)
+	if not home:
+		return
+	var hub := current_scene
+	var ready_to_replay := 0
+	for node in _paintings(hub):
+		var painting := node as Painting2D
+		if painting.art != null and painting.art.resource_path.ends_with("_lolo.png") \
+				and painting.is_playable() and not painting.is_locked():
+			ready_to_replay += 1
+	_check(ready_to_replay == 5, "every painting has art and remains available after the empty run",
+		"%d paintings" % ready_to_replay)
+	var mayon := hub.call("painting_for_level", "level_5") as Painting2D
+	(hub.get_node(^"Apo") as Node2D).global_position.x = mayon.global_position.x
+	await _frames(4)
+	var prompt := hub.get("_prompt") as Label
+	var offered := prompt.visible and prompt.text.ends_with("REPLAY")
+	# Simulate a completed preload without a usable PackedScene to exercise the fallback.
+	var prefetched := await _until(func() -> bool: return manager.get("_preparing_path") == "", 8.0)
+	manager.set("_prepared_path", MAYON)
+	manager.set("_prepared_scene", null)
+	var press := InputEventKey.new()
+	press.physical_keycode = KEY_E
+	press.pressed = true
+	root.push_input(press, true)
+	var release := press.duplicate() as InputEventKey
+	release.pressed = false
+	root.push_input(release, true)
+	var replayed := await _until(func() -> bool:
+		return current_scene != null and current_scene.scene_file_path == MAYON \
+			and not bool(manager.call("is_transitioning")), 12.0)
+	_check(prefetched and offered and replayed and current_scene.call("journey_phase") == "ascent",
+		"the Replay prompt reopens Mayon from the start even if the preload is unavailable",
+		"offered %s, re-entered %s" % [offered, replayed])
+	if is_instance_valid(current_scene):
+		current_scene.queue_free()
+	await _frames(4)
+
+
 func _until(done: Callable, seconds: float) -> bool:
 	var left := seconds
 	while left > 0.0:
@@ -234,7 +307,6 @@ func _until(done: Callable, seconds: float) -> bool:
 
 func _open_level() -> Node:
 	var scene := (load("res://level_5.tscn") as PackedScene).instantiate()
-	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(scene)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	for _frame in range(40):

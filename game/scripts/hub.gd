@@ -20,16 +20,17 @@ const HubRoomScript = preload("res://scripts/hub_room.gd")
 const PaintingScript = preload("res://scripts/painting_2d.gd")
 const BrushStandScript = preload("res://scripts/brush_stand_2d.gd")
 const BrushSheet: Texture2D = preload("res://assets/hud/brush_full.png")
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 const WandererScene = preload("res://creatures/wanderer.tscn")
 
 ## The five, in the order they hang. The title comes out of the catalog; this only says
 ## which painting goes where and what the plate reads.
 const WALL: Array[Dictionary] = [
-	{"id": "level_1", "plate": "TERRACES"},
-	{"id": "level_2", "plate": "PIYESTA"},
-	{"id": "level_3", "plate": "DAGAT"},
-	{"id": "level_4", "plate": "DILIM"},
-	{"id": "level_5", "plate": "MAYON"},
+	{"id": "level_1", "plate": "TERRACES", "art": preload("res://assets/hub/paintings/level_1.png")},
+	{"id": "level_2", "plate": "PIYESTA", "art": preload("res://assets/hub/paintings/level_2.png")},
+	{"id": "level_3", "plate": "DAGAT", "art": preload("res://assets/hub/paintings/level_3.png")},
+	{"id": "level_4", "plate": "DILIM", "art": preload("res://assets/hub/paintings/level_4.png")},
+	{"id": "level_5", "plate": "MAYON", "art": preload("res://assets/hub/paintings/level_5.png")},
 ]
 
 ## Where the apo comes in: in front of the first painting rather than at the end of the
@@ -70,7 +71,7 @@ var _stand: Node2D
 var _paintings: Array[Node2D] = []
 var _carried: Control
 ## What the prompt is currently saying. NONE until the first target comes into reach.
-enum Wear { NONE, TAKE, VIEW, REFUSE, LOCKED, UNFINISHED }
+enum Wear { NONE, TAKE, VIEW, REPLAY, REFUSE, LOCKED, UNFINISHED }
 ## The card that says a thing is yours now. See AcquiredOverlay.
 var _acquired: AcquiredOverlay
 var _wearing: Wear = Wear.NONE
@@ -266,9 +267,7 @@ func _hang(index: int, entry: Dictionary) -> void:
 	painting.name = "Painting%d" % (index + 1)
 	painting.set("level_id", String(entry["id"]))
 	painting.set("plate_text", String(entry["plate"]))
-	var art_path := "res://assets/hub/paintings/%s.png" % String(entry["id"])
-	if ResourceLoader.exists(art_path):
-		painting.set("art", load(art_path))
+	painting.set("art", entry["art"])
 	painting.position = _room.call("painting_anchor", index)
 	add_child(painting)
 	_paintings.append(painting)
@@ -414,7 +413,9 @@ func _process(_delta: float) -> void:
 	elif bool(_near.call("is_locked")):
 		_wear(Wear.LOCKED)
 	else:
-		_wear(Wear.VIEW)
+		var profile := get_node(^"/root/PlayerProfile")
+		var completed := bool(profile.call("is_level_completed", String(_near.get("level_id"))))
+		_wear(Wear.REPLAY if completed else Wear.VIEW)
 	# Placed in screen space so it reads with the thing it belongs to: under the plate on a
 	# picture, and ABOVE the case, clear of the dome -- the plate is on the floor at its
 	# foot and the brush is inside the glass between the two.
@@ -548,6 +549,9 @@ func _wear(state: Wear) -> void:
 			_prompt.add_theme_color_override(&"font_color", UISkin.GILT_HI)
 		Wear.VIEW:
 			_prompt.text = "E   VIEW"
+			_prompt.add_theme_color_override(&"font_color", UISkin.GOLD)
+		Wear.REPLAY:
+			_prompt.text = "%s   REPLAY" % ControlsKeys.keys_for("interact")
 			_prompt.add_theme_color_override(&"font_color", UISkin.GOLD)
 		Wear.REFUSE:
 			_prompt.text = "NEEDS LOLA'S BRUSH"

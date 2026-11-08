@@ -124,9 +124,10 @@ Mayon remains silent. No enemy, health, boss or required replay of an earlier qu
 
 ## Player instructions and completion (5 November 2026)
 
-Lolo explains the finite ink at the foot of Mayon and tells the apo to draw something that
-reminds them of a glowing place when they enter the memories. The objective gives the Draw
-key when a landmark is in reach. The sketchbook shows its reference beside the paper.
+Lolo explains the finite ink at the foot of Mayon. At the memories he explains how to approach
+a landmark, sketch it and press Preserve, and which choices fade. The objective asks the
+player to approach and gives the Draw key when a landmark is in reach. The sketchbook shows
+its reference beside the paper.
 **Preserve · 1 ink** commits the sketch. Closing the book costs nothing. When the brush is
 empty, the objective tells the player they can continue to the ending. HudNotice confirms
 when a memory is preserved or lost.
@@ -137,8 +138,9 @@ These pages wait for Paint and use the existing quiet brush and free-paint seque
 The summit retains its objective and the Draw button when drawing is available. It tells
 the player to approach Lola, attempt her drawing, then draw any remembered place for free.
 After the last diary page, the objective confirms **Mayon complete. Progress saved. Returning
-home.** The house confirms **Journey complete. Progress saved.** and offers exploration or
-revisiting paintings. The existing home and Lola scenes still play as authored.
+home.** The house confirms **Journey complete. Progress saved.** and labels completed
+paintings **Replay**. Even an ending with no memories preserved returns to a house with
+all its paintings and lets Mayon start over. `run_level5_frame_probe` exercises that route.
 
 `run_level5_guidance_probe` checks these states, remapped input, a freehand house sketch,
 Preserve and Paint clicks, empty ink, loss feedback and completion acknowledgement. With `-- --visual` it also saves

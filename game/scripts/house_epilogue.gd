@@ -26,7 +26,13 @@ const DIALOGUE := "res://config/dialogue_l5.json"
 ## Remembered on the profile, the way a conversation heard is: it plays once, whatever happens
 ## between Mayon's end and the house (a quit included).
 const HEARD := "house_epilogue"
-const LOLO_ART := "res://assets/hub/paintings/%s_lolo.png"
+const LOLO_ART := {
+	"level_1": preload("res://assets/hub/paintings/level_1_lolo.png"),
+	"level_2": preload("res://assets/hub/paintings/level_2_lolo.png"),
+	"level_3": preload("res://assets/hub/paintings/level_3_lolo.png"),
+	"level_4": preload("res://assets/hub/paintings/level_4_lolo.png"),
+	"level_5": preload("res://assets/hub/paintings/level_5_lolo.png"),
+}
 ## The empty easel, in the bay at the far end from Mayon's painting: "the other side of the room".
 ## Clear of Payyo's frame, which begins at 236.
 const EASEL_X := 150.0
@@ -83,9 +89,9 @@ func build(hub: Node, paintings: Array, ground_y: float, apo_x: float, before: N
 	_hub = hub
 	for node: Variant in paintings:
 		var painting := node as Node2D
-		var path := LOLO_ART % String(painting.get("level_id"))
-		if ResourceLoader.exists(path):
-			painting.set("art", load(path))
+		var art := LOLO_ART.get(String(painting.get("level_id"))) as Texture2D
+		if art != null:
+			painting.set("art", art)
 			painting.queue_redraw()
 	easel = Node2D.new()
 	easel.name = "EmptyEasel"

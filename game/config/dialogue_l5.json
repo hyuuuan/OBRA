@@ -104,7 +104,21 @@
       "at": "L5_CORRIDOR.enter",
       "speaker": "lolo",
       "kind": "lore",
-      "text": "When a place glows, draw something that reminds you of it, apo. It takes one drop of ink to keep the memory from fading."
+      "text": "Step close to a memory until it glows, apo. Open Draw and trace or sketch a few lines."
+    },
+    {
+      "id": "L5_preserve_cost",
+      "at": "L5_CORRIDOR.enter",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Press Preserve to keep it. It costs one drop of ink, and the memory will return at the summit."
+    },
+    {
+      "id": "L5_preserve_choice",
+      "at": "L5_CORRIDOR.enter",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "An unsaved memory fades if you wait too long or walk on. You can still visit the paintings at home."
     },
     {
       "id": "L5_no_ink",
