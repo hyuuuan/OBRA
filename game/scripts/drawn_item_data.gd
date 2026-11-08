@@ -67,5 +67,6 @@ func save_world_state(world_object: Node2D) -> void:
 	if world_object.has_method("serialize_utility_state"):
 		var state: Variant = world_object.call("serialize_utility_state")
 		if state is Dictionary:
-			runtime_state = state.duplicate(true)
+			# The world object reports its own flags. Keep item data such as weapon wear.
+			runtime_state.merge(state.duplicate(true), true)
 

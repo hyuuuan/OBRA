@@ -2621,7 +2621,6 @@ func _spawn_or_replace(
 	var previous_state: Dictionary = {}
 	if player != null and is_instance_valid(player) and player.has_method("capture_morph_state"):
 		previous_state = player.call("capture_morph_state")
-	_drop_equipped_before_morph(previous_state)
 
 	var new_player := registry.instantiate_entity(entity_id) as Node2D
 	if new_player == null:
@@ -2642,6 +2641,7 @@ func _spawn_or_replace(
 			status_label.text = "Rig build failed safely — previous morph kept"
 			new_player.queue_free()
 			return false
+	_release_equipped_for_morph(previous_state)
 	previous_state = _where_a_new_form_arrives(entity_id, previous_state)
 	_adopt_player(new_player, previous_state, true)
 
@@ -3467,20 +3467,22 @@ func _drawing_display_name(drawing: PhysicsShapeObject) -> String:
 	return drawing.name.replace("_", " ").capitalize()
 
 
-func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
-	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
+func _release_equipped_for_morph(previous_state: Dictionary) -> void:
+	var held := _equipped_utility
+	if not is_instance_valid(held):
 		_equipped_utility = null
 		return
+	# Equipping a slotted tool leaves its data in the bag. Stow its held instance
+	# before freeing the old grip so the same drawing never exists in both places.
+	if inventory_manager.holds(held.item_data):
+		_stow_equipped()
+		inventory_hud.set_selected(-1)
+		return
+	# Use the level's bounds before a loose tool resumes physics. The drop emits
+	# left_the_hand synchronously, which clears the level's equipped reference.
 	var drop_position := Vector2(previous_state.get("position", spawn_point.global_position))
-	_equipped_utility.drop_to_world(world_item_root, drop_position)
-	# AND TELL IT HOW BIG THE WORLD IS, which only _on_placement_confirmed was doing.
-	# PhysicsShapeObject clamps itself back into Rect2(0, -520, 3760, 1200) when it is not
-	# told otherwise, and both interiors sit a thousand units above the top of that -- so a
-	# tool dropped by a morph inside a room was teleported out of the room and down into the
-	# valley on its first physics tick.
-	if _equipped_utility.has_method("set_world_bounds"):
-		_equipped_utility.call("set_world_bounds", Rect2(environment.get("world_bounds")))
-	_equipped_utility = null
+	held.set_world_bounds(Rect2(environment.get("world_bounds")))
+	held.drop_to_world(world_item_root, drop_position)
 
 
 ## A shared minimap and brush stack at the top left, with the morph and brief feedback right.
@@ -4387,9 +4389,6 @@ func _revert_to_base_form() -> void:
 	var previous_state: Dictionary = {}
 	if player != null and is_instance_valid(player) and player.has_method("capture_morph_state"):
 		previous_state = player.call("capture_morph_state")
-	# Same reason a morph drops what it holds: the held item is parented to the OLD body's
-	# grip, so it has to be re-homed into the world before that body is freed.
-	_drop_equipped_before_morph(previous_state)
 
 	# Where the creature was, not the spawn point -- changing back is not restarting. Both
 	# kinds of player report "position", so the fallback only covers a body that answered
@@ -4407,13 +4406,13 @@ func _revert_to_base_form() -> void:
 		var feet := lowest_point_of(player)
 		if is_finite(feet):
 			landing.y = feet
-	if not previous_state.is_empty():
-		previous_state["position"] = landing
-
 	var wanderer := _instantiate_wanderer()
 	if wanderer == null:
 		status_label.text = "Could not change back"
 		return
+	_release_equipped_for_morph(previous_state)
+	if not previous_state.is_empty():
+		previous_state["position"] = landing
 	wanderer.global_position = landing
 	_adopt_player(wanderer, previous_state, true)
 
