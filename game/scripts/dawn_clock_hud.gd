@@ -139,7 +139,9 @@ func shown() -> float:
 
 ## Whole seconds until morning, rounded up: it reads 0:00 only when it is morning.
 func seconds_left() -> int:
-	return ceili((1.0 - _progress) * DilimFinale2D.DAWN_SECONDS - 0.001)
+	if _morning:
+		return 0
+	return maxi(1, ceili((1.0 - _progress) * DilimFinale2D.DAWN_SECONDS - 0.001))
 
 
 func time_text() -> String:

@@ -368,8 +368,20 @@ func _restore_checkpoint() -> String:
 	# up with a fight on is the likeliest to be cut off. The wave she was in says its help again.
 	if _finale != null:
 		_night_helped.erase(_finale.current_wave())
+	var manananggal_before := director.obstacle_state() if _lower != null and _lower.is_salted() else {}
 	var restored := super()
 	get_tree().call_group(Enemy2D.GROUP, &"reset_for_restore")
+	if _lower != null and _lower.is_salted() and _upper != null:
+		_upper.leave(false)
+	# Keep the encounter's result alongside the defeat, without re-logging the solve.
+	if not manananggal_before.is_empty() and not director.is_solved("L4_MANANANGGAL"):
+		var state := director.obstacle_state()
+		for field: String in state:
+			var before: Dictionary = manananggal_before[field]
+			if before.has("L4_MANANANGGAL"):
+				state[field]["L4_MANANANGGAL"] = before["L4_MANANANGGAL"]
+		director.restore_obstacle_state(state)
+		_refresh_requirements()
 	_morning = false
 	_night_brief_due = false
 	_apply_dawn_visuals(0.0)
@@ -424,6 +436,7 @@ func _resolve_level_nodes() -> void:
 	_mound = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Hazards/NunoMound") as NunoMound2D
 	_finale = get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Finale") as DilimFinale2D
 	if _finale != null:
+		_finale.manananggal_lower = _lower
 		_finale.dawned.connect(_on_dawn)
 		_finale.began.connect(_on_night_began)
 		_finale.wave_opened.connect(_on_wave_opened)
@@ -899,6 +912,8 @@ func _place_dawn_clock() -> void:
 
 ## The night has begun: its clock comes up, and goes on the first frame of the morning.
 func _on_night_began() -> void:
+	if _upper != null:
+		_upper.leave(false)
 	if dawn_clock != null:
 		dawn_clock.show_night()
 	# Suns already standing were drawn before this night: only one drawn in it hurries it.
@@ -931,7 +946,7 @@ var _night_helped: Dictionary = {}
 func _on_wave_opened(index: int) -> void:
 	if index == 0:
 		_night_brief_due = true
-	else:
+	elif index != 2 or not _finale.tiktik_defeated:
 		_brief_the_wave(index)
 
 
@@ -939,6 +954,9 @@ func _brief_the_wave(wave: int) -> void:
 	var said: Array[Dictionary] = []
 	for line: Dictionary in script_lines.fire(String(WAVE_LINES[wave])):
 		said.append({"text": script_lines.display_text(line), "speaker": _companion_speaker()})
+	if wave == 1 and _lower != null and not _lower.is_salted():
+		for line: Dictionary in script_lines.fire("L4_FINALE.lower_half"):
+			said.append({"text": script_lines.display_text(line), "speaker": _companion_speaker()})
 	if not _night_helped.has(wave):
 		_night_helped[wave] = true
 		for id: String in NIGHT_HELP.get(wave, []):
@@ -1626,10 +1644,23 @@ func _write_checkpoint(checkpoint_id: String) -> void:
 ## What a Continue brings back of Lola's things: the satchel, and how many lashes the whip she
 ## carries has left -- it is one thing with ten uses, and a resume must not hand her a fresh one.
 func _level_run_state() -> Dictionary:
-	return {"satchel": satchel.to_data(), "whip_lashes": _whip_uses} if satchel != null else {}
+	if satchel == null:
+		return {}
+	return {
+		"satchel": satchel.to_data(), "whip_lashes": _whip_uses,
+		"manananggal_salted": _lower != null and _lower.is_salted(),
+		"tiktik_defeated": _finale != null and _finale.tiktik_defeated,
+	}
 
 
 func _restore_level_run_state(state: Dictionary) -> void:
+	# Older checkpoints recorded the salt route without the lower half's state.
+	var salted_route := director != null and director.is_solved("L4_MANANANGGAL") \
+		and director.committed_route("L4_MANANANGGAL") == "pragmatist"
+	if _lower != null and not _lower.is_salted() and bool(state.get("manananggal_salted", salted_route)):
+		_lower.remember_salted()
+	if _finale != null and bool(state.get("tiktik_defeated", false)):
+		_finale.tiktik_defeated = true
 	if satchel == null:
 		return
 	if _resuming:
@@ -2061,3 +2092,5 @@ func _on_lower_half_salted() -> void:
 	_answer("L4_MANANANGGAL", "pragmatist")
 	if _upper != null:
 		_upper.leave()
+	if _finale != null:
+		_finale.banish_manananggal()

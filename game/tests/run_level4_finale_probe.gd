@@ -14,7 +14,7 @@ const CLEARING_WEST := 21400.0
 var failures := 0
 ## Every check that ran, so one skipped by a script error is a failure rather than a silence.
 var checked := 0
-const CHECKS := 47
+const CHECKS := 51
 var level: Node
 var finale: DilimFinale2D
 ## The most of them alive at once, seen on every frame of the night.
@@ -65,6 +65,11 @@ func _run() -> void:
 		"visible %s" % (level.get("dawn_clock") as Control).visible)
 	level.queue_free()
 	await _frames(3)
+	level = await _open_level()
+	finale = _the_finale()
+	await _diary_defeats_survive_retries()
+	level.queue_free()
+	await _frames(3)
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -86,6 +91,61 @@ func _the_finale() -> DilimFinale2D:
 	made.arena_west = CLEARING_WEST
 	(level.get("entity_root") as Node2D).add_child(made)
 	return made
+
+
+func _diary_defeats_survive_retries() -> void:
+	await _put_her_at(CLEARING_WEST + 90.0)
+	finale.elapsed = 27.0
+	await _frames(3)
+	var lower := finale.manananggal_lower
+	var upper := _night_manananggal()
+	_check(upper != null and lower.visible and not lower.is_dead()
+		and lower.global_position.x > CLEARING_WEST and lower.global_position.x < finale.tree.global_position.x,
+		"the returning Manananggal leaves a reachable lower half in the clearing", str(lower.global_position))
+	if upper == null:
+		return
+	for _blow in range(upper.max_hp):
+		upper.apply_tool_hit("sword", 0.0, level.get("player") as Node2D)
+	level.call("_knockout")
+	await _put_her_at(CLEARING_WEST + 90.0)
+	finale.elapsed = 27.0
+	await _frames(3)
+	var returned := _night_manananggal()
+	_check(returned != null and lower.visible and not lower.is_salted()
+		and lower.global_position.x > CLEARING_WEST,
+		"after a sword-only defeat, both halves return on retry", str(lower.global_position))
+	if returned == null:
+		return
+	var plane := level.get_node(^"EnvironmentBaseplate/GameplayPlane")
+	var salt := AsinThrow2D.new()
+	salt.position = lower.global_position
+	plane.add_child(salt)
+	finale.elapsed = 60.0
+	await _frames(3)
+	var tiktik := finale.tiktik()
+	var ash := AboDust2D.new()
+	ash.position = tiktik.global_position
+	plane.add_child(ash)
+	await _frames(3)
+	for _blow in range(tiktik.max_hp):
+		tiktik.apply_tool_hit("sword", 0.0, level.get("player") as Node2D)
+	_check(lower.is_salted() and returned.is_gone() and tiktik.is_dead() and finale.tiktik_defeated,
+		"salt and ash lead to the diary defeats", "salted %s, Tik-Tik defeated %s" % [lower.is_salted(), tiktik.is_dead()])
+	level.call("_knockout")
+	await _put_her_at(CLEARING_WEST + 90.0)
+	finale.elapsed = 60.0
+	await _frames(3)
+	var director := level.get("director") as LevelDirector
+	_check(finale.current_wave() == 2 and _night_manananggal() == null and finale.tiktik() == null
+		and lower.is_salted() and lower.is_dead() and director.is_solved("L4_MANANANGGAL"),
+		"the night restarts without resurrecting either diary defeat", "wave %d" % finale.current_wave())
+
+
+func _night_manananggal() -> ManananggalUpper2D:
+	for foe in finale.alive():
+		if foe is ManananggalUpper2D:
+			return foe
+	return null
 
 
 func _nothing_before_the_clearing() -> void:
@@ -141,12 +201,12 @@ func _the_clock_comes_with_the_night() -> void:
 func _the_clock_says_how_long() -> void:
 	var clock := level.get("dawn_clock") as DawnClockHud
 	var read := []
-	for at: float in [0.0, 45.0, 74.0, 76.0, 89.5, 90.0]:
+	for at: float in [0.0, 45.0, 74.0, 76.0, 89.5, 89.9999, 90.0]:
 		clock.set_progress(at / 90.0)
 		read.append("%s %s" % [clock.caption(), clock.time_text()])
 	clock.set_progress(finale.progress())
 	_check(read == ["Morning in 1:30", "Morning in 0:45", "Morning in 0:16", "Almost morning 0:14",
-			"Almost morning 0:01", "Almost morning 0:00"]
+			"Almost morning 0:01", "Almost morning 0:01", "Almost morning 0:01"]
 			and DawnClockHud.CAPTION_FONT >= 20 and DawnClockHud.TIME_FONT >= 20,
 		"the clock says what it is and how long is left, at the readable floor", "%s" % [read])
 	_check(is_equal_approx(clock.mark_share(1), 27.0 / 90.0) and is_equal_approx(clock.mark_share(2), 60.0 / 90.0),

@@ -61,12 +61,16 @@ func _move(delta: float, to_prey: Vector2) -> void:
 
 
 ## Up and away, and not there after -- driven off, salted below, or caught by the light.
-func leave() -> void:
+func leave(animate: bool = true) -> void:
 	if _leaving:
 		return
 	_leaving = true
+	_enter(State.DEAD)
 	telegraph.stop()
 	_set_colliding(false)
+	if not animate:
+		hide()
+		return
 	_away = create_tween().set_parallel(true)
 	_away.tween_property(self, "global_position:y", global_position.y - RISE, RISE_SECONDS)
 	_away.tween_property(self, "modulate:a", 0.0, RISE_SECONDS)
@@ -77,12 +81,10 @@ func is_gone() -> bool:
 	return _leaving or state == State.DEAD
 
 
-## Its last blow does not kill it: it is driven off, which is `leave` -- after `died`, which is
-## how the level hears it.
+## A last blow drives it off and reports the weapon defeat to the level.
 func _die() -> void:
-	_enter(State.DEAD)
-	died.emit(self)
 	leave()
+	died.emit(self)
 
 
 func reset_for_restore() -> void:

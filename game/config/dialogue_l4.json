@@ -386,6 +386,13 @@
       "text": "Wings over the trees. They hang high, then dive: step aside at the glint."
     },
     {
+      "id": "L4_FN_LOWER_HALF",
+      "at": "L4_FINALE.lower_half",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Her lower half is on the west side. Salt will keep her from coming back."
+    },
+    {
       "id": "L4_FN_005",
       "at": "L4_FINALE.wave3",
       "speaker": "apo",

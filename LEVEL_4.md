@@ -231,6 +231,11 @@ What the build does that the design above does not say, and what it does not do 
   A drawn sun still brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8.
   `run_visual_level4_dawn.gd` samples the real lighting controller at 0 / 60 / 75 / 90 s;
   the reviewed contact sheet is `docs/screenshots/dilim_dawn_progression.png`.
+- **Diary defeats survive a checkpoint retry.** Salt on the Manananggal's lower half
+  prevents her from returning. Driving off her upper half with a weapon lets her return
+  in wave two, with the same lower half reachable west of the dead tree. Defeating the
+  Tik-Tik after revealing it with ash keeps it out of later attempts. Its windup and dive
+  are visible, and ash still opens it to weapon hits.
 - **The dead tree** is the woods' own, drawn in the balete's bark (Level 1's was standing in). It
   stands at the clearing's middle and falls east into a 64-px log that shuts the east side; a felled tree stays down through a knockout, so a retried night starts with it shut.
 - **The tik-tik** is shown by ash for the dust's 6 s and blinded for 1.5 s, at the throw or flying into

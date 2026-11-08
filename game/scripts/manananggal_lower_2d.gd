@@ -55,10 +55,17 @@ func is_salted() -> bool:
 	return _salted
 
 
+## Restore a defeat from a saved checkpoint without firing the salt or death signals again.
+func remember_salted() -> void:
+	_salted = true
+	_enter(State.DEAD)
+	_set_colliding(false)
+	hide()
+
+
 func reset_for_restore() -> void:
-	_salted = false
-	_smoke = 0.0
-	super()
+	if not _salted:
+		super()
 
 
 func _draw() -> void:

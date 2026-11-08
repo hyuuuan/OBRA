@@ -16,7 +16,7 @@ const CLEARING_X := 21900.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 9
+const CHECKS := 12
 var level: Node
 
 
@@ -29,7 +29,8 @@ func _run() -> void:
 		print("OBRA_L4_TIKTIK_FAILED=watchdog")
 		quit(2))
 	var only := " ".join(OS.get_cmdline_user_args())
-	for scenario in [_unseen_a_blow_goes_through, _ash_shows_it, _ash_catches_what_flies_in, _its_call_is_louder_far,
+	for scenario in [_unseen_a_blow_goes_through, _late_strike_shows_and_misses_a_dodge,
+			_ash_shows_it, _ash_catches_what_flies_in, _its_call_is_louder_far,
 			_the_level_shows_its_call, _the_lantern_leans_only_when_it_is_close, _garlic_keeps_it_out]:
 		if not only.is_empty() and not String((scenario as Callable).get_method()).contains(only):
 			continue
@@ -55,6 +56,42 @@ func _unseen_a_blow_goes_through() -> void:
 	_check(tiktik.modulate.a == 0.0 and not landed and tiktik.hp == hp,
 		"unseen, it is not drawn and a blow goes through it",
 		"alpha %.1f, landed %s, hp %d of %d" % [tiktik.modulate.a, landed, tiktik.hp, hp])
+
+
+func _late_strike_shows_and_misses_a_dodge() -> void:
+	await _put(CLEARING_X, GROUND_Y)
+	var finale := _the_finale()
+	finale.elapsed = 85.0
+	await _frames(3)
+	var tiktik := finale.tiktik()
+	for foe in finale.alive():
+		if foe != tiktik:
+			foe.stun(600.0)
+	var hurtbox := level.get("player_hurtbox") as PlayerHurtbox2D
+	var health := hurtbox.health
+	var player := hurtbox.player
+	tiktik.global_position = hurtbox.middle() + Vector2(25.0, -20.0)
+	tiktik.set("_circling", 0.0)
+	await _frames(5)
+	_check(tiktik.state_name() == "WINDUP" and tiktik.telegraph.visible and tiktik.modulate.a == 1.0
+		and not tiktik.is_revealed() and not tiktik.apply_tool_hit("sword", 0.0, player),
+		"an unashed Tik-Tik shows its windup late in the night", tiktik.state_name())
+	# Move after physics has cached contact, as a dodge or a change of body can do.
+	var had_contact := tiktik.hitbox.get_overlapping_areas().has(hurtbox)
+	health.begin_at(PlayerHealth.GUTTERING)
+	health.call("_start_grace", 0.0)
+	tiktik.call("_enter", Enemy2D.State.ATTACK)
+	player.global_position.x += 120.0
+	tiktik.call("_try_to_land")
+	_check(had_contact and not bool(tiktik.get("_landed")) and health.stage == PlayerHealth.GUTTERING
+		and finale.is_running() and finale.elapsed > 85.0,
+		"a late strike cannot snuff the lamp after she leaves its hitbox", "cached contact %s" % had_contact)
+	player.global_position.x -= 120.0
+	finale.elapsed = 89.999
+	await _frames(3)
+	_check(finale.has_dawned() and health.stage == PlayerHealth.GUTTERING
+		and tiktik.process_mode == Node.PROCESS_MODE_DISABLED,
+		"dawn stops a pending strike before it can snuff the lamp", "dawned %s" % finale.has_dawned())
 
 
 func _ash_shows_it() -> void:
@@ -97,10 +134,10 @@ func _ash_catches_what_flies_in() -> void:
 			and dust.shown_count() == 1,
 		"ash thrown as the lamp leans shows it when it flies in, and blinds it",
 		"%.0f px off of %.0f, then shown %s, %s" % [from, dust.radius, tiktik.is_revealed(), tiktik.state_name()])
-	# And one that never comes near stays unseen, and the cloud says it reached nothing. The first
-	# goes first: the finale hands back the first one alive, and that one has been shown.
+	# Reset the fixture without registering a defeat before checking an empty cloud.
 	set_meta(&"cloud_empty", false)
-	tiktik.crush(99)
+	tiktik.queue_free()
+	await _frames(2)
 	var far := await _sent_beside_her(Vector2(0.0, -300.0))
 	var empty := AboDust2D.new()
 	empty.position = apo.global_position + Vector2(2000.0, 0.0)
