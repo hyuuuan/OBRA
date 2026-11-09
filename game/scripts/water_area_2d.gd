@@ -24,7 +24,12 @@ extends Area2D
 ## else was going to draw them. Dagat has painted water: a parallax stack with light shafts,
 ## ruins and a seabed in it, and these bands sit on top of that as a flat blue rectangle with
 ## a dashed line across it. A pool that somebody has painted turns its own drawing off.
-@export var draws_itself := true
+@export var draws_itself := true:
+	set(value):
+		if draws_itself == value:
+			return
+		draws_itself = value
+		queue_redraw()
 ## An enclosed underwater scene keeps the apo this far below its hidden surface.
 @export var swim_ceiling_depth := 0.0
 
@@ -46,9 +51,14 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_ripple_phase = fmod(_ripple_phase + delta * 18.0, 32.0)
-	_refresh_player_appearances()
-	queue_redraw()
+	if not _player_body_counts.is_empty():
+		_refresh_player_appearances()
+	if draws_itself:
+		_ripple_phase = fmod(_ripple_phase + delta * 18.0, 32.0)
+		# Allow for the highlights and rice that extend past the collision rectangle.
+		var ink_bounds := Rect2(-surface_size * 0.5, surface_size).grow(34.0)
+		if is_visible_in_tree() and get_viewport_rect().intersects(get_global_transform_with_canvas() * ink_bounds):
+			queue_redraw()
 
 
 ## Water that does nothing is a blue rectangle. `buoyancy` and the two drag numbers

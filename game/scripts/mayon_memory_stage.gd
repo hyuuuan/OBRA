@@ -52,29 +52,57 @@ func _ready() -> void:
 	_air.z_index = 2
 	_air.draw.connect(_draw_air)
 	add_child(_air)
-	_water = Node2D.new()
-	_water.name = "Surf"
-	_water.show_behind_parent = true
-	_water.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_water.draw.connect(_draw_water)
-	add_child(_water)
+	if kind in ["shore", "island"]:
+		_water = Node2D.new()
+		_water.name = "Surf"
+		_water.show_behind_parent = true
+		_water.draw.connect(_draw_water)
+		add_child(_water)
 
 
 func _process(delta: float) -> void:
-	if not is_visible_in_tree(): return
+	if not is_visible_in_tree():
+		return
 	var reduced := Motion.reduced()
+	var previous_scatter := _scatter
 	if not reduced:
 		clock += delta
 		if kind in ["terraces", "crossing", "bale"] and visitor.is_finite():
-			var distance_to_birds := visitor.distance_to(Vector2(980,_floor(980)-16))
-			if distance_to_birds < 250: _scatter = minf(1.0,_scatter+delta*.65)
-	_time = 0.0 if reduced else floorf(clock*15.0)/15.0
+			var distance_to_birds := visitor.distance_to(Vector2(980, _floor(980) - 16))
+			if distance_to_birds < 250:
+				_scatter = minf(1.0, _scatter + delta * 0.65)
 	if _crossing_waterfall != null:
 		var frame := 0 if reduced else int(clock * CROSSING_WATER_FPS) % CROSSING_WATER_FRAMES.size()
-		_crossing_waterfall.texture = _art(CROSSING_WATER_FRAMES[frame])
-	queue_redraw()
-	_air.queue_redraw()
-	_water.queue_redraw()
+		var texture := _art(CROSSING_WATER_FRAMES[frame])
+		if _crossing_waterfall.texture != texture:
+			_crossing_waterfall.texture = texture
+	var next_time := 0.0 if reduced else floorf(clock * Motion.PIXEL_FPS) / Motion.PIXEL_FPS
+	if next_time != _time:
+		_time = next_time
+		_air.queue_redraw()
+		if kind == "sea":
+			queue_redraw()
+		elif _water != null:
+			_water.queue_redraw()
+	# Birds can scatter between animation frames. The falls also follow the landmark's drain.
+	if _scatter != previous_scatter or kind == "waterfall":
+		_air.queue_redraw()
+
+
+func frame(bounds: Rect2, at: Vector2, origin: Vector2, walk_route: Array[Rect2]) -> void:
+	if route != walk_route or world_origin != origin:
+		route = walk_route
+		world_origin = origin
+		queue_redraw()
+		_air.queue_redraw()
+	if view_bounds != bounds:
+		view_bounds = bounds
+		if _water != null:
+			_water.queue_redraw()
+	if visitor != at:
+		visitor = at
+		if kind in ["forest", "waterfall"]:
+			_air.queue_redraw()
 
 
 func _art(path: String) -> Texture2D:
@@ -124,8 +152,6 @@ func _yard() -> void:
 
 
 func _draw_water() -> void:
-	if kind not in ["shore", "island"]:
-		return
 	var frame := int(_time/.32)%3
 	var surf := _art("Level5/journey/surf_%02d.png" % frame)
 	if kind == "shore":
@@ -170,7 +196,7 @@ func _surf_strip(texture: Texture2D, source: Rect2, bottom: float, phase: float,
 
 ## The shore and island's surf, behind everything standing on them (see _water).
 func draws_surf_behind_scenery() -> bool:
-	return _water != null and _water.show_behind_parent and kind in ["shore", "island"]
+	return _water != null and _water.show_behind_parent
 
 
 func _reef() -> void:

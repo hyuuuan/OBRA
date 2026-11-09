@@ -11,7 +11,8 @@ var camera_position := Vector2.ZERO
 var view_size := Vector2(1600, 900)
 var _textures: Dictionary = {}
 var _ground: Node2D
-var _stage: Node2D
+var _stage: StageScript
+var _framed := false
 var _dilim_ground_registered := false
 var staging: Dictionary = {}
 const StageScript = preload("res://scripts/mayon_memory_stage.gd")
@@ -67,14 +68,14 @@ func _ready() -> void:
 	if kind not in ["plaza", "church", "summit"]:
 		_stage = StageScript.new()
 		_stage.name = "RememberedLife"
-		_stage.set("kind",kind)
-		_stage.set("props",staging.get("props",[]))
-		_stage.set("span",span)
+		_stage.kind = kind
+		_stage.props = staging.get("props", [])
+		_stage.span = span
 		if kind == "crossing":
 			var opening := Rect2(span * 0.5 - CROSSING_HALF_WIDTH, 0.0,
 				CROSSING_HALF_WIDTH * 2.0, 1400.0)
 			# Tuck the water under the rounded turf lips so no sky peeks through.
-			_stage.set("river_bounds", opening.grow_individual(16.0, 0.0, 16.0, 0.0))
+			_stage.river_bounds = opening.grow_individual(16.0, 0.0, 16.0, 0.0)
 		add_child(_stage)
 	if kind == "plaza":
 		var plaza := PiyestaPlaza2D.new()
@@ -113,13 +114,15 @@ func _ready() -> void:
 
 
 func frame(camera: Vector2, extent: Vector2, player_position := Vector2.INF) -> void:
+	if _stage != null:
+		var origin := global_position
+		var bounds := Rect2(camera - origin - extent * 0.5, extent).grow(640.0)
+		_stage.frame(bounds, player_position - origin, origin, route)
+	if _framed and camera == camera_position and extent == view_size:
+		return
+	_framed = true
 	camera_position = camera
 	view_size = extent
-	if _stage != null:
-		_stage.set("visitor",player_position-global_position)
-		_stage.set("route",route)
-		_stage.set("world_origin",global_position)
-		_stage.set("view_bounds", Rect2(camera - global_position - extent * 0.5, extent).grow(640))
 	queue_redraw()
 	if _ground is CliffDressing2D:
 		# The journey supplies the route and flower ledges after _ready.
