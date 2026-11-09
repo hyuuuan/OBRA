@@ -123,6 +123,34 @@ func clear_canvas() -> void:
 	stroke_cost_changed.emit(0.0)
 
 
+func undo_last_stroke() -> bool:
+	_current_line = null
+	var last_line: Line2D = null
+	for child in get_children():
+		if child is Line2D:
+			last_line = child
+	if last_line == null:
+		return false
+	remove_child(last_line)
+	last_line.free()
+	_recalculate_drawn_length()
+	_blocked_emitted = _drawn_length >= _max_length - 0.001
+	_revision += 1
+	stroke_cost_changed.emit(get_current_cost())
+	return true
+
+
+func _recalculate_drawn_length() -> void:
+	_drawn_length = 0.0
+	for child in get_children():
+		if child is not Line2D:
+			continue
+		var line := child as Line2D
+		for point_index in range(1, line.get_point_count()):
+			_drawn_length += line.get_point_position(point_index - 1).distance_to(
+				line.get_point_position(point_index))
+
+
 ## What the ink looks like right now, as a single number. Live recognition compares it
 ## against the revision it last sent so a paused hand costs nothing.
 func content_revision() -> int:

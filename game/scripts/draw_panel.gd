@@ -52,6 +52,7 @@ var ink_manager: InkManager
 @onready var canvas: Control = $PanelRoot/SubViewportContainer/SubViewport/Canvas
 @onready var canvas_frame: UIOvalFrame = $PanelRoot/CanvasFrame
 @onready var transform_button: Button = $PanelRoot/TransformButton
+@onready var undo_button: Button = $PanelRoot/UndoButton
 @onready var clear_button: Button = $PanelRoot/ClearButton
 @onready var status: Label = $PanelRoot/StatusLabel
 @onready var guess_label: Label = $PanelRoot/GuessLabel
@@ -137,6 +138,7 @@ func _ready() -> void:
 	client.set("paper_color", canvas_frame.paper)
 	client.set("debug_timing_logs", debug_timing_logs)
 	transform_button.pressed.connect(_on_transform_pressed)
+	undo_button.pressed.connect(_undo_last_stroke)
 	clear_button.pressed.connect(_clear_canvas)
 	canvas.stroke_cost_changed.connect(_on_stroke_cost_changed)
 	canvas.ink_blocked.connect(_on_ink_blocked)
@@ -242,6 +244,7 @@ func _present_drawing_mode() -> void:
 			panel_root.get_node("CanvasPaper").show()
 			canvas_frame.show()
 			transform_button.show()
+			undo_button.show()
 			clear_button.show()
 	else:
 		# Normal callers keep their authored visibility, including tutorial-owned children.
@@ -266,6 +269,7 @@ func open_panel() -> void:
 	_set_world_hud_visible(false)
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	transform_button.disabled = false
+	undo_button.disabled = false
 	clear_button.disabled = false
 	canvas.clear_canvas()
 	_claim = 0.0
@@ -300,6 +304,7 @@ func open_panel() -> void:
 		status.text = ""
 	# Nothing has been drawn yet, so there is nothing to transform.
 	transform_button.disabled = true
+	undo_button.disabled = true
 	_refresh_ink_row()
 	UIRouter.refresh_pause(get_tree())
 	_present_drawing_mode()
@@ -330,6 +335,7 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 	_is_open = false
 	_submitting = false
 	transform_button.disabled = false
+	undo_button.disabled = false
 	clear_button.disabled = false
 	visible = false
 	_set_world_hud_visible(true)
@@ -474,6 +480,7 @@ func _style_panel() -> void:
 	# cannot drift apart.
 	transform_button.theme_type_variation = &"PrimaryButton"
 	transform_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
+	undo_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
 	clear_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
 
 
@@ -624,6 +631,7 @@ func _on_transform_pressed() -> void:
 		return
 	_submitting = true
 	transform_button.disabled = true
+	undo_button.disabled = true
 	clear_button.disabled = true
 	status.text = "Recognizing..."
 	_submit_started_usec = Time.get_ticks_usec()
@@ -716,6 +724,7 @@ func _on_entity_declined(
 		ink_manager.release_attempt()
 	_submitting = false
 	transform_button.disabled = false
+	undo_button.disabled = false
 	clear_button.disabled = false
 	# A "brush" decline was READ -- the brush simply wants it surer -- so it is not told it
 	# looked like nothing. Neither line names what the drawing was taken for.
@@ -756,6 +765,7 @@ func _on_prediction_failed(message: String) -> void:
 		ink_manager.release_attempt()
 	_submitting = false
 	transform_button.disabled = false
+	undo_button.disabled = false
 	clear_button.disabled = false
 	status.text = message
 
@@ -764,8 +774,17 @@ func _clear_canvas() -> void:
 	canvas.clear_canvas()
 	_clear_guess()
 	transform_button.disabled = true
+	undo_button.disabled = true
 	if ink_manager != null:
 		ink_manager.release_attempt()
+
+
+func _undo_last_stroke() -> void:
+	if _submitting:
+		return
+	if canvas.undo_last_stroke():
+		_clear_guess()
+		undo_button.disabled = not canvas.has_ink()
 
 
 func _on_stroke_cost_changed(cost: float) -> void:
@@ -775,6 +794,7 @@ func _on_stroke_cost_changed(cost: float) -> void:
 		return
 	# There is ink on the canvas now, so there is something to offer the recogniser.
 	transform_button.disabled = cost <= 0.0
+	undo_button.disabled = cost <= 0.0
 	if _refusing:
 		# Nothing will be taken for it, so the brush shows nothing going.
 		return
@@ -809,6 +829,7 @@ func handle_cancel() -> bool:
 func _refuse_quietly() -> void:
 	_submitting = true
 	transform_button.disabled = true
+	undo_button.disabled = true
 	clear_button.disabled = true
 	var strokes: Array = canvas.get_strokes().duplicate(true)
 	var mode := drawing_mode

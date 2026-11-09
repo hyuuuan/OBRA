@@ -178,9 +178,10 @@ func _panel_buttons_answer_a_click() -> void:
 		await _wait(0.4)
 
 	var clear := panel.get_node_or_null("PanelRoot/ClearButton") as Button
+	var undo := panel.get_node_or_null("PanelRoot/UndoButton") as Button
 	var transform := panel.get_node_or_null("PanelRoot/TransformButton") as Button
-	if clear == null or transform == null:
-		_fail("panel buttons", "the panel has no Clear or Transform button")
+	if clear == null or undo == null or transform == null:
+		_fail("panel buttons", "the panel has no Clear, Undo, or Transform button")
 		return
 
 	var cleared := [false]
@@ -203,6 +204,16 @@ func _panel_buttons_answer_a_click() -> void:
 		canvas.call("_append_point", Vector2(330.0, 380.0), true)
 		canvas.set("_current_line", null)
 		await _wait(0.3)
+
+		canvas.call("_start_stroke", Vector2(330.0, 380.0))
+		canvas.call("_append_point", Vector2(420.0, 260.0), true)
+		canvas.set("_current_line", null)
+		_check(canvas.get_strokes().size() == 2, "a second stroke is recorded",
+			"two strokes on the page")
+		await _click(undo)
+		_check(canvas.get_strokes().size() == 1, "Undo removes only the last stroke",
+			"one earlier stroke remains" if canvas.get_strokes().size() == 1
+			else "%d strokes remain" % canvas.get_strokes().size())
 
 	var transformed := [false]
 	transform.pressed.connect(func() -> void: transformed[0] = true)
