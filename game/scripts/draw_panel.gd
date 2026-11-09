@@ -61,6 +61,7 @@ var ink_manager: InkManager
 ## How much line fits on one page, in canvas diagonals. NOT the ink budget -- see the note
 ## in open_panel. Generous: the busiest class in the roster is well under this.
 const PAGE_ALLOWANCE := 8.0
+const INK_LIMIT_STATUS := "Page full. Paint, undo, or clear."
 
 const OPEN_DURATION := 0.54
 ## How long a refused drawing takes to fade to the bare page.
@@ -269,7 +270,6 @@ func open_panel() -> void:
 	_set_world_hud_visible(false)
 	canvas_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	transform_button.disabled = false
-	undo_button.disabled = false
 	clear_button.disabled = false
 	canvas.clear_canvas()
 	_claim = 0.0
@@ -304,7 +304,6 @@ func open_panel() -> void:
 		status.text = ""
 	# Nothing has been drawn yet, so there is nothing to transform.
 	transform_button.disabled = true
-	undo_button.disabled = true
 	_refresh_ink_row()
 	UIRouter.refresh_pause(get_tree())
 	_present_drawing_mode()
@@ -335,7 +334,6 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 	_is_open = false
 	_submitting = false
 	transform_button.disabled = false
-	undo_button.disabled = false
 	clear_button.disabled = false
 	visible = false
 	_set_world_hud_visible(true)
@@ -413,7 +411,7 @@ func _on_live_prediction(
 	margin: float,
 	_response: Dictionary
 ) -> void:
-	if not _is_open or _submitting or _refusing:
+	if not _is_open or _submitting or _refusing or _guessed_revision < 0:
 		return
 	_guess_entity = entity
 	_guess_display = display_name
@@ -433,7 +431,7 @@ func _on_live_prediction(
 
 
 func _on_live_prediction_failed(message: String) -> void:
-	if not _is_open or _submitting:
+	if not _is_open or _submitting or _guessed_revision < 0:
 		return
 	_forget_guess()
 	# Deliberately NOT resetting the cooldown: it was set when the request went out, so
@@ -474,10 +472,7 @@ func _style_panel() -> void:
 	status.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	status.add_theme_color_override(&"font_color", UISkin.MUTED)
 
-	# Hierarchy: one of these is the thing you came here to do and the other undoes your
-	# work. They were identical twins. It is a family now rather than a stylebox built
-	# here, so the green button in this panel and the green button on the pause menu
-	# cannot drift apart.
+	# Paint is the primary action. Undo and Clear use the shared secondary style.
 	transform_button.theme_type_variation = &"PrimaryButton"
 	transform_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
 	undo_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
@@ -621,6 +616,13 @@ func _forget_guess() -> void:
 	transform_button.text = "Paint"
 
 
+func _set_submitting(submitting: bool) -> void:
+	_submitting = submitting
+	transform_button.disabled = submitting
+	clear_button.disabled = submitting
+	undo_button.disabled = submitting or not canvas.has_strokes()
+
+
 func _on_transform_pressed() -> void:
 	if _submitting:
 		return
@@ -629,10 +631,7 @@ func _on_transform_pressed() -> void:
 			return
 		_refuse_quietly()
 		return
-	_submitting = true
-	transform_button.disabled = true
-	undo_button.disabled = true
-	clear_button.disabled = true
+	_set_submitting(true)
 	status.text = "Recognizing..."
 	_submit_started_usec = Time.get_ticks_usec()
 	_submit_started_frame = Engine.get_frames_drawn()
@@ -722,10 +721,7 @@ func _on_entity_declined(
 		_profile.note_submission(false)
 	if ink_manager != null:
 		ink_manager.release_attempt()
-	_submitting = false
-	transform_button.disabled = false
-	undo_button.disabled = false
-	clear_button.disabled = false
+	_set_submitting(false)
 	# A "brush" decline was READ -- the brush simply wants it surer -- so it is not told it
 	# looked like nothing. Neither line names what the drawing was taken for.
 	status.text = "close — the brush wants a surer line" if reason == "brush" \
@@ -763,10 +759,7 @@ func _submit_latency_ms() -> float:
 func _on_prediction_failed(message: String) -> void:
 	if ink_manager != null:
 		ink_manager.release_attempt()
-	_submitting = false
-	transform_button.disabled = false
-	undo_button.disabled = false
-	clear_button.disabled = false
+	_set_submitting(false)
 	status.text = message
 
 
@@ -774,17 +767,13 @@ func _clear_canvas() -> void:
 	canvas.clear_canvas()
 	_clear_guess()
 	transform_button.disabled = true
-	undo_button.disabled = true
 	if ink_manager != null:
 		ink_manager.release_attempt()
 
 
 func _undo_last_stroke() -> void:
-	if _submitting:
-		return
-	if canvas.undo_last_stroke():
+	if not _submitting and canvas.undo_last_stroke():
 		_clear_guess()
-		undo_button.disabled = not canvas.has_ink()
 
 
 func _on_stroke_cost_changed(cost: float) -> void:
@@ -794,7 +783,9 @@ func _on_stroke_cost_changed(cost: float) -> void:
 		return
 	# There is ink on the canvas now, so there is something to offer the recogniser.
 	transform_button.disabled = cost <= 0.0
-	undo_button.disabled = cost <= 0.0
+	undo_button.disabled = _submitting or not canvas.has_strokes()
+	if status.text == INK_LIMIT_STATUS:
+		status.text = ""
 	if _refusing:
 		# Nothing will be taken for it, so the brush shows nothing going.
 		return
@@ -810,7 +801,7 @@ func _on_stroke_cost_changed(cost: float) -> void:
 func _on_ink_blocked() -> void:
 	if _refusing:
 		return
-	status.text = "Ink limit reached — transform or clear"
+	status.text = INK_LIMIT_STATUS
 
 
 ## Called by UIRouter, ahead of the pause menu in the cancel chain. Mid-submission the
@@ -827,10 +818,7 @@ func handle_cancel() -> bool:
 
 ## The lines fade to the bare page, and the page closes. Nothing is sent and nothing is said.
 func _refuse_quietly() -> void:
-	_submitting = true
-	transform_button.disabled = true
-	undo_button.disabled = true
-	clear_button.disabled = true
+	_set_submitting(true)
 	var strokes: Array = canvas.get_strokes().duplicate(true)
 	var mode := drawing_mode
 	# ⚠ ALWAYS RUNS. The panel processes only while the tree is paused, and a refusal must not

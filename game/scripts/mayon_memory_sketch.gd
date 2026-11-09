@@ -13,6 +13,7 @@ class SketchPaper extends DrawingCanvas:
 
 var canvas: SketchPaper
 var preserve_button: Button
+var undo_button: Button
 var _name: Label
 var _reference: TextureRect
 ## THE MEMORY ITSELF, FAINT ON THE PAPER (Kent, 2026-11-05: "the instructions are very unclear like
@@ -83,7 +84,6 @@ func _ready() -> void:
 	canvas.mouse_default_cursor_shape = Control.CURSOR_CROSS
 	canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	paper.add_child(canvas)
-	canvas.stroke_cost_changed.connect(func(cost: float) -> void: preserve_button.disabled = cost <= 0.0)
 
 	var memory := VBoxContainer.new()
 	memory.custom_minimum_size.x = 300
@@ -135,8 +135,15 @@ func _ready() -> void:
 	preserve_button = Button.new()
 	preserve_button.text = "Preserve · 1 ink"
 	preserve_button.theme_type_variation = &"PrimaryButton"
+	preserve_button.disabled = true
 	preserve_button.pressed.connect(_submit)
 	actions.add_child(preserve_button)
+
+	undo_button = Button.new()
+	undo_button.text = "Undo"
+	undo_button.disabled = true
+	undo_button.pressed.connect(canvas.undo_last_stroke)
+	actions.add_child(undo_button)
 
 	var clear := Button.new()
 	clear.text = "Clear"
@@ -147,6 +154,9 @@ func _ready() -> void:
 	leave.text = "Close"
 	leave.pressed.connect(close)
 	actions.add_child(leave)
+	canvas.stroke_cost_changed.connect(func(cost: float) -> void:
+		preserve_button.disabled = cost <= 0.0
+		undo_button.disabled = not canvas.has_strokes())
 
 
 ## `ink_left`: whole units she has, shown so the choice is hers to weigh; below zero, not shown.

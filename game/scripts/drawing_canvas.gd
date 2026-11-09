@@ -9,12 +9,16 @@ signal ink_blocked
 @export var stroke_width: float = 8.0
 @export var min_point_spacing: float = 2.0
 
-var _current_line: Line2D
+class Stroke extends Line2D:
+	var length_before: float
+
+
+var _current_line: Stroke
 var _drawn_length: float = 0.0
 var _max_length: float = INF
 var _cost_diagonal: float = Vector2(512.0, 512.0).length()
 var _blocked_emitted := false
-## Bumped by every accepted point and by clearing. Live recognition polls against it
+## Bumped when strokes change. Live recognition polls against it
 ## so it re-reads the canvas when the ink actually changed and not on a timer alone.
 var _revision: int = 0
 ## The ellipse ink is allowed inside, in this control's own coordinates, or a zero rect
@@ -59,7 +63,8 @@ func _start_stroke(at: Vector2) -> void:
 		return
 	if not accepts(at):
 		return
-	_current_line = Line2D.new()
+	_current_line = Stroke.new()
+	_current_line.length_before = _drawn_length
 	_current_line.default_color = stroke_color
 	_current_line.width = stroke_width
 	_current_line.joint_mode = Line2D.LINE_JOINT_ROUND
@@ -67,6 +72,8 @@ func _start_stroke(at: Vector2) -> void:
 	_current_line.end_cap_mode = Line2D.LINE_CAP_ROUND
 	_append_point(at, true)
 	add_child(_current_line)
+	_revision += 1
+	stroke_cost_changed.emit(get_current_cost())
 
 
 func _append_point(at: Vector2, force: bool = false) -> void:
@@ -119,36 +126,35 @@ func clear_canvas() -> void:
 	_revision += 1
 	for child in get_children():
 		if child is Line2D:
+			remove_child(child)
 			child.queue_free()
 	stroke_cost_changed.emit(0.0)
 
 
+func has_strokes() -> bool:
+	return _last_stroke() != null
+
+
 func undo_last_stroke() -> bool:
-	_current_line = null
-	var last_line: Line2D = null
-	for child in get_children():
-		if child is Line2D:
-			last_line = child
-	if last_line == null:
+	var stroke := _last_stroke()
+	if stroke == null:
 		return false
-	remove_child(last_line)
-	last_line.free()
-	_recalculate_drawn_length()
-	_blocked_emitted = _drawn_length >= _max_length - 0.001
+	_current_line = null
+	_drawn_length = stroke.length_before
+	_blocked_emitted = false
 	_revision += 1
+	remove_child(stroke)
+	stroke.queue_free()
 	stroke_cost_changed.emit(get_current_cost())
 	return true
 
 
-func _recalculate_drawn_length() -> void:
-	_drawn_length = 0.0
-	for child in get_children():
-		if child is not Line2D:
-			continue
-		var line := child as Line2D
-		for point_index in range(1, line.get_point_count()):
-			_drawn_length += line.get_point_position(point_index - 1).distance_to(
-				line.get_point_position(point_index))
+func _last_stroke() -> Stroke:
+	for index in range(get_child_count() - 1, -1, -1):
+		var stroke := get_child(index) as Stroke
+		if stroke != null:
+			return stroke
+	return null
 
 
 ## What the ink looks like right now, as a single number. Live recognition compares it

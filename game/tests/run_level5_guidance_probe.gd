@@ -78,6 +78,10 @@ func _run() -> void:
 		"the sketch page shows the memory faintly to trace and says what to do, its cost and the ink left")
 	var before := ink.remaining()
 	await _stroke(paper, [Vector2(-90, 20), Vector2(0, -90), Vector2(90, 20)])
+	await _click(sketch.undo_button)
+	_check(sketch.canvas.get_strokes().is_empty() and sketch.undo_button.disabled
+		and sketch.preserve_button.disabled and is_equal_approx(ink.remaining(), before),
+		"Undo removes the only memory stroke and leaves both actions disabled without spending ink")
 	await _key(KEY_ESCAPE)
 	_check(not sketch.is_open() and fragment.is_open() and is_equal_approx(ink.remaining(), before),
 		"Escape closes the sketchbook without spending ink")
@@ -86,11 +90,14 @@ func _run() -> void:
 	await _stroke(paper, [Vector2(-100, 40), Vector2(-100, -30), Vector2(0, -130),
 		Vector2(100, -30), Vector2(100, 40), Vector2(-100, 40)])
 	await _stroke(paper, [Vector2(-100, -30), Vector2(100, -30)])
+	var strokes: Array = sketch.canvas.get_strokes()
 	await _stroke(paper, [Vector2(-20, 40), Vector2(-20, 0), Vector2(20, 0), Vector2(20, 40)])
 	await create_timer(1.5).timeout
-	var strokes: Array = sketch.canvas.get_strokes()
-	_check(sketch.is_open() and strokes.size() == 3 and is_equal_approx(ink.remaining(), before),
+	_check(sketch.is_open() and sketch.canvas.get_strokes().size() == 3 and is_equal_approx(ink.remaining(), before),
 		"the house sketch can take several strokes without submitting or spending ink")
+	await _click(sketch.undo_button)
+	_check(strokes.size() == 2 and sketch.canvas.get_strokes() == strokes and not sketch.preserve_button.disabled,
+		"Undo leaves the first two memory strokes unchanged and ready to preserve")
 	await _photo("02_house_sketch")
 	var expected: Array = []
 	for stroke: Dictionary in strokes:
@@ -148,6 +155,19 @@ func _run() -> void:
 		"the ending page shows its drawing surface, instructions and submit button")
 	await _photo("06_lola_page")
 	await _stroke(panel.canvas_viewport_container, [Vector2(-60, 0), Vector2(60, 0)])
+	var first_stroke: Array = panel.canvas.get_strokes()
+	var first_length: float = panel.canvas.get_drawn_length()
+	panel.canvas.set_ink_budget(first_length + 25.0, Vector2.RIGHT)
+	await _stroke(panel.canvas_viewport_container, [Vector2(-60, 30), Vector2(60, 30)])
+	var reached_limit: bool = is_equal_approx(panel.canvas.get_drawn_length(), first_length + 25.0)
+	await _click(panel.undo_button)
+	_check(reached_limit and first_stroke.size() == 1 and panel.canvas.get_strokes() == first_stroke
+		and is_equal_approx(panel.canvas.get_drawn_length(), first_length),
+		"Undo on the drawing panel removes a clipped stroke and restores its page allowance")
+	await _click(panel.undo_button)
+	_check(panel.canvas.get_strokes().is_empty() and panel.undo_button.disabled and panel.transform_button.disabled,
+		"Undo can remove successive strokes down to an empty drawing panel")
+	await _stroke(panel.canvas_viewport_container, [Vector2(-60, 0), Vector2(60, 0)])
 	await create_timer(1.6).timeout
 	_check(panel.is_open() and panel.canvas.has_ink(), "pausing between strokes does not silently submit the ending drawing")
 	await _click(panel.transform_button)
@@ -182,8 +202,9 @@ func _run() -> void:
 	await _photo("08_home_complete")
 	hub.queue_free()
 	await process_frame
-	print("OBRA_LEVEL5_GUIDANCE_%s (%d checks)" % ["OK" if failures == 0 and checked == 22 else "FAILED", checked])
-	quit(0 if failures == 0 and checked == 22 else 1)
+	var passed := failures == 0 and checked == 26
+	print("OBRA_LEVEL5_GUIDANCE_%s (%d checks)" % ["OK" if passed else "FAILED", checked])
+	quit(0 if passed else 1)
 
 
 func _objective() -> String:
