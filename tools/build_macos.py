@@ -16,6 +16,9 @@ BUILD = REPO / "build" / "macos"
 PACKAGE = BUILD / "OBRA"
 MODEL_FILES = ("model.onnx", "labels.json", "model_metadata.json")
 
+sys.path.insert(0, str(REPO))
+from shared.entities import load_entities, res_path_to_filesystem  # noqa: E402
+
 
 def run(command: list[str]) -> None:
     print("+", " ".join(command), flush=True)
@@ -27,13 +30,6 @@ def godot() -> str:
     if not Path(found).is_file():
         raise SystemExit("Godot 4.7 is required; set GODOT to its executable.")
     return found
-
-
-def copy_tree(relative: str, destination: Path) -> None:
-    source = REPO / relative
-    if not source.exists():
-        raise SystemExit(f"Missing build input: {source}")
-    shutil.copytree(source, destination / relative, dirs_exist_ok=True)
 
 
 def export_game() -> None:
@@ -59,13 +55,31 @@ def build_venv() -> None:
                  target / "obra-requirements.txt")
 
 
+def copy_recogniser() -> None:
+    for name in ("backend", "shared"):
+        destination = PACKAGE / name
+        destination.mkdir(parents=True, exist_ok=True)
+        for source in (REPO / name).iterdir():
+            if source.suffix == ".py" or source.name == "requirements.txt":
+                shutil.copy2(source, destination / source.name)
+    config = PACKAGE / "game" / "config"
+    shutil.copytree(REPO / "game" / "config", config, dirs_exist_ok=True)
+    for entity in load_entities(validate_scene_paths=True):
+        for res_path in (entity.scene_path, entity.rig_profile):
+            if res_path is None:
+                continue
+            source = res_path_to_filesystem(res_path)
+            target = PACKAGE / source.relative_to(REPO)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+
+
 def assemble() -> None:
     if PACKAGE.exists():
         shutil.rmtree(PACKAGE)
     (PACKAGE / "game").mkdir(parents=True)
     export_game()
-    for relative in ("backend", "shared"):
-        copy_tree(relative, PACKAGE)
+    copy_recogniser()
     (PACKAGE / "model").mkdir()
     for filename in MODEL_FILES:
         source = REPO / "model" / filename
