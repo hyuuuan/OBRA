@@ -50,6 +50,7 @@ var _prepared_scene: PackedScene
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	set_process(false)
 	_load_catalog()
 	_build_transition_overlay()
 	_painting_transition = PaintingTransition.new()
@@ -89,7 +90,7 @@ func is_transitioning() -> bool:
 ## Load while the player is looking at the picture, rather than making E pay for disk IO.
 ## Keep only the latest scene; walking the whole hall must not retain five levels.
 func prepare_level(level_id: String) -> void:
-	if not is_unlocked(level_id) or not is_playable(level_id):
+	if not has_brush() or not is_unlocked(level_id) or not is_playable(level_id):
 		return
 	var path := String(get_level(level_id).get("scene_path", ""))
 	if path == _prepared_path or path == _preparing_path:
@@ -126,6 +127,7 @@ func _poll_prepared_level() -> void:
 		_next_preload_path = ""
 		if ResourceLoader.load_threaded_request(_preparing_path, "PackedScene") != OK:
 			_preparing_path = ""
+	set_process(not _preparing_path.is_empty())
 
 
 func open_level(level_id: String, painting: Node2D = null) -> bool:

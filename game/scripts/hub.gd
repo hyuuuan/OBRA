@@ -230,10 +230,7 @@ func painting_for_level(level_id: String) -> Node2D:
 ## padlock comes off and the picture comes up into its colours (Painting2D.reveal), and the
 ## line under the title says where to go. The apo waits while it plays.
 func _open_in_front_of_her(level_id: String) -> void:
-	var painting: Node2D = null
-	for node in _paintings:
-		if String(node.get("level_id")) == level_id:
-			painting = node as Node2D
+	var painting := painting_for_level(level_id)
 	if painting == null:
 		return
 	_revealing = true
@@ -523,11 +520,10 @@ func _on_painting_chosen(level_id: String) -> void:
 		# having pressed the key anyway.
 		_status.text = "Lola has not painted that one yet."
 		return
-	for painting in _paintings:
-		if String(painting.get("level_id")) == level_id:
-			remember_position()
-			manager.call("open_level", level_id, painting)
-			return
+	var painting := painting_for_level(level_id)
+	if painting != null:
+		remember_position()
+		manager.call("open_level", level_id, painting)
 
 
 ## WHAT THE KEY WILL DO, not a generic verb. Standing at a painting without the brush is
