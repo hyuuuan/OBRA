@@ -1,5 +1,6 @@
 # Large / re-downloadable data
 model/data/
+build/
 
 # Python
 __pycache__/

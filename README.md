@@ -91,6 +91,11 @@ and after pulling changes:
 | macOS | Double-click [`play_mac.command`](play_mac.command) |
 | Windows | Double-click [`play_windows.bat`](play_windows.bat) |
 
+For packaged playtests, build the self-contained Windows zip with
+`python3 tools/build_windows.py` or the macOS package with
+`python3 tools/build_macos.py`. The macOS telemetry workflow is documented in
+[`docs/PLAYTEST_MACOS.md`](docs/PLAYTEST_MACOS.md).
+
 **Development mode is on by default for everyone running from this repository.**
 The shared flag is `debug/dev_mode/enabled=true` in [`game/project.godot`](game/project.godot).
 All five paintings are unlocked through the normal house; collect the brush and play as usual.
