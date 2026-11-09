@@ -485,12 +485,12 @@ static func python_in(venv_dir: String, windows: bool) -> String:
 
 
 func _repo_root() -> String:
+	var game_dir := ProjectSettings.globalize_path("res://").simplify_path().trim_suffix("/")
 	var executable := OS.get_executable_path().simplify_path()
 	var app_marker := ".app/Contents/MacOS/"
 	var app_start := executable.find(app_marker)
-	if app_start >= 0:
+	if not OS.has_feature("editor") and app_start >= 0:
 		# A macOS export stores res:// inside the app bundle, while the backend and
 		# model are beside the bundle in the playtest package.
-		return executable.substr(0, app_start).path_join("..").simplify_path()
-	var game_dir := ProjectSettings.globalize_path("res://").simplify_path()
+		return executable.substr(0, app_start).path_join("../..").simplify_path()
 	return game_dir.path_join("..").simplify_path()
