@@ -262,6 +262,7 @@ focus_mode = 0
 text = "Paint"
 
 [node name="UndoButton" type="Button" parent="DrawPanel/PanelRoot"]
+layout_mode = 0
 offset_left = 304.0
 offset_top = 738.0
 offset_right = 444.0

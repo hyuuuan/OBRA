@@ -51,6 +51,10 @@ window/stretch/aspect="expand"
 
 theme/custom="res://ui/obra_theme.tres"
 
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true
+
 [input]
 
 move_left={
