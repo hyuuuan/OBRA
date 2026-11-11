@@ -24,6 +24,7 @@ signal bit_player(creature: Node2D)
 
 const FOLDER := "res://assets/Level3/creatures/"
 const FRAME := 48
+const BANGUS_SWIM := preload("res://assets/Level3/creatures/bangus_swim.tres")
 ## Everything about a kind: how big it is drawn, how fast it swims, whether it turns on a player
 ## who fights, and how it fights a line (FishingLine2D): `pull` is how hard it runs, `run` and `rest`
 ## how long it runs and tires for, `strength` how fast winding against a run strains the line. The
@@ -84,6 +85,8 @@ func _ready() -> void:
 	_skin.name = "Skin"
 	_skin.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_skin.scale = Vector2.ONE * float(spec()["scale"])
+	if kind == "bangus" and randf() >= 0.35:
+		_skin.scale *= 2.0 / 3.0
 	add_child(_skin)
 	# ⚠ collision_layer 1, AND AN AREA -- UtilityObject._reachable_targets queries areas on layer 1
 	# and walks up to whatever has apply_tool_hit. On any other layer a sword swings through it.
@@ -101,6 +104,9 @@ func _ready() -> void:
 	_wobble = randf() * TAU
 	_choose_a_goal()
 	_play("idle")
+	if kind == "bangus":
+		_frame = randi_range(0, BANGUS_SWIM.get_frame_count(&"swim") - 1)
+	_animate(0.0)
 
 
 func spec() -> Dictionary:
@@ -230,7 +236,8 @@ func _die() -> void:
 		hold.tween_property(self, "modulate:a", 0.0, 0.6)
 		hold.tween_callback(queue_free)
 	else:
-		# The bangus has one picture: it goes pale, turns over and sinks.
+		# Hold its last tail pose while it goes pale, turns over and sinks.
+		set_process(false)
 		var sink := create_tween()
 		sink.tween_property(_skin, "modulate", Color(1.4, 0.5, 0.5, 1.0), 0.15)
 		sink.tween_property(self, "rotation", PI * 0.9 * _facing, 0.8)
@@ -324,11 +331,11 @@ func _clamp(at: Vector2) -> Vector2:
 
 func _load_anims() -> void:
 	if kind == "bangus":
-		var picture := load(FOLDER + ("bangus_big.png" if randf() < 0.35 else "bangus_small.png")) \
-			as Texture2D
-		if picture != null:
-			_anims["idle"] = [picture]
-			_anims["swim"] = [picture]
+		var swim: Array[Texture2D] = []
+		for index in BANGUS_SWIM.get_frame_count(&"swim"):
+			swim.append(BANGUS_SWIM.get_frame_texture(&"swim", index))
+		_anims["idle"] = swim
+		_anims["swim"] = swim
 		return
 	for anim in ["idle", "swim", "attack", "death", "hurt"]:
 		var sheet := load("%s%s_%s.png" % [FOLDER, kind, anim]) as Texture2D
@@ -346,7 +353,9 @@ func _load_anims() -> void:
 func _play(anim: String, restart: bool = false) -> void:
 	if not _anims.has(anim):
 		anim = "swim" if _anims.has("swim") else "idle"
-	if anim == _anim and not restart:
+	if not restart and (anim == _anim or kind == "bangus"):
+		# Its idle and swim use the same poses at different speeds. Keep the tail phase.
+		_anim = anim
 		return
 	_anim = anim
 	_frame = 0
@@ -376,12 +385,6 @@ func _animate(delta: float) -> void:
 		texture = (_anims["hurt"] as Array)[1]
 	_skin.texture = texture
 	_skin.modulate = Color(2.0, 0.4, 0.4) if _hurt > 0.0 and not _anims.has("hurt") else Color.WHITE
-	if kind == "bangus":
-		# Drawn swimming up and to the right: turned level, and mirrored the other way.
-		_skin.flip_h = _facing < 0.0
-		_skin.rotation = (PI * 0.25 if _facing > 0.0 else -PI * 0.25) + sin(_wobble * 6.0) * 0.08
-	else:
-		# The pawikan and the pugita are drawn facing right; the dikya is the same either way.
-		_skin.flip_h = _facing < 0.0
-		if kind == "dikya":
-			_skin.position.y = sin(_wobble * 2.2) * 4.0
+	_skin.flip_h = _facing < 0.0
+	if kind == "dikya":
+		_skin.position.y = sin(_wobble * 2.2) * 4.0

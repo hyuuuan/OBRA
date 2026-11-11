@@ -242,6 +242,11 @@ Every way through an alley ends with its pieces **on the floor**, and they are p
 walking over them; the way on opens only when every piece from that alley is in hand. Nothing
 escapes and nothing runs on a clock, so no road to the table can lose one.
 
+For a placed offering, the birds drop their scraps on clear floor, then take turns pecking
+at the drawing. The peck point follows the offering if it moves.
+
+In the dance, press Space or finish a stroke on the beat. Both inputs use the same timing windows.
+
 ---
 
 ## The decisions, and why

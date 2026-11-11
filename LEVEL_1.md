@@ -190,7 +190,8 @@ damage is. The way back is the daylight in the wall, which is the only bright th
 **The nail is out of reach, and that is the room's puzzle.** It hangs 250 above the floor;
 the apo is 96 tall and her jump apex is 94.3 (`wanderer.gd`), so she is about forty pixels
 short. Anything at all to stand on closes that — the one place in the level where the puzzle
-is height and nothing else, with no tag to satisfy and no wrong answer.
+is height and nothing else, with no tag to satisfy and no wrong answer. The hint beneath
+the nail suggests drawing a ladder or placing something to stand on.
 
 **The key is found, not stumbled on** (Kent: "make the key in the haybale standout since its
 not noticeable", then "they cant see the key so like the arrow should just point at the key").
@@ -262,14 +263,13 @@ you deal with the heap from outside. They are different questions and the level 
 `haybale_animation_4.png` is the widest, last airborne pose. The scene still has three
 `StrawPile2D` nodes because route state and the one entrance are authored that way, but only
 the entrance node draws the composite group. Drawing it from every node would stamp the same
-three piles over themselves. The four poses own the screen for three seconds before any
-acquisition or dialogue popup opens, then settle into a low bed of loose straw that actually
-touches the terrace. Every supplied pose has its own measured support row: the images do not
+three piles over themselves. The camera frames the four wind poses and the loose straw
+settling on the terrace in a three-second beat. Dialogue and the acquisition card wait
+until it finishes. Every supplied pose has its own measured support row: the images do not
 share a baseline, and aligning their canvas edges or their lowest stray alpha pixel leaves
-the visible piles floating. Checkpoint restores keep `SCATTERED` and do not rebuild the pile.
-The Protector choice's commit line is deferred too: the button carries the intention, all
-four wind poses and the grounded result play unobstructed, and only then may dialogue and
-the brass-key acquisition card cover the world.
+the visible piles floating. Choosing to scatter the heap closes its entrance. The wind brings
+the baul onto the terrace so its diary page stays reachable. CP2 records the solve so Continue
+restores the loose straw, closed entrance, and brass key together.
 
 **And the arrival SAYS there are two ways at it.** `L1_N2.enter` used to say only "it is in
 there, inside the straw", so a player who could not fit through the mouth concluded the key

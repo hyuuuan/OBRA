@@ -62,7 +62,9 @@ const SCATTER_SOURCE_GROUND_ROWS := [845.0, 842.0, 845.0, 805.0]
 ## rate the entire supplied sequence was over in half a second and looked like a texture
 ## swap underneath the acquisition card rather than wind moving a heap.
 const SCATTER_ANIMATION_SECONDS := 3.0
-const SCATTER_FRAME_SECONDS := SCATTER_ANIMATION_SECONDS / 4.0
+const SCATTER_SETTLE_SECONDS := 0.25
+const SCATTER_WIND_SECONDS := SCATTER_ANIMATION_SECONDS - SCATTER_SETTLE_SECONDS
+const SCATTER_FRAME_SECONDS := SCATTER_WIND_SECONDS / 4.0
 
 ## The old per-pile dimensions remain the gameplay dimensions for the entrance and its
 ## notice zone. The replacement art is one shared group and uses GROUP_SIZE above.
@@ -94,6 +96,7 @@ const HI := Color(1.000, 0.941, 0.659, 1.0)     # FFF0A8  the catch on a stalk f
 
 var _state: int = State.INTACT
 var _inside := false
+var _mouth_area: Area2D
 var _scatter_frame := 0
 var _scatter_elapsed := 0.0
 var _scatter_finished := false
@@ -120,8 +123,12 @@ func is_inside() -> bool:
 	return _inside
 
 
+func has_open_mouth() -> bool:
+	return entrance and _state != State.SCATTERED
+
+
 ## Exposed for the audit: the Protector route must play every supplied wind pose before it
-## changes to the grounded aftermath, even if another modal has the gameplay tree paused.
+## changes to the grounded aftermath.
 func scatter_animation_frame() -> int:
 	return _scatter_frame
 
@@ -180,40 +187,34 @@ func tunnel() -> void:
 
 
 ## Gone, and it does not come back. The one route with a cost you can see.
-func scatter() -> void:
+func scatter(animate: bool = true) -> void:
 	if _state == State.SCATTERED:
 		return
 	_state = State.SCATTERED
-	_scatter_frame = 0
-	_scatter_elapsed = 0.0
-	_scatter_finished = false
-	if entrance:
-		# Dialogue pauses the level immediately after the route resolves. The hay is feedback
-		# for that resolution, so it must not freeze on its first pose behind the dialogue.
-		process_mode = Node.PROCESS_MODE_ALWAYS
-		set_process(true)
+	if _mouth_area != null:
+		_mouth_area.set_deferred(&"monitoring", false)
+	if _inside:
+		_inside = false
+		at_mouth.emit(false)
+	_scatter_finished = not (animate and entrance)
+	_scatter_elapsed = SCATTER_ANIMATION_SECONDS if _scatter_finished else 0.0
+	_scatter_frame = SCATTER_FRAMES.size() - 1 if _scatter_finished else 0
+	set_process(not _scatter_finished)
 	queue_redraw()
 	searched.emit("scatter")
 
 
 func _process(delta: float) -> void:
-	if _state != State.SCATTERED or not entrance:
-		set_process(false)
-		process_mode = Node.PROCESS_MODE_INHERIT
-		return
+	var was_settled := _scatter_elapsed >= SCATTER_WIND_SECONDS
 	_scatter_elapsed += delta
 	var next_frame := mini(int(_scatter_elapsed / SCATTER_FRAME_SECONDS),
 		SCATTER_FRAMES.size() - 1)
-	if next_frame != _scatter_frame:
+	if next_frame != _scatter_frame or (not was_settled and _scatter_elapsed >= SCATTER_WIND_SECONDS):
 		_scatter_frame = next_frame
 		queue_redraw()
 	if _scatter_elapsed >= SCATTER_ANIMATION_SECONDS:
-		_scatter_elapsed = SCATTER_ANIMATION_SECONDS
-		_scatter_frame = SCATTER_FRAMES.size() - 1
 		_scatter_finished = true
 		set_process(false)
-		process_mode = Node.PROCESS_MODE_INHERIT
-		queue_redraw()
 		scatter_finished.emit()
 
 
@@ -231,7 +232,8 @@ func restore_intact() -> void:
 	_scatter_elapsed = 0.0
 	_scatter_finished = false
 	set_process(false)
-	process_mode = Node.PROCESS_MODE_INHERIT
+	if _mouth_area != null:
+		_mouth_area.set_deferred(&"monitoring", true)
 	queue_redraw()
 
 
@@ -239,6 +241,7 @@ func restore_intact() -> void:
 ## the heap has no collision, deliberately, so walking up to it is walking up to it.
 func _build_mouth_area() -> void:
 	var area := Area2D.new()
+	_mouth_area = area
 	area.name = "Mouth"
 	area.collision_layer = 0
 	area.collision_mask = 1
@@ -273,7 +276,7 @@ func _build_mouth_area() -> void:
 
 
 func _on_mouth_body(body: Node, coming_in: bool, area: Area2D) -> void:
-	if not _is_the_player(body):
+	if not has_open_mouth() or not _is_the_player(body):
 		return
 	if _inside == coming_in:
 		return
@@ -323,7 +326,7 @@ func _draw() -> void:
 	if not entrance:
 		return
 	if _state == State.SCATTERED:
-		if _scatter_finished:
+		if _scatter_elapsed >= SCATTER_WIND_SECONDS:
 			_draw_scattered_aftermath()
 		else:
 			_draw_ground_shadow(GROUP_SIZE.x * 0.5)

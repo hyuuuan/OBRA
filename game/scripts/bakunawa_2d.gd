@@ -92,9 +92,6 @@ const LOOK_DOWN := 0.6
 ## cycle (run_bakunawa_probe, measured). The old sweep leaves it one, and the probe holds that.
 var _surfaced := false
 
-## Three good hits. The design asks that the fight be survivable without combat skill: this is
-## a story game and a player who picks Protector for character reasons should not be walled by
-## execution.
 const MANIFEST := "res://assets/Level3/dagat.json"
 ## The creature is delivered at 1672px and the arena is 900 wide. Scaled by its own length so
 ## the number here is the one a designer would measure off the scene.
@@ -194,7 +191,6 @@ func _ready() -> void:
 	_build_skin()
 	_meter = _HitMeter.new()
 	_meter.name = "HitMeter"
-	_meter.needed = HITS_TO_SUBDUE
 	_meter.position = Vector2(0.0, -drawn_size().y * 0.5 - 30.0)
 	_meter.visible = false
 	add_child(_meter)
@@ -661,9 +657,10 @@ func _process(delta: float) -> void:
 			_sweep = lerp_angle(_sweep, 0.0, minf(1.0, delta * 1.2))
 	if _meter != null:
 		_meter.visible = _state == State.FIGHTING and not _gone
-		_meter.flash = maxf(0.0, _meter.flash - delta * 3.0)
-		if _meter.visible:
-			_meter.queue_redraw()
+		if _meter.flash > 0.0:
+			_meter.flash = maxf(0.0, _meter.flash - delta * 3.0)
+			if _meter.visible:
+				_meter.queue_redraw()
 	_animate(delta)
 	_advance_beam_water(delta)
 	_sync_beams()
@@ -844,29 +841,40 @@ func _advance_beam_water(delta: float) -> void:
 		_beam_material.set_shader_parameter(&"phase", float(frame) / Motion.PIXEL_FPS)
 
 
-## THE BLOWS IT HAS LEFT, over its back while it fights: a row of pips that go out as it is hit,
-## and blink red on the one that just went. A fight of fifteen with no count is a fight a player
-## gives up on at nine, not knowing it was nearly over.
+## One heart for each blow Bakunawa can still take. The spent slot flashes on impact.
 class _HitMeter extends Node2D:
-	var needed := 15
+	var needed := HITS_TO_SUBDUE
 	var hits := 0
 	var flash := 0.0
 
-	const PIP := Vector2(14.0, 10.0)
-	const GAP := 4.0
+	const SPACING := 23.0
+	var _heart := PackedVector2Array([
+		Vector2(-8, -4), Vector2(-6, -4), Vector2(-6, -7), Vector2(-2, -7),
+		Vector2(-2, -5), Vector2(2, -5), Vector2(2, -7), Vector2(6, -7),
+		Vector2(6, -4), Vector2(8, -4), Vector2(8, 1), Vector2(6, 1),
+		Vector2(6, 3), Vector2(4, 3), Vector2(4, 5), Vector2(2, 5),
+		Vector2(2, 7), Vector2(-2, 7), Vector2(-2, 5), Vector2(-4, 5),
+		Vector2(-4, 3), Vector2(-6, 3), Vector2(-6, 1), Vector2(-8, 1),
+	])
+	const OUTLINE := Color(0.08, 0.03, 0.07)
+	const FULL := Color(1.0, 0.37, 0.39)
+	const SPENT := Color(0.52, 0.35, 0.42)
+	const GLINT := Color(1.0, 0.76, 0.67)
 
 	func _ready() -> void:
 		z_index = 20
 
 	func _draw() -> void:
-		var width := needed * PIP.x + (needed - 1) * GAP
-		var left := -width * 0.5
-		draw_rect(Rect2(left - 6.0, -PIP.y * 0.5 - 5.0, width + 12.0, PIP.y + 10.0),
-			Color(0.02, 0.03, 0.06, 0.72))
 		for index in range(needed):
-			var box := Rect2(left + index * (PIP.x + GAP), -PIP.y * 0.5, PIP.x, PIP.y)
-			var left_standing := index >= hits
-			var colour := Color(0.96, 0.84, 0.52) if left_standing else Color(0.32, 0.1, 0.1, 0.8)
-			if index == hits - 1 and flash > 0.0:
-				colour = colour.lerp(Color(1.0, 0.2, 0.15), flash)
-			draw_rect(box, colour)
+			var at := Vector2((index - float(needed - 1) * 0.5) * SPACING, 0.0)
+			draw_set_transform(at, 0.0, Vector2.ONE * 1.20)
+			draw_colored_polygon(_heart, OUTLINE)
+			draw_set_transform(at)
+			if index >= hits:
+				draw_colored_polygon(_heart, FULL)
+				draw_rect(Rect2(-5.0, -5.0, 3.0, 2.0), GLINT)
+			else:
+				var rim := SPENT.lerp(GLINT, flash) if index == hits - 1 else SPENT
+				draw_colored_polygon(_heart, rim)
+				draw_set_transform(at, 0.0, Vector2.ONE * 0.68)
+				draw_colored_polygon(_heart, OUTLINE)

@@ -1737,7 +1737,10 @@ func _mirror_in_body(node: Node) -> void:
 		outline.polygon = _mirrored_points(outline.polygon)
 	elif node is CollisionShape2D and (node as CollisionShape2D).shape is ConvexPolygonShape2D:
 		var shape := ((node as CollisionShape2D).shape as ConvexPolygonShape2D).duplicate() as ConvexPolygonShape2D
-		shape.points = _mirrored_points(shape.points)
+		# Rebuild in the new winding to remove points that round into concavities.
+		var mirrored_hull := Geometry2D.convex_hull(_mirrored_points(shape.points))
+		mirrored_hull.resize(mirrored_hull.size() - 1)
+		shape.points = mirrored_hull
 		(node as CollisionShape2D).shape = shape
 
 
@@ -2537,7 +2540,10 @@ func _add_stroke_to_body(
 		for point in points:
 			local.append(point - body_center)
 		var hull := Geometry2D.convex_hull(local)
-		if hull.size() >= 3:
+		# The hull repeats its first vertex at the end. A collision shape needs three
+		# distinct vertices, with no zero-length edge when the body turns.
+		if hull.size() >= 4:
+			hull.resize(hull.size() - 1)
 			var polygon := ConvexPolygonShape2D.new()
 			polygon.points = hull
 			var collision := CollisionShape2D.new()

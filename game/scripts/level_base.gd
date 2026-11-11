@@ -1956,6 +1956,8 @@ func note_pickup_taken(pickup_id: String) -> void:
 
 
 func _write_checkpoint(checkpoint_id: String) -> void:
+	if _level_completed:
+		return
 	var anchor_position := spawn_point.global_position
 	if player != null and is_instance_valid(player) and player.has_method("capture_morph_state"):
 		anchor_position = Vector2((player.call("capture_morph_state") as Dictionary).get(
@@ -2132,10 +2134,14 @@ func _resume_saved_checkpoint() -> bool:
 	if tutorial != null:
 		tutorial.mark_taught(saved.get("taught", []) as Array)
 	_refresh_requirements()
+	_snap_camera_after_resume()
+	return true
+
+
+func _snap_camera_after_resume() -> void:
 	var world_camera := _world_camera()
 	if world_camera != null:
 		world_camera.snap_to_target()
-	return true
 
 
 ## ⚠ WHAT CANNOT COME BACK GIVES BACK ITS INK. A snapshot keeps where each placed drawing
@@ -2257,6 +2263,9 @@ func _restore_placed_entities(records: Array) -> void:
 		var prop := child as PhysicsShapeObject
 		if prop == null or prop.is_preview:
 			continue
+		# A vehicle can otherwise move its passenger back out of the restored landing.
+		if prop is UtilityObject and is_instance_valid(player) and prop.has_passenger(player):
+			prop.release_passenger()
 		var id := prop.get_instance_id()
 		if kept.has(id):
 			prop.global_transform = Transform2D((kept[id] as Dictionary)["transform"])
@@ -4064,12 +4073,12 @@ func _physics_process(_delta: float) -> void:
 		refresh_objective()
 	_offer_the_nearest_sign()
 	_tend_beat_advice(_delta)
-	var anchor_position := player.global_position
-	if player.has_method("get_physics_anchor"):
-		var anchor := player.call("get_physics_anchor") as Node2D
-		if anchor != null:
-			anchor_position = anchor.global_position
+	var physics_player := player
+	var anchor_position := _player_anchor_position()
 	_level_physics(anchor_position)
+	# A level can rescue or replace the player during its own physics tick.
+	if _level_completed or player != physics_player or _player_anchor_position() != anchor_position:
+		return
 	_tend_the_fading(anchor_position.x)
 	_tend_diary_pages(anchor_position)
 	_mantle_onto_a_drawing()

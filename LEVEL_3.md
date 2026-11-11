@@ -1,5 +1,10 @@
 # Level 3 — Dagat
 
+**Fish and Bakunawa health:** the catchable bangus and background schools share the three
+swim poses from `LEVEL3_Dagat/creatures/fish.JPG`. `tools/build_dagat_bangus.py` registers
+the poses at the eye and cuts them onto a transparent strip. Bakunawa shows one heart for
+each of its 15 hits, with spent slots preserved when it throws the player back.
+
 **Strong currents (2026-11-01):** the marked open-water band steadily pushes non-aquatic
 players LEFT, including when idle, near a boat, or on the island half of the crossing.
 The force builds gradually on entry and eases to a bounded drift. Aquatic forms use the

@@ -104,10 +104,13 @@ func _run() -> void:
 		level.queue_free()
 		await _wait(0.4)
 
+	await _church_player_resumes()
 	await _boat_player_resumes()
 	await _diver_resumes_as_their_shape()
 	await _ink_for_what_is_lost_comes_back()
 	await _a_key_taken_stays_taken()
+	await _dilim_fall_restores_once()
+	await _mayon_camera_resumes()
 	print("OBRA_RESUME_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(failures)
 
@@ -117,6 +120,39 @@ func _run() -> void:
 ## -- but a level resumed from disk has no boat to keep, and the fork that launched it is
 ## already answered. Quit at CP3b, come back, and the apo was in the open sea out of the boat
 ## and without it, where the current holds a swimmer short of the island.
+func _church_player_resumes() -> void:
+	print("\n===== LEVEL_2, AFTER THE PRIEST =====")
+	var spec := {"level": "level_2", "scene": "res://level_2.tscn"}
+	var level := _open(spec)
+	await _settle()
+	var chancel: ChurchInterior2D = level.get("chancel")
+	chancel.kandila_on_rack = true
+	_put(level, chancel.rack_point())
+	level.call("_on_priest_arrived")
+	var checkpoints: CheckpointManager = level.get("checkpoints")
+	var saved := checkpoints.peek("CP2")
+	_check(bool(saved["level"]["onward"]["church"]), "CP2 captures the open church door", str(saved["level"]["onward"]))
+	# Simulate a save written by the previous build, before the door opened.
+	saved["level"]["onward"]["church"] = false
+	checkpoints.write("CP2", saved)
+	level.call("_save_checkpoint_to_disk", "CP2")
+	level.queue_free()
+	await _wait(0.3)
+
+	level = _open(spec)
+	await _settle()
+	var church: PiyestaRoom2D = level.get("church")
+	_check(church.onward_open, "Continue from an older CP2 can go on to the alley", str(church.onward_open))
+	var door: PiyestaDoor2D = level.get("_doors")["church"]
+	_put(level, church.global_position + church.exit_rect().get_center())
+	await _settle()
+	_check(door.open and absf(_anchor(level).x - door.step_out_point().x) < 20.0,
+		"the church's street exit also works after Continue", str(_anchor(level).round()))
+	level.call("_forget_saved_checkpoint")
+	level.queue_free()
+	await _wait(0.3)
+
+
 func _boat_player_resumes() -> void:
 	print("\n===== LEVEL_3, BY BOAT =====")
 	var spec := {"level": "level_3", "scene": "res://level_3.tscn"}
@@ -158,6 +194,11 @@ func _boat_player_resumes() -> void:
 	var latest := String((level.get("checkpoints") as Object).call("latest_id"))
 	_check(aboard_before and latest == "CP3b", "sailing past CP3b writes it, aboard",
 		"%s, aboard %s" % [latest, aboard_before])
+	boat.call("release_passenger")
+	level.call("_restore_checkpoint")
+	await _settle()
+	_check(bool(boat.call("has_passenger", level.get("player"))),
+		"retry puts the apo back aboard the existing bangka", str(_anchor(level).round()))
 	level.queue_free()
 	await _wait(0.4)
 
@@ -286,6 +327,50 @@ func _a_key_taken_stays_taken() -> void:
 	level.call("_forget_saved_checkpoint")
 	level.queue_free()
 	await _wait(0.4)
+
+
+func _dilim_fall_restores_once() -> void:
+	print("\n===== LEVEL_4, A FALL =====")
+	var level := _open({"level": "level_4", "scene": "res://level_4.tscn"})
+	await _settle()
+	level.call("_write_checkpoint", "CP_FALL")
+	var checkpoints: CheckpointManager = level.get("checkpoints")
+	var before := checkpoints.total_restores()
+	var bounds: Rect2 = level.get("environment").get("world_bounds")
+	_put(level, Vector2(_anchor(level).x, bounds.end.y + 500.0))
+	await _settle(0.3)
+	_check(checkpoints.total_restores() == before + 1, "a fall restores the checkpoint once",
+		"%d restores" % (checkpoints.total_restores() - before))
+	# Suppress the already-read line so the checkpoint retry happens during the morning hold.
+	var lines: DialogueScript = level.get("script_lines")
+	lines.mark_heard("L4_FINALE.solved")
+	(level.get("_finale") as DilimFinale2D).call("_dawn")
+	level.call("_restore_checkpoint")
+	await _settle(2.2)
+	_check(not bool(level.get("_level_completed")), "a restored night cannot finish on the old dawn timer",
+		str(level.get("_level_completed")))
+	level.call("_forget_saved_checkpoint")
+	level.queue_free()
+	await _wait(0.3)
+
+
+func _mayon_camera_resumes() -> void:
+	print("\n===== LEVEL_5, THE MEMORY CAMERA =====")
+	var level := _open({"level": "level_5", "scene": "res://level_5.tscn"})
+	await _settle()
+	level.call("_enter_crater")
+	await _settle(0.8)
+	var camera := level.call("_world_camera") as Camera2D
+	var saved := camera.global_position + Vector2(90.0, -45.0)
+	camera.global_position = saved
+	level.call("_write_checkpoint", "CP_CAMERA")
+	camera.global_position = Vector2.ZERO
+	var resumed := bool(level.call("_resume_saved_checkpoint"))
+	_check(resumed and camera.global_position.is_equal_approx(saved), "Continue keeps Mayon's saved framing",
+		"%s, wanted %s" % [camera.global_position.round(), saved.round()])
+	level.call("_forget_saved_checkpoint")
+	level.queue_free()
+	await _wait(0.3)
 
 
 func _put(level: Node2D, at: Vector2) -> void:

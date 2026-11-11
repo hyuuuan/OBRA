@@ -175,7 +175,9 @@ func _audit_feeding(which: String) -> void:
 	var ob := _obstacle_of(which)
 	var birds: Array = alley.get("birds")
 	var held_before: int = level.get("ledger").call("held")
-	_draw("bread")
+	var crust := PackedVector2Array([Vector2(10, 30), Vector2(90, 8), Vector2(160, 43),
+		Vector2(125, 86), Vector2(44, 80), Vector2(10, 30)])
+	_draw("bread", [{"points": crust, "width": 6.0, "color": Color.BLACK}])
 	await _frames(4)
 	# Well clear of the apo, so no piece lands where they are standing and is picked up at once.
 	var apo_x := player.global_position.x
@@ -228,8 +230,39 @@ func _audit_feeding(which: String) -> void:
 		else "under it at %s" % ", ".join(under))
 	_check(past.is_empty(), "Alley %s: or past it from the apo" % which,
 		"all on the apo's side" if past.is_empty() else "beyond it at %s" % ", ".join(past))
+	if bread != null:
+		await _audit_pecks(which, birds, bread)
 	await _collect_and_leave(alley, which, held_before)
 	await _close()
+
+
+func _audit_pecks(which: String, birds: Array, bread: PhysicsShapeObject) -> void:
+	var skin := bread.get_node(^"DrawingSkin") as DrawingSkin2D
+	var crust: PackedVector2Array = skin.get_vector_strokes()[0]["points"]
+	var beak_offset: Vector2 = ScrapBird2D._cells["peck"]["beak"]
+	var fed := {}
+	var missed := {}
+	for _frame in range(600):
+		for bird: ScrapBird2D in birds:
+			if bird.call("_frame_now") != "peck":
+				continue
+			var beak := skin.to_local(bird.to_global(beak_offset * Vector2(bird.get("_facing"), 1.0)))
+			var touches_crust := false
+			for index in range(1, crust.size()):
+				var point := Geometry2D.get_closest_point_to_segment(beak, crust[index - 1], crust[index])
+				if beak.distance_to(point) < 2.0:
+					touches_crust = true
+					break
+			if touches_crust:
+				fed[bird.scrap_id] = true
+			else:
+				missed[bird.scrap_id] = true
+		if fed.size() == birds.size() or not missed.is_empty():
+			break
+		await physics_frame
+	_check(fed.size() == birds.size() and missed.is_empty(),
+		"Alley %s: every peck lands on the drawn bread" % which,
+		"%d of %d reached the crust, %d pecked elsewhere" % [fed.size(), birds.size(), missed.size()])
 
 
 # --- Cutting ---------------------------------------------------------------------------------
@@ -694,9 +727,9 @@ func _choose(route: String) -> void:
 	await _frames(10)
 
 
-func _draw(entity_id: String) -> void:
+func _draw(entity_id: String, strokes: Array = []) -> void:
 	level.call("_on_drawing_ready", entity_id, entity_id.capitalize(),
-		Image.create(28, 28, false, Image.FORMAT_RGBA8), {"confidence": 0.9}, [], 1.0)
+		Image.create(28, 28, false, Image.FORMAT_RGBA8), {"confidence": 0.9}, strokes, 1.0)
 
 
 func _slot_of(entity_id: String) -> int:

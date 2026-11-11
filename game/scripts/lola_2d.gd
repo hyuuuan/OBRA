@@ -43,6 +43,7 @@ const PAINT_STILL := 0.85
 const PAINT_SHADER := preload("res://shaders/paint_reveal.gdshader")
 var _canvas: Sprite2D
 var _painted := PAINT_START
+var _paint_step := PAINT_STEP
 var _last_frame := -1
 var _sprite: Sprite2D
 var _walking := false
@@ -55,22 +56,30 @@ var _painting := true
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if with_easel:
-		# Before her sprite, so she stands in front of her work.
-		_canvas = Sprite2D.new()
-		_canvas.name = "Canvas"
-		_canvas.texture = PAINTING
-		_canvas.scale = CANVAS_SIZE / PAINTING.get_size()
-		_canvas.position = EASEL_AT + Vector2(0, -170 + CANVAS_SIZE.y * 0.5)
-		var material := ShaderMaterial.new()
-		material.shader = PAINT_SHADER
-		_canvas.material = material
-		add_child(_canvas)
-		_set_painted(PAINT_STILL if Motion.reduced() else PAINT_START)
+		mount_canvas(self, canvas_rect())
 	_sprite = Sprite2D.new()
 	_sprite.name = "Lola"
 	_sprite.position = Vector2(0, -72)
 	add_child(_sprite)
 	_show_painting_idle()
+
+
+## The house mounts the same canvas on a separate easel so Lola can walk over to it.
+func mount_canvas(easel: Node2D, area: Rect2, amount: float = PAINT_START,
+		step: float = PAINT_STEP, brush_contact := Vector2(-1.0, -1.0)) -> void:
+	_canvas = Sprite2D.new()
+	_canvas.name = "Canvas"
+	_canvas.texture = PAINTING
+	_canvas.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_canvas.scale = area.size / PAINTING.get_size()
+	_canvas.position = area.get_center()
+	var material := ShaderMaterial.new()
+	material.shader = PAINT_SHADER
+	material.set_shader_parameter(&"brush_contact", brush_contact)
+	_canvas.material = material
+	easel.add_child(_canvas)
+	_paint_step = step
+	_set_painted(maxf(PAINT_STILL, amount) if Motion.reduced() else amount)
 
 
 func _pose(pose: String) -> void:
@@ -104,7 +113,7 @@ func _show_painting_idle() -> void:
 				break
 			within -= PAINTING_HOLDS[i]
 	if frame != _last_frame and frame in BRUSH_ON_CANVAS and _canvas != null:
-		_set_painted(minf(PAINT_NEARLY, _painted + PAINT_STEP))
+		_set_painted(minf(PAINT_NEARLY, _painted + _paint_step))
 	_last_frame = frame
 	_sprite.frame = frame
 

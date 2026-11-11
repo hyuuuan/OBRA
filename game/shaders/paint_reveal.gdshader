@@ -7,6 +7,7 @@ shader_type canvas_item;
 
 uniform float reveal : hint_range(0.0, 1.0) = 0.0;
 uniform vec2 blocks = vec2(32.0, 10.0);
+uniform vec2 brush_contact = vec2(-1.0);
 uniform vec4 paper : source_color = vec4(0.957, 0.937, 0.894, 1.0);
 uniform vec4 sketch_ink : source_color = vec4(0.42, 0.33, 0.24, 1.0);
 
@@ -20,6 +21,13 @@ void fragment() {
 	vec2 cell = floor(UV * blocks);
 	float along = clamp((cell.x + (hash(cell) - 0.5) * 2.5) / blocks.x, 0.0, 0.999);
 	float turn = (cell.y + along) / blocks.y;
+	// On the house easel, build colour around the place the brush reaches.
+	if (brush_contact.x >= 0.0) {
+		vec2 aspect = vec2(1.0, 0.6);
+		vec2 offset = ((cell + 0.5) / blocks - brush_contact) * aspect;
+		vec2 farthest = max(brush_contact, 1.0 - brush_contact) * aspect;
+		turn = length(offset) / length(farthest) + (hash(cell) - 0.5) * 0.065;
+	}
 	float luma = dot(painted.rgb, vec3(0.299, 0.587, 0.114));
 	vec3 underdrawing = mix(paper.rgb, sketch_ink.rgb, (1.0 - luma) * 0.32);
 	vec3 shown = turn < reveal ? painted.rgb : underdrawing;
