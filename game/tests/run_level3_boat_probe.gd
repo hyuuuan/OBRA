@@ -318,7 +318,82 @@ func _run() -> void:
 			- sand.global_position.x) < 120.0,
 		"and they step off onto the sand", "apo at %s, the sand at x %.0f"
 			% [player.global_position.round(), sand.global_position.x])
+	await _fight_from_the_deck()
 	_finish()
+
+
+## ⚠ AND FOUGHT FROM THE DECK, WITH F. Every probe fought it with apply_tool_hit. Played from the
+## boat, a drawn sword swung at the apo's hand, about 110 px over the creature's back: 150 presses
+## of F landed nothing and the fight never ended (2026-11-12). Rowed out, a sword drawn, and F
+## pressed the way a player presses it, on the swing's own clock.
+func _fight_from_the_deck() -> void:
+	level.queue_free()
+	await process_frame
+	level = (load("res://level_3.tscn") as PackedScene).instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(40)
+	var director = level.get("director")
+	var creature := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Bakunawa
+	director.call("solve_with_item", "L3_B0_SHORE", "new_brush")
+	director.call("enter_obstacle", "L3_N1")
+	director.call("commit_route", "L3_N1", "artist")
+	await _unpause()
+	level.call("_launch_the_bangka")
+	director.call("solve_with_item", "L3_N1", "bangka")
+	director.call("exit_obstacle", "L3_N1")
+	await _unpause()
+	var boat := level.get("_launched_boat") as Node2D
+	_place(boat.global_position + Vector2(0.0, -40.0))
+	await _frames(4)
+	level.call("press_interact")
+	await _unpause()
+	# Out to it, until the coils stop the hull.
+	var was := -INF
+	var still := 0.0
+	var rowed := 0.0
+	Input.action_press(&"move_right")
+	while rowed < 60.0 and still < 1.5:
+		await physics_frame
+		if paused:
+			Input.action_release(&"move_right")
+			await _unpause()
+			Input.action_press(&"move_right")
+		rowed += 1.0 / 60.0
+		still = still + 1.0 / 60.0 if boat.global_position.x - was < 0.5 else 0.0
+		was = boat.global_position.x
+	Input.action_release(&"move_right")
+	director.call("enter_obstacle", "L3_N2")
+	director.call("commit_route", "L3_N2", "protector")
+	await _unpause()
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_on_drawing_ready", "sword", "Sword", sheet, {"confidence": 0.9},
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(0, 80)]), "width": 6.0,
+			"color": Color.BLACK}], 1.0)
+	await _unpause()
+	var aboard := bool(boat.call("has_passenger", level.get("player")))
+	var presses := 0
+	var swung := 0.0
+	while swung < 30.0 and creature.state() == Bakunawa.State.FIGHTING:
+		for pressed in [true, false]:
+			var key := InputEventAction.new()
+			key.action = &"use_utility"
+			key.pressed = pressed
+			Input.parse_input_event(key)
+			await physics_frame
+		presses += 1
+		# A press every 0.35 s: past the blade's 270 ms swing, so none is a press into a swing.
+		for _frame in range(19):
+			await physics_frame
+			if paused:
+				await _unpause()
+		swung += 21.0 / 60.0
+	_check(aboard and creature.state() == Bakunawa.State.SUBDUED,
+		"fought from the deck, a drawn sword subdues it with F",
+		"%.0f blows in %d presses, %s" % [creature.hits_taken(), presses,
+			"aboard" if aboard else "NOT aboard"])
 
 
 func _finish() -> void:
