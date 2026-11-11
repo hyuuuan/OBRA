@@ -969,6 +969,10 @@ func _walk_node_two(route: String) -> void:
 		_check(taught.size() == 3, "all three verbs taught on arrival",
 			"%s" % [taught])
 
+	if route == "protector":
+		_check(bool(level.get("_at_straw_mouth"))
+			and not (level.call("_level_interact_offer") as Dictionary).is_empty(),
+			"the haystack offers entry before choosing the wind route")
 	d.commit_route("L1_N2", route)
 	await process_frame
 	if route == "protector":
@@ -980,7 +984,18 @@ func _walk_node_two(route: String) -> void:
 	var solver: String = {"artist": "rake", "pragmatist": "ant", "protector": "fan"}[route]
 	var dialogue := level.get("dialogue_box") as DialogueBox
 	if route == "protector":
-		_check(bool(level.get("_at_straw_mouth")), "standing at the open haystack offers entry")
+		_check((level.call("_level_interact_offer") as Dictionary).is_empty()
+			and String(level.get("_straw_prompt")).is_empty(),
+			"choosing the wind route removes the haystack entry prompts")
+		for action: StringName in [&"interact", &"move_down"]:
+			await _tap_action(action)
+			await create_timer(0.3).timeout
+			var stayed_outside: bool = level.call("_room_holding_player") == null
+			_check(stayed_outside, "%s stays outside after choosing the wind route" % action)
+			if not stayed_outside:
+				level.call("_on_straw_exit")
+				await create_timer(0.5).timeout
+				break
 		# The retry line is generic, so it can open even when the route's own lines wait.
 		level.call("_on_recognition_declined", "", 0.0, 0.0, "confidence")
 		dialogue.set_auto_dismiss(false)

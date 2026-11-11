@@ -217,11 +217,16 @@ func _fits_through_the_straw() -> bool:
 	return AbilityTags.class_has_tag(_current_form_id, BURROW_TAG)
 
 
+func _straw_entry_is_open() -> bool:
+	return _straw_entrance != null and _straw_entrance.has_open_mouth() \
+		and director.committed_route("L1_N2") != "protector"
+
+
 func _on_straw_mouth(standing: bool) -> void:
 	_at_straw_mouth = standing
 	if hint_bar == null:
 		return
-	if not standing:
+	if not standing or not _straw_entry_is_open():
 		# ⚠ ONLY ITS OWN WORDS. There are three heaps along the beat, and walking off one took
 		# whatever was on the bar with it: Lolo's three ways, if they had got that far.
 		hint_bar.take_down(_straw_prompt)
@@ -247,7 +252,7 @@ func _on_straw_mouth(standing: bool) -> void:
 ## checkpoint carry in with her. Lolo comes too without being asked: he teleports to his
 ## target past 900px and the room is thousands away.
 func _on_straw_entered() -> void:
-	if _straw_entrance == null or not _straw_entrance.has_open_mouth():
+	if not _straw_entry_is_open():
 		return
 	# REFUSED, AND SAID SO. A press that does nothing and explains nothing is a press the
 	# player concludes is broken -- and this one is the level's own design rule, not a bug.
@@ -933,6 +938,12 @@ func _defer_route_commit_dialogue(obstacle_id: String, route: String) -> bool:
 		or (obstacle_id == "L1_N3" and _with_the_found_key)
 
 
+func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
+	if obstacle_id == "L1_N2" and route == "protector" and _at_straw_mouth:
+		_on_straw_mouth(true)
+	super._on_obstacle_route_committed(obstacle_id, route)
+
+
 func _stage_the_checkpoint(mark: Node2D) -> void:
 	if mark is CheckpointLantern2D and mark == _commit_marks.get("L1_N2") \
 			and director.committed_route("L1_N2") == "protector":
@@ -980,7 +991,7 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 
 ## Down, in the heap's doorway, is "go in". Bound nowhere else in this level.
 func _handle_level_input(event: InputEvent) -> bool:
-	if event.is_action_pressed("move_down") and _at_straw_mouth:
+	if event.is_action_pressed("move_down") and _at_straw_mouth and _straw_entry_is_open():
 		_on_straw_entered()
 		return true
 	return false
@@ -989,14 +1000,14 @@ func _handle_level_input(event: InputEvent) -> bool:
 func _interact_with_level() -> bool:
 	# The way into the straw is offered on E, over her head, where the hint bar's version of it
 	# was talked over by Lolo's three lines about the heap. Down still works.
-	if _at_straw_mouth and _fits_through_the_straw():
+	if not _level_interact_offer().is_empty():
 		_on_straw_entered()
 		return true
 	return _use_the_found_key()
 
 
 func _level_interact_offer() -> Dictionary:
-	if _at_straw_mouth and _fits_through_the_straw():
+	if _at_straw_mouth and _straw_entry_is_open() and _fits_through_the_straw():
 		return {"name": "the straw", "verb": "GO IN"}
 	return {}
 
@@ -1005,7 +1016,7 @@ func _level_interact_offer() -> Dictionary:
 ## writes "you are carrying her key -- press E to try it" whenever this is true, so the two
 ## cannot drift: if the sentence is up, this key press belongs to the door.
 func _level_answers_first() -> bool:
-	return _found_key_would_open() or (_at_straw_mouth and _fits_through_the_straw())
+	return _found_key_would_open() or not _level_interact_offer().is_empty()
 
 
 func _level_physics(anchor_position: Vector2) -> void:

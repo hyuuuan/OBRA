@@ -244,9 +244,9 @@ three piles over themselves. The camera frames the four wind poses and the loose
 settling on the terrace in a three-second beat. Dialogue and the acquisition card wait
 until it finishes. Every supplied pose has its own measured support row: the images do not
 share a baseline, and aligning their canvas edges or their lowest stray alpha pixel leaves
-the visible piles floating. The entrance closes as the wind starts, and the baul emerges
-on the terrace so its diary page stays reachable. CP2 records the solve so Continue restores
-the loose straw, closed entrance, and brass key together.
+the visible piles floating. Choosing to scatter the heap closes its entrance. The wind brings
+the baul onto the terrace so its diary page stays reachable. CP2 records the solve so Continue
+restores the loose straw, closed entrance, and brass key together.
 
 **And the arrival SAYS there are two ways at it.** `L1_N2.enter` used to say only "it is in
 there, inside the straw", so a player who could not fit through the mouth concluded the key
