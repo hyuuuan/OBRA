@@ -678,6 +678,24 @@ func _audit_the_key_catches_the_eye() -> void:
 	_check(brass.has_point(glint.position), "the glint is on the brass",
 		"at %s, the key spans %s" % [glint.position, brass])
 
+	# NOT CAMOUFLAGED. Kent: "i dont like how it almost camouflages at the backgorund". The
+	# brass was 1.3:1 against the lit straw; it hangs on a dark board now, which must hold the
+	# whole key and every pixel of the glint at its height, and the metal must read at least
+	# 3:1 against it -- WCAG's line for a graphic that has to be seen.
+	var constants := (room.get_script() as Script).get_script_constant_map()
+	var plank: Rect2 = constants["KEY_PLANK_RECT"]
+	plank.position += key_at
+	var widest: int = (constants["GLINT_RAYS"] as Array).max()
+	var light := Rect2(glint.position - Vector2(widest, widest), Vector2(widest, widest) * 2.0 + Vector2.ONE)
+	var metal: Color = UIIcons.PALETTES["brass"]["b"]
+	var against_wood := _contrast(metal, constants["KEY_PLANK"])
+	var against_straw := _contrast(metal, constants["STRAW_LIT"])
+	_check(plank.encloses(brass) and plank.encloses(light) and against_wood >= 3.0,
+		"the key hangs on a board it stands out from",
+		"brass %.1f:1 on the board (%.1f:1 on straw); board %s holds key %s and glint %s"
+			% [against_wood, against_straw, plank, plank.encloses(brass),
+				plank.encloses(light)])
+
 	var apo := level.get("player") as Node2D
 	apo.call("apply_morph_state", {"position": Vector2(room.call("entry_point")),
 		"linear_velocity": Vector2.ZERO})
@@ -753,3 +771,16 @@ func _glint_span(room: Node2D, seconds: float) -> Vector2i:
 		shortest = mini(shortest, reach)
 		longest = maxi(longest, reach)
 	return Vector2i(shortest, longest)
+
+
+## WCAG 2 contrast ratio between two opaque colours.
+func _contrast(a: Color, b: Color) -> float:
+	var la := _luminance(a)
+	var lb := _luminance(b)
+	return (maxf(la, lb) + 0.05) / (minf(la, lb) + 0.05)
+
+
+func _luminance(c: Color) -> float:
+	var lin := func(v: float) -> float:
+		return v / 12.92 if v <= 0.04045 else pow((v + 0.055) / 1.055, 2.4)
+	return 0.2126 * lin.call(c.r) + 0.7152 * lin.call(c.g) + 0.0722 * lin.call(c.b)
