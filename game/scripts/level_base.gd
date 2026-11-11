@@ -3594,7 +3594,10 @@ func refresh_objective() -> void:
 	var target: Variant = goal.get("target", null)
 	if target is Vector2 and player != null and is_instance_valid(player) \
 			and _same_space(target as Vector2):
-		objective_marker.point_at(target as Vector2, player)
+		# `out_of_reach`: a goal she can stand under without having reached it (Payyo's key on
+		# its nail). Off unless a level says so.
+		objective_marker.point_at(target as Vector2, player,
+			bool(goal.get("out_of_reach", false)))
 	else:
 		objective_marker.clear()
 

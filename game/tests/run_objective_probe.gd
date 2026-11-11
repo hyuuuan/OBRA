@@ -365,6 +365,31 @@ func _walk_payyo() -> void:
 	_check(not marker.on_screen(), "and the gorge is off screen, so it is an edge arrow",
 		"screen point %s" % marker.screen_point())
 
+	# ⚠ INSIDE THE HEAP WITH THE GORGE STILL UNANSWERED -- a bird got her over it. The room is
+	# parked in the sky over the gorge's x, so the gorge's line used to win in here, and with
+	# no arrow at all because the gorge is not in the room. Kent: "the arrow should just
+	# point at the key".
+	var heap_room := get_first_node_in_group(&"straw_rooms") as Node2D
+	var on_the_terrace := player.global_position
+	player.global_position = Vector2(heap_room.call("entry_point"))
+	await _frames(12)
+	_expect("in the heap, the gorge unanswered", "straw_inside")
+	var on_the_key: Vector2 = heap_room.global_position + Vector2(heap_room.call("key_mark"))
+	_check(arrow.showing() and arrow.target().is_equal_approx(on_the_key),
+		"and the arrow is on the key",
+		"target %s, the key's mark %s, showing %s" % [arrow.target(), on_the_key,
+			arrow.showing()])
+	# UNDER IT IS NOT HAVING IT. The nail is out of jump reach, and the chevron used to go out
+	# exactly here, under the thing she had to work out how to get up to.
+	player.global_position = heap_room.global_position \
+		+ Vector2(Vector2(heap_room.get("key_at")).x, 0.0)
+	await _frames(12)
+	_state()
+	_check(arrow.showing(), "and stays on it while she stands underneath",
+		"showing %s at %s" % [arrow.showing(), player.global_position])
+	player.global_position = on_the_terrace
+	await _frames(12)
+
 	director.enter_obstacle("L1_N1")
 	director.commit_route("L1_N1", "protector")
 	await _frames()
