@@ -32,6 +32,8 @@ extends SceneTree
 ## 7. CHANGING FORM INSIDE MUST NOT REBASE THE OUTDOOR PARALLAX. The room is parked far
 ##    above the terraces; making its camera position the sky's new origin leaves the outside
 ##    background displaced into the void when the player exits.
+## 9. THE HEAP STOPS ASKING ONCE SHE IS PAST IT. Its ways through ("something that can FORAGE")
+##    were still up as she walked in, and came back when she walked out with the key.
 ## 8. THE KEY ON THE NAIL CATCHES THE EYE. Kent: "make the key in the haybale standout since
 ##    its not noticeable." It glints while it hangs, holds still under reduce motion, and the
 ##    glint leaves with it.
@@ -75,6 +77,7 @@ func _run() -> void:
 	await process_frame
 	await _audit_no_room_is_drawn_while_empty()
 	await _audit_the_key_catches_the_eye()
+	await _audit_the_heap_stops_advising_inside()
 
 	print("\n===== ROOMS =====")
 	for line in results:
@@ -784,3 +787,90 @@ func _luminance(c: Color) -> float:
 	var lin := func(v: float) -> float:
 		return v / 12.92 if v <= 0.04045 else pow((v + 0.055) / 1.055, 2.4)
 	return 0.2126 * lin.call(c.r) + 0.7152 * lin.call(c.g) + 0.0722 * lin.call(c.b)
+
+
+## THE HEAP'S WAYS THROUGH COME DOWN INSIDE IT, AND STAY DOWN ONCE THE KEY IS IN HAND.
+##
+## "We can do it slowly -- something that can FORAGE" is about getting at the key from outside.
+## It was still on the bar as she walked into a room whose puzzle is height, and it came back
+## as a reminder when she walked out past the heap with the key already in the bag.
+func _audit_the_heap_stops_advising_inside() -> void:
+	var level := (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(1.4, true).timeout
+	var director = level.get("director")
+	# Normal progress: Ang Hagdan climbed and the gorge crossed, so the heap is next.
+	director.restore_obstacle_state({
+		"committed": {"B0_HAGDAN": "pragmatist", "L1_N1": "pragmatist"},
+		"solved": {"B0_HAGDAN": true, "L1_N1": true}})
+	var pile: Node2D = null
+	for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+		if bool((node as Node2D).get("entrance")):
+			pile = node as Node2D
+	var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	var apo := level.get("player") as Node2D
+	var hint_bar := level.get("hint_bar") as HintBar
+	var mouth := Rect2(pile.call("mouth_rect"))
+	apo.call("apply_morph_state", {"position": pile.global_position
+		+ Vector2(mouth.get_center().x, 0.0), "linear_velocity": Vector2.ZERO})
+	# Its ways through go up once its opening lines are said; the level's own opening first.
+	var posted := false
+	for _step in range(240):
+		await create_timer(0.05, true).timeout
+		if String(level.get("_beat_advice_of")) == "L1_N2":
+			posted = true
+			break
+	if not posted:
+		_check(false, "the heap's advice comes down inside it",
+			"never posted at the heap, so there was nothing to test")
+		level.queue_free()
+		await process_frame
+		return
+
+	level.call("_on_straw_entered")
+	for _frame in range(10):
+		await physics_frame
+	var inside: bool = level.call("_room_holding_player") == room
+	var said := _heap_advice_showing(level, hint_bar)
+	_check(inside and said.is_empty(), "the heap's advice comes down inside it",
+		"in the room %s; on the bar: %s" % [inside, said if not said.is_empty() else "none of it"])
+
+	apo.call("apply_morph_state", {"position": room.global_position
+		+ Vector2(room.get("key_at")), "linear_velocity": Vector2.ZERO})
+	for _frame in range(40):
+		await physics_frame
+		if bool(room.call("key_is_taken")):
+			break
+	for overlay in level.get_tree().get_nodes_in_group(&"modal_overlays"):
+		if overlay.has_method("is_open") and bool(overlay.call("is_open")) \
+				and overlay.has_method("close"):
+			overlay.call("close")
+	# Out past the heap, the way the doorway puts her: beside its mouth, in its volume again.
+	level.call("_on_straw_exit")
+	director.exit_obstacle("L1_N2")
+	director.enter_obstacle("L1_N2")
+	await create_timer(1.0, true).timeout
+	said = _heap_advice_showing(level, hint_bar)
+	_check(bool(room.call("key_is_taken")) and said.is_empty(),
+		"and does not come back once the key is in hand",
+		"key taken %s; on the bar: %s" % [room.call("key_is_taken"),
+			said if not said.is_empty() else "none of it"])
+	level.queue_free()
+	await process_frame
+
+
+## Which of the heap's ways through are on the hint bar or remembered as its advice.
+func _heap_advice_showing(level: Node, hint_bar: HintBar) -> String:
+	var lines := level.get("script_lines") as DialogueScript
+	var bar := hint_bar.current_text().to_lower().replace("\n", " ") if hint_bar != null else ""
+	var found: Array[String] = []
+	for line: Variant in lines.peek("L1_N2.teach"):
+		var text := String((line as Dictionary).get("text", "")).replace("**", "").to_lower()
+		if bar.contains(text) or (level.get("_beat_advice") as Array).has(
+				String((line as Dictionary).get("text", ""))):
+			found.append(text.left(24))
+	if String(level.get("_beat_advice_of")) == "L1_N2":
+		found.append("(still the heap's advice)")
+	return ", ".join(found)
