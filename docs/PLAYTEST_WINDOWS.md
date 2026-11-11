@@ -14,8 +14,8 @@ and no internet.
 | `backend\`, `shared\`, `model\` | The recogniser and the CNN. |
 | `.venv\` | Python 3.12 (python.org's build) with the recogniser's packages already installed, plus Microsoft's C++ runtime DLLs. |
 
-Keep the folders together. The game finds the recogniser one folder up from `game\`, so
-**always start it from `game\`**. Both launch methods above do this.
+Keep the folders together. The game locates the recogniser relative to `game\OBRA.exe`.
+On the first launch it creates `gamesession\` beside `Play OBRA.bat`.
 
 ## Building it (on the Mac)
 
@@ -51,7 +51,7 @@ Use the PC and the account the class will use.
    (named, or turned into something) within a second or two. If the game says the recogniser
    could not start, its message names the cause (see *Known risks*).
 5. Solve the first obstacle, the beat, then quit from the pause menu.
-6. Press **Win+R**, paste `%APPDATA%\Godot\app_userdata\O.B.R.A\telemetry` and press Enter.
+6. Open `gamesession\telemetry\` inside the extracted package.
    It should hold one `session_….jsonl` and one `backend_….jsonl`.
 7. Run `Collect playtest data.bat` with the code `TEST` and answer **Y** to clear the PC.
    Delete the `TEST` folder afterwards.
@@ -70,8 +70,8 @@ Use the PC and the account the class will use.
 2. They choose **New Game** and play.
 3. When they finish, quit the game from its menu. Closing the window also works.
 4. Double-click `Collect playtest data.bat`, type the code and answer **Y** to clear the PC.
-   - The data lands in `playtest-data\<code>\` beside the `.bat`. Run a copy of the `.bat`
-     from the USB stick and the data lands straight on the stick.
+   - Run the collector from the package the player used. It saves to `playtest-data\<code>\`
+     beside the `.bat`.
    - Clearing removes the progress, the kept drawings, the checkpoints and the telemetry, so the
      next player starts fresh, and their data never mixes with anyone else's.
 
@@ -81,16 +81,16 @@ Use the PC and the account the class will use.
 
 Use this if the `.bat` files are blocked.
 
-| On each PC | What |
+| Inside each extracted package | What |
 |---|---|
-| `%APPDATA%\Godot\app_userdata\O.B.R.A\telemetry\session_<UTC time>_<id>.jsonl` | One per launch of the game |
-| `%APPDATA%\Godot\app_userdata\O.B.R.A\telemetry\backend_<UTC date>.jsonl` | The recogniser's, one per day, appended across launches |
-| `%APPDATA%\Godot\app_userdata\O.B.R.A\profile.json` | The save's progress counts |
+| `gamesession\telemetry\session_<UTC time>_<id>.jsonl` | One per launch of the game |
+| `gamesession\telemetry\backend_<UTC date>.jsonl` | The recogniser's, one per day, appended across launches |
+| `gamesession\profile.json` | The save's progress counts |
 
-`%APPDATA%` is `C:\Users\<account>\AppData\Roaming`. To collect by hand after each player:
+To collect by hand after each player:
 
 1. Quit the game.
-2. Open the folder with **Win+R**.
+2. Open `gamesession\` inside the package they used.
 3. Copy the `telemetry` folder and `profile.json` into `<USB>\playtest-data\<code>\`.
 4. Delete the `telemetry`, `drawings` and `checkpoints` folders and `profile.json`.
 
@@ -142,8 +142,8 @@ on `127.0.0.1`.
 - **Not recorded:** names, accounts, PC names, IP addresses, the drawings themselves. A scan
   of 86 existing session logs found no file paths or user names.
 - **Left on the PC:**
-  - `drawings\`: each class's kept sketch, which the thesis does not need;
-  - `logs\godot.log` and `backend.log`: their file paths contain the Windows account name.
+  - `gamesession\drawings\`: each class's kept sketch, which the thesis does not need;
+  - Godot's `logs\godot.log` and `gamesession\backend.log`: their file paths contain the Windows account name.
 
   Collect the logs only to debug a failure, and check them first.
 
@@ -165,6 +165,6 @@ These can only be checked on a real PC:
   probably older than Windows 10.
 - **Graphics:** an old GPU without Vulkan or D3D12 falls back to OpenGL (Compatibility). If the
   game does not open, try another PC.
-- **Ports:** the recogniser uses 127.0.0.1:8000, or 8765–8774 when 8000 is taken. It is loopback
+- **Ports:** the recogniser uses an OS-assigned port on 127.0.0.1. It is loopback
   only, so there should be no firewall prompt. If one appears, *Cancel* is fine.
 - **Reset on log-off:** see check step 8.

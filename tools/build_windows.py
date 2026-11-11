@@ -9,13 +9,10 @@ the recogniser, in one folder that needs nothing installed, no admin rights and 
 Writes build/windows/OBRA/ and build/windows/OBRA-windows.zip; build/ is gitignored. The
 playtest-day guide, and where the telemetry ends up on the PCs, is docs/PLAYTEST_WINDOWS.md.
 
-WHY THE FOLDER IS LAID OUT LIKE THE REPOSITORY. Nothing in the game or the recogniser knows it
-has been exported, so the package gives each the folders it already looks in:
+WHY THE FOLDER IS LAID OUT LIKE THE REPOSITORY:
 
-- BackendSupervisor finds the recogniser through `_repo_root()`, the folder above res://. In an
-  export res:// is inside the .pck and globalizes to "", so that root is `..` from the working
-  directory. ⚠ So OBRA.exe sits in game/, where res:// is in a checkout, and has to be STARTED
-  FROM game/: a double-click does that, and so does `Play OBRA.bat`.
+- BackendSupervisor finds the recogniser in the package root, one level up from
+  game/OBRA.exe. UserData creates gamesession/ in that same root on launch.
 - The recogniser checks that every class's scene and rig profile exists under game/
   (shared/entities.py, validate_scene_paths), so those files and game/config are copied beside
   the .exe. The game itself reads them from its .pck.

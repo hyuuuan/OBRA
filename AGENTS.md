@@ -690,7 +690,7 @@ fitting its page, and being given by some level's script.
 ## Persistence, Telemetry, and Progression
 
 - `PlayerProfile` (autoload, `game/scripts/player_profile.gd`) holds the only durable
-  player state: a single JSON file at `user://profile.json`, written atomically
+  player state: a single `profile.json`, written atomically
   (temp-then-rename), schema-versioned, and treated as a fresh profile when
   unreadable. There is no database. It stores unlocked/completed levels,
   drawn-and-accepted classes, acquired objects, route tallies, collectibles, and
@@ -713,8 +713,11 @@ fitting its page, and being given by some level's script.
   exactly one ending. Keep it pure — `resolve_values()` must stay directly testable.
 - The July status notes for this work (the persistence TODO and its handoff) were retired
   on 2026-10-05; they are in git history if needed.
+- `UserData` resolves storage for the profile, drawings, checkpoints and telemetry.
+  Source runs use `user://`. Exports create `gamesession/` at the package root
+  and start with their own profile. The packaged collectors use that folder.
 - `Telemetry` (autoload, `game/scripts/telemetry.gd`) writes an anonymous, local
-  per-session event stream to `user://telemetry/session_<UTC>.jsonl`: session and
+  per-session event stream to `telemetry/session_<UTC>.jsonl`: session and
   level lifecycle plus one recognition record per submission (class, confidence,
   margin, runner-up, accept/decline, latency to the recogniser's answer), and one `spawn`
   event per accepted drawing timing Paint to the entity's first frame in the world -- the
@@ -724,16 +727,16 @@ fitting its page, and being given by some level's script.
   split; a `perf` sample (frame rate, memory) is written every second. The game launches the
   recogniser with `OBRA_TELEMETRY=1` into the same folder, where it samples CPU and memory of
   both processes each second (`psutil`). Nothing is uploaded. Test runs
-  write theirs to `user://test_runs/telemetry/` instead, so the folder the thesis
+  write theirs to `user://test_runs/<pid>/telemetry/`, so the folder the thesis
   aggregates holds only real play.
 - **The recognition server ends with the game.** `BackendSupervisor` launches it with
   `OBRA_GAME_PID` set, and `backend/lifecycle.py` exits the server once that process is
   gone -- crash, force-quit or an editor stop included. The launched pid is static on
   `BackendSupervisor`, because each level's supervisor dies on a level change, and the
   title screen and house stop it with `BackendSupervisor.stop_owned_backend()`, having no
-  supervisor of their own. The supervisor reuses any healthy server on 8000, so a server
-  started by hand serves whatever code it was started with: restart it after changing
-  `backend/`.
+  supervisor of their own. Source runs reuse a healthy server on 8000. Restart a manually
+  launched server after changing `backend/`. Exports start their own recogniser on an
+  OS-assigned port, so its telemetry stays with that copy of the game.
 - The backend logs one anonymous prediction record to `telemetry/backend_<date>.jsonl`
   only when `OBRA_TELEMETRY=1` (dir override `OBRA_TELEMETRY_DIR`); `/predict` also
   returns a `timing` split so end-to-end latency decomposes across game and backend.

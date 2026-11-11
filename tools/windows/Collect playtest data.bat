@@ -2,12 +2,12 @@
 rem Copy one player's playtest data off this PC, then (if you say so) clear it for the next.
 rem
 rem The data goes into a "playtest-data" folder beside this file, one folder per participant
-rem code. Run this copy from the USB stick and the data lands on the stick.
+rem code. Run the collector from the package that the player used.
 rem
 rem It copies only the anonymous telemetry and the save's progress counts (profile.json). Not
 rem the kept drawings, and not the logs, whose paths can contain the Windows user name.
 setlocal EnableExtensions
-set "DATA=%APPDATA%\Godot\app_userdata\O.B.R.A"
+set "DATA=%~dp0gamesession"
 
 tasklist /FI "IMAGENAME eq OBRA.exe" /NH 2>nul | find /I "OBRA.exe" >nul
 if not errorlevel 1 (

@@ -13,7 +13,8 @@ recogniser are in the .venv, backend, model and shared folders: keep every folde
 beside the others.
 
 PLAYTEST DATA
-Saved on each PC in:  %APPDATA%\Godot\app_userdata\O.B.R.A\telemetry
+The game creates gamesession\ beside this file. Each extracted copy keeps its
+own progress and telemetry there.
 After each player: quit the game, then double-click "Collect playtest data.bat".
 It copies the data into playtest-data\<participant code> beside it, then offers to
 clear the PC for the next player.

@@ -24,6 +24,7 @@ func _run() -> void:
 	var file := FileAccess.open(mine, FileAccess.WRITE)
 	file.store_string("still here")
 	file.close()
+	_export_package_locations()
 	await _a_second_run_leaves_this_ones_things_alone(mine)
 	await _only_ended_runs_are_swept()
 	if failures == 0:
@@ -32,6 +33,16 @@ func _run() -> void:
 	else:
 		print("OBRA_TEST_RUNS_FAILED=%d" % failures)
 		quit(1)
+
+
+func _export_package_locations() -> void:
+	var mac := UserData.export_package_root("/Users/player/OBRA/game/OBRA.app/Contents/MacOS/O.B.R.A")
+	_check(mac == "/Users/player/OBRA", "macOS stores sessions outside the app bundle", mac)
+	var windows := UserData.export_package_root("C:/Playtests/OBRA/game/OBRA.exe")
+	_check(windows == "C:/Playtests/OBRA", "Windows stores sessions at the package root", windows)
+	var standalone := UserData.export_package_root("C:/Playtests/Copy B/OBRA.exe")
+	_check(standalone == "C:/Playtests/Copy B", "a standalone export stores sessions beside it",
+		standalone)
 
 
 func _a_second_run_leaves_this_ones_things_alone(mine: String) -> void:

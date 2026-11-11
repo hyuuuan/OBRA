@@ -5,14 +5,13 @@ extends Node
 ## identifying information is collected.
 ##
 ## Each play session appends a structured event stream to
-## user://telemetry/session_<UTC>.jsonl (one JSON object per line). The cumulative
+## telemetry/session_<UTC>.jsonl (one JSON object per line). The cumulative
 ## derived counts the game reasons about between sessions (class diversity, redraw
 ## rate) live in the persistent PlayerProfile instead — see player_profile.gd.
 
 const UserData := preload("res://scripts/user_data.gd")
 
-## user://telemetry for a player; a test run's own folder otherwise. Before this, the log the
-## thesis aggregates was mostly bots. See user_data.gd.
+## Source, exported and test runs each resolve their own location in user_data.gd.
 var telemetry_dir: String = UserData.path("telemetry")
 
 var _file: FileAccess = null

@@ -2,7 +2,7 @@
 set -eu
 cd "$(dirname "$0")"
 
-DATA="${HOME}/Library/Application Support/Godot/app_userdata/O.B.R.A"
+DATA="$PWD/gamesession"
 if pgrep -x 'O.B.R.A' >/dev/null 2>&1; then
   echo "O.B.R.A. is still running. Quit it from the pause menu first."
   read -r _

@@ -7,7 +7,7 @@ extends Node
 ## data directory in which progression and accumulated telemetry are stored between
 ## sessions."
 ##
-## One JSON document at user://profile.json, written atomically (temp file then
+## One profile.json document, written atomically (temp file then
 ## rename) so a crash mid-write cannot corrupt the live profile. An unreadable or
 ## schema-incompatible profile is treated as a new profile, never a fatal error
 ## (thesis §3.2.8: a profile may be "absent on first launch, truncated by a power"
@@ -46,8 +46,7 @@ const SETTING_DEFAULTS := {
 	"reduce_motion": false,
 }
 
-## user://profile.json when a player runs the game; a test run's own copy otherwise, so no
-## suite can start from, or leave behind, anybody's real progress. See user_data.gd.
+## Source, exported and test runs each resolve their own location in user_data.gd.
 var profile_path: String = UserData.path("profile.json")
 ## class id -> its kept drawing (or null once looked for and not found). See class_drawing.
 var _drawings: Dictionary = {}

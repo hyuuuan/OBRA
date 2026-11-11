@@ -1,6 +1,5 @@
 @echo off
-rem Start O.B.R.A. from its game folder. The game looks for its drawing recogniser (backend,
-rem model and .venv) one folder up from where it is started, so it must start inside game\.
+rem Start the O.B.R.A. executable in this package's game folder.
 cd /d "%~dp0game" 2>nul || goto :missing
 if not exist "OBRA.exe" goto :missing
 start "" "OBRA.exe"
