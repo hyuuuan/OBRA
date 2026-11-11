@@ -683,6 +683,15 @@ func _audit_the_key_catches_the_eye() -> void:
 		"linear_velocity": Vector2.ZERO})
 	for _frame in range(10):
 		await physics_frame
+	# IN FRAME FROM WHERE SHE LANDS. The nail is 395 in from the entry point and the room's
+	# camera sees about 370 either side of her, so it used to start just past the right-hand
+	# edge. Half a second is the camera's follow settling onto its lean toward the key.
+	await create_timer(0.5, true).timeout
+	var canvas := room.get_viewport().get_canvas_transform()
+	var picture := canvas * Rect2(room.global_position + brass.position, brass.size)
+	var view := room.get_viewport().get_visible_rect()
+	_check(view.encloses(picture), "the key is in frame from where she lands",
+		"key drawn at %s in a %s view" % [picture, view.size])
 	# Longer than one GLINT_EVERY (1.6 s), so a glint has come and gone at least once.
 	var span := await _glint_span(room, 2.2)
 	var star: int = (room.get_script() as Script).get_script_constant_map()["GLINT_SPARKS"]
@@ -712,6 +721,19 @@ func _audit_the_key_catches_the_eye() -> void:
 		"and the glint leaves with the key",
 		"taken %s, glint visible %s, arms %d" % [taken, glint.is_visible_in_tree(),
 			int(room.call("glint_reach"))])
+	# Back at the doorway, where the lean was at its widest -- under the nail it is zero anyway.
+	# Polled: Lolo's line about the brass may hold the world for a moment first.
+	apo.call("apply_morph_state", {"position": Vector2(room.call("entry_point")),
+		"linear_velocity": Vector2.ZERO})
+	var camera := level.get_node("EnvironmentBaseplate").get("camera") as Camera2D
+	var lead := NAN
+	for _frame in range(120):
+		await physics_frame
+		lead = Vector2(camera.get("target_offset")).x if camera != null else NAN
+		if is_zero_approx(lead):
+			break
+	_check(is_zero_approx(lead), "and the frame stops leaning toward the nail",
+		"lead %.0f" % lead)
 	for overlay in level.get_tree().get_nodes_in_group(&"modal_overlays"):
 		if overlay.has_method("is_open") and bool(overlay.call("is_open")) \
 				and overlay.has_method("close"):
