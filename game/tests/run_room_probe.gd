@@ -32,6 +32,9 @@ extends SceneTree
 ## 7. CHANGING FORM INSIDE MUST NOT REBASE THE OUTDOOR PARALLAX. The room is parked far
 ##    above the terraces; making its camera position the sky's new origin leaves the outside
 ##    background displaced into the void when the player exits.
+## 8. THE KEY ON THE NAIL CATCHES THE EYE. Kent: "make the key in the haybale standout since
+##    its not noticeable." It glints while it hangs, holds still under reduce motion, and the
+##    glint leaves with it.
 
 const VIEW := Vector2(1600.0, 900.0)
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
@@ -71,6 +74,7 @@ func _run() -> void:
 	_close()
 	await process_frame
 	await _audit_no_room_is_drawn_while_empty()
+	await _audit_the_key_catches_the_eye()
 
 	print("\n===== ROOMS =====")
 	for line in results:
@@ -646,3 +650,84 @@ func _audit_no_room_is_drawn_while_empty() -> void:
 		else "still painting the level: " + ", ".join(showing))
 	level.queue_free()
 	await process_frame
+
+
+## THE KEY ON THE NAIL CATCHES THE EYE, AND STOPS WHEN IT IS GONE.
+##
+## It was brass on straw -- one hue, the metal no lighter than the bales -- sitting still at
+## the top of the frame, and the halo's brass rings behind it did not show on the gold at
+## all. A glint is the one thing up there that moves now. Headless draws nothing, so this asks
+## the room what it is drawing: the glint's canvas item, and how far its arms reach.
+func _audit_the_key_catches_the_eye() -> void:
+	var level := (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(1.4, true).timeout
+	var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	var glint := room.get_node_or_null(^"Glint") as Node2D if room != null else null
+	if glint == null or bool(room.call("key_is_taken")):
+		_check(false, "the key on the nail glints",
+			"no glint in the room" if glint == null else "the key was already taken")
+		level.queue_free()
+		await process_frame
+		return
+	var key_at := Vector2(room.get("key_at"))
+	# The key's own picture, as StrawRoom2D._draw_key hangs it: 40 x 17 from key_at - (20, 16).
+	var brass := Rect2(key_at + Vector2(-20.0, -16.0), Vector2(40.0, 17.0))
+	_check(brass.has_point(glint.position), "the glint is on the brass",
+		"at %s, the key spans %s" % [glint.position, brass])
+
+	var apo := level.get("player") as Node2D
+	apo.call("apply_morph_state", {"position": Vector2(room.call("entry_point")),
+		"linear_velocity": Vector2.ZERO})
+	for _frame in range(10):
+		await physics_frame
+	# Longer than one GLINT_EVERY (1.6 s), so a glint has come and gone at least once.
+	var span := await _glint_span(room, 2.2)
+	var star: int = (room.get_script() as Script).get_script_constant_map()["GLINT_SPARKS"]
+	_check(glint.is_visible_in_tree() and span.y >= star and span.x == 0,
+		"the key glints while it hangs",
+		"visible %s, arms %d..%d over 2.2 s (a star from %d, rests at 0)"
+			% [glint.is_visible_in_tree(), span.x, span.y, star])
+
+	# REDUCE MOTION: still there, and still.
+	var profile := root.get_node_or_null("PlayerProfile")
+	profile.call("set_setting", "reduce_motion", true)
+	var held := await _glint_span(room, 0.6)
+	profile.call("set_setting", "reduce_motion", false)
+	_check(glint.is_visible_in_tree() and held.x > 0 and held.x == held.y,
+		"and holds still under reduce motion",
+		"arms %d..%d" % [held.x, held.y])
+
+	# Taken the way a player takes it: something carries her up into the hook's reach.
+	apo.call("apply_morph_state", {"position": room.global_position + key_at,
+		"linear_velocity": Vector2.ZERO})
+	for _frame in range(40):
+		await physics_frame
+		if bool(room.call("key_is_taken")):
+			break
+	var taken := bool(room.call("key_is_taken"))
+	_check(taken and not glint.is_visible_in_tree() and int(room.call("glint_reach")) == 0,
+		"and the glint leaves with the key",
+		"taken %s, glint visible %s, arms %d" % [taken, glint.is_visible_in_tree(),
+			int(room.call("glint_reach"))])
+	for overlay in level.get_tree().get_nodes_in_group(&"modal_overlays"):
+		if overlay.has_method("is_open") and bool(overlay.call("is_open")) \
+				and overlay.has_method("close"):
+			overlay.call("close")
+	level.queue_free()
+	await process_frame
+
+
+## The shortest and longest the glint's arms reach over `seconds` of frames, as (min, max).
+func _glint_span(room: Node2D, seconds: float) -> Vector2i:
+	var shortest := 1 << 30
+	var longest := -1
+	var until := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < until:
+		await process_frame
+		var reach := int(room.call("glint_reach"))
+		shortest = mini(shortest, reach)
+		longest = maxi(longest, reach)
+	return Vector2i(shortest, longest)
