@@ -1022,6 +1022,38 @@ the creature is led to and the inside it swims into (`CAVE_OPENING_AT`, `CAVE_OP
 no straight edge, and `level_3.gd`'s opening the same as the picture's; `run_level3_sea_probe`
 checks the level shows the picture with its opening on the creature's way in.
 
+## Led home from the boat (2026-11-12)
+
+Kent: *"i cant complete level 3 if i chose to row the boat and use flashlight for bakunawa"*.
+Played with real keys and a pointer that stays on the screen, the light caught the creature and it
+followed the boat back to the first beach -- and stopped 700 px over the cave mouth, for good. The
+light goes where the pointer is (`_lure_target`), and from the deck the camera looks up
+(`SURFACE_LOOK`), so the screen ended at y 785 while the mouth is at 1480 and `HOME_REACH` is 520.
+No pointer could lead it deep enough, so it never went in, and the objective stayed on leading it home.
+Every probe had put the light ON the mouth with `lure_override`, a point no mouse could reach.
+
+Now, while the light is leading it, `_frame_the_water` frames the water from the boat as it does for
+a swimmer: the screen reaches y 1206, and the light reaches 600 px under the deck, about 360 from the
+mouth. `run_level3_boat_probe` rows it home with the pointer held inside the screen (mutation-tested:
+without the framing it parks out of reach).
+
+**The same hole, in the fight.** Checked the same way, every combination at the encounter: the dive
+with the light, and the boat slipping past, reach the island; the boat fighting did not, with a blade.
+Staged for the boat, the creature's back is about 50 px under the water and a sword or an axe reaches
+96 px from the apo's hand, so 150 presses of F from the deck landed nothing (the cannon and the
+boomerang reach it from up there; every probe had fought it with `apply_tool_hit`). A blade swung from
+the deck that strikes nothing now goes over the side (`_strike_over_the_side`): it lands if the back
+is within the blade's reach of the waterline under her. `run_level3_boat_probe` rows out, draws a
+sword and presses F until it is subdued (mutation-tested: without it, no blow lands).
+
+**And stepping ashore after a cannon fight.** Fought with the cannon from the deck, the boat reached
+the island and the apo was set on the sand -- and thrown 500 px back into the sea at 1650 px/s, down
+under the island's face, where nothing lifts a swimmer out (`_climb_out_at_home` is the home shore's).
+A passenger's frame (`Wanderer._physics_process`) returned before it spent its impulse, so every
+recoil was banked while she rode and paid out the frame she stepped off. A rider now drops what
+pushes her; the boat carries her. The same probe fires a cannon from the deck before setting out and
+checks she stays on the sand (mutation-tested).
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.
