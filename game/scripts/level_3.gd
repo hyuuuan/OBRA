@@ -678,8 +678,7 @@ func _scatter_the_ambience() -> void:
 	var coral := _mark("CoralMark")
 	if coral == null:
 		return
-	# Columns rise off the bed; schools drift through the middle of the column. Placed by
-	# hand rather than by random so nothing lands inside a terrace or on top of a fact.
+	# Columns rise off the bed. Place them by hand to keep them clear of the terraces and facts.
 	var bed := BED_Y
 	var placings := [
 		[AMBIENCE + "bubbles_long", Vector2(1915.0, bed - 20.0), 210.0, 3.0],
@@ -688,10 +687,6 @@ func _scatter_the_ambience() -> void:
 		[AMBIENCE + "bubbles_short", Vector2(4820.0, bed - 50.0), 140.0, 3.2],
 		[AMBIENCE + "bubbles_long", Vector2(5820.0, bed - 20.0), 200.0, 2.8],
 		[AMBIENCE + "bubbles_short", Vector2(6560.0, bed - 50.0), 135.0, 3.4],
-		[AMBIENCE + "school", Vector2(2390.0, 1180.0), 175.0, 2.2],
-		[AMBIENCE + "school", Vector2(3960.0, 1060.0), 210.0, 1.8],
-		[AMBIENCE + "school", Vector2(5360.0, 1240.0), 165.0, 2.4],
-		[AMBIENCE + "school", Vector2(4560.0, 1100.0), 195.0, 2.0],
 	]
 	for index in placings.size():
 		var row: Array = placings[index]
@@ -709,24 +704,51 @@ func _scatter_the_ambience() -> void:
 		piece.modulate = Color(1.0, 1.0, 1.0, 0.75)
 		coral.get_parent().add_child(piece)
 		piece.global_position = row[1]
-		# ⚠ A SCHOOL THAT STAYS PUT IS A PICTURE OF ONE. They patrol a stretch of the column
-		# and turn at each end; the columns of bubbles stay where they rise from.
-		if String(row[0]).ends_with("school"):
-			_patrol(piece, 150.0 + float(index % 3) * 40.0, 7.0 + float(index % 4))
+	_scatter_the_schools(coral.get_parent())
+
+
+func _scatter_the_schools(parent: Node) -> void:
+	var locations := [Vector2(2390.0, 1092.0), Vector2(3960.0, 955.0),
+		Vector2(5360.0, 1157.0), Vector2(4560.0, 1002.0)]
+	# Offset and scale each fish so the tails and silhouettes vary within the school.
+	var formation := [Vector3(-86.0, -17.0, 0.30), Vector3(-32.0, -38.0, 0.36),
+		Vector3(37.0, -25.0, 0.27), Vector3(-48.0, 16.0, 0.28),
+		Vector3(22.0, 5.0, 0.34), Vector3(75.0, 21.0, 0.25)]
+	for index in locations.size():
+		var school := Node2D.new()
+		school.name = "FishSchool%d" % (index + 1)
+		school.z_index = -20
+		school.modulate.a = 0.70
+		parent.add_child(school)
+		school.global_position = locations[index]
+		for slot in formation.size():
+			var pose: Vector3 = formation[slot]
+			var fish := AnimatedSprite2D.new()
+			fish.sprite_frames = SeaCreatureClass.BANGUS_SWIM
+			fish.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			fish.position = Vector2(pose.x, pose.y)
+			fish.scale = Vector2.ONE * pose.z
+			fish.speed_scale = 0.85 + float((index + slot) % 4) * 0.10
+			school.add_child(fish)
+			fish.play(&"swim")
+			fish.set_frame_and_progress((index + slot) % fish.sprite_frames.get_frame_count(&"swim"), 0.0)
+		_patrol_school(school, 150.0 + float(index % 3) * 40.0, 7.0 + float(index))
 
 
 ## Back and forth across `reach`, turning to face the way it swims.
-func _patrol(piece: Sprite2D, reach: float, seconds: float) -> void:
-	var home := piece.position.x
-	var loop := piece.create_tween().set_loops()
-	loop.tween_callback(func() -> void: piece.flip_h = false)
-	loop.tween_property(piece, "position:x", home + reach, seconds) \
+func _patrol_school(school: Node2D, reach: float, seconds: float) -> void:
+	var home := school.position.x
+	var face := func(left: bool) -> void:
+		for fish: AnimatedSprite2D in school.get_children():
+			fish.flip_h = left
+	var loop := school.create_tween().set_loops()
+	loop.tween_property(school, "position:x", home + reach, seconds) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	loop.tween_callback(func() -> void: piece.flip_h = true)
-	loop.tween_property(piece, "position:x", home - reach, seconds * 2.0) \
+	loop.tween_callback(face.bind(true))
+	loop.tween_property(school, "position:x", home - reach, seconds * 2.0) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	loop.tween_callback(func() -> void: piece.flip_h = false)
-	loop.tween_property(piece, "position:x", home, seconds) \
+	loop.tween_callback(face.bind(false))
+	loop.tween_property(school, "position:x", home, seconds) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
@@ -3105,7 +3127,7 @@ func _on_gift_offered() -> void:
 		director.solve_with_item("L3_N2", "led_home")
 
 
-## A blow landed: the creature flashes red (Bakunawa2D), and the bar says how many are left.
+## A blow landed: the creature flashes red and one of its hearts goes out (Bakunawa2D).
 func _on_bakunawa_hit(hits: int, needed: int) -> void:
 	if hits < needed:
 		status_label.text = "Hit! %d more" % (needed - hits)
