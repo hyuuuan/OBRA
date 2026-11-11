@@ -262,10 +262,9 @@ func _run() -> void:
 	level.call("_restore_level_run_state", {"bangka_found": true, "live_node": "L3_N2"})
 	await _frames(2)
 
-	# RESOLVED WITH LIGHT, the way the finish probe resolves it, and then on to the sand.
+	# RESOLVED WITH LIGHT, and then on to the sand.
 	# ⚠ THE LIGHT LEADS IT HOME NOW (2026-10-05): drawn, it is the first step, and the creature
-	# swimming into the cave under the first beach is the second. Led across the whole sea that is
-	# a minute of play the finish probe already walks; here it is brought within reach of the cave.
+	# swimming into the cave under the first beach is the second.
 	director.call("enter_obstacle", "L3_N2")
 	director.call("commit_route", "L3_N2", "artist")
 	await _unpause()
@@ -273,21 +272,43 @@ func _run() -> void:
 	await _frames(4)
 	_check(int(director.call("stage", "L3_N2")) == 1 and not bool(director.call("is_solved", "L3_N2")),
 		"the light is the first step, not the answer", "it has to be led home first")
+	# ⚠ ROWED HOME WITH A POINTER THAT STAYS ON THE SCREEN. This used to put the creature beside
+	# the cave and the light ON the cave mouth -- a point 960 px under the deck that no mouse could
+	# reach, because the boat was framed for the deck and the screen ended 700 px over the cave.
+	# Played, the creature parked out of the cave's reach and the boat + light run could not end
+	# (Kent, 2026-11-11). Now the boat rows back to the first beach with the creature after it, and
+	# the light is held where a player's pointer could be: aimed at the cave, inside the screen.
 	var mouth: Vector2 = level.get("_cave_mouth")
-	creature.global_position = mouth + Vector2(380.0, -260.0)
-	level.set("lure_override", mouth)
-	for _frame in range(900):
+	var deepest := -INF
+	var rowed := 0.0
+	Input.action_press(&"move_left")
+	while rowed < 60.0 and String(root.get_node("PlayerProfile").call("bakunawa_outcome")) != "LIT":
+		var view := level.get_viewport()
+		var shown := view.get_canvas_transform().affine_inverse() * view.get_visible_rect()
+		level.set("lure_override", mouth.clamp(shown.position + Vector2.ONE * 2.0,
+			shown.end - Vector2.ONE * 2.0))
+		# A player waits for it: rowing on with the creature far behind leaves it out of the light.
+		if creature.global_position.x - boat.global_position.x > 500.0:
+			Input.action_release(&"move_left")
+		else:
+			Input.action_press(&"move_left")
 		await physics_frame
 		if paused:
+			Input.action_release(&"move_left")
 			await _unpause()
-		if bool(director.call("is_solved", "L3_N2")) \
-				and String(root.get_node("PlayerProfile").call("bakunawa_outcome")) == "LIT":
-			break
+		rowed += 1.0 / 60.0
+		deepest = maxf(deepest, shown.end.y)
+	Input.action_release(&"move_left")
+	level.set("lure_override", null)
 	director.call("exit_obstacle", "L3_N2")
-	_check(bool(director.call("is_solved", "L3_N2")), "the light resolves it",
-		"outcome '%s'" % root.get_node("PlayerProfile").call("bakunawa_outcome"))
+	_check(bool(director.call("is_solved", "L3_N2"))
+			and String(root.get_node("PlayerProfile").call("bakunawa_outcome")) == "LIT",
+		"the light leads it home from the boat, pointer on screen",
+		"outcome '%s' after %.1f s; the screen reached y %.0f, the cave mouth is at %.0f" % [
+			root.get_node("PlayerProfile").call("bakunawa_outcome"), rowed, deepest, mouth.y])
 
-	await _hold_right(14.0, boat, true)
+	# From the first beach, the whole sea again.
+	await _hold_right(40.0, boat, true)
 	var sand := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Marks/IslandMark") as Node2D
 	player = level.get("player") as Node2D
 	_check(bool(level.get("_arrived")), "and the boat carries the apo to the island",
