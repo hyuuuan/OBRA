@@ -415,10 +415,25 @@ static func label_color(family: Family) -> Color:
 ## telling the player they have one. What changes is the fill (raised once something is
 ## in it) and, for the one in hand, the ring going warm to match the ink it was drawn
 ## with. Two cues, so held and merely-full are never one step apart.
-static func slot(occupied: bool, selected: bool) -> StyleBoxFlat:
-	var box := _ringed(PANEL_LIT if occupied else PANEL,
-		PENDING if selected else GOLD, THIN, RING_OUTER, THIN)
+##
+## `lifted` is a slot under the pointer that holds something: its ring goes pale, the gold
+## lit, because what is in it can be picked up and dragged out (InventoryHUD).
+static func slot(occupied: bool, selected: bool, lifted: bool = false) -> StyleBoxFlat:
+	var ring := PENDING if selected else (GOLD_PALE if lifted else GOLD)
+	var box := _ringed(PANEL_LIT if occupied else PANEL, ring, THIN, RING_OUTER, THIN)
 	_round(box, SLOT_RADIUS)
+	return box
+
+
+## The bar ready to take back what is being dragged off it: a pale ring round the tray and
+## nothing filled, so the slots inside still read as they are.
+static func drop_ring() -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(GOLD_PALE.r, GOLD_PALE.g, GOLD_PALE.b, 0.0)
+	box.draw_center = false
+	box.border_color = GOLD_PALE
+	box.set_border_width_all(THIN)
+	_round(box, RADIUS)
 	return box
 
 
