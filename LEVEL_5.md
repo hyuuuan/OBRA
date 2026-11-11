@@ -173,6 +173,17 @@ proper animation to the painting".
   sketch the picture; a few lines are enough; Preserve, 1 ink), where the sketch goes (the
   summit), and the ink left. `run_level5_guidance_probe` checks all of it.
 
+## The final scene in the house
+
+Lola's house easel starts with an underpainting of Mayon. Her brush poses add colour before
+the camera gives the house back. Her dialogue portrait uses the same bust height and pixel
+scale as Lolo and the apo.
+
+**Your Drawings** opens after the scene and can be reopened from the house. Each submitted
+page is kept in order, including repeated classes, recognition declines and Mayon's guided
+pages. The gallery can show the class thumbnails older saves already kept. New Game clears
+the gallery with the rest of the run.
+
 ## Implementation and checks
 
 - `level_05.json` owns the ordered vignette scenes, terrain profiles, landmark placements and
@@ -274,14 +285,14 @@ ACT THREE  THE SUMMIT — quiet: no ash, no tremor, no sound
            five flowers → for a moment lola says her name, and lolo's; then it passes
            fewer → warm to a child she does not know; pleased with the painting; the apo stays
 HOME       her last page, at lola's easel · "Lolo. Let's go home." → the house: lolo in every
-           painting, alive · lola takes her for him · "in all your works" · lola walks to an
-           empty easel: "Who are you? Will you watch me paint?" (the frame's room, until 2026-11-01)
+           painting, alive · lola takes her for him · "in all your works" · lola paints at
+           her easel · the apo's gallery (the frame's room, until 2026-11-01)
 ```
 
 ## Rules this level adds
 
 - **The brush refuses twice, and both times look the same.** Drawing at Lolo, and at Lola, the
-  canvas takes no guess, shows no words, spends no ink and records nothing; when she paints, her
+  canvas takes no guess, shows no words, spends no ink and records no recognition result; when she paints, her
   lines fade to paper and the page closes. This must not reuse any decline feedback from another
   level. These are the only moments in the game where the recogniser is deliberately given
   nothing to answer.

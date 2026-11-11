@@ -82,13 +82,14 @@ var _ink_value: Label
 
 
 var _pending_strokes: Array = []
+var _archived_revision := -1
 var _is_open := false
 ## Read by UIRouter.refresh_pause through the modal_overlays group.
 var pauses_game := true
 var _submitting := false
 ## THE BRUSH REFUSES. Mayon's two people -- lolo near the top, lola at the summit -- are the only
 ## things in the game the brush will not make, and the design asks that it not even try: no
-## running guess, no words, no ink taken, nothing sent to the recogniser and nothing recorded.
+## running guess, no words, no ink taken and nothing sent to the recogniser.
 ## Resting the hand fades the lines and closes the page. Cancelling leaves the beat pending.
 ## It must not
 ## look like a decline -- a decline is the game failing to read a drawing, and this is the game
@@ -638,6 +639,7 @@ func _on_transform_pressed() -> void:
 	# Capture the stroke vectors alongside the rasterized image so the rig can
 	# animate the actual drawn lines.
 	_pending_strokes = canvas.get_strokes()
+	_keep_gallery_drawing(_pending_strokes)
 	# ⚠ NOTHING IS RESERVED HERE ANY MORE, and refusing here would be wrong.
 	#
 	# Under the old length-based economy the page itself cost ink, so a submission could be
@@ -820,6 +822,7 @@ func handle_cancel() -> bool:
 func _refuse_quietly() -> void:
 	_set_submitting(true)
 	var strokes: Array = canvas.get_strokes().duplicate(true)
+	_keep_gallery_drawing(strokes)
 	var mode := drawing_mode
 	# ⚠ ALWAYS RUNS. The panel processes only while the tree is paused, and a refusal must not
 	# hang on the page if anything unpauses it mid-fade.
@@ -836,6 +839,12 @@ func _refuse_quietly() -> void:
 		free_paint_completed.emit(strokes)
 	else:
 		quietly_refused.emit(strokes.size())
+
+
+func _keep_gallery_drawing(strokes: Array) -> void:
+	var revision := int(canvas.content_revision())
+	if _profile != null and revision != _archived_revision and _profile.record_gallery_drawing(strokes):
+		_archived_revision = revision
 
 
 ## A quiet page's only sign: the lens, faint, with no opening burst -- the same at every quiet

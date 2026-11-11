@@ -488,6 +488,7 @@ func _set_performance(pose: String) -> void:
 func _preserve_memory(strokes: Array) -> void:
 	if not memory_sketch.is_open() or strokes.is_empty():
 		return
+	PlayerProfile.record_gallery_drawing(strokes)
 	var fragment := _locked_fragment
 	memory_sketch.close()
 	if not is_instance_valid(fragment) or not fragment.is_open():
