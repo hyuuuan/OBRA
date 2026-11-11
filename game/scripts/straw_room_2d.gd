@@ -142,6 +142,11 @@ const GLINT_RAYS: Array[int] = [3, 6, 11, 11, 8, 5, 2]
 const GLINT_SPARKS := 8
 ## Under reduce motion it does not come and go: it is a still catch of light on the bow.
 const GLINT_STILL := 4
+## The board the key hangs on, around key_at, and its wood. See _draw_key_plank.
+const KEY_PLANK_RECT := Rect2(-27.0, -31.0, 54.0, 38.0)
+const KEY_PLANK := Color(0.255, 0.165, 0.094, 1.0)       # 412A18
+const KEY_PLANK_LIT := Color(0.369, 0.255, 0.153, 1.0)   # 5E4127
+const KEY_PLANK_DARK := Color(0.165, 0.102, 0.051, 1.0)  # 2A1A0D
 
 ## How wide the way out is, and how tall. A doorway in a barn: one metre by two.
 const DOOR := Vector2(72.0, 144.0)
@@ -281,10 +286,10 @@ func key_is_taken() -> bool:
 	return _taken
 
 
-## Where the objective arrow points, in the room's space: just over the nail, so the chevron
-## sits above the key rather than across it.
+## Where the objective arrow points, in the room's space: the top of the board the key hangs
+## on, so the chevron sits above the key rather than across it.
 func key_mark() -> Vector2:
-	return key_at + Vector2(0.0, -30.0)
+	return key_at + Vector2(0.0, KEY_PLANK_RECT.position.y)
 
 
 ## THE CAMERA LEANS TOWARD THE KEY WHILE IT HANGS: how far to the side of her the frame should
@@ -610,9 +615,10 @@ func _draw() -> void:
 	_draw_dark()
 	_draw_backdrop()
 	_draw_way_out()
-	# THE NAIL STAYS. It is part of the wall, and an empty nail is the room telling a player
-	# who comes back that they already took what was hanging on it -- which the old code,
-	# which stopped drawing both together, could not say.
+	# THE PLANK AND THE NAIL STAY. They are part of the wall, and an empty nail on its board is
+	# the room telling a player who comes back that they already took what was hanging on it --
+	# which the old code, which stopped drawing both together, could not say.
+	_draw_key_plank(key_at)
 	_draw_nail(key_at)
 	if _key_fade > 0.0:
 		_draw_key(key_at - Vector2(0.0, _key_lift), _key_fade)
@@ -866,23 +872,44 @@ func _draw_nail(at: Vector2) -> void:
 ## A key, lying flat: a bow, a shank and two teeth. Twenty centimetres of brass, which is a
 ## door key of the age the chest beside it is -- and the reason it is worth drawing at all
 ## rather than being a glint on the floor.
-## The dark ground behind the brass. The painted roof is bright gold at the nail, the same hue
-## as the key, so a dark local contrast field keeps the brass readable -- and gives the glint
-## something to flash against -- without moving the key or changing the height puzzle.
+## THE BOARD THE KEY HANGS ON: two dark planks nailed to the post, the nail through the top
+## one. Kent: "i dont like how it almost camouflages at the backgorund". It did, measurably:
+## the brass is 1.3:1 against the lit straw around it, one hue and nearly one value. On this
+## wood it is about 5:1 (run_room_probe holds it at 3:1 at least), and a hard-edged board is an
+## object on a wall where a dark disc behind the key read as a stain on the thatch.
 ##
-## STEADY. It used to breathe on a smooth sine, under three brass rings that did not show on
-## the gold at all and drew as faint scanlines across the disc. The glint is the motion now,
-## and one thing moving is easier to find than two.
-func _draw_key_halo(at: Vector2, alpha: float) -> void:
-	if alpha <= 0.0:
-		return
-	draw_circle(at + Vector2(2.0, -8.0), 31.0, Color(DEEPER, 0.55 * alpha))
-	draw_circle(at + Vector2(2.0, -8.0), 24.0, Color(DEEPER, 0.42 * alpha), false, 2.0)
+## Steady, and not an effect: it is a thing in the room, there whether or not anybody looks.
+## The glint is still the only thing up there that moves. Every pixel of the glint lands on it.
+func _draw_key_plank(at: Vector2) -> void:
+	var board := Rect2(at + KEY_PLANK_RECT.position, KEY_PLANK_RECT.size)
+	# Its shadow on the thatch, down and to the right, away from the light in the doorway.
+	draw_rect(Rect2(board.position + Vector2(3.0, 3.0), board.size), Color(0.0, 0.0, 0.0, 0.35))
+	draw_rect(board, KEY_PLANK)
+	# Two boards, not one slab: the seam, and the lit edge of the lower board under it.
+	var seam := board.position.y + 13.0
+	draw_rect(Rect2(board.position.x, seam, board.size.x, 1.0), KEY_PLANK_DARK)
+	draw_rect(Rect2(board.position.x, seam + 1.0, board.size.x, 1.0), KEY_PLANK_LIT)
+	# Lit along the top and the side facing the doorway, dark along the bottom and the other.
+	draw_rect(Rect2(board.position, Vector2(board.size.x, 1.0)), KEY_PLANK_LIT)
+	draw_rect(Rect2(board.position, Vector2(1.0, board.size.y)), KEY_PLANK_LIT)
+	draw_rect(Rect2(board.position.x, board.end.y - 2.0, board.size.x, 2.0), KEY_PLANK_DARK)
+	draw_rect(Rect2(board.end.x - 1.0, board.position.y, 1.0, board.size.y), KEY_PLANK_DARK)
+	# What holds it to the post: a nail head in each top corner, the same iron as the nail.
+	for corner_x: float in [board.position.x + 3.0, board.end.x - 5.0]:
+		draw_rect(Rect2(corner_x, board.position.y + 3.0, 2.0, 2.0), Color(0.60, 0.58, 0.55))
 
 
 func _draw_key(at: Vector2, alpha: float = 1.0) -> void:
-	_draw_key_halo(at, alpha)
-	# The shadow it casts on the wall goes as it leaves, so the brass does not fade out over
+	# THE CORD IT HANGS BY, a loop of twine from the nail head to the bow. Without it the key
+	# floated in front of the board rather than hanging on anything. It goes with the key.
+	var cord := Color(TWINE_LIT, alpha)
+	for side: float in [-15.0, -9.0]:
+		var from := key_at + Vector2(-1.0, -23.0)
+		var to := at + Vector2(side, -16.0)
+		var steps := maxi(1, int(maxf(absf(to.x - from.x), absf(to.y - from.y))))
+		for step in range(steps + 1):
+			draw_rect(Rect2(from.lerp(to, float(step) / float(steps)).floor(), Vector2.ONE), cord)
+	# The shadow it casts on the board goes as it leaves, so the brass does not fade out over
 	# a dark smear that stays behind.
 	draw_rect(Rect2(at + Vector2(-18.0, -2.0), Vector2(40.0, 4.0)), Color(0, 0, 0, 0.45 * alpha))
 	# THE KEY ON THE CARD, hung here: one drawing (UIIcons.BRASS_KEY), not a second one in
