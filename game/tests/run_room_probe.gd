@@ -32,6 +32,11 @@ extends SceneTree
 ## 7. CHANGING FORM INSIDE MUST NOT REBASE THE OUTDOOR PARALLAX. The room is parked far
 ##    above the terraces; making its camera position the sky's new origin leaves the outside
 ##    background displaced into the void when the player exits.
+## 9. THE HEAP STOPS ASKING ONCE SHE IS PAST IT. Its ways through ("something that can FORAGE")
+##    were still up as she walked in, and came back when she walked out with the key.
+## 8. THE KEY ON THE NAIL CATCHES THE EYE. Kent: "make the key in the haybale standout since
+##    its not noticeable." It glints while it hangs, holds still under reduce motion, and the
+##    glint leaves with it.
 
 const VIEW := Vector2(1600.0, 900.0)
 const RosterFixtures = preload("res://tests/roster_fixtures.gd")
@@ -71,6 +76,8 @@ func _run() -> void:
 	_close()
 	await process_frame
 	await _audit_no_room_is_drawn_while_empty()
+	await _audit_the_key_catches_the_eye()
+	await _audit_the_heap_stops_advising_inside()
 
 	print("\n===== ROOMS =====")
 	for line in results:
@@ -646,3 +653,224 @@ func _audit_no_room_is_drawn_while_empty() -> void:
 		else "still painting the level: " + ", ".join(showing))
 	level.queue_free()
 	await process_frame
+
+
+## THE KEY ON THE NAIL CATCHES THE EYE, AND STOPS WHEN IT IS GONE.
+##
+## It was brass on straw -- one hue, the metal no lighter than the bales -- sitting still at
+## the top of the frame, and the halo's brass rings behind it did not show on the gold at
+## all. A glint is the one thing up there that moves now. Headless draws nothing, so this asks
+## the room what it is drawing: the glint's canvas item, and how far its arms reach.
+func _audit_the_key_catches_the_eye() -> void:
+	var level := (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(1.4, true).timeout
+	var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	var glint := room.get_node_or_null(^"Glint") as Node2D if room != null else null
+	if glint == null or bool(room.call("key_is_taken")):
+		_check(false, "the key on the nail glints",
+			"no glint in the room" if glint == null else "the key was already taken")
+		level.queue_free()
+		await process_frame
+		return
+	var key_at := Vector2(room.get("key_at"))
+	# The key's own picture, as StrawRoom2D._draw_key hangs it: 40 x 17 from key_at - (20, 16).
+	var brass := Rect2(key_at + Vector2(-20.0, -16.0), Vector2(40.0, 17.0))
+	_check(brass.has_point(glint.position), "the glint is on the brass",
+		"at %s, the key spans %s" % [glint.position, brass])
+
+	# NOT CAMOUFLAGED. Kent: "i dont like how it almost camouflages at the backgorund". The
+	# brass was 1.3:1 against the lit straw; it hangs on a dark board now, which must hold the
+	# whole key and every pixel of the glint at its height, and the metal must read at least
+	# 3:1 against it -- WCAG's line for a graphic that has to be seen.
+	var constants := (room.get_script() as Script).get_script_constant_map()
+	var plank: Rect2 = constants["KEY_PLANK_RECT"]
+	plank.position += key_at
+	var widest: int = (constants["GLINT_RAYS"] as Array).max()
+	var light := Rect2(glint.position - Vector2(widest, widest), Vector2(widest, widest) * 2.0 + Vector2.ONE)
+	var metal: Color = UIIcons.PALETTES["brass"]["b"]
+	var against_wood := _contrast(metal, constants["KEY_PLANK"])
+	var against_straw := _contrast(metal, constants["STRAW_LIT"])
+	_check(plank.encloses(brass) and plank.encloses(light) and against_wood >= 3.0,
+		"the key hangs on a board it stands out from",
+		"brass %.1f:1 on the board (%.1f:1 on straw); board %s holds key %s and glint %s"
+			% [against_wood, against_straw, plank, plank.encloses(brass),
+				plank.encloses(light)])
+
+	var apo := level.get("player") as Node2D
+	apo.call("apply_morph_state", {"position": Vector2(room.call("entry_point")),
+		"linear_velocity": Vector2.ZERO})
+	for _frame in range(10):
+		await physics_frame
+	# IN FRAME FROM WHERE SHE LANDS. The nail is 395 in from the entry point and the room's
+	# camera sees about 370 either side of her, so it used to start just past the right-hand
+	# edge. Half a second is the camera's follow settling onto its lean toward the key.
+	await create_timer(0.5, true).timeout
+	var canvas := room.get_viewport().get_canvas_transform()
+	var picture := canvas * Rect2(room.global_position + brass.position, brass.size)
+	var view := room.get_viewport().get_visible_rect()
+	_check(view.encloses(picture), "the key is in frame from where she lands",
+		"key drawn at %s in a %s view" % [picture, view.size])
+	# Longer than one GLINT_EVERY (1.6 s), so a glint has come and gone at least once.
+	var span := await _glint_span(room, 2.2)
+	var star: int = (room.get_script() as Script).get_script_constant_map()["GLINT_SPARKS"]
+	_check(glint.is_visible_in_tree() and span.y >= star and span.x == 0,
+		"the key glints while it hangs",
+		"visible %s, arms %d..%d over 2.2 s (a star from %d, rests at 0)"
+			% [glint.is_visible_in_tree(), span.x, span.y, star])
+
+	# REDUCE MOTION: still there, and still.
+	var profile := root.get_node_or_null("PlayerProfile")
+	profile.call("set_setting", "reduce_motion", true)
+	var held := await _glint_span(room, 0.6)
+	profile.call("set_setting", "reduce_motion", false)
+	_check(glint.is_visible_in_tree() and held.x > 0 and held.x == held.y,
+		"and holds still under reduce motion",
+		"arms %d..%d" % [held.x, held.y])
+
+	# Taken the way a player takes it: something carries her up into the hook's reach.
+	apo.call("apply_morph_state", {"position": room.global_position + key_at,
+		"linear_velocity": Vector2.ZERO})
+	for _frame in range(40):
+		await physics_frame
+		if bool(room.call("key_is_taken")):
+			break
+	var taken := bool(room.call("key_is_taken"))
+	_check(taken and not glint.is_visible_in_tree() and int(room.call("glint_reach")) == 0,
+		"and the glint leaves with the key",
+		"taken %s, glint visible %s, arms %d" % [taken, glint.is_visible_in_tree(),
+			int(room.call("glint_reach"))])
+	# Back at the doorway, where the lean was at its widest -- under the nail it is zero anyway.
+	# Polled: Lolo's line about the brass may hold the world for a moment first.
+	apo.call("apply_morph_state", {"position": Vector2(room.call("entry_point")),
+		"linear_velocity": Vector2.ZERO})
+	var camera := level.get_node("EnvironmentBaseplate").get("camera") as Camera2D
+	var lead := NAN
+	for _frame in range(120):
+		await physics_frame
+		lead = Vector2(camera.get("target_offset")).x if camera != null else NAN
+		if is_zero_approx(lead):
+			break
+	_check(is_zero_approx(lead), "and the frame stops leaning toward the nail",
+		"lead %.0f" % lead)
+	for overlay in level.get_tree().get_nodes_in_group(&"modal_overlays"):
+		if overlay.has_method("is_open") and bool(overlay.call("is_open")) \
+				and overlay.has_method("close"):
+			overlay.call("close")
+	level.queue_free()
+	await process_frame
+
+
+## The shortest and longest the glint's arms reach over `seconds` of frames, as (min, max).
+func _glint_span(room: Node2D, seconds: float) -> Vector2i:
+	var shortest := 1 << 30
+	var longest := -1
+	var until := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < until:
+		await process_frame
+		var reach := int(room.call("glint_reach"))
+		shortest = mini(shortest, reach)
+		longest = maxi(longest, reach)
+	return Vector2i(shortest, longest)
+
+
+## WCAG 2 contrast ratio between two opaque colours.
+func _contrast(a: Color, b: Color) -> float:
+	var la := _luminance(a)
+	var lb := _luminance(b)
+	return (maxf(la, lb) + 0.05) / (minf(la, lb) + 0.05)
+
+
+func _luminance(c: Color) -> float:
+	var lin := func(v: float) -> float:
+		return v / 12.92 if v <= 0.04045 else pow((v + 0.055) / 1.055, 2.4)
+	return 0.2126 * lin.call(c.r) + 0.7152 * lin.call(c.g) + 0.0722 * lin.call(c.b)
+
+
+## THE HEAP'S WAYS THROUGH COME DOWN INSIDE IT, AND STAY DOWN ONCE THE KEY IS IN HAND.
+##
+## "We can do it slowly -- something that can FORAGE" is about getting at the key from outside.
+## It was still on the bar as she walked into a room whose puzzle is height, and it came back
+## as a reminder when she walked out past the heap with the key already in the bag.
+func _audit_the_heap_stops_advising_inside() -> void:
+	var level := (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await create_timer(1.4, true).timeout
+	var director = level.get("director")
+	# Normal progress: Ang Hagdan climbed and the gorge crossed, so the heap is next.
+	director.restore_obstacle_state({
+		"committed": {"B0_HAGDAN": "pragmatist", "L1_N1": "pragmatist"},
+		"solved": {"B0_HAGDAN": true, "L1_N1": true}})
+	var pile: Node2D = null
+	for node in level.get_tree().get_nodes_in_group(&"straw_piles"):
+		if bool((node as Node2D).get("entrance")):
+			pile = node as Node2D
+	var room := level.get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	var apo := level.get("player") as Node2D
+	var hint_bar := level.get("hint_bar") as HintBar
+	var mouth := Rect2(pile.call("mouth_rect"))
+	apo.call("apply_morph_state", {"position": pile.global_position
+		+ Vector2(mouth.get_center().x, 0.0), "linear_velocity": Vector2.ZERO})
+	# Its ways through go up once its opening lines are said; the level's own opening first.
+	var posted := false
+	for _step in range(240):
+		await create_timer(0.05, true).timeout
+		if String(level.get("_beat_advice_of")) == "L1_N2":
+			posted = true
+			break
+	if not posted:
+		_check(false, "the heap's advice comes down inside it",
+			"never posted at the heap, so there was nothing to test")
+		level.queue_free()
+		await process_frame
+		return
+
+	level.call("_on_straw_entered")
+	for _frame in range(10):
+		await physics_frame
+	var inside: bool = level.call("_room_holding_player") == room
+	var said := _heap_advice_showing(level, hint_bar)
+	_check(inside and said.is_empty(), "the heap's advice comes down inside it",
+		"in the room %s; on the bar: %s" % [inside, said if not said.is_empty() else "none of it"])
+
+	apo.call("apply_morph_state", {"position": room.global_position
+		+ Vector2(room.get("key_at")), "linear_velocity": Vector2.ZERO})
+	for _frame in range(40):
+		await physics_frame
+		if bool(room.call("key_is_taken")):
+			break
+	for overlay in level.get_tree().get_nodes_in_group(&"modal_overlays"):
+		if overlay.has_method("is_open") and bool(overlay.call("is_open")) \
+				and overlay.has_method("close"):
+			overlay.call("close")
+	# Out past the heap, the way the doorway puts her: beside its mouth, in its volume again.
+	level.call("_on_straw_exit")
+	director.exit_obstacle("L1_N2")
+	director.enter_obstacle("L1_N2")
+	await create_timer(1.0, true).timeout
+	said = _heap_advice_showing(level, hint_bar)
+	_check(bool(room.call("key_is_taken")) and said.is_empty(),
+		"and does not come back once the key is in hand",
+		"key taken %s; on the bar: %s" % [room.call("key_is_taken"),
+			said if not said.is_empty() else "none of it"])
+	level.queue_free()
+	await process_frame
+
+
+## Which of the heap's ways through are on the hint bar or remembered as its advice.
+func _heap_advice_showing(level: Node, hint_bar: HintBar) -> String:
+	var lines := level.get("script_lines") as DialogueScript
+	var bar := hint_bar.current_text().to_lower().replace("\n", " ") if hint_bar != null else ""
+	var found: Array[String] = []
+	for line: Variant in lines.peek("L1_N2.teach"):
+		var text := String((line as Dictionary).get("text", "")).replace("**", "").to_lower()
+		if bar.contains(text) or (level.get("_beat_advice") as Array).has(
+				String((line as Dictionary).get("text", ""))):
+			found.append(text.left(24))
+	if String(level.get("_beat_advice_of")) == "L1_N2":
+		found.append("(still the heap's advice)")
+	return ", ".join(found)
