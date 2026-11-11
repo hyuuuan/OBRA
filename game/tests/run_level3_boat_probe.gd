@@ -349,6 +349,13 @@ func _fight_from_the_deck() -> void:
 	await _frames(4)
 	level.call("press_interact")
 	await _unpause()
+	# A cannon fired from the deck before setting out: fifteen shots of kick, and nothing to hit.
+	_draw_weapon("cannon")
+	await _unpause()
+	var slot := int(level.call("_slot_holding", "cannon"))
+	if slot >= 0 and level.get("_equipped_utility") == null:
+		level.call("_on_inventory_slot_pressed", slot)
+	await _press_use(15, false)
 	# Out to it, until the coils stop the hull.
 	var was := -INF
 	var still := 0.0
@@ -367,33 +374,56 @@ func _fight_from_the_deck() -> void:
 	director.call("enter_obstacle", "L3_N2")
 	director.call("commit_route", "L3_N2", "protector")
 	await _unpause()
-	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
-	sheet.fill(Color.WHITE)
-	level.call("_on_drawing_ready", "sword", "Sword", sheet, {"confidence": 0.9},
-		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(0, 80)]), "width": 6.0,
-			"color": Color.BLACK}], 1.0)
+	_draw_weapon("sword")
 	await _unpause()
 	var aboard := bool(boat.call("has_passenger", level.get("player")))
-	var presses := 0
-	var swung := 0.0
-	while swung < 30.0 and creature.state() == Bakunawa.State.FIGHTING:
+	var holding = level.get("_equipped_utility")
+	await _press_use(30, true)
+	_check(aboard and creature.state() == Bakunawa.State.SUBDUED,
+		"fought from the deck, a drawn sword subdues it with F",
+		"%.0f blows, holding %s, %s" % [creature.hits_taken(),
+			holding.get("utility_behavior") if holding != null and is_instance_valid(holding) else "nothing",
+			"aboard" if aboard else "NOT aboard"])
+	# ⚠ AND STEPPING ASHORE AFTER FIRING FROM THE DECK, SHE STAYS ON THE SAND. A passenger banked
+	# every recoil and was paid it the frame she stepped off: set on the island's sand, she was
+	# thrown 500 px back into the sea at 1650 px/s, under the island's face with no way up
+	# (2026-11-12, after a cannon fight from the boat).
+	await _hold_right(30.0, boat, true)
+	await _frames(90)
+	var apo := level.get("player") as Node2D
+	var sand := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Marks/IslandMark") as Node2D
+	_check(bool(level.get("_arrived")) and absf(apo.global_position.x - sand.global_position.x) < 160.0
+			and absf(apo.global_position.y - sand.global_position.y) < 40.0,
+		"and after firing from the deck, she steps ashore and stays there",
+		"apo at %s, the sand at %s" % [apo.global_position.round(), sand.global_position.round()])
+
+
+## A weapon drawn the way a player draws one: through the drawing panel's door, into her hand.
+func _draw_weapon(entity_id: String) -> void:
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_on_drawing_ready", entity_id, entity_id.capitalize(), sheet, {"confidence": 0.9},
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(0, 80)]), "width": 6.0,
+			"color": Color.BLACK}], 1.0)
+
+
+## F, `count` times -- or, `in_the_fight`, until the fight is over: a press every 0.35 s, past
+## the blade's 270 ms swing, so none is a press into a swing.
+func _press_use(count: int, in_the_fight: bool) -> void:
+	var creature := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Bakunawa
+	for _press in range(count):
+		if in_the_fight and creature.state() != Bakunawa.State.FIGHTING:
+			return
 		for pressed in [true, false]:
 			var key := InputEventAction.new()
 			key.action = &"use_utility"
 			key.pressed = pressed
 			Input.parse_input_event(key)
 			await physics_frame
-		presses += 1
-		# A press every 0.35 s: past the blade's 270 ms swing, so none is a press into a swing.
 		for _frame in range(19):
 			await physics_frame
 			if paused:
 				await _unpause()
-		swung += 21.0 / 60.0
-	_check(aboard and creature.state() == Bakunawa.State.SUBDUED,
-		"fought from the deck, a drawn sword subdues it with F",
-		"%.0f blows in %d presses, %s" % [creature.hits_taken(), presses,
-			"aboard" if aboard else "NOT aboard"])
 
 
 func _finish() -> void:
