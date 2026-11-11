@@ -192,6 +192,18 @@ the apo is 96 tall and her jump apex is 94.3 (`wanderer.gd`), so she is about fo
 short. Anything at all to stand on closes that — the one place in the level where the puzzle
 is height and nothing else, with no tag to satisfy and no wrong answer.
 
+**The brass glints** (Kent: "make the key in the haybale standout since its not noticeable").
+Measured in a 1600×900 window, the room's camera (zoom ≈2.16) sees about 370 units either side
+of her and the nail is 395 in from where she lands, so on arrival the key is just past the
+right-hand edge; on screen it was brass on same-hue straw, still, under the quest bar, and its
+halo's brass rings never showed on the gold. Now a near-white cross flashes on the bow every
+1.6 s (`StrawRoom2D.GLINT_*`, stepped at `Motion.PIXEL_FPS`, alpha in eighths) on the steady
+dark disc behind the key, which is the only thing it draws over. Under reduce motion it is a
+still catch of light. It goes the moment the key is taken. It says "metal, up there" and
+nothing about how to get up there. `run_room_probe` checks all of that. ⚠ Not changed: the
+camera still lands her with the key a step off-frame; the glint is what pulls the eye as it
+comes in.
+
 > ⚠ A drawing placed in here needs the **level's** bounds. `PhysicsShapeObject` defaults to
 > `Rect2(0, −520, 3760, 1200)` and clamps itself back inside it; the room is a thousand units
 > above that, so an object put down here without `set_world_bounds` is snapped to the valley
