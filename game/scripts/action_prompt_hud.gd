@@ -11,9 +11,9 @@ extends Control
 ## Climb and placement keys are indicators. They share the action buttons' style, but pass
 ## clicks through because their actions require holding a key.
 ##
-## Two more indicators, MOVE and JUMP, can stand beside R and Q as a standing reminder of the
-## keys -- only where the level asks for them (LevelBase `_shows_movement_keys`; Payyo does) --
-## and step out while placing, when the rotate and scale keys have that corner.
+## Two more indicators, MOVE and JUMP, stand beside R and Q as a standing reminder of the keys --
+## in every level (LevelBase `_shows_movement_keys`) -- and step out while placing, when the rotate
+## and scale keys have that corner, and while a performance holds her still (`suppressed`).
 
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
@@ -75,6 +75,9 @@ var _states: Dictionary = {}
 var _curtain_alpha := 1.0
 ## A level-owned performance can put every verb away, including the externally owned Draw.
 var suppressed := false
+## Except Draw, while the performance still answers the brush (Mayon's summit): with every key
+## gone and her feet stopped, a player had nothing on screen to try, and read it as a freeze.
+var keeps_draw := false
 ## Whether the row has gone under the player's feet. See `_follow_player`.
 var _under := false
 var _judge_in := 0.0
@@ -264,10 +267,22 @@ func show_movement_keys(shown: bool) -> void:
 	_movement_wanted = shown
 	_set_wanted(_move, shown and not _placing)
 	_set_wanted(_jump, shown and not _placing)
+	# ⚠ LAID OUT NOW, NOT ON THE NEXT _process. Wanted, they are visible at once, and the level
+	# asks for them as it builds: until the first _process placed the row they stood at the
+	# origin, under the minimap and on each other, for every physics step a level's first frame
+	# catches up on (seven, in run_hud_watch_level1).
+	_place_bottom_actions()
 
 
 func movement_keys_shown() -> bool:
 	return _wanted(_move) and _wanted(_jump)
+
+
+func set_swimming(swimming: bool) -> void:
+	var verb := "SWIM UP" if swimming else "JUMP"
+	if _jump.text != verb:
+		_jump.text = verb
+		_place_bottom_actions()
 
 
 ## What each reminder's caps read, for a probe: the live InputMap's, never typed here.
@@ -306,6 +321,10 @@ func revert_is_available() -> bool:
 func _process(delta: float) -> void:
 	if suppressed:
 		for button: Button in _states:
+			if keeps_draw and button == _draw:
+				button.show()
+				button.mouse_filter = Control.MOUSE_FILTER_STOP
+				continue
 			button.hide()
 			button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		return

@@ -41,35 +41,35 @@ func _run() -> void:
 		return
 	await _clear_ui()
 	_check(await _place("stairs","climb"),"stairs are placed through the normal ink path",str(player.global_position))
-	if not await _travel(5840):
-		_fail("could not reach the first memory cluster")
+	if not await _travel(6640):
+		_fail("could not reach the first remembered place")
 		return
 	await _clear_ui()
-	await _save_memory("terraces","stairs")
+	await _save_memory("terraces")
 	await _photo("02_memories")
-	if not await _travel(7280):
-		_fail("could not reach the second memory cluster")
+	if not await _travel(11820):
+		_fail("could not reach the church")
 		return
 	await _clear_ui()
-	await _save_memory("church","door")
-	if not await _travel(8010):
-		_fail("could not cross the second memory cluster")
+	await _save_memory("church")
+	if not await _travel(14410):
+		_fail("could not cross the church")
 		return
 	await _clear_ui()
-	await _save_memory("bangka","sailboat")
-	if not await _travel(9440):
+	await _save_memory("bangka")
+	if not await _travel(20180):
 		_fail("could not reach the flower detour")
 		return
 	await _grounded()
-	if not await _travel(10200):
+	if not await _travel(20990):
 		_fail("could not climb the flower detour")
 		return
 	await _grounded()
 	await _clear_ui()
 	await _photo("03_flower")
-	await _save_memory("flower","sun")
+	await _save_memory("flower")
 	_check(is_zero_approx(level.get("ink_manager").remaining()),"two gate drawings and four memories use exactly six visible units",str(level.get("ink_manager").remaining()))
-	if not await _travel(11550):
+	if not await _travel(21290):
 		_fail("could not leave the memories for Lolo's moment")
 		return
 	await _clear_ui()
@@ -82,7 +82,7 @@ func _run() -> void:
 	_check(level.get("lolo").is_gone(),"Lolo disappears in the actual dialogue sequence",str(level.get("_lolo_moment")))
 	await _photo("04_lolo_gone")
 	await _clear_ui()
-	if not await _travel(12710):
+	if not await _travel(22060):
 		_fail("could not approach Lola")
 		return
 	await _clear_ui()
@@ -166,7 +166,7 @@ func _clear_ui() -> void:
 
 func _travel(to_x: float) -> bool:
 	print("WALK ",to_x," from ",player.global_position)
-	var until := Time.get_ticks_msec()+40000
+	var until := Time.get_ticks_msec()+90000
 	var tick := 0
 	Input.action_press("move_right")
 	Input.action_press("move_up")
@@ -183,40 +183,57 @@ func _grounded() -> void:
 		if player.is_on_floor(): return
 		await physics_frame
 
-func _save_memory(id: String, answer: String) -> void:
+func _save_memory(id: String) -> void:
 	var target = level.call("_fragment_here")
 	if target == null or String(target.fragment_id)!=id:
 		_check(false,"memory target is "+id,str(target.fragment_id if target!=null else "none"))
 		return
 	_key(KEY_R)
 	await process_frame
-	var panel: DrawPanel = level.get("draw_panel")
-	if not panel.is_open():
-		_check(false,"normal page opens for "+id,"closed")
+	var sketch: Node = level.get("memory_sketch")
+	if not sketch.is_open():
+		_check(false,"the memory sketchbook opens for "+id,"closed")
 		return
-	await _stroke(panel)
-	var strokes: Array = panel.canvas.get_strokes().duplicate(true)
-	panel.close_panel()
-	var drawing := Image.create(32,32,false,Image.FORMAT_RGBA8)
-	level.call("_on_drawing_ready",answer,answer.capitalize(),drawing,{"confidence":.95},strokes,1.0)
+	await create_timer(.6,true).timeout
+	await _stroke(sketch.canvas)
+	await _click(sketch.preserve_button)
 	_check(String(target.state())=="saved","the continuous route saves "+id,str(player.global_position))
 	await _clear_ui()
 
 func _paint_page() -> bool:
-	await _clear_ui()
 	var panel: DrawPanel = level.get("draw_panel")
+	# A line still up is read first; a page already open is drawn on at once. Waiting that pause
+	# out as well left the page untouched, and an untouched page plays on without her lines.
+	if not panel.is_open():
+		await _clear_ui()
 	if not panel.is_open(): _key(KEY_R)
 	await process_frame
 	if not panel.is_open() or not panel.is_refusing(): return false
-	await _stroke(panel)
+	await _stroke(panel.canvas_viewport_container)
+	await _click(panel.transform_button)
 	var until := Time.get_ticks_msec()+6000
 	while panel.is_open() and Time.get_ticks_msec()<until:
 		await create_timer(.05,true).timeout
 	quiet_attempts += 1
 	return not panel.is_open()
 
-func _stroke(panel: DrawPanel) -> void:
-	var middle := panel.canvas_viewport_container.get_global_rect().get_center()
+func _click(control: Control) -> void:
+	# Guided ending pages now wait for the player's explicit Paint action.
+	var at := control.get_global_rect().get_center()
+	var hover := InputEventMouseMotion.new()
+	hover.position = at
+	_mouse(hover)
+	await create_timer(.1,true).timeout
+	for pressed in [true,false]:
+		var click := InputEventMouseButton.new()
+		click.position = at
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		_mouse(click)
+		await process_frame
+
+func _stroke(surface: Control) -> void:
+	var middle := surface.get_global_rect().get_center()
 	var down := InputEventMouseButton.new()
 	down.position = middle-Vector2(65,0)
 	down.button_index = MOUSE_BUTTON_LEFT

@@ -12,6 +12,7 @@ const ROW_GAP := 175.0
 
 var _flow_time := 0.0
 var _reduce_motion := false
+var _drawn_view := Rect2()
 
 
 func _ready() -> void:
@@ -31,7 +32,9 @@ func _on_setting_changed(key: String, value: Variant) -> void:
 func _process(delta: float) -> void:
 	if not _reduce_motion:
 		_flow_time += delta
-	queue_redraw()
+	var view := _visible_water()
+	if view != _drawn_view or (view.has_area() and not _reduce_motion):
+		queue_redraw()
 
 
 func strength_at(at: Vector2) -> float:
@@ -41,13 +44,17 @@ func strength_at(at: Vector2) -> float:
 	return smoothstep(0.0, EDGE_FADE, edge)
 
 
+func _visible_water() -> Rect2:
+	if not is_instance_valid(camera):
+		return water_rect
+	var size := camera.get_viewport_rect().size / camera.zoom
+	var view := Rect2(camera.get_screen_center_position() - size * 0.5, size)
+	return water_rect.intersection(view.grow(80.0))
+
+
 func _draw() -> void:
-	if not water_rect.has_area():
-		return
-	var view := water_rect
-	if is_instance_valid(camera):
-		var size := camera.get_viewport_rect().size / camera.zoom
-		view = water_rect.intersection(Rect2(camera.get_screen_center_position() - size * 0.5, size).grow(80.0))
+	var view := _visible_water()
+	_drawn_view = view
 	if not view.has_area():
 		return
 	# Short, arrow-headed streams all travel left, from the surface down through the column.
@@ -72,17 +79,17 @@ func _draw() -> void:
 				0.5 * strength, (row + column) % 3 != 0)
 	# Denser broken foam along the top makes the boundary readable before the player dives.
 	if view.position.y <= waterline_y + 40.0:
-		var foam_shift := _flow_time * FLOW_SPEED
-		var first := int(floorf((view.position.x - water_rect.position.x + foam_shift) / 180.0))
-		var last := int(ceilf((view.end.x - water_rect.position.x + foam_shift) / 180.0))
+		var first := int(floorf((view.position.x - water_rect.position.x + shift) / 180.0))
+		var last := int(ceilf((view.end.x - water_rect.position.x + shift) / 180.0))
 		for column in range(first, last + 1):
-			var at := Vector2(water_rect.position.x + column * 180.0 - foam_shift, waterline_y + 10.0)
+			var at := Vector2(water_rect.position.x + column * 180.0 - shift, waterline_y + 10.0)
 			var alpha := strength_at(at) * 0.8
 			if alpha <= 0.0:
 				continue
-			_draw_stream(at.round(), 34.0, alpha)
-			draw_rect(Rect2(at.round() + Vector2(18.0, 10.0), Vector2(16.0, 3.0)), Color(0.7, 0.96, 1.0, alpha * 0.6))
-			draw_rect(Rect2(at.round() + Vector2(42.0, 7.0), Vector2(4.0, 3.0)), Color(0.7, 0.96, 1.0, alpha * 0.7))
+			at = at.round()
+			_draw_stream(at, 34.0, alpha)
+			draw_rect(Rect2(at + Vector2(18.0, 10.0), Vector2(16.0, 3.0)), Color(0.7, 0.96, 1.0, alpha * 0.6))
+			draw_rect(Rect2(at + Vector2(42.0, 7.0), Vector2(4.0, 3.0)), Color(0.7, 0.96, 1.0, alpha * 0.7))
 
 
 func _draw_stream(at: Vector2, length: float, alpha: float, headed := true) -> void:

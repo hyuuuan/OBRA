@@ -10,6 +10,7 @@ extends "res://scripts/level_base.gd"
 ## carved figures, the cave with the hidden flower, and the bridge memory.
 
 const FOUND_KEY := "L1_bale_key"
+const STRAW_CHECKPOINT := "CP2"
 
 ## What the box's plaque says when the line is the player's own thought rather than Lolo's
 ## voice. "Apo" is what Lolo calls them, so it is the name the player already knows.
@@ -19,6 +20,11 @@ var _bale_return := Vector2.ZERO
 var _straw_return := Vector2.ZERO
 ## Whether she is standing in the heap's doorway, and so whether Down means "go in".
 var _at_straw_mouth := false
+## What the mouth of the heap last put on the bar, so leaving it takes down only that.
+var _straw_prompt := ""
+var _straw_entrance: StrawPile2D
+var _straw_wind_playing := false
+var _lines_after_wind: Array[Dictionary] = []
 ## The "press E to read" prompt while it is up, so the hint bar is written to on the frame
 ## it changes rather than on every frame the player stands still -- and so it can be taken
 ## down again only while it is still the thing on the bar.
@@ -29,6 +35,10 @@ var _key_prompt := ""
 	^"EnvironmentBaseplate/GameplayPlane/Gorge/CaveGate")
 @onready var hidden_flower: HiddenFlower2D = get_node_or_null(
 	^"EnvironmentBaseplate/GameplayPlane/Gorge/HiddenFlower")
+@onready var _lake: WaterArea2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/WaterAreas/CentralPaddy")
+@onready var _hagdan_landing: Marker2D = get_node_or_null(
+	^"EnvironmentBaseplate/GameplayPlane/Hagdan/CP0/Landing")
 
 var _memory_shown := false
 func _offer_the_found_key() -> void:
@@ -207,21 +217,30 @@ func _fits_through_the_straw() -> bool:
 	return AbilityTags.class_has_tag(_current_form_id, BURROW_TAG)
 
 
+func _straw_entry_is_open() -> bool:
+	return _straw_entrance != null and _straw_entrance.has_open_mouth() \
+		and director.committed_route("L1_N2") != "protector"
+
+
 func _on_straw_mouth(standing: bool) -> void:
 	_at_straw_mouth = standing
 	if hint_bar == null:
 		return
-	if not standing:
-		hint_bar.clear()
+	if not standing or not _straw_entry_is_open():
+		# ⚠ ONLY ITS OWN WORDS. There are three heaps along the beat, and walking off one took
+		# whatever was on the bar with it: Lolo's three ways, if they had got that far.
+		hint_bar.take_down(_straw_prompt)
+		_straw_prompt = ""
 		return
 	if _fits_through_the_straw():
-		hint_bar.show_hint("There is a way in under the straw  —  press %s"
-			% ControlsKeys.keys_for("interact"))
-		return
-	# The requirement, in the same words the strip and the route buttons use, so the heap
-	# cannot describe itself differently from everything else that asks for something.
-	hint_bar.show_hint("There is a way in under the straw, and you are too big for it.  %s"
-		% RequirementStrip.phrase([BURROW_TAG]).replace("\n", "  —  "))
+		_straw_prompt = "There is a way in under the straw  —  press %s" \
+			% ControlsKeys.keys_for("interact")
+	else:
+		# The requirement, in the same words the strip and the route buttons use, so the heap
+		# cannot describe itself differently from everything else that asks for something.
+		_straw_prompt = "There is a way in under the straw, and you are too big for it.  %s" \
+			% RequirementStrip.phrase([BURROW_TAG]).replace("\n", "  —  ")
+	hint_bar.interject(_straw_prompt, "", 0.0)
 
 
 ## Ducking into the heap, which is the only place in Level 1 with an inside -- and the
@@ -233,6 +252,8 @@ func _on_straw_mouth(standing: bool) -> void:
 ## checkpoint carry in with her. Lolo comes too without being asked: he teleports to his
 ## target past 900px and the room is thousands away.
 func _on_straw_entered() -> void:
+	if not _straw_entry_is_open():
+		return
 	# REFUSED, AND SAID SO. A press that does nothing and explains nothing is a press the
 	# player concludes is broken -- and this one is the level's own design rule, not a bug.
 	if not _fits_through_the_straw():
@@ -266,13 +287,8 @@ func _on_straw_exit() -> void:
 ## A spot on the terrace beside the way in, far enough off it that walking out does not
 ## count as walking back in.
 func _beside_the_mouth() -> Vector2:
-	for node in get_tree().get_nodes_in_group(&"straw_piles"):
-		var pile := node as Node2D
-		if pile == null or not bool(pile.get("entrance")):
-			continue
-		var mouth := Rect2(pile.call("mouth_rect"))
-		return pile.global_position + Vector2(mouth.position.x - 46.0, 0.0)
-	return player.global_position if player != null else Vector2.ZERO
+	var mouth := _straw_entrance.mouth_rect()
+	return _straw_entrance.global_position + Vector2(mouth.position.x - 46.0, 0.0)
 
 
 ## Through the straw and out the other side. Deferred because both ends of this can run
@@ -350,17 +366,7 @@ func _search_the_straw(route: String) -> void:
 				pile.tunnel()
 			_speak(script_lines.fire("L1_N2.pragmatist.solved"))
 		"protector":
-			var animation_owner: StrawPile2D = null
-			for pile in piles:
-				pile.scatter()
-				if pile.entrance:
-					animation_owner = pile
-			# GIVE THE WIND THE SCREEN. All four supplied poses play for three seconds and
-			# the straw lands before either of the popups below is allowed to open. Calling
-			# these first made the acquisition card cover the whole half-second effect, while
-			# dialogue paused the rest of the level behind it.
-			if animation_owner != null and not animation_owner.scatter_animation_finished():
-				await animation_owner.scatter_finished
+			await _play_the_straw_wind(piles)
 			# NOW the sentence may take the screen. It is authored in the past tense because
 			# the player has just watched the wind finish the action; the button they chose
 			# still carries the forward-looking "Let us scatter it."
@@ -379,7 +385,52 @@ func _search_the_straw(route: String) -> void:
 				"obstacle_id": "L1_N2", "effect": "straw_scattered",
 			})
 			_speak(script_lines.fire("L1_N2.protector.solved"))
-	_uncover_the_baul()
+	_uncover_the_baul(route == "protector")
+
+
+func _play_the_straw_wind(piles: Array[StrawPile2D]) -> void:
+	# Keep the checkpoint's landing and ink. Its commit snapshot predates the solve.
+	var saved := checkpoints.peek(STRAW_CHECKPOINT)
+	if not saved.is_empty():
+		saved["obstacles"] = director.obstacle_state()
+		checkpoints.write(STRAW_CHECKPOINT, saved)
+		_save_checkpoint_to_disk(STRAW_CHECKPOINT)
+	_straw_wind_playing = true
+	for pile in piles:
+		pile.scatter()
+	var camera := _world_camera()
+	if camera != null and _straw_entrance != null:
+		camera.focus_on(_straw_entrance, 1.0, 0.25, -85.0)
+	if _straw_entrance != null and not _straw_entrance.scatter_animation_finished():
+		await _straw_entrance.scatter_finished
+	_straw_wind_playing = false
+	if camera != null:
+		camera.release_focus()
+	for entry in _lines_after_wind:
+		super._speak(entry["lines"], entry["context"])
+	_lines_after_wind.clear()
+
+
+## Recognition feedback and story lines can arrive on the same frame as the solve.
+func _speak(lines: Array, advice_context := Callable()) -> void:
+	if _straw_wind_playing:
+		if not lines.is_empty():
+			_lines_after_wind.append({"lines": lines, "context": advice_context})
+		return
+	super(lines, advice_context)
+
+
+func _restore_level_run_state(_state: Dictionary) -> void:
+	if _straw_wind_playing or not director.is_solved("L1_N2") \
+			or director.committed_route("L1_N2") != "protector":
+		return
+	for node in get_tree().get_nodes_in_group(&"straw_piles"):
+		(node as StrawPile2D).scatter(false)
+	script_lines.set_flag("straw_scattered")
+	note_pickup_taken(FOUND_KEY)
+	if not PlayerProfile.is_collectible_found(FOUND_KEY):
+		PlayerProfile.record_collectible(FOUND_KEY)
+	_uncover_the_baul(true, false)
 
 
 ## Three passes, and the middle two are the reward. Slowest route, and the only one that
@@ -412,12 +463,18 @@ func _comb_the_piles() -> void:
 ## course." with the world stopped for it. A line that closes a beat is news the first time
 ## and an interruption every time after, which is the whole argument written on
 ## _speak_on_arrival -- so this goes through the same door.
-func _uncover_the_baul() -> void:
+func _uncover_the_baul(outside: bool = false, announce: bool = true) -> void:
 	for node in get_tree().get_nodes_in_group(&"baul"):
 		var chest := node as Baul2D
-		if chest != null:
-			chest.reveal()
-	_speak_on_arrival("L1_N2.solved")
+		if chest == null:
+			continue
+		if outside and _straw_entrance != null:
+			chest.global_position = _straw_entrance.global_position + Vector2(120.0, 0.0)
+		chest.reveal(announce)
+	if announce:
+		_speak_on_arrival("L1_N2.solved")
+	else:
+		script_lines.mark_heard("L1_N2.solved")
 
 
 ## HER CHEST OPENS. Kent's friend: "the box in level 1 is not openable". Found in the straw
@@ -627,6 +684,7 @@ func _go_home_with_the_canvas() -> void:
 	if _level_completed:
 		return
 	_level_completed = true
+	_forget_saved_checkpoint()
 	# After the card and the lines: the reward is read before the scene changes.
 	var waited := 0.0
 	while waited < 30.0 and (get_tree().paused or (acquired_overlay != null
@@ -776,13 +834,6 @@ func _fades_the_old_way() -> bool:
 	return true
 
 
-## Payyo is the tutorial, so walk and jump stand beside R as reminders of their keys (Kent: "the
-## R at the button should also be paired with the WASD buttons for like guidance as well as the
-## jump"). The lessons teach them once; these stay for the player who forgot.
-func _shows_movement_keys() -> bool:
-	return true
-
-
 ## ⚠ NOT "PRESS R AND DRAW" AT THE SPAWN. On a first visit the greeting came straight after the
 ## opening, on the bank, before she had walked a step -- the first instruction in the game told
 ## her to draw with nothing in front of her to draw for, and the Walk card followed it. The draw
@@ -853,8 +904,10 @@ func _build_level_furniture() -> void:
 			node.connect(&"notice_left", _on_room_notice_left)
 
 	for node in get_tree().get_nodes_in_group(&"straw_piles"):
-		if node.has_signal(&"at_mouth"):
-			node.connect(&"at_mouth", _on_straw_mouth)
+		var pile := node as StrawPile2D
+		if pile != null and pile.entrance:
+			_straw_entrance = pile
+			pile.at_mouth.connect(_on_straw_mouth)
 	for node in get_tree().get_nodes_in_group(&"straw_rooms"):
 		if node.has_signal(&"key_taken"):
 			node.connect(&"key_taken", _on_straw_key_taken)
@@ -884,6 +937,21 @@ func _extra_refusals(entity_id: String, strokes: Array) -> bool:
 func _defer_route_commit_dialogue(obstacle_id: String, route: String) -> bool:
 	return (obstacle_id == "L1_N2" and route == "protector") \
 		or (obstacle_id == "L1_N3" and _with_the_found_key)
+
+
+func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
+	if obstacle_id == "L1_N2" and route == "protector" and _at_straw_mouth:
+		_on_straw_mouth(true)
+	super._on_obstacle_route_committed(obstacle_id, route)
+
+
+func _stage_the_checkpoint(mark: Node2D) -> void:
+	if mark is CheckpointLantern2D and mark == _commit_marks.get("L1_N2") \
+			and director.committed_route("L1_N2") == "protector":
+		# The wind takes the camera at this checkpoint. Light the lantern in the same shot.
+		(mark as CheckpointLantern2D).light(Vector2(0.0, -60.0))
+		return
+	super(mark)
 
 
 ## Node 2 opens the heap; Node 3 opens the chest. Both own their own words, which is why
@@ -924,7 +992,7 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 
 ## Down, in the heap's doorway, is "go in". Bound nowhere else in this level.
 func _handle_level_input(event: InputEvent) -> bool:
-	if event.is_action_pressed("move_down") and _at_straw_mouth:
+	if event.is_action_pressed("move_down") and _at_straw_mouth and _straw_entry_is_open():
 		_on_straw_entered()
 		return true
 	return false
@@ -933,14 +1001,14 @@ func _handle_level_input(event: InputEvent) -> bool:
 func _interact_with_level() -> bool:
 	# The way into the straw is offered on E, over her head, where the hint bar's version of it
 	# was talked over by Lolo's three lines about the heap. Down still works.
-	if _at_straw_mouth and _fits_through_the_straw():
+	if not _level_interact_offer().is_empty():
 		_on_straw_entered()
 		return true
 	return _use_the_found_key()
 
 
 func _level_interact_offer() -> Dictionary:
-	if _at_straw_mouth and _fits_through_the_straw():
+	if _at_straw_mouth and _straw_entry_is_open() and _fits_through_the_straw():
 		return {"name": "the straw", "verb": "GO IN"}
 	return {}
 
@@ -949,11 +1017,12 @@ func _level_interact_offer() -> Dictionary:
 ## writes "you are carrying her key -- press E to try it" whenever this is true, so the two
 ## cannot drift: if the sentence is up, this key press belongs to the door.
 func _level_answers_first() -> bool:
-	return _found_key_would_open() or (_at_straw_mouth and _fits_through_the_straw())
+	return _found_key_would_open() or not _level_interact_offer().is_empty()
 
 
 func _level_physics(anchor_position: Vector2) -> void:
 	_offer_the_found_key()
+	_tell_her_about_the_lake(anchor_position)
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
 	#
@@ -962,6 +1031,38 @@ func _level_physics(anchor_position: Vector2) -> void:
 	# the player was still falling into it.
 	if anchor_position.x > 3660.0:
 		_show_memory_if_earned()
+
+
+func _tell_her_about_the_lake(at: Vector2) -> void:
+	if _lake == null or _opening_running or not player is Wanderer or not (player as Wanderer).is_on_floor() \
+			or placement_controller.is_placing():
+		return
+	var west := _lake.global_position.x - _lake.surface_size.x * 0.5
+	if at.x >= west - 120.0 and at.x < west and absf(at.y - _lake.surface_y()) <= 24.0:
+		_speak_on_arrival("L1_LAKE.enter")
+
+
+func _rescue_from_water() -> void:
+	if _lake == null or not player.has_meta(&"water_area") or player.get_meta(&"water_area") != _lake:
+		super()
+		return
+	# A trip into the lake should not undo the drawing the player was trying to board.
+	var side := -1.0 if player.global_position.x < _lake.global_position.x else 1.0
+	var bank := Vector2(_lake.global_position.x + side * (_lake.surface_size.x * 0.5 + 32.0),
+		_lake.surface_y() - 4.0)
+	(player as Wanderer).apply_morph_state({"position": bank, "velocity": Vector2.ZERO})
+	_say_why("Back to the bank, apo. Draw an animal that can swim.")
+
+
+func _checkpoint_landing(state: Dictionary) -> Vector2:
+	if _hagdan_landing == null or checkpoints.latest_id() != "CP0":
+		return super(state)
+	var landing := _hagdan_landing.global_position
+	if is_instance_valid(player) and not player is Wanderer:
+		var lowest := lowest_point_of(player)
+		if is_finite(lowest):
+			landing.y -= maxf(0.0, lowest - _player_anchor_position().y)
+	return landing
 
 
 ## The cave, and the one optional collectible behind it. Wired before the base's own

@@ -362,16 +362,8 @@ func disarm_the_way_out() -> void:
 ## The room already has to know whether the player is in it; this rides the same answer.
 func _process(delta: float) -> void:
 	var at := _where_the_apo_is()
-	# ⚠ NOT DRAWN WHILE NOBODY IS IN IT, which is the one rule the other two interiors
-	# carry and this one did not. `_draw` opens with a 1957x1314 rect of BEYOND so the sky
-	# this room is parked in never shows through its walls, and left switched on that is a
-	# slab of near-black sitting in the level at all times. StrawRoom2D has the guard with
-	# the note that it is "what the map in the overworld is still black at some parts was",
-	# and PiyestaRoom2D has it with the note that it "put black over half of Payyo's valley".
-	# Ang Bale is parked high enough that its slab does not currently cross anything the
-	# camera reaches -- which is luck, not design, and it is one move of the room away from
-	# being the same bug a third time.
-	show_while_occupied()
+	# Keep the room's dark backing out of the overworld when nobody is inside.
+	visible = at != Vector2.INF
 	if _way_down_grace > 0.0:
 		_way_down_grace -= delta
 		return
@@ -385,9 +377,7 @@ func _process(delta: float) -> void:
 ## Drawn while she is in here. Public for the reason PiyestaRoom2D.show_while_occupied gives:
 ## a pause stops `_process`, so the level calls this the moment it puts her down.
 func show_while_occupied() -> void:
-	var here := _where_the_apo_is() != Vector2.INF
-	if here != visible:
-		visible = here
+	visible = _where_the_apo_is() != Vector2.INF
 
 
 func _where_the_apo_is() -> Vector2:

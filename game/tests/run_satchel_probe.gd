@@ -8,7 +8,7 @@ const SatchelScript = preload("res://scripts/satchel.gd")
 var failures := 0
 var level: Node
 var checked := 0
-const CHECKS := 38
+const CHECKS := 67
 
 
 func _initialize() -> void:
@@ -24,13 +24,20 @@ func _run() -> void:
 	_a_stack_stops_at_its_cap()
 	_the_slots_fill_in_pickup_order()
 	_a_spent_slot_goes_to_the_next_new_thing()
+	_the_five_in_the_woods_all_have_a_slot()
+	_a_sixth_kind_waits_then_moves_in()
 	_nothing_is_used_from_nothing()
 	_it_is_kept_as_plain_data()
 	_kept_data_is_held_to_the_file()
+	_an_old_save_gives_the_oil_its_slot()
 	level = await _open_level()
 	await _z_pours_lamp_oil()
 	await _oil_is_not_wasted_on_a_full_lamp()
 	await _the_keys_stay_with_whoever_has_them()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _b_pours_the_oil_found_last()
 	level.queue_free()
 	await _frames(3)
 	level = await _open_level()
@@ -74,6 +81,33 @@ func _run() -> void:
 	await _ash_shows_what_hides()
 	level.queue_free()
 	await _frames(3)
+	level = await _open_level()
+	await _the_oil_is_asked_for_when_the_lamp_is_low()
+	await _a_slots_words_speak_over_advice_that_has_been_read()
+	await _a_press_that_does_nothing_says_why()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _a_candle_is_a_light()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _a_candle_beside_the_lower_half_answers_it()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _salt_and_garlic_are_asked_for_when_they_would_help()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _ash_is_asked_for_when_the_lamp_leans()
+	level.queue_free()
+	await _frames(3)
+	level = await _open_level()
+	await _the_sixth_thing_says_it_has_no_slot()
+	await _the_bar_steps_back_for_a_line()
+	level.queue_free()
+	await _frames(3)
 	level = await _open_level(true)
 	await _a_knockout_keeps_what_she_carries()
 	level.queue_free()
@@ -103,7 +137,7 @@ func _it_knows_lolas_six_things() -> void:
 		"it knows Lola's six things, with their caps", "%s" % [ids])
 
 
-## Found, each says what it does and which key it is on -- never only its name.
+## Found, each says what it does and which key it is on -- never only its name -- and when it is for.
 func _each_says_what_it_is_for() -> void:
 	var satchel = SatchelScript.new()
 	var silent: Array[String] = []
@@ -114,6 +148,15 @@ func _each_says_what_it_is_for() -> void:
 			silent.append(id)
 	_check(silent.is_empty(), "each of Lola's things, found, says what it does and its key",
 		"all six" if silent.is_empty() else "only named: %s" % [silent])
+	# The things it took a player to be told are the ones the old words left out.
+	var said := {}
+	for id: String in satchel.ids():
+		said[id] = String(satchel.row(id).get("found", "")).to_lower()
+	_check(said["abo"].contains("keep it") and said["langis"].contains("low")
+			and said["kandila"].contains("a light like any other") and said["bawang"].contains("ten seconds")
+			and said["asin"].contains("ahead of me"),
+		"and when: ash kept for what she cannot see, oil for a low lamp, the candle as a light, garlic's ten seconds",
+		"%s" % [said])
 
 
 func _a_stack_stops_at_its_cap() -> void:
@@ -130,21 +173,50 @@ func _the_slots_fill_in_pickup_order() -> void:
 	var satchel = SatchelScript.new()
 	for id in ["bawang", "asin", "bawang", "kandila"]:
 		satchel.add(id)
-	_check(satchel.slots() == ["bawang", "asin", "kandila", ""] and satchel.count("bawang") == 2,
+	_check(satchel.slots() == ["bawang", "asin", "kandila", "", ""] and satchel.count("bawang") == 2,
 		"the quick slots fill in the order things are first picked up", "%s" % [satchel.slots()])
 
 
 func _a_spent_slot_goes_to_the_next_new_thing() -> void:
 	var satchel = SatchelScript.new()
-	for id in ["bawang", "asin", "kandila", "abo"]:
+	for id in ["bawang", "asin", "kandila", "abo", "langis"]:
 		satchel.add(id)
 	var full := satchel.slots()
 	satchel.take("bawang")
 	var held := satchel.slots()
-	satchel.add("langis")
-	_check(held == full and satchel.slots() == ["langis", "asin", "kandila", "abo"],
+	satchel.add("buntot_pagi")
+	_check(held == full and satchel.slots() == ["buntot_pagi", "asin", "kandila", "abo", "langis"],
 		"a spent slot stays put, then goes to the next new thing",
 		"spent %s, then %s" % [held, satchel.slots()])
+
+
+## Kent's fifth key. Whoever saves everything still has a key for everything the woods give: with
+## four slots the lamp oil, found last, could never be poured.
+func _the_five_in_the_woods_all_have_a_slot() -> void:
+	var satchel = SatchelScript.new()
+	for id in ["asin", "kandila", "abo", "bawang", "langis"]:
+		satchel.add(id)
+	_check(satchel.slots() == ["asin", "kandila", "abo", "bawang", "langis"] and satchel.waiting().is_empty(),
+		"everything lying in the woods, saved in the order it is found, has a slot",
+		"%s, waiting %s" % [satchel.slots(), satchel.waiting()])
+
+
+## All five held, the whip has no key -- and takes the first slot spent, at once, not on the next
+## pickup, which for a thing that drops once in a night might never come.
+func _a_sixth_kind_waits_then_moves_in() -> void:
+	var satchel = SatchelScript.new()
+	for id in ["asin", "kandila", "abo", "bawang", "langis", "buntot_pagi"]:
+		satchel.add(id)
+	var waited: Array[String] = satchel.waiting()
+	set_meta(&"moved_in", [])
+	satchel.moved_in.connect(func(id: String, index: int) -> void:
+		(get_meta(&"moved_in") as Array).append([id, index]))
+	satchel.take("kandila")
+	var said: Array = get_meta(&"moved_in")
+	_check(waited == ["buntot_pagi"] and satchel.slots() == ["asin", "buntot_pagi", "abo", "bawang", "langis"]
+			and satchel.waiting().is_empty() and said == [["buntot_pagi", 1]],
+		"a sixth kind waits with no slot, and moves in as soon as one is spent",
+		"waited %s, then %s, said %s" % [waited, satchel.slots(), said])
 
 
 func _nothing_is_used_from_nothing() -> void:
@@ -174,10 +246,21 @@ func _it_is_kept_as_plain_data() -> void:
 		"and what it keeps is a copy, not the satchel itself", "kept %s" % [kept])
 
 
+## A save from when there were four slots: four listed, and the oil carried with none.
+func _an_old_save_gives_the_oil_its_slot() -> void:
+	var back = SatchelScript.new()
+	back.from_data({"counts": {"asin": 1, "kandila": 1, "abo": 1, "bawang": 1, "langis": 2},
+		"slots": ["asin", "kandila", "abo", "bawang"]})
+	_check(back.slots() == ["asin", "kandila", "abo", "bawang", "langis"] and back.waiting().is_empty()
+			and back.count("langis") == 2,
+		"a save from when there were four slots gives the oil it carried the new one",
+		"%s, waiting %s" % [back.slots(), back.waiting()])
+
+
 func _kept_data_is_held_to_the_file() -> void:
 	var back = SatchelScript.new()
 	back.from_data({"counts": {"asin": 99, "feather": 3}, "slots": ["feather", "asin", "", ""]})
-	_check(back.count("asin") == 12 and back.count("feather") == 0 and back.slots() == ["", "asin", "", ""],
+	_check(back.count("asin") == 12 and back.count("feather") == 0 and back.slots() == ["", "asin", "", "", ""],
 		"what comes back is held to the file: caps, and only its kinds",
 		"asin %d, slots %s" % [back.count("asin"), back.slots()])
 
@@ -191,6 +274,38 @@ func _press_z() -> void:
 	key.pressed = true
 	level.call("_unhandled_input", key)
 	await _frames(2)
+
+
+func _press_key(code: Key) -> void:
+	var key := InputEventKey.new()
+	key.physical_keycode = code
+	key.pressed = true
+	level.call("_unhandled_input", key)
+	await _frames(2)
+
+
+## The fifth key, as the keyboard sends it, on the thing the fifth slot was added for.
+func _b_pours_the_oil_found_last() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var health := level.get("player_health") as PlayerHealth
+	for id in ["asin", "kandila", "abo", "bawang", "langis"]:
+		satchel.add(id, 1)
+	health.dim(PlayerHealth.LOW)
+	health.dim(PlayerHealth.LOW)
+	var low := health.stage
+	var bar := level.get("quick_slots") as QuickSlotBar
+	await _press_key(KEY_B)
+	_check(satchel.slots()[4] == "langis" and low == PlayerHealth.LOW and health.stage == PlayerHealth.FULL
+			and satchel.count("langis") == 0 and bar.slot_name(4) == "Langis",
+		"B pours the oil she found last, on the fifth slot", "stage %d -> %d, slot %s, %d left"
+			% [low, health.stage, satchel.slots()[4], satchel.count("langis")])
+	var unbound: Array[String] = []
+	for index in range(Satchel.SLOTS):
+		if not InputMap.has_action("quick_slot_%d" % (index + 1)):
+			unbound.append(str(index + 1))
+	var file_says := int((JSON.parse_string(FileAccess.get_file_as_string(Satchel.CONFIG)) as Dictionary).get("quick_slots", 0))
+	_check(unbound.is_empty() and file_says == Satchel.SLOTS, "and every slot has a key bound, as many as the file says",
+		"%d slots, the file says %d, unbound %s" % [Satchel.SLOTS, file_says, unbound])
 
 
 func _z_pours_lamp_oil() -> void:
@@ -307,7 +422,7 @@ func _walking_into_one_takes_it() -> void:
 	var said := (level.get("hint_bar") as HintBar).current_text()
 	_check(satchel.count("asin") == 2 and (pickup == null or not is_instance_valid(pickup)
 			or (pickup.is_taken() and pickup.tag_shown() == 0.0))
-			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said == "Asin -- salt. It burns them. Z throws it.",
+			and bool(level.call("pickup_taken_this_run", "L4_P_ASIN1")) and said == "Asin, salt. Z throws it ahead of me, and it burns whatever it lands on.",
 		"walking into one takes it, and the first of a kind says what it does and its key",
 		"asin %d, said \"%s\"" % [satchel.count("asin"), said])
 
@@ -319,9 +434,24 @@ func _the_bar_comes_with_the_first_find(shown_before: bool) -> void:
 	var shown_after := bar.visible
 	_check(not shown_before and shown_after, "the quick slots are not on screen until the first find brings them",
 		"before %s, after %s" % [shown_before, shown_after])
-	var names := [bar.slot_name(0), bar.slot_name(1)]
-	_check(names == ["Asin", ""] and bar.size.y >= bar.slot_rect(0).end.y + QuickSlotBar.NAME_GAP + QuickSlotBar.NAME_ROW,
-		"a filled slot is named under it, inside the bar; an empty one is not", "%s, bar %.0f tall" % [names, bar.size.y])
+	var names := [bar.slot_name(0), bar.slot_does(0), bar.slot_name(1), bar.slot_does(1)]
+	_check(names == ["Asin", "Burns them", "", ""]
+			and bar.size.y >= bar.slot_rect(0).end.y + QuickSlotBar.NAME_GAP + QuickSlotBar.NAME_ROW * 2.0,
+		"a filled slot says under it what it is and what it does, inside the bar; an empty one is silent",
+		"%s, bar %.0f tall" % [names, bar.size.y])
+	# Held to the floor, and to the room each slot has: no name brought down to fit any more.
+	var font := bar.get_theme_default_font()
+	var room := QuickSlotBar.SLOT.x + QuickSlotBar.GAP - 4.0
+	var over: Array[String] = []
+	for id: String in (level.get("satchel") as Satchel).ids():
+		for text: String in [String((level.get("satchel") as Satchel).row(id).get("display_name", "")),
+				String((level.get("satchel") as Satchel).row(id).get("does", ""))]:
+			if text.is_empty() or font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, QuickSlotBar.NAME_FONT).x > room:
+				over.append("%s '%s'" % [id, text])
+	_check(over.is_empty() and QuickSlotBar.CAP_FONT >= 20 and QuickSlotBar.COUNT_FONT >= 20
+			and QuickSlotBar.NAME_FONT >= 20,
+		"the key, the count, every name and every use read at 20 px and fit under their slots",
+		"room %.0f px" % room if over.is_empty() else "too long or missing: %s" % [over])
 	var kept: Dictionary = (level.get("satchel") as Satchel).to_data().duplicate(true)
 	(level.get("satchel") as Satchel).from_data({})
 	await _frames(2)
@@ -575,6 +705,10 @@ func _a_ward_holds_it_off() -> void:
 	var seen: Array = await _how_near_it_comes(3.0)
 	_check(ward != null and absf(ward.global_position.x - WARD_X) < 8.0 and float(seen[0]) >= 140.0,
 		"a ward of bawang at her feet holds it off at its edge", "nearest %.0f px of a 150 px ward" % float(seen[0]))
+	# Three seconds into ten: the ring has closed by that much, and it is drawn over the dark.
+	_check(ward != null and ward.ring_layer() > DarknessLayer.LAYER and absf(ward.ring_share() - 0.7) < 0.05,
+		"and its ring stands over the dark, closing as it runs out",
+		"layer %d over %d, %.2f of it left" % [ward.ring_layer(), DarknessLayer.LAYER, ward.ring_share()])
 	set_meta(&"held_foe", seen[1])
 	if ward != null:
 		ward.queue_free()
@@ -712,6 +846,330 @@ func _ash_shows_what_hides() -> void:
 	hider.queue_free()
 
 
+## Seen in a window: the row of names stood half out from under the story box. It steps back as the
+## other pieces along the bottom do, and comes back after. Frames counted here by hand: a line stops
+## the tree, and this probe's own wait lets it go.
+func _the_bar_steps_back_for_a_line() -> void:
+	var bar := level.get("quick_slots") as QuickSlotBar
+	var box := level.get("dialogue_box") as Node
+	var before := bar.modulate.a
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	box.call("speak", [{"text": "Listen.", "speaker": "Apo", "at": "apo"}])
+	for _frame in range(40):
+		await physics_frame
+	var during := bar.modulate.a
+	call_group(DialogueBox.GROUP, &"hide_line")
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	paused = false
+	await _frames(40)
+	_check(before == 1.0 and during == 0.0 and bar.modulate.a == 1.0,
+		"the quick slots step back under a line of story, and come back after",
+		"%.2f, then %.2f, then %.2f" % [before, during, bar.modulate.a])
+
+
+# --- When each one is the thing to press --------------------------------------------------
+
+func _said() -> String:
+	var hints := level.get("hint_bar") as HintBar
+	return hints.current_text() if hints.is_showing() else ""
+
+
+func _quiet() -> void:
+	(level.get("hint_bar") as HintBar).clear()
+	# Showing until its fade ends.
+	await _frames(12)
+
+
+func _stand_her_at(x: float) -> void:
+	var player := level.get("player") as Node2D
+	player.call("apply_morph_state", {"position": Vector2(x, 596.0), "linear_velocity": Vector2.ZERO})
+	(level.get("player_health") as PlayerHealth).call("_start_grace", 600.0)
+	await _frames(6)
+
+
+## Not lit on a full lamp, lit and said with its key once it burns low, and said once only.
+func _the_oil_is_asked_for_when_the_lamp_is_low() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var health := level.get("player_health") as PlayerHealth
+	var bar := level.get("quick_slots") as QuickSlotBar
+	await _stand_her_at(7800.0)
+	health.reset_full()
+	satchel.add("langis", 2)
+	var slot := satchel.slots().find("langis")
+	await _quiet()
+	await _frames(45)
+	var at_full := bar.is_wanted(slot)
+	health.dim(PlayerHealth.LOW)
+	health.dim(PlayerHealth.LOW)
+	await _frames(40)
+	var low := bar.is_wanted(slot)
+	var said := _said()
+	await _quiet()
+	await _frames(4)
+	var again := _said()
+	_check(not at_full and health.stage == PlayerHealth.LOW and low
+			and said == "The lamp is low. %s pours the oil." % _key_on(slot) and again.is_empty(),
+		"the oil's slot is not lit on a full lamp; burning low it says Now, with its key, once",
+		"full %s, low %s, said \"%s\", then \"%s\"" % [at_full, low, said, again])
+
+
+## Advice stands through its beat, so a slot's words cannot wait for an empty bar: the chip said Now
+## and no words came. They wait for it to be read, and it comes back after them. Run straight after
+## the oil's check: the lamp is still low.
+func _a_slots_words_speak_over_advice_that_has_been_read() -> void:
+	var slot := (level.get("satchel") as Satchel).slots().find("langis")
+	var hints := level.get("hint_bar") as HintBar
+	var advice := "Advice that stands until its beat is over."
+	var words := "The lamp is low. %s pours the oil." % _key_on(slot)
+	await _quiet()
+	hints.show_beat([{"text": advice, "speaker": "Apo"}])
+	(level.get("_moments_told") as Dictionary).clear()
+	await _frames(20)
+	var while_read := _said()
+	var began := Time.get_ticks_msec()
+	while _said() != words and Time.get_ticks_msec() - began < 8000:
+		await _frames(1)
+	var then := _said()
+	while _said() != advice and Time.get_ticks_msec() - began < 16000:
+		await _frames(1)
+	var after := _said()
+	_check(while_read == advice, "a slot's words wait while advice is being read", "\"%s\"" % while_read)
+	_check(then == words, "and speak once it has been read, though it still stands", "\"%s\"" % then)
+	_check(after == advice, "and the advice comes back after them", "\"%s\"" % after)
+	await _quiet()
+
+
+func _key_on(slot: int) -> String:
+	return String(level.call("_slot_key", slot))
+
+
+## Oil on a full lamp, and a slot gone empty: each says so and shakes, and spends nothing.
+func _a_press_that_does_nothing_says_why() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var health := level.get("player_health") as PlayerHealth
+	var bar := level.get("quick_slots") as QuickSlotBar
+	health.reset_full()
+	var slot := satchel.slots().find("langis")
+	var had := satchel.count("langis")
+	await _quiet()
+	level.call("use_quick_slot", slot)
+	await _frames(2)
+	var said := _said()
+	var shook := bar.is_refusing(slot)
+	_check(said == "The lamp is full. I will keep the oil." and shook and satchel.count("langis") == had,
+		"oil on a full lamp says so, shakes its slot and spends nothing", "\"%s\", shook %s, %d of %d" % [said,
+			shook, satchel.count("langis"), had])
+	while satchel.count("langis") > 0:
+		satchel.take("langis")
+	await _quiet()
+	await _frames(int(QuickSlotBar.REFUSED_SECONDS * 60.0) + 2)
+	var settled := bar.is_refusing(slot)
+	level.call("use_quick_slot", slot)
+	await _frames(2)
+	_check(not settled and bar.is_refusing(slot) and _said() == "No more lamp oil.",
+		"and a slot with none left says that", "\"%s\"" % _said())
+
+
+## Kent's decision: a candle is a light like any other. At a clearing it fills the lamp, with the
+## clearing's own line; at the sigbin and the tiyanak it is the artist's way past, and they go. Set
+## anywhere else it says how it burns, and answers nothing.
+func _a_candle_is_a_light() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var director := level.get("director") as Object
+	var health := level.get("player_health") as PlayerHealth
+	satchel.add("kandila", 3)
+	var slot := satchel.slots().find("kandila")
+	await _stand_her_at(5000.0)
+	health.dim(PlayerHealth.LOW)
+	health.dim(PlayerHealth.LOW)
+	var low := health.stage
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	level.call("use_quick_slot", slot)
+	await physics_frame
+	var line := String((level.get("dialogue_box") as Node).call("current_line"))
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(6)
+	_check(low == PlayerHealth.LOW and bool(director.call("is_solved", "L4_REST1")) and health.stage == PlayerHealth.FULL
+			and line.begins_with("There. Warm."),
+		"a candle at a clearing fills the lamp, as a drawn light does, and she says so",
+		"stage %d -> %d, solved %s, \"%s\"" % [low, health.stage, director.call("is_solved", "L4_REST1"), line])
+	await _quiet()
+	await _stand_her_at(6800.0)
+	var chip_at_sigbin := bool(level.call("_wanted_now", "kandila"))
+	# Past the arrival's line: the words come after it, and are still there to read.
+	await _frames(45)
+	var told_at_sigbin := _said()
+	level.call("use_quick_slot", slot)
+	await _frames(6)
+	var sigbin := level.get("_sigbin") as Sigbin2D
+	_check(chip_at_sigbin and bool(director.call("is_solved", "L4_SIGBIN"))
+			and String(director.call("committed_route", "L4_SIGBIN")) == "artist" and sigbin.is_gone(),
+		"at the sigbin it is the artist's way past, and it goes", "wanted %s, route '%s', gone %s"
+			% [chip_at_sigbin, director.call("committed_route", "L4_SIGBIN"), sigbin.is_gone()])
+	_check(told_at_sigbin == "A light would answer this. %s sets the candle down." % _key_on(slot),
+		"and arriving there she says so, and its line does not take that down", "\"%s\"" % told_at_sigbin)
+	await _stand_her_at(17100.0)
+	level.call("use_quick_slot", slot)
+	await _frames(6)
+	var tiyanak := level.get("_tiyanak") as Tiyanak2D
+	_check(bool(director.call("is_solved", "L4_TIYANAK"))
+			and String(director.call("committed_route", "L4_TIYANAK")) == "artist" and tiyanak.is_gone(),
+		"and at the tiyanak the same", "route '%s', gone %s" % [director.call("committed_route", "L4_TIYANAK"), tiyanak.is_gone()])
+	await _stand_her_at(7800.0)
+	health.reset_full()
+	var chip_elsewhere := bool(level.call("_wanted_now", "kandila"))
+	satchel.add("kandila", 1)
+	await _quiet()
+	level.call("use_quick_slot", slot)
+	await _frames(2)
+	_check(not chip_elsewhere and _said() == "It burns here for 45 seconds. It does not follow me.",
+		"where nothing asks for a light its slot stays quiet, and set down it says how it burns",
+		"wanted %s, \"%s\"" % [chip_elsewhere, _said()])
+
+
+## The manananggal's is asked of the light: too far from her lower half a candle answers nothing, and
+## set beside it, it answers once it has burned for the design's two seconds.
+func _a_candle_beside_the_lower_half_answers_it() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var director := level.get("director") as Object
+	var lower := level.get("_lower") as ManananggalLower2D
+	satchel.add("kandila", 2)
+	var slot := satchel.slots().find("kandila")
+	await _stand_her_at(lower.global_position.x - 450.0)
+	var chip_far := bool(level.call("_wanted_now", "kandila"))
+	level.call("use_quick_slot", slot)
+	await _frames(int(2.4 * 60.0))
+	var answered_far := bool(director.call("is_solved", "L4_MANANANGGAL"))
+	await _stand_her_at(lower.global_position.x - 80.0)
+	var chip_near := bool(level.call("_wanted_now", "kandila"))
+	level.call("use_quick_slot", slot)
+	await _frames(int(1.0 * 60.0))
+	var too_soon := bool(director.call("is_solved", "L4_MANANANGGAL"))
+	await _frames(int(1.4 * 60.0))
+	_check(not chip_far and not answered_far and chip_near and not too_soon
+			and bool(director.call("is_solved", "L4_MANANANGGAL"))
+			and String(director.call("committed_route", "L4_MANANANGGAL")) == "artist",
+		"a candle far from the lower half answers nothing; beside it, in two seconds, it does",
+		"far: wanted %s, answered %s; near: wanted %s, at 1 s %s, then route '%s'" % [chip_far, answered_far, chip_near,
+			too_soon, director.call("committed_route", "L4_MANANANGGAL")])
+
+
+## Salt when something is ahead of her and in reach, not behind her. Garlic when two are close, or
+## one on a low lamp, and not while a ward holds her.
+func _salt_and_garlic_are_asked_for_when_they_would_help() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var health := level.get("player_health") as PlayerHealth
+	satchel.add("asin", 2)
+	satchel.add("bawang", 2)
+	await _stand_her_at(WARD_X)
+	health.reset_full()
+	await _face(&"move_right")
+	var alone := bool(level.call("_wanted_now", "asin"))
+	var foe := GroundEnemy2D.new()
+	foe.position = Vector2(WARD_X + 200.0, 586.0)
+	(level.get("entity_root") as Node2D).add_child(foe)
+	await _frames(4)
+	var ahead := bool(level.call("_wanted_now", "asin"))
+	# Near her on a full lamp, one is not a crowd.
+	foe.global_position.x = WARD_X + 200.0
+	var one_on_full := bool(level.call("_wanted_now", "bawang"))
+	await _face(&"move_left")
+	foe.global_position.x = WARD_X + 200.0
+	await _frames(1)
+	var behind := bool(level.call("_wanted_now", "asin"))
+	_check(not alone and ahead and not behind, "salt is wanted with one ahead in reach, not with one behind or none",
+		"none %s, ahead %s, behind %s" % [alone, ahead, behind])
+	var second := GroundEnemy2D.new()
+	second.position = Vector2(WARD_X - 200.0, 586.0)
+	(level.get("entity_root") as Node2D).add_child(second)
+	await _frames(4)
+	var two := bool(level.call("_wanted_now", "bawang"))
+	second.queue_free()
+	foe.global_position.x = WARD_X + 200.0
+	await _frames(2)
+	health.dim(PlayerHealth.LOW)
+	health.dim(PlayerHealth.LOW)
+	await _frames(1)
+	var one_on_low := bool(level.call("_wanted_now", "bawang"))
+	level.call("use_quick_slot", satchel.slots().find("bawang"))
+	await _frames(2)
+	var warded := bool(level.call("_wanted_now", "bawang"))
+	var told := _said()
+	_check(not one_on_full and two and one_on_low and not warded,
+		"garlic is wanted with two close or one on a low lamp, and not while a ward holds her",
+		"one on full %s, two %s, one on low %s, warded %s" % [one_on_full, two, one_on_low, warded])
+	_check(told == "Ten seconds inside the ring. Stay in it.", "and crushed, she says how long and to stay in it",
+		"\"%s\"" % told)
+	foe.queue_free()
+
+
+## The lamp's lean, 220 px, is the signal: its slot says Now from there and not from further off, and
+## says so over whatever the bar was saying. Thrown with nothing coming, she is told, once the cloud
+## has gone: at the throw it may yet catch something on its way in.
+func _ash_is_asked_for_when_the_lamp_leans() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var bar := level.get("quick_slots") as QuickSlotBar
+	var finale := level.get("_finale") as DilimFinale2D
+	satchel.add("abo", 2)
+	var slot := satchel.slots().find("abo")
+	await _stand_her_at(21900.0)
+	finale.elapsed = 60.0
+	await _frames(4)
+	var tiktik := finale.tiktik()
+	if tiktik == null:
+		_check(false, "the tik-tik comes to be asked about", "none")
+		return
+	var her := (level.get("player") as Node2D).global_position
+	tiktik.stun(30.0)
+	tiktik.global_position = her + Vector2(0.0, -300.0)
+	await _frames(int(QuickSlotBar.WANTED_HOLD * 60.0) + 4)
+	var far := bar.is_wanted(slot)
+	await _quiet()
+	level.call("use_quick_slot", slot)
+	await _frames(2)
+	var at_the_throw := _said()
+	await _frames(int(1.8 * 60.0))
+	var after_it_hung := _said()
+	var shown_far := tiktik.is_revealed()
+	(level.get("hint_bar") as HintBar).show_hint("something else", "", 30.0)
+	tiktik.global_position = her + Vector2(0.0, -200.0)
+	await _frames(3)
+	var near := bar.is_wanted(slot)
+	var said := _said()
+	_check(not far and at_the_throw.is_empty() and not shown_far
+			and after_it_hung == "Nothing came near enough. Ash only reaches this close.",
+		"the ash's slot is not lit with the tik-tik far off; thrown then, she is told once the cloud has gone",
+		"lit %s, at the throw \"%s\", after \"%s\", shown %s" % [far, at_the_throw, after_it_hung, shown_far])
+	_check(near and said == "The lamp leans. %s, now: ash shows it." % _key_on(slot),
+		"as the lamp leans it says Now, and says so over whatever the bar was saying",
+		"lit %s, \"%s\"" % [near, said])
+
+
+## All five held: the whip found says it has no slot, shows as waiting, and has its key the moment
+## one is spent. Named on the bar so she can see she carries it.
+func _the_sixth_thing_says_it_has_no_slot() -> void:
+	var satchel := level.get("satchel") as Satchel
+	var bar := level.get("quick_slots") as QuickSlotBar
+	for id in ["asin", "kandila", "abo", "bawang", "langis"]:
+		satchel.add(id, 1)
+	await _quiet()
+	await _touch_a_new("buntot_pagi")
+	var said := _said()
+	var waited := bar.waiting_names()
+	await _stand_her_at(7800.0)
+	await _quiet()
+	var freed := satchel.slots().find("kandila")
+	level.call("use_quick_slot", freed)
+	await _frames(2)
+	_check(said == "Buntot Pagi, stingray-tail whip. All the slots are full: use up one of my things and it moves in."
+			and waited == ["Buntot Pagi"],
+		"a thing found with every slot full says so, and stands on the bar as having none",
+		"\"%s\", waiting %s" % [said, waited])
+	_check(satchel.slots()[freed] == "buntot_pagi" and bar.waiting_names().is_empty() and bar.is_welcoming(freed)
+			and _said() == "A slot is free. Buntot Pagi is on %s now." % _key_on(freed),
+		"and when one is spent it moves in, rung, with its key said", "\"%s\", slots %s" % [_said(), satchel.slots()])
+
+
 ## Five at the checkpoint, two more found after it, then knocked out: all seven still hers.
 func _a_knockout_keeps_what_she_carries() -> void:
 	var satchel = level.get("satchel")
@@ -749,6 +1207,7 @@ func _a_continue_gives_it_back() -> void:
 func _the_controls_screen_names_the_slots() -> void:
 	var overlay := level.get_node(^"ControlsOverlay")
 	var shown: Array[bool] = []
+	var keys_named := false
 	for level_id in ["level_1", "level_4"]:
 		root.get_node(^"LevelManager").set(&"current_level_id", level_id)
 		overlay.call("_build")
@@ -756,10 +1215,12 @@ func _the_controls_screen_names_the_slots() -> void:
 		var named := false
 		for label in overlay.find_children("*", "Label", true, false):
 			named = named or (label as Label).text.begins_with("Use one of Lola's things")
+			keys_named = keys_named or (label as Label).text == "Z  -  B"
 		shown.append(named)
 	root.get_node(^"LevelManager").set(&"current_level_id", "level_4")
 	_check(shown == [false, true], "the controls screen names the quick slots in Dilim and nowhere else",
 		"shown in Payyo / Dilim: %s" % [shown])
+	_check(keys_named, "and it names them from Z to B", "named %s" % keys_named)
 
 
 func _open_level(resuming: bool = false) -> Node:

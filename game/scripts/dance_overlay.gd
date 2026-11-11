@@ -8,11 +8,8 @@ extends ModalOverlay
 ## two routes and then nothing happened at all. No kandila, no church, no way back to the
 ## choice. `run_nodraw_level2` printed that as PEND on every run. This is what closes it.
 ##
-## WHAT IS SCORED IS **WHEN THE STROKE FINISHES**, NOT WHAT IT WAS. The recogniser is not
-## involved and no ink is spent: it is a performance, not a summoning. The shape on each cue
-## is there to give the hand something to do that takes time -- which is what makes timing a
-## skill rather than a reflex -- and it is deliberately never checked. A player who scribbles
-## on the beat has danced; a player who draws a beautiful sayaw two seconds late has not.
+## Press Space or finish a stroke to hit a cue. The score uses the timing of the input.
+## Drawing here uses no ink and does not involve the recogniser.
 ##
 ## SO IT IS BUILT IN CODE, like everything else this level places. There is no `.tscn` for
 ## it: generating scene files by hand is trap 2 in the notes, and an overlay whose entire
@@ -155,8 +152,7 @@ func _build() -> void:
 	# the next one sat outside the frame, over the level, before it had arrived.
 	_stage.clip_contents = true
 	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# THE ONE THING ON THIS SCREEN THAT TAKES INPUT. Everything else ignores the mouse, so a
-	# stroke started anywhere in the panel reaches here and nothing eats it on the way.
+	# The stage takes drawing input. The overlay handles Space regardless of focus.
 	_stage.mouse_filter = Control.MOUSE_FILTER_STOP
 	_stage.gui_input.connect(_on_stage_input)
 	_stage.draw.connect(_draw_stage)
@@ -193,7 +189,7 @@ func _begin() -> void:
 	_flash_at = -99.0
 	_running = true
 	_title.text = "SAYAW" if attempt == 1 else "SAYAW  ·  ULIT"
-	_status.text = "Draw on the beat. Anything you like — it is the timing they are watching."
+	_status.text = "Press Space or finish a stroke on the beat."
 	_stage.queue_redraw()
 
 
@@ -256,6 +252,16 @@ func _end_attempt() -> void:
 
 # --- The hand ---------------------------------------------------------------------------
 
+func _input(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	if not is_open() or key == null \
+			or (key.physical_keycode != KEY_SPACE and key.keycode != KEY_SPACE):
+		return
+	get_viewport().set_input_as_handled()
+	if key.pressed and not key.echo:
+		_hit_cue()
+
+
 func _on_stage_input(event: InputEvent) -> void:
 	if not _running:
 		return
@@ -293,6 +299,11 @@ func clock() -> float:
 ## is another. A private handler reachable only through a synthetic `InputEventMouseButton`
 ## would make the suite a test of Godot's input plumbing rather than of the dance.
 func perform_stroke() -> String:
+	_stroke = PackedVector2Array()
+	return _hit_cue()
+
+
+func _hit_cue() -> String:
 	if not _running:
 		return ""
 	var index := _nearest_open_cue()
@@ -301,13 +312,11 @@ func perform_stroke() -> String:
 		# can still hit -- and says so, because silence here reads as the game not seeing it.
 		_stray_at = _clock
 		_flash = ""
-		_stroke = PackedVector2Array()
 		return "stray"
 	var verdict := _dance.judge(index, _clock)
 	_verdicts[index] = verdict
 	_flash = verdict.to_upper()
 	_flash_at = _clock
-	_stroke = PackedVector2Array()
 	return verdict
 
 

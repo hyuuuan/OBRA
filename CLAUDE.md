@@ -13,7 +13,7 @@ The thesis manuscript governs where it and the SRS disagree.
 
 ## 1. Read these before you touch anything
 
-1. **`AGENTS.md`**: the architecture contracts, notes on every level, the traps this project keeps re-learning, and the commands. It is long; read the Project Map, Stable Contracts, Building a level, your level's section, and **Traps** in full.
+1. **`AGENTS.md`**: tool routing, architecture contracts, and verification rules. Read the relevant section of **`docs/IMPLEMENTATION_NOTES.md`** when you need level history, known traps, or commands.
 2. **`LEVEL_TEMPLATE.md`**: the shape every level has, the gate rules R1–R9, the invariants to assert, the tests a level owes, and the build order.
 3. **`LEVEL_<N>.md`** for the level you are on. For Mayon that is **`LEVEL_5.md`**. Its "Decisions — do not re-litigate" table is settled; do not reopen it.
 4. As needed: `HUD_SKIN.md` (the UI look), `GATES.md`, `ART_PLACEHOLDERS.md` (every stand-in art piece, by name), `CONTENT_NEEDED.md`, `DIARY.md` (Lola's diary: a page in every level, the bag's DIARY tab).
@@ -38,7 +38,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 ### Testing
 - **First, in a fresh checkout or after art changes:** `godot --headless --path game --import`. Without it, no `class_name` resolves.
 - **Run only the suites your change touches:** `tools/run_suites.sh only <suite> <suite> …`. Run the **full** suite (`tools/run_suites.sh`, 25–40 min) only when shipping, or when a change cuts across every level (an autoload, shared `LevelBase` plumbing).
-- **Run one Godot process at a time.** Test runs share one sandboxed `user://test_runs/` folder.
+- **Godot runs may overlap, across worktrees too.** Each test run has its own `user://test_runs/<pid>` folder (`user_data.gd`). They still share the CPU, so re-run a timing failure alone before believing it.
 - **A green suite is not a silent one.** Grep the output for `SCRIPT ERROR`, `Parse Error`, `^ERROR` and `Error calling`.
 - **Mutation-test every new check.** Break the line the check guards, run the probe, confirm that the check fails, then restore the line. A check that cannot fail is not a check, so do this for every assertion you add.
 - **Probe conventions:**
@@ -64,6 +64,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
   - The picture comes first (`LessonVisual`); the caption is 8 words or fewer and comes second.
   - One card at a time; the screen dims and the lesson's subject is lit.
   - **Never** draw a picture of one of the 50 classes in a lesson. A ladder, a square or stairs in a picture is a hint the level did not mean to give.
+  - **Level 1 teaches every control.** A later level shows a card only for what Level 1 cannot teach (`NECESSARY_CARDS` in `run_tutorial_audit`); the rest is a `say` line on the hint bar. A Level 1 lesson a route missed is owed and shown once later (`carries` in `tutorial.json`).
 - **No dialogue or objective line names a drawable class**, in English or Filipino (*tulay, hagdan, pinto, puno* …). Audits enforce this.
 - **Gates are tags, not classes.** Every gate must resolve to at least 2 classes with held-out recall ≥ 0.70 after exclusions (BR-7, using `model/metrics.json`).
 - **`modulate` multiplies, so it can never make anything lighter.** To add light, draw a lit layer on top or use a shader.

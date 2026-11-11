@@ -34,9 +34,13 @@ extends Node
 ## one per event, which is what the data audits measure.
 ##
 ## SPENT ONCE PER RUN, IN MEMORY. Not on the profile: a returning player skipping these is a
-## profile flag and a schema bump, deliberately -- not a side effect of a tutorial.
+## profile flag and a schema bump, deliberately -- not a side effect of a tutorial. The one thing
+## that outlives a level is the short list of lessons Level 1 could not reach for this player
+## (`_take_on_what_is_owed`), written when a level is finished.
 
 const CONFIG_PATH := "res://config/tutorial.json"
+## The level that teaches the game, and so the one whose lessons a later level can owe.
+const TUTORIAL_LEVEL := "level_1"
 ## PRELOADED, NOT NAMED. controls_overlay.gd declares no class_name, so the only way to
 ## reach its static key lookup is the script itself.
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
@@ -106,21 +110,61 @@ func load_for(level_id: String) -> bool:
 		push_warning("TutorialDirector: %s is not a JSON object" % CONFIG_PATH)
 		return false
 	var levels: Dictionary = (parsed as Dictionary).get("levels", {})
-	if not levels.has(level_id):
-		# A level with nothing to teach is not an error.
-		return false
-	var block: Dictionary = levels[level_id]
+	# A level with nothing to teach is not an error: most of them have no block at all.
+	var block: Dictionary = levels.get(level_id, {})
 	for value: Variant in block.get("lessons", []):
+		_add_lesson(value as Dictionary)
+	_take_on_what_is_owed(levels)
+	return not _lessons.is_empty()
+
+
+func _add_lesson(lesson: Dictionary) -> void:
+	var id := String(lesson.get("id", ""))
+	var at := String(lesson.get("at", ""))
+	if id.is_empty() or at.is_empty():
+		return
+	_lessons.append(lesson)
+	var bucket: Array = _by_event.get(at, [])
+	bucket.append(id)
+	_by_event[at] = bucket
+
+
+## WHAT LEVEL 1 NEVER GOT TO TEACH THIS PLAYER. Level 1 covers the whole game, but most of its
+## lessons wait for the player to do the thing, and a run can finish it having never become
+## anything. So what is left over is owed, and a later level -- which otherwise teaches none of
+## this -- shows it once, the first time its moment comes. See `carries` in tutorial.json.
+func _take_on_what_is_owed(levels: Dictionary) -> void:
+	if _level_id == TUTORIAL_LEVEL:
+		return
+	# Not on a director an audit is holding outside the tree: it has no profile to owe anything.
+	var profile := get_node_or_null(^"/root/PlayerProfile") if is_inside_tree() else null
+	var owed: Array = profile.call("lessons_owed") if profile != null else []
+	if owed.is_empty():
+		return
+	var tutorial_level: Dictionary = levels.get(TUTORIAL_LEVEL, {})
+	for value: Variant in tutorial_level.get("lessons", []):
 		var lesson: Dictionary = value
 		var id := String(lesson.get("id", ""))
-		var at := String(lesson.get("at", ""))
-		if id.is_empty() or at.is_empty():
+		if not owed.has(id) or not bool(lesson.get("carries", false)):
+			# Spent back in Level 1, so that a lesson owed behind it (`after`) can still come.
+			_seen[id] = "earlier"
 			continue
-		_lessons.append(lesson)
-		var bucket: Array = _by_event.get(at, [])
-		bucket.append(id)
-		_by_event[at] = bucket
-	return not _lessons.is_empty()
+		# ⚠ WITHOUT ITS LEAD. Those are Lolo's, he is gone by Dilim, and "nothing speaks as him"
+		# once he has gone is a rule Mayon's probes hold. A copy: the parsed block is thrown away
+		# here, but nothing should have to know that to read this.
+		var carried := lesson.duplicate()
+		carried.erase("lead")
+		_add_lesson(carried)
+
+
+## The lessons a route could have missed and this one has, which is what the next level owes.
+func owed_ids() -> Array:
+	var out := []
+	for lesson in _lessons:
+		var id := String(lesson.get("id", ""))
+		if bool(lesson.get("carries", false)) and not _seen.has(id):
+			out.append(id)
+	return out
 
 
 func bind_hint_bar(bar: Node) -> void:
@@ -187,6 +231,10 @@ func skip_rest() -> void:
 			_seen[id] = "skipped"
 			left += 1
 	set_enabled(false)
+	# Skipping means it: nothing left over comes back in a later level.
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile != null:
+		profile.call("set_lessons_owed", [])
 	var telemetry := get_node_or_null(^"/root/Telemetry")
 	if telemetry != null:
 		telemetry.call("record_event", "tutorial_skipped", {"level_id": _level_id, "lessons_left": left})
@@ -303,14 +351,18 @@ func _pump(delta: float) -> void:
 		if lesson.is_empty():
 			_queue.erase(id)
 			continue
-		if not _context_holds(lesson) or not _anchor_ready(lesson):
+		var ready := _context_holds(lesson) and _anchor_ready(lesson)
+		var can_show := ready and _gap <= 0.0 and _coast_is_clear(lesson)
+		# Optional reminders can go stale while waiting behind another line.
+		if not ready or (_mode_of(lesson) == "say" and not can_show):
 			_ready_for[id] = 0.0
-			_unready_for[id] = float(_unready_for.get(id, 0.0)) + delta
+			if not ready or not get_tree().paused:
+				_unready_for[id] = float(_unready_for.get(id, 0.0)) + delta
 			if float(_unready_for[id]) > float(lesson.get("patience", PATIENCE)):
 				_queue.erase(id)
 			continue
 		_unready_for[id] = 0.0
-		if _gap > 0.0 or not _coast_is_clear(lesson):
+		if not can_show:
 			continue
 		_ready_for[id] = float(_ready_for.get(id, 0.0)) + delta
 		if float(_ready_for[id]) < float(lesson.get("delay", 0.0)):
@@ -347,9 +399,13 @@ func _show(lesson: Dictionary) -> void:
 	var id := String(lesson["id"])
 	_seen[id] = "shown"
 	if _mode_of(lesson) == "say":
-		if _hint_bar != null and _hint_bar.has_method("show_hint"):
-			_hint_bar.call("show_hint", resolve(lesson), String(lesson.get("speaker", "Lolo")),
-				float(lesson.get("seconds", 6.0)))
+		# In passing, because what it speaks over is still true: the advice comes back after him.
+		if _hint_bar != null and _hint_bar.has_method("interject"):
+			var while_relevant := Callable()
+			if lesson.has("context"):
+				while_relevant = func() -> bool: return _context_holds(lesson)
+			_hint_bar.call("interject", resolve(lesson), String(lesson.get("speaker", "Lolo")),
+				float(lesson.get("seconds", 6.0)), while_relevant)
 		_gap = GAP_AFTER
 		lesson_taught.emit(id)
 		return
@@ -401,13 +457,22 @@ func _coast_is_clear(lesson: Dictionary) -> bool:
 			return false
 	# Nor while the letterbox is in. It frames a beat and carries its own caption -- at a
 	# checkpoint, "Checkpoint" in the lower bar -- and a card over it was two things to read.
+	#
+	# ⚠ A CARD. LOLO'S LEAD IS SAID NOW. The bars do not stop her, so "A lantern!" waited two
+	# seconds and was said 480 px past the lantern, about something behind her. The line stops
+	# the world where she stands; its card still waits for the bars.
+	var about_to_speak := not lead_of(lesson).is_empty() and not _led.has(String(lesson.get("id", "")))
 	for bars in get_tree().get_nodes_in_group(CinematicBars.GROUP):
-		if bars.has_method(&"is_playing") and bool(bars.call(&"is_playing")):
+		if not about_to_speak and bars.has_method(&"is_playing") and bool(bars.call(&"is_playing")):
 			return false
-	# Lolo's own line waits for the bar to be free: the advice about the obstacle in front of
+	# Lolo's own line waits for what is up to be read: the advice about the obstacle in front of
 	# the player outranks him remarking on the interface.
-	if _mode_of(lesson) == "say" and _hint_bar != null and _hint_bar.has_method(&"is_showing") \
-			and bool(_hint_bar.call(&"is_showing")):
+	#
+	# ⚠ READ, NOT GONE. Advice stands until its beat ends, so waiting for an empty bar meant
+	# "That bar is your ink now" was not said while the bangka's advice stood, which is the whole
+	# time she holds the shape it is about.
+	if _mode_of(lesson) == "say" and _hint_bar != null and _hint_bar.has_method(&"is_being_read") \
+			and bool(_hint_bar.call(&"is_being_read")):
 		return false
 	return true
 

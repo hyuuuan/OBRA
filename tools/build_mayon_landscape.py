@@ -32,9 +32,16 @@ def main():
         edge=edge.resize((128,round(edge.height*128/edge.width)),Image.Resampling.NEAREST)
         pictures.put(edge,OUT/'terrain'/f'edge_{name}.png')
     props=Image.open(SRC/'ruin_props.png').convert('RGBA')
+    # ⚠ The old steps' box starts inside the old crossing's far post, and a strip of it came along:
+    # a bar beside the steps, dark when painted, stark white once the ash took it. Clear it (box
+    # coordinates) only after the bounds are taken, so the cut keeps the canvas the scene places it
+    # by and every pixel of the steps stays put. The crossing's own box keeps its whole post.
+    not_this_prop={'old_steps':(0,190,24,430)}
     for name,box,longest in [('old_crossing',(0,170,780,460),330),('old_steps',(760,0,1240,590),220),('basalt_column',(0,580,600,1250),380),('broken_arch',(600,600,1260,1240),330)]:
         image=props.crop(box)
         bounds=image.getchannel('A').point(lambda v:255 if v>24 else 0).getbbox()
+        if name in not_this_prop:
+            image.paste((0,0,0,0),not_this_prop[name])
         image=image.crop(bounds)
         scale=longest/max(image.size)
         image=image.resize((round(image.width*scale),round(image.height*scale)),Image.Resampling.NEAREST)

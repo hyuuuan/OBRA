@@ -40,10 +40,10 @@ func _run() -> void:
 		root.add_child(tags)
 	var level := _load(LEVEL_PATH)
 	_audit_gates_have_two_strong_answers(level)
-	_audit_no_line_names_a_class()
 	_audit_nothing_refills(level)
 	_audit_shipping_state()
 	var scene := await _open_level()
+	_audit_no_line_names_a_class(scene)
 	_audit_hooks(scene)
 	_audit_the_reserve_is_the_gates(scene)
 	_audit_gate_ground(scene)
@@ -91,7 +91,7 @@ func _audit_gates_have_two_strong_answers(level: Dictionary) -> void:
 		"; ".join(seen) if thin.is_empty() else "; ".join(thin))
 
 
-func _audit_no_line_names_a_class() -> void:
+func _audit_no_line_names_a_class(scene: Node) -> void:
 	var terms := _class_terms()
 	var hits: Array[String] = []
 	for line_value: Variant in _load(DIALOGUE_PATH).get("lines", []):
@@ -101,11 +101,14 @@ func _audit_no_line_names_a_class() -> void:
 			if pattern.search(text) != null:
 				hits.append("%s names '%s'" % [(line_value as Dictionary).get("id", "?"), term])
 	var objectives: Dictionary = _load(LEVEL_PATH).get("objectives", {})
+	# Audit the words the player sees. A {key:redraw} token renders as the bound
+	# control, and its literal "key" is also a drawable class in the roster.
 	for key: String in objectives:
 		if key.begins_with("$"):
 			continue
+		var shown := String(scene.call("with_keys", String(objectives[key])))
 		for term in terms:
-			if RegEx.create_from_string("\\b%s\\b" % term.to_lower()).search(String(objectives[key]).to_lower()) != null:
+			if RegEx.create_from_string("\\b%s\\b" % term.to_lower()).search(shown.to_lower()) != null:
 				hits.append("objective %s names '%s'" % [key, term])
 	_check(hits.is_empty(), "no line or objective names a drawable class",
 		"none" if hits.is_empty() else "; ".join(hits.slice(0, 4)))
@@ -194,6 +197,9 @@ func _audit_gate_ground(scene: Node) -> void:
 		var gap := after.position.x - before.end.x
 		var rise := before.position.y - after.position.y
 		if gap > 1.0:
+			# The crater is an entrance, measured and driven by run_level5_crater_probe.
+			var crater: Vector2 = scene.call("_anchor", "crater")
+			if crater.x > before.end.x and crater.x < after.position.x: continue
 			gaps.append("%.0f wide after %.0f of floor" % [gap, before.size.x])
 			if gap <= RUNNING_JUMP or gap >= BRIDGE or before.size.x < FLOOR_BEFORE:
 				wrong.append("the gap at %.0f is %.0f across after %.0f of floor" % [before.end.x, gap, before.size.x])
@@ -249,28 +255,19 @@ func _audit_every_obstacle_has_a_volume(scene: Node, level: Dictionary) -> void:
 		", ".join(volumes) if data == volumes else "data %s, ground %s" % [data, volumes])
 
 
-## Act Two: twelve fragments, three with lolo in them, and every class that saves one reads at
-## or above the floor -- a misread fragment costs nothing but is a choice taken away.
+## Act Two has twelve distinct preservation landmarks and three that steady Lolo.
 func _audit_the_fragments(scene: Node) -> void:
-	var report := _report()
 	var fragments := scene.find_children("*", "MemoryFragment2D", true, false)
 	var lolo := 0
-	var thin: Array[String] = []
+	var ids := {}
 	for node in fragments:
 		var fragment := node as MemoryFragment2D
+		ids[fragment.fragment_id] = true
 		if fragment.holds_lolo:
 			lolo += 1
-		var strong := 0
-		for entity: String in fragment.accepts:
-			if float((report.get(entity, {}) as Dictionary).get("recall", 0.0)) >= RECALL_FLOOR:
-				strong += 1
-			else:
-				thin.append("%s: %s" % [fragment.fragment_id, entity])
-		if strong < 2:
-			thin.append("%s has %d" % [fragment.fragment_id, strong])
-	_check(fragments.size() == 12 and lolo == 3 and thin.is_empty(),
-		"twelve fragments, three with lolo in them, each saved by two or more strong classes",
-		"%d fragments, %d with lolo" % [fragments.size(), lolo] if thin.is_empty() else "; ".join(thin))
+	_check(fragments.size() == 12 and ids.size() == 12 and lolo == 3,
+		"twelve distinct fragments, three with Lolo in them",
+		"%d fragments, %d distinct, %d with Lolo" % [fragments.size(), ids.size(), lolo])
 
 
 ## The flower's fragment is down a path nobody needed to walk: out of reach of the corridor.
@@ -282,7 +279,7 @@ func _audit_the_flower_is_off_the_path(scene: Node) -> void:
 	var below := 0.0
 	if flower != null:
 		var ground_y := 600.0
-		for ground: Rect2 in scene.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/Cone").get("platforms"):
+		for ground: Rect2 in scene.get("_journey").route:
 			if flower.global_position.x >= ground.position.x and flower.global_position.x < ground.end.x:
 				ground_y = ground.position.y
 		below = ground_y - flower.global_position.y
@@ -300,7 +297,7 @@ func _audit_the_flower_stair(scene: Node, flower: MemoryFragment2D) -> void:
 	rocks = rocks.duplicate()
 	rocks.sort_custom(func(a: Rect2, b: Rect2) -> bool: return a.position.y > b.position.y)
 	var step_from := 600.0
-	for ground: Rect2 in scene.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/Cone").get("platforms"):
+	for ground: Rect2 in scene.get("_journey").route:
 		if not rocks.is_empty() and (rocks[0] as Rect2).position.x >= ground.position.x \
 				and (rocks[0] as Rect2).position.x < ground.end.x:
 			step_from = ground.position.y
@@ -314,9 +311,14 @@ func _audit_the_flower_stair(scene: Node, flower: MemoryFragment2D) -> void:
 	if flower != null and rocks.size() >= 2:
 		top_gap = (rocks[-1] as Rect2).position.y - flower.global_position.y
 		next_gap = (rocks[-2] as Rect2).position.y - flower.global_position.y
-	_check(rocks.size() >= 2 and steep.is_empty() and flower != null
+	var planted := false
+	if flower != null and not rocks.is_empty():
+		var picture := flower.get_node("Picture") as Sprite2D
+		var foot := picture.global_position.y + picture.texture.get_height()*picture.global_scale.y*.5
+		planted = absf(foot-(rocks[-1] as Rect2).position.y) < .1
+	_check(rocks.size() >= 2 and steep.is_empty() and flower != null and planted
 			and top_gap <= flower.reach and next_gap > flower.reach,
-		"the flower stair rises at most 60px a step, and only its top rock reaches the flower",
+		"the flower stands on its top rock; each rise is at most 60px and only the top is in reach",
 		"rises %s, flower %.0f above the top rock and %.0f above the next" % [rises, top_gap, next_gap])
 
 

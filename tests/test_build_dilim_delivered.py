@@ -374,7 +374,7 @@ class DeliveredStripsTest(unittest.TestCase):
         bark_top = -(creatures.small.PERCH + 4)
         self.assertLessEqual(abs(delivered.KAPRE_ART_AT[1] - bark_top), 2,
                              f"its feet are at {delivered.KAPRE_ART_AT[1]}, the branch's top at {bark_top}")
-        tree = np.asarray(creatures.strips()["kapre_tree_idle"])[..., 3] > 0
+        tree = np.asarray(Image.open(ROOT / "game/assets/Level4/trees/kapre_tree_idle.png"))[..., 3] > 0
         th, tw = tree.shape
         x, y = int(tw // 2 + delivered.KAPRE_ART_AT[0]), int(th + delivered.KAPRE_ART_AT[1])
         self.assertTrue(tree[y:y + 4, x - 4:x + 5].any(), "nothing of the branch under its feet")
@@ -422,7 +422,7 @@ class DeliveredStripsTest(unittest.TestCase):
         # and the kapre as the game stands them: the sky they show must be next to none, and the
         # ember itself must still show.
         light = self._lights()
-        tree = np.asarray(creatures.strips()["kapre_tree_idle"])[..., 3] > 0
+        tree = np.asarray(Image.open(ROOT / "game/assets/Level4/trees/kapre_tree_idle.png"))[..., 3] > 0
         stood = _frames(self.strips["kapre_idle"])[0][..., 3] > 0
         left, top, w, h = -200, -360, 280, 300
         drawn = np.zeros((h, w), dtype=bool)

@@ -8,47 +8,38 @@
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
 [ext_resource type="Script" path="res://scripts/mayon_vista_2d.gd" id="7_backdrop"]
 [ext_resource type="Script" path="res://scripts/mayon_terrain_2d.gd" id="8_terrain"]
-[ext_resource type="Script" path="res://scripts/memory_fragment_2d.gd" id="9_fragment"]
 [ext_resource type="Script" path="res://scripts/lola_2d.gd" id="10_lola"]
 [ext_resource type="Script" path="res://scripts/wind_streaks_2d.gd" id="11_wind"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/bell_tower.png" id="p_bell_tower"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/palm.png" id="p_palm"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/palm_short.png" id="p_palm_short"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/rock_big.png" id="p_rock_big"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/rock_low.png" id="p_rock_low"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/bell_tower.png" id="p_bell_tower"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/palm.png" id="p_palm"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/palm_short.png" id="p_palm_short"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/rock_big.png" id="p_rock_big"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/rock_low.png" id="p_rock_low"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/fern.png" id="p_fern"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/flowers_white.png" id="p_flowers_white"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/ruin_pillar.png" id="p_ruin_pillar"]
-[ext_resource type="Texture2D" path="res://assets/Level5/tiles/path.png" id="t_path"]
-[ext_resource type="Texture2D" path="res://assets/Level5/tiles/masonry.png" id="t_masonry"]
 
 [ext_resource type="Texture2D" path="res://assets/Level5/props/old_crossing.png" id="p_old_crossing"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/old_steps.png" id="p_old_steps"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/basalt_column.png" id="p_basalt_column"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/basalt_column.png" id="p_basalt_column"]
 [ext_resource type="Texture2D" path="res://assets/Level5/props/broken_arch.png" id="p_broken_arch"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/tree_broadleaf.png" id="p_tree_broadleaf"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/tree_tall.png" id="p_tree_tall"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/palm_pair.png" id="p_palm_pair"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/ash_snag.png" id="p_ash_snag"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/upper_wall.png" id="p_upper_wall"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/upper_pillar.png" id="p_upper_pillar"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/fallen_masonry.png" id="p_fallen_masonry"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/boulder_large.png" id="p_boulder_large"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/boulder_scatter.png" id="p_boulder_scatter"]
-[ext_resource type="Texture2D" path="res://assets/Level5/props/basalt_spires.png" id="p_basalt_spires"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/tree_broadleaf.png" id="p_tree_broadleaf"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/palm_pair.png" id="p_palm_pair"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/treeline_leafy.png" id="p_treeline_leafy"]
+[ext_resource type="Texture2D" path="res://assets/Level5/revamp/ash_snag.png" id="p_ash_snag"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Wall"]
 size = Vector2(40.0, 3000.0)
 
 [node name="EnvironmentBaseplate" type="Node2D"]
 script = ExtResource("1_environment")
-world_bounds = Rect2(-200, -1800, 14400, 3300)
+world_bounds = Rect2(-200, -1800, 23360, 3300)
 
 [node name="WorldCamera" type="Camera2D" parent="."]
 script = ExtResource("2_camera")
 target_offset = Vector2(0, -260)
 world_bottom_y = 900.0
-outdoor_x_limits = Vector2(116, 13880)
+outdoor_x_limits = Vector2(116, 22760)
 
 ; The ash, hung on the camera: thicker the higher she climbs (level_5.gd sets the density).
 [node name="Ash" type="Node2D" parent="WorldCamera"]
@@ -62,10 +53,10 @@ script = ExtResource("11_wind")
 ; Behind every band: the sunset's own colour, so a camera past a plate's edge meets more sky.
 [node name="SkyFill" type="Polygon2D" parent="."]
 z_index = -300
-color = Color(0.933, 0.533, 0.247, 1)
+color = Color(0.753, 0.369, 0.251, 1)
 polygon = PackedVector2Array(-3000, -4000, 20000, -4000, 20000, 3000, -3000, 3000)
 
-; The painting stays registered; foothill and forest ribbons scroll at separate depths.
+; The sunset, single cone, and foothill ribbons scroll at separate depths.
 [node name="SkyBand" type="Node2D" parent="."]
 z_index = -100
 script = ExtResource("7_backdrop")
@@ -88,10 +79,10 @@ position = Vector2(260.0, 510.0)
 script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(-200, 600, 1600, 800), Rect2(1400, 520, 400, 880), Rect2(1800, 440, 500, 960), Rect2(2600, 440, 900, 960), Rect2(3500, 360, 700, 1040)])
 
-; Above the treeline nothing grows: the bare cone, the corridor and the summit.
+; Above the treeline the bare cone ends in a real opening: the active crater.
 [node name="Cone" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
-platforms = Array[Rect2]([Rect2(4200, 140, 1200, 1260), Rect2(5400, 60, 600, 1340), Rect2(6000, -20, 500, 1420), Rect2(6500, -100, 1300, 1500), Rect2(7800, -180, 500, 1580), Rect2(8300, -260, 1300, 1660), Rect2(9600, -340, 500, 1740), Rect2(10100, -420, 3900, 1820)])
+platforms = Array[Rect2]([Rect2(4200, 140, 800, 1260), Rect2(5500, 140, 500, 1260)])
 grassed = false
 tint = Color(0.8, 0.76, 0.74, 1)
 
@@ -114,14 +105,14 @@ texture_filter = 1
 position = Vector2(440, 600)
 scale = Vector2(0.68, 0.68)
 modulate = Color(0.74, 0.78, 0.66, 1)
-texture = ExtResource("p_tree_tall")
+texture = ExtResource("p_treeline_leafy")
 offset = Vector2(0, -200)
 flip_h = true
 
 [node name="TowerGrove" type="Sprite2D" parent="GameplayPlane/Dressing"]
 texture_filter = 1
 position = Vector2(1010, 600)
-texture = ExtResource("p_tree_tall")
+texture = ExtResource("p_treeline_leafy")
 offset = Vector2(0, -200)
 
 [node name="FootPalms" type="Sprite2D" parent="GameplayPlane/Dressing"]
@@ -153,7 +144,7 @@ texture_filter = 1
 position = Vector2(2080, 440)
 scale = Vector2(0.68, 0.68)
 modulate = Color(0.83, 0.84, 0.7, 1)
-texture = ExtResource("p_tree_tall")
+texture = ExtResource("p_treeline_leafy")
 offset = Vector2(0, -200)
 flip_h = true
 
@@ -179,7 +170,7 @@ texture_filter = 1
 position = Vector2(3650, 360)
 scale = Vector2(0.73, 0.73)
 modulate = Color(0.74, 0.73, 0.69, 1)
-texture = ExtResource("p_tree_tall")
+texture = ExtResource("p_treeline_leafy")
 offset = Vector2(0, -200)
 flip_h = true
 
@@ -250,153 +241,6 @@ modulate = Color(0.72, 0.68, 0.72, 1)
 ; Decorative only. The summit takes the entire group to paper with the landscape.
 [node name="UpperDressing" type="Node2D" parent="GameplayPlane"]
 z_index = -7
-texture_filter = 1
-
-[node name="ConeBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(4390, 140)
-texture = ExtResource("p_boulder_large")
-offset = Vector2(0, -67.5)
-modulate = Color(0.8, 0.78, 0.82, 1)
-
-[node name="FirstBrokenWall" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(4800, 140)
-texture = ExtResource("p_upper_wall")
-offset = Vector2(0, -90)
-modulate = Color(0.82, 0.8, 0.84, 1)
-
-[node name="WallRubble" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(5010, 140)
-scale = Vector2(0.85, 0.85)
-texture = ExtResource("p_boulder_scatter")
-offset = Vector2(0, -37.5)
-modulate = Color(0.78, 0.77, 0.82, 1)
-
-[node name="LowerBasaltSpines" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(5240, 140)
-scale = Vector2(0.82, 0.82)
-texture = ExtResource("p_basalt_spires")
-offset = Vector2(0, -90)
-modulate = Color(0.76, 0.75, 0.82, 1)
-
-[node name="FirstMemoryScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(5550, 60)
-scale = Vector2(0.8, 0.8)
-texture = ExtResource("p_boulder_scatter")
-offset = Vector2(0, -37.5)
-modulate = Color(0.82, 0.8, 0.85, 1)
-flip_h = true
-
-[node name="TerracePillar" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(5920, 60)
-scale = Vector2(0.64, 0.64)
-texture = ExtResource("p_upper_pillar")
-offset = Vector2(0, -81)
-modulate = Color(0.79, 0.78, 0.84, 1)
-
-[node name="FirstMemoryBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(6250, -20)
-scale = Vector2(0.62, 0.62)
-texture = ExtResource("p_boulder_large")
-offset = Vector2(0, -67.5)
-modulate = Color(0.85, 0.81, 0.85, 1)
-flip_h = true
-
-[node name="FallenArchSection" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(6720, -100)
-scale = Vector2(0.9, 0.9)
-texture = ExtResource("p_fallen_masonry")
-offset = Vector2(0, -59.5)
-modulate = Color(0.84, 0.8, 0.84, 1)
-
-[node name="ArchScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(6940, -100)
-scale = Vector2(0.65, 0.65)
-texture = ExtResource("p_boulder_scatter")
-offset = Vector2(0, -37.5)
-modulate = Color(0.83, 0.8, 0.85, 1)
-
-[node name="SecondBrokenWall" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(7170, -100)
-scale = Vector2(0.74, 0.74)
-texture = ExtResource("p_upper_wall")
-offset = Vector2(0, -90)
-modulate = Color(0.84, 0.81, 0.86, 1)
-flip_h = true
-
-[node name="StormBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(7590, -100)
-scale = Vector2(0.65, 0.65)
-texture = ExtResource("p_boulder_large")
-offset = Vector2(0, -67.5)
-modulate = Color(0.85, 0.82, 0.86, 1)
-
-[node name="MiddleBasaltSpines" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(8000, -180)
-scale = Vector2(0.76, 0.76)
-texture = ExtResource("p_basalt_spires")
-offset = Vector2(0, -90)
-modulate = Color(0.8, 0.78, 0.84, 1)
-flip_h = true
-
-[node name="CoralScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(8500, -260)
-scale = Vector2(0.82, 0.82)
-texture = ExtResource("p_boulder_scatter")
-offset = Vector2(0, -37.5)
-modulate = Color(0.87, 0.83, 0.87, 1)
-
-[node name="AshMasonry" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(8980, -260)
-scale = Vector2(0.76, 0.76)
-texture = ExtResource("p_fallen_masonry")
-offset = Vector2(0, -59.5)
-modulate = Color(0.94, 0.91, 0.9, 1)
-flip_h = true
-
-[node name="AshPillar" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(9310, -260)
-scale = Vector2(0.68, 0.68)
-texture = ExtResource("p_upper_pillar")
-offset = Vector2(0, -81)
-modulate = Color(0.94, 0.91, 0.91, 1)
-
-[node name="FlowerApproachBoulder" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(9650, -340)
-scale = Vector2(0.73, 0.73)
-texture = ExtResource("p_boulder_large")
-offset = Vector2(0, -67.5)
-modulate = Color(0.96, 0.92, 0.91, 1)
-flip_h = true
-
-[node name="FlowerPathScatter" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(10210, -420)
-scale = Vector2(0.8, 0.8)
-texture = ExtResource("p_boulder_scatter")
-offset = Vector2(0, -37.5)
-modulate = Color(0.96, 0.93, 0.92, 1)
-flip_h = true
-
-[node name="UpperBasaltSpines" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(10510, -420)
-scale = Vector2(0.74, 0.74)
-texture = ExtResource("p_basalt_spires")
-offset = Vector2(0, -90)
-modulate = Color(0.94, 0.92, 0.92, 1)
-
-[node name="LastBrokenWall" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(10800, -420)
-scale = Vector2(0.82, 0.82)
-texture = ExtResource("p_upper_wall")
-offset = Vector2(0, -90)
-modulate = Color(0.96, 0.93, 0.92, 1)
-
-[node name="LastRubble" type="Sprite2D" parent="GameplayPlane/UpperDressing"]
-position = Vector2(11070, -420)
-scale = Vector2(0.75, 0.75)
-texture = ExtResource("p_fallen_masonry")
-offset = Vector2(0, -59.5)
-modulate = Color(0.97, 0.94, 0.93, 1)
-flip_h = true
 
 ; WHAT THE ASH TAKES ON THE WAY UP (group ash_takes): each goes white, then blank, once she is
 ; `taken_at` along the slope, over `taken_over` seconds (level_5.gd). None is solid: a thing going
@@ -440,7 +284,7 @@ metadata/taken_over = 6.0
 ; it alone -- 180px from the rock below, 210px from the path.
 [node name="FlowerLedge" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 script = ExtResource("8_terrain")
-platforms = Array[Rect2]([Rect2(9760, -400, 220, 30), Rect2(9940, -460, 220, 30), Rect2(10120, -520, 220, 30)])
+platforms = Array[Rect2]([Rect2(20450, 80, 220, 30), Rect2(20630, 20, 220, 30), Rect2(20810, -40, 220, 30)])
 grassed = false
 one_way = true
 
@@ -451,79 +295,15 @@ position = Vector2(-20.0, 0.0)
 shape = SubResource("Rect_Wall")
 
 [node name="EastWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
-position = Vector2(13980.0, 0.0)
+position = Vector2(22960.0, 0.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/EastWall"]
 shape = SubResource("Rect_Wall")
 
-; ACT TWO: TWELVE FRAGMENTS of every place she has been, drifting and going white. Saved by
-; drawing something that belongs in it; nothing says what any is worth (LEVEL_5.md). Three hold
-; lolo: the terraces, the church, the bangka.
-[node name="Fragments" type="Node2D" parent="GameplayPlane"]
-
-[node name="Kubo" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(5510, -190)
-script = ExtResource("9_fragment")
-fragment_id = "kubo"
-
-[node name="Terraces" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(5870, -180)
-script = ExtResource("9_fragment")
-fragment_id = "terraces"
-
-[node name="Bandaritas" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(6230, -220)
-script = ExtResource("9_fragment")
-fragment_id = "bandaritas"
-
-[node name="Dancers" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(6590, -290)
-script = ExtResource("9_fragment")
-fragment_id = "dancers"
-
-[node name="Church" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(7310, -360)
-script = ExtResource("9_fragment")
-fragment_id = "church"
-
-[node name="Storm" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(7670, -290)
-script = ExtResource("9_fragment")
-fragment_id = "storm"
-
-[node name="Bangka" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(8030, -380)
-script = ExtResource("9_fragment")
-fragment_id = "bangka"
-
-[node name="Coral" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(8390, -450)
-script = ExtResource("9_fragment")
-fragment_id = "coral"
-
-[node name="Bakunawa" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(9110, -490)
-script = ExtResource("9_fragment")
-fragment_id = "bakunawa"
-
-[node name="Forest" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(9470, -520)
-script = ExtResource("9_fragment")
-fragment_id = "forest"
-
-[node name="Waterfall" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(9830, -580)
-script = ExtResource("9_fragment")
-fragment_id = "waterfall"
-
-[node name="Flower" type="Node2D" parent="GameplayPlane/Fragments"]
-position = Vector2(10230, -640)
-script = ExtResource("9_fragment")
-fragment_id = "flower"
-
+; Preservation targets are live landmarks owned by MayonMemoryJourney.
 ; ACT THREE: lola at the summit, painting, her back turned.
 [node name="Lola" type="Node2D" parent="GameplayPlane"]
-position = Vector2(13000.0, -420.0)
+position = Vector2(22310.0, 140.0)
 script = ExtResource("10_lola")
 
 ; Where each beat IS, for the objective marker. On the ground.
@@ -539,10 +319,10 @@ position = Vector2(2450.0, 440.0)
 position = Vector2(4200.0, 360.0)
 
 [node name="LoloGoesMark" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(11500.0, -420.0)
+position = Vector2(21240.0, 140.0)
 
 [node name="SummitMark" type="Marker2D" parent="GameplayPlane/Marks"]
-position = Vector2(13000.0, -420.0)
+position = Vector2(22310.0, 140.0)
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane"]
 
@@ -551,6 +331,7 @@ position = Vector2(13000.0, -420.0)
 position = Vector2(2250.0, 210.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L5_SPAN"
+story_sign_offset = 360.0
 announce_size = Vector2(180, 460)
 plants_hint_sign = false
 trigger_size = Vector2(900.0, 460.0)
@@ -565,7 +346,7 @@ trigger_size = Vector2(900.0, 460.0)
 plants_commit_mark = false
 
 [node name="L5_SUMMIT" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(12700.0, -650.0)
+position = Vector2(22060.0, -90.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L5_SUMMIT"
 plants_hint_sign = false
@@ -582,7 +363,7 @@ lights_on_entry = false
 trigger_size = Vector2(160.0, 460.0)
 
 [node name="CP2" type="Area2D" parent="GameplayPlane/Obstacles"]
-position = Vector2(11900.0, -650.0)
+position = Vector2(21610.0, -90.0)
 script = ExtResource("6_checkpoint")
 checkpoint_id = "CP2"
 shows_mark = false

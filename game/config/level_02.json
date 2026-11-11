@@ -98,7 +98,7 @@
   "objectives": {
     "$comment": "THE OBJECTIVE LINE, one per state of the run. level_2.gd decides which state the player is in; these are only the words, kept here so run_level2_audit can hold them to the rule every dialogue line is held to: no line names a drawable class. A key with a '.tags' twin uses the twin once the obstacle's tags have been taught, and says them in the strip's own words. Never 'door', 'bird', 'key', 'stairs' or 'ladder' -- all five are classes.",
     "light": "Find a light to leave in the church. Lolo is by the dancers",
-    "dance": "Dance for them. Draw on the beat",
+    "dance": "Dance for them",
     "unlock": "Get into the house with its light on",
     "unlock.tags": "Draw something that can {tags} at the house with its light on",
     "startle": "Clear the plaza",

@@ -803,8 +803,8 @@ func _audit_checkpoints_are_spread_out(level: Dictionary) -> void:
 ## files. The first rebuild drew the home beach's sand ending 53 pixels short of its collision and
 ## the island's starting 28 pixels inside its own, so the apo walked out over open water at both
 ## ends -- the exact look being fixed -- and a diver met an invisible wall in the water. So each
-## picture is read where the backdrop puts it: the sand's top row is the collision's top, the sand
-## ends on the collision's sea edge at that row, and no row of the face stops short of the edge by
+## picture is read where the backdrop puts it: the sand starts four pixels above collision, rounds
+## into the collision's sea edge at the walk line, and no row of the face stops short of the edge by
 ## more than 16 pixels. (Not zero: the edge is whole stones forty to seventy pixels wide, and the
 ## generator chooses which -- see its LANDS.)
 func _audit_land_is_the_ground() -> void:
@@ -839,7 +839,9 @@ func _audit_land_is_the_ground() -> void:
 		at += float(piece.get("nudge", 0.0))
 		var left := at if String(piece["align"]) == "left" else at - image.get_width()
 		var first := image.get_used_rect().position.y
-		var walking := plate_top + float(row["top_row"]) + first
+		const SAND_LIP := 4
+		var walk_row := first + SAND_LIP
+		var walking := plate_top + float(row["top_row"]) + walk_row
 		# How far row `y` reaches out past the edge: + over the sea, - short of it.
 		var reach := func(y: int) -> float:
 			if sea_right:
@@ -851,10 +853,10 @@ func _audit_land_is_the_ground() -> void:
 					if image.get_pixel(x, y).a > 0.0:
 						return edge - (left + x)
 			return -INF
-		var at_feet: float = reach.call(first)
+		var at_feet: float = reach.call(walk_row)
 		var shortest := INF
 		var shortest_at := 0
-		for y in range(first + 34, image.get_height()):
+		for y in range(walk_row + 34, image.get_height()):
 			var r: float = reach.call(y)
 			if r < shortest:
 				shortest = r
@@ -866,6 +868,8 @@ func _audit_land_is_the_ground() -> void:
 		if absf(at_feet) > 2.0:
 			problems.append("%s's sand ends %.0f %s its collision's edge at %.0f" % [
 				pair[1], absf(at_feet), "short of" if at_feet < 0.0 else "past", edge])
+		if at_feet - float(reach.call(first)) < 10.0:
+			problems.append("%s's sand lip does not round into the walk line" % pair[1])
 		if shortest < -16.0:
 			problems.append("%s's face stops %.0f short of the edge at world y %.0f" % [
 				pair[1], -shortest, plate_top + float(row["top_row"]) + shortest_at])

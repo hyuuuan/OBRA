@@ -191,9 +191,11 @@ func _ink_always_visible() -> bool:
 
 
 ## Whether walk and jump stand beside R as key reminders (ActionPromptHUD.show_movement_keys).
-## Payyo's, the level that teaches them. Off everywhere else.
+## Every level's. They began as Payyo's (Kent: "the R at the button should also be paired with the
+## WASD buttons for like guidance as well as the jump"), then Mayon's; Kent, 2026-11-05: "it shouldb
+## e all levels". A level where they would do nothing turns them off.
 func _shows_movement_keys() -> bool:
-	return false
+	return true
 
 
 ## Whether the level ends with its own scene rather than the completion card -- and, for the
@@ -364,6 +366,11 @@ func _drowning_words() -> PackedStringArray:
 		"You cannot swim, apo — put something heavy on that plank",
 		"You cannot swim, apo. Back to %s",
 	])
+
+
+func _rescue_from_water() -> void:
+	var words := _drowning_words()
+	_return_to_safety(words[0], words[1])
 
 
 ## The obstacle the scene's DialogueNode2D presents, or "" if the level has none.
@@ -915,7 +922,10 @@ func _checkpoint_is_declared(checkpoint_id: String) -> bool:
 
 func _on_checkpoint_area_reached(checkpoint_id: String) -> void:
 	_write_checkpoint(checkpoint_id)
-	if _saves_silently():
+	# ⚠ NOT WHILE THE LEVEL IS STILL OPENING. Piyesta's first lantern stands where she wakes, so
+	# it was "reached" before anybody had said a word: the letterbox and the camera took the
+	# lantern under the opening's first line, for a place she had not walked to.
+	if _saves_silently() or _opening_running:
 		return
 	_say_checkpoint()
 	var area := _checkpoint_area_for(checkpoint_id)
@@ -945,6 +955,13 @@ func _stage_the_checkpoint(mark: Node2D) -> void:
 	# decides whether the moment also takes the camera and the bars.
 	if not _may_frame_the_checkpoint(mark):
 		return
+	# ⚠ AFTER THE WORDS, NOT UNDER THEM. A route's commit line and its lantern start on one
+	# frame, so the letterbox came in over "Let us put it back" and the camera went to the
+	# lantern while the apo was talking, then let go of whoever was speaking a second later.
+	if dialogue_box != null and dialogue_box.is_open():
+		await dialogue_box.conversation_finished
+		if not is_inside_tree() or not is_instance_valid(mark) or cinematic.is_playing():
+			return
 	var world_camera := _world_camera()
 	cinematic.close("CHECKPOINT")
 	if world_camera != null:
@@ -955,7 +972,9 @@ func _stage_the_checkpoint(mark: Node2D) -> void:
 	if is_instance_valid(mark) and mark.has_method("light"):
 		mark.call("light", Vector2(0.0, -60.0))
 	await get_tree().create_timer(1.35, true, false, true).timeout
-	if world_camera != null:
+	# A line that began under the bars has the camera now, and gives it back when it ends.
+	var someone_talking := dialogue_box != null and dialogue_box.is_open()
+	if world_camera != null and not someone_talking:
 		world_camera.release_focus()
 	if cinematic != null:
 		cinematic.open()
@@ -993,7 +1012,9 @@ func _say_checkpoint() -> void:
 		tutorial.note("checkpoint")
 		explained = not before and tutorial.is_coming("checkpoint")
 	if hint_bar != null and not explained:
-		hint_bar.show_hint("Checkpoint. If you fall, you start again from here.", "", 3.5)
+		# An aside, because a checkpoint is crossed in the middle of whatever Lolo is saying:
+		# Piyesta's first step replaced the two rules of the plaza with this, for good.
+		hint_bar.interject("Checkpoint. If you fall, you start again from here.", "", 3.5)
 	var audio := get_node_or_null(^"/root/AudioDirector")
 	if audio != null:
 		audio.call("play_sfx", &"checkpoint")
@@ -1005,13 +1026,57 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 		tutorial.note("first_obstacle")
 	# A node teaches all three of its routes' verbs BEFORE the choice, because a player
 	# cannot choose a path whose verb they have never been told.
-	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
-	if not teaches.is_empty():
-		if _teaches_on_entering(obstacle_id):
-			_speak(script_lines.fire("%s.teach" % obstacle_id))
+	if not (director.obstacle(obstacle_id).get("teaches_before_choice", []) as Array).is_empty():
 		director.teach_before_choice(obstacle_id)
-	_speak_current_stage(obstacle_id)
+	# ⚠ THE BEAT SAYS WHAT IT IS BEFORE IT SAYS WHAT TO DO. The scope volume is wider than the
+	# arrival's, so Ang Dayami's three ways went up as she crossed its edge, and her arrival
+	# took the bar off them a hundred pixels later: 0.3 s for the only statement of the puzzle.
+	if _arrival_is_still_ahead(obstacle_id):
+		_advice_held[obstacle_id] = true
+	else:
+		_advise_the_beat(obstacle_id)
 	_refresh_requirements()
+
+
+## What a beat says about what to do: its ways through, then what the current stage asks.
+func _advise_the_beat(obstacle_id: String) -> void:
+	var teaches: Array = director.obstacle(obstacle_id).get("teaches_before_choice", [])
+	if not teaches.is_empty() and _teaches_on_entering(obstacle_id) \
+			and not director.is_solved(obstacle_id) \
+			and director.committed_route(obstacle_id).is_empty():
+		_say_or_remind("%s.teach" % obstacle_id)
+	_speak_current_stage(obstacle_id)
+
+
+## Whether this beat's opening line is still to come, at its own narrower volume.
+func _arrival_is_still_ahead(obstacle_id: String) -> bool:
+	var hook := _arrival_hook(obstacle_id)
+	if hook.is_empty() or not script_lines.has_hook(hook) or script_lines.has_heard(hook):
+		return false
+	if player == null or not is_instance_valid(player):
+		return false
+	for node in get_tree().get_nodes_in_group(&"level_obstacles"):
+		var area := node as LevelObstacle2D
+		if area != null and area.obstacle_id == obstacle_id:
+			return area.arrival_is_ahead_of(player.global_position.x)
+	return false
+
+
+## ONCE, AND AFTER THAT ONLY AS A REMINDER. Walking back into a beat may repeat what it asks:
+## the player has been away. But only on the bar, and only if the bar is free. A respawn at
+## Payyo's first lantern re-enters Ang Hagdan, and "You cannot swim, apo" was replaced 0.03 s
+## later by an instruction about the wall she was standing on top of. A line for the story box
+## stops the world, so it is never said twice this way.
+func _say_or_remind(hook: String) -> void:
+	if not script_lines.has_heard(hook):
+		_speak(script_lines.fire(hook))
+		return
+	if hint_bar == null or hint_bar.is_showing():
+		return
+	for line_value: Variant in script_lines.peek(hook):
+		if script_lines.kind_of(line_value as Dictionary) != "hint":
+			return
+	_speak(script_lines.fire(hook))
 
 
 ## WHETHER A BEAT SAYS ITS WAYS THROUGH THE MOMENT IT IS ENTERED. True everywhere it has
@@ -1019,15 +1084,21 @@ func _on_obstacle_entered(obstacle_id: String) -> void:
 ## the fork instead -- Dagat's crossing is entered beside the brush, and its two ways across
 ## piled up on the brush's own lines a fork's length before the choice they introduce. The tags
 ## are taught on entering either way; only the words wait.
-func _teaches_on_entering(_obstacle_id: String) -> bool:
-	return true
+##
+## ⚠ AND A FORK ALWAYS DOES. Its question follows its opening line and its ways through, in that
+## order, so all three belong at the fork (`_on_dialogue_node_approached`).
+func _teaches_on_entering(obstacle_id: String) -> bool:
+	return obstacle_id != _dialogue_node_obstacle_id()
 
 
 ## The player has reached what the beat is about, which is where its opening line belongs.
 ## Separate from _on_obstacle_entered because entering is a much wider event -- see
 ## LevelObstacle2D.announce_size.
 func _on_obstacle_arrived(obstacle_id: String) -> void:
-	var hook := "%s.enter" % obstacle_id
+	await _until_she_can_listen()
+	if not is_inside_tree():
+		return
+	var hook := _arrival_hook(obstacle_id)
 	# HER DIARY FIRST, the first time (DIARY.md): a level that keeps a page about what is in front
 	# of her opens the book at it, and her own words come once it is put down.
 	var page := _diary_page_on_arrival(obstacle_id)
@@ -1035,6 +1106,40 @@ func _on_obstacle_arrived(obstacle_id: String) -> void:
 		await read_diary_at(String(page.get("entry", "")), String(page.get("anchor", "")),
 			String(page.get("note", "")))
 	_speak_on_arrival(hook)
+	if _advice_held.erase(obstacle_id):
+		_advise_the_beat(obstacle_id)
+
+
+## WHAT A BEAT SAYS WHEN SHE REACHES IT. A level answers "" for a beat whose opening is only true
+## later: Dilim's tikbalang, where "I have passed it three times now" waits for her to have.
+func _arrival_hook(obstacle_id: String) -> String:
+	return "%s.enter" % obstacle_id
+
+
+## ⚠ A LINE STOPS THE WORLD, SO IT WAITS UNTIL THE WORLD CAN BE STOPPED. Crossing a volume in the
+## air froze her mid-jump with the camera pushing in, and one crossed with a drawing on the end of
+## the mouse froze it there. Not for long: a long fall is still interrupted, a held line is not
+## worth losing the player to a wall they cannot see past. And never before the level's opening,
+## which has to be its first words: Piyesta's spawn is ten pixels from its first volume, so a key
+## already held when the level appeared had that beat speak first and the opening after it.
+const LISTEN_PATIENCE := 1.2
+
+
+func _until_she_can_listen() -> void:
+	if _opening_running:
+		await opening_finished
+	var waited := 0.0
+	while waited < LISTEN_PATIENCE and is_inside_tree() and _is_busy_for_a_line():
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+
+
+func _is_busy_for_a_line() -> bool:
+	if placement_controller != null and placement_controller.is_placing():
+		return true
+	var walker := player as Wanderer
+	return walker != null and is_instance_valid(walker) and not walker.is_on_floor() \
+		and not walker.is_in_water()
 
 
 ## THE PAGE OF HER DIARY A BEAT OPENS AT, the first time she reaches it: {"entry", "anchor",
@@ -1126,10 +1231,19 @@ func _read_nearest_sign() -> bool:
 ## first cut did neither and cost two hints: it overwrote "draw something that can span the
 ## gap" the moment the player stepped near the sign at the same beat, and then cleared
 ## whatever had replaced it on the way out.
+##
+## ⚠ AND NOT TO SOMEBODY WALKING PAST. It went up on the frame an arrival line ended, offering
+## the line she had just read, and was gone half a second later as she walked on -- at every
+## board in the game. The board lights at once; the sentence waits until she has stayed.
+const SIGN_PROMPT_AFTER := 0.9
+var _at_sign_for := 0.0
+
+
 func _offer_the_nearest_sign() -> void:
 	var board := _readable_sign()
 	if tutorial != null and board != null:
 		tutorial.note("sign_readable")
+	_at_sign_for = _at_sign_for + get_physics_process_delta_time() if board != null else 0.0
 	for node in get_tree().get_nodes_in_group(&"signposts"):
 		var other := node as Signpost2D
 		if other != null:
@@ -1146,7 +1260,7 @@ func _offer_the_nearest_sign() -> void:
 			hint_bar.clear()
 			_sign_prompt = ""
 		return
-	if not _sign_prompt.is_empty():
+	if not _sign_prompt.is_empty() or _at_sign_for < SIGN_PROMPT_AFTER:
 		return
 	# Somebody else is talking on this bar. The board is lit, which already says it can be
 	# read; the sentence can wait until the bar is free.
@@ -1177,7 +1291,7 @@ func _speak_current_stage(obstacle_id: String) -> void:
 	var stage := director.stage_id(obstacle_id)
 	if stage.is_empty():
 		return
-	_speak(script_lines.fire("%s.%s" % [obstacle_id, stage]))
+	_say_or_remind("%s.%s" % [obstacle_id, stage])
 
 
 func _on_obstacle_exited(_obstacle_id: String) -> void:
@@ -1280,7 +1394,7 @@ func _refresh_requirements() -> void:
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
 	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player",
-	"placement", "placed", "canvas_paper", "transform_button", "lantern"]
+	"placement", "placed", "canvas_paper", "transform_button", "lantern", "quest_card"]
 ## Every `context` a lesson may name, answered by _tutorial_context.
 const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "any"]
 ## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
@@ -1360,6 +1474,8 @@ func _tutorial_target(anchor: String) -> Rect2:
 			node = hud_panel as Control
 		"requirement_strip":
 			node = requirement_strip as Control
+		"quest_card":
+			node = objective_banner.card() if objective_banner != null else null
 		"morph_card":
 			# The plate top right that says what the player currently IS. It carries the two
 			# readings the game never explained: how long this drawing has left, and how sure
@@ -1392,6 +1508,10 @@ func _tutorial_context(context: String) -> bool:
 		"any":
 			return true
 	if canvas_open or _level_completed or player == null or not is_instance_valid(player):
+		return false
+	# ⚠ NOT BEFORE THE LEVEL'S FIRST WORDS. A key already held when the level appeared noted the
+	# first step, so "Can you still jump, apo?" was said before the apo had woken up.
+	if _opening_running:
 		return false
 	var placing := placement_controller.is_placing()
 	match context:
@@ -1427,6 +1547,7 @@ func _prompt_named(prompt_name: StringName) -> Control:
 ## The checkpoint is written HERE, on the commit, not on the solve -- so that every morph
 ## on the route is protected and a death cannot make the player answer Lolo twice.
 func _on_obstacle_route_committed(obstacle_id: String, route: String) -> void:
+	_retire_beat_advice()
 	if not _defer_route_commit_dialogue(obstacle_id, route):
 		_speak(script_lines.fire("%s.%s.commit" % [obstacle_id, route]))
 	var checkpoint_id := String(director.obstacle(obstacle_id).get("checkpoint_on_commit", ""))
@@ -1449,6 +1570,7 @@ func _light_commit_mark(obstacle_id: String) -> void:
 
 
 func _on_obstacle_solved(obstacle_id: String, route: String, label: String, attempt_count: int, tier: int) -> void:
+	_retire_beat_advice()
 	# THE ONE MOMENT HE REACTS TO THE PLAYER rather than to the place. The cheer frame was
 	# delivered with the rest of his sheet and had never been drawn on screen.
 	if lolo != null and is_instance_valid(lolo) and lolo.has_method("cheer"):
@@ -1483,6 +1605,8 @@ func _judge_submission(entity_id: String, strokes: Array = []) -> void:
 	if not bool(verdict["solves"]):
 		_say_it_did_not_fit(entity_id, verdict)
 		return
+	if bool(verdict["stage_advanced"]):
+		_retire_beat_advice()
 	# ⚠ THE OTHER HALF OF THE REFUSAL BEAT, and it had no call site in either level.
 	# `on_first_decline` is Lolo saying "I could not read it, apo. Not wrong -- too like
 	# something else"; `after_first_decline_solved` is "There. Now I see it." Both are
@@ -1542,8 +1666,9 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 	# (ShuffleBag). {fact} is the drawing's own ConceptNet assertion from the verified ability
 	# table -- something true about what they drew -- and a line needing a value the moment
 	# lacks (no {can} for an unhintable class, no {fact} that is safe to say) sits out.
+	var obstacle_id := String(verdict.get("obstacle_id", director.current_obstacle()))
 	if _say_from_pool("comment.not_fit", {"who": who, "thing": who.left(1).to_lower() + who.substr(1),
-			"needed": needed, "can": can, "fact": _safe_fact(entity_id)}):
+			"needed": needed, "can": can, "fact": _safe_fact(entity_id)}, obstacle_id):
 		return
 	if mine.is_empty():
 		# Nothing this level knows the drawing can do -- either one of the roster's
@@ -1553,6 +1678,7 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 		text = "%s cannot do this. It needs something that can %s." % [who, needed]
 	else:
 		text = "%s can %s. This needs something that can %s." % [who, can, needed]
+	_remember_beat_advice(obstacle_id, text)
 	hint_bar.show_hint(text, _companion_speaker())
 
 
@@ -1560,7 +1686,7 @@ func _say_it_did_not_fit(entity_id: String, verdict: Dictionary) -> void:
 ## with {placeholders} filled from `values`. A line that needs a value the moment does not
 ## have is left out of the draw. False when nothing could be said, so the caller can fall
 ## back. Pool lines go to the hint bar: they comment on play and must never stop it.
-func _say_from_pool(hook: String, values: Dictionary) -> bool:
+func _say_from_pool(hook: String, values: Dictionary, obstacle_id: String = "") -> bool:
 	if hint_bar == null or script_lines == null:
 		return false
 	var candidates: Array = []
@@ -1578,6 +1704,8 @@ func _say_from_pool(hook: String, values: Dictionary) -> bool:
 		return false
 	var chosen: Dictionary = candidates[index]
 	PlayerProfile.note_pool_pick(bag, String(chosen.get("id", "")))
+	if not obstacle_id.is_empty():
+		_remember_beat_advice(obstacle_id, texts[index])
 	hint_bar.show_hint(texts[index], _speaker_display(script_lines.speaker_of(chosen)))
 	return true
 
@@ -1828,6 +1956,8 @@ func note_pickup_taken(pickup_id: String) -> void:
 
 
 func _write_checkpoint(checkpoint_id: String) -> void:
+	if _level_completed:
+		return
 	var anchor_position := spawn_point.global_position
 	if player != null and is_instance_valid(player) and player.has_method("capture_morph_state"):
 		anchor_position = Vector2((player.call("capture_morph_state") as Dictionary).get(
@@ -2004,10 +2134,14 @@ func _resume_saved_checkpoint() -> bool:
 	if tutorial != null:
 		tutorial.mark_taught(saved.get("taught", []) as Array)
 	_refresh_requirements()
+	_snap_camera_after_resume()
+	return true
+
+
+func _snap_camera_after_resume() -> void:
 	var world_camera := _world_camera()
 	if world_camera != null:
 		world_camera.snap_to_target()
-	return true
 
 
 ## ⚠ WHAT CANNOT COME BACK GIVES BACK ITS INK. A snapshot keeps where each placed drawing
@@ -2129,6 +2263,9 @@ func _restore_placed_entities(records: Array) -> void:
 		var prop := child as PhysicsShapeObject
 		if prop == null or prop.is_preview:
 			continue
+		# A vehicle can otherwise move its passenger back out of the restored landing.
+		if prop is UtilityObject and is_instance_valid(player) and prop.has_passenger(player):
+			prop.release_passenger()
 		var id := prop.get_instance_id()
 		if kept.has(id):
 			prop.global_transform = Transform2D((kept[id] as Dictionary)["transform"])
@@ -2158,7 +2295,7 @@ func _restore_placed_entities(records: Array) -> void:
 ##
 ## Unread is not an exaggeration. This used to hand a whole beat over in one synchronous
 ## loop, writing five lines into the same label in the same frame. Only the last survived.
-func _speak(lines: Array) -> void:
+func _speak(lines: Array, advice_context := Callable()) -> void:
 	var beat: Array[Dictionary] = []
 	# GATHERED, NOT WRITTEN STRAIGHT THROUGH. Handing each hint to the bar as it came out of
 	# the loop meant a beat of several hints was several writes to one label inside one frame,
@@ -2179,18 +2316,18 @@ func _speak(lines: Array) -> void:
 	if beat.is_empty() or dialogue_box == null:
 		if not beat.is_empty():
 			status_label.text = String(beat[-1]["text"])
-		_post_advice(advice)
+		_post_advice(advice, advice_context)
 		return
-	# A hint left on screen under a conversation is the two channels talking at once. Taken
-	# down BEFORE the advice of this same beat goes up, not after -- clearing afterwards is
-	# what used to throw the hints away in a beat that carried both kinds.
-	if hint_bar != null:
-		hint_bar.clear()
+	# ⚠ THE BAR IS LEFT ALONE. It stands itself down while anybody is speaking and comes back
+	# with its dwell intact (HintBar._someone_is_speaking), and this used to take it down as
+	# well, so every line of story threw away whatever advice was up: L1_N1's three ways after
+	# 0.35 s, Ang Hagdan's instruction for good when a lesson's lead spoke over it. Advice
+	# ends when its beat does (`_retire_beat_advice`), not when somebody says something.
 	_focus_camera_for(String(beat[0]["at"]))
 	dialogue_box.speak(beat)
 	# The bar fades itself out and freezes its dwell while anybody is speaking, so advice
 	# posted now waits under the conversation and plays out when the player has read it.
-	_post_advice(advice)
+	_post_advice(advice, advice_context)
 
 
 ## WHO A LINE'S `speaker` IS ON SCREEN. Lolo and the apo are in every level; anybody else is
@@ -2217,13 +2354,67 @@ func _speaker_subject(speaker_id: String) -> Node2D:
 	return player
 
 
-func _post_advice(advice: Array[Dictionary]) -> void:
+func _post_advice(advice: Array[Dictionary], while_relevant := Callable()) -> void:
 	if advice.is_empty():
 		return
 	if hint_bar == null:
 		status_label.text = String(advice[-1]["text"])
 		return
+	if while_relevant.is_valid():
+		hint_bar.show_beat(advice, "", false, while_relevant)
+		return
+	# The opening's words are the level's, even for somebody already standing in its first beat.
+	var beat := director.current_obstacle() if director != null and not _opening_running else ""
+	if beat.is_empty():
+		# No beat to end it, so its last line does not stand: it would still be up at the far
+		# end of the level.
+		hint_bar.show_beat(advice, "", false)
+		return
+	for line: Dictionary in advice:
+		_remember_beat_advice(beat, String(line.get("text", "")))
 	hint_bar.show_beat(advice)
+
+
+## ADVICE IS ABOUT A BEAT AND ENDS WITH IT. The bar's last line stands until something replaces
+## it, which is right while she is at the obstacle, and it was still standing a thousand pixels
+## later: "Look up. Draw something you can CLIMB" over the far end of the level, and every
+## lesson and sign prompt that yields to a busy bar waiting behind it. Only its own words are
+## taken down, and not the moment she leaves: a body swap or a step back over the edge is not
+## the end of anything.
+const ADVICE_OUTLIVES_BEAT := 1.2
+var _beat_advice: Array[String] = []
+var _beat_advice_of := ""
+var _beat_advice_orphaned := 0.0
+
+
+func _remember_beat_advice(beat: String, text: String) -> void:
+	if beat != _beat_advice_of:
+		_beat_advice.clear()
+		_beat_advice_of = beat
+		_beat_advice_orphaned = 0.0
+	_beat_advice.append(text)
+
+
+func _tend_beat_advice(delta: float) -> void:
+	if _beat_advice.is_empty():
+		return
+	if director.current_obstacle() == _beat_advice_of:
+		_beat_advice_orphaned = 0.0
+		return
+	_beat_advice_orphaned += delta
+	if _beat_advice_orphaned >= ADVICE_OUTLIVES_BEAT:
+		_retire_beat_advice()
+
+
+func _retire_beat_advice() -> void:
+	# ⚠ TAKEN DOWN WHEREVER IT IS. Lolo can be remarking over it, with the advice waiting to come
+	# back, and it would have come back at the far end of the level with nothing left to end it.
+	if hint_bar != null:
+		for line: String in _beat_advice:
+			hint_bar.take_down(line)
+	_beat_advice.clear()
+	_beat_advice_of = ""
+	_beat_advice_orphaned = 0.0
 
 
 ## Push the camera in on whoever is talking, and give it back when the beat is over.
@@ -2444,7 +2635,6 @@ func _spawn_or_replace(
 	var previous_state: Dictionary = {}
 	if player != null and is_instance_valid(player) and player.has_method("capture_morph_state"):
 		previous_state = player.call("capture_morph_state")
-	_drop_equipped_before_morph(previous_state)
 
 	var new_player := registry.instantiate_entity(entity_id) as Node2D
 	if new_player == null:
@@ -2465,6 +2655,7 @@ func _spawn_or_replace(
 			status_label.text = "Rig build failed safely — previous morph kept"
 			new_player.queue_free()
 			return false
+	_release_equipped_for_morph(previous_state)
 	previous_state = _where_a_new_form_arrives(entity_id, previous_state)
 	_adopt_player(new_player, previous_state, true)
 
@@ -3205,6 +3396,8 @@ func _refresh_action_prompts() -> void:
 	# A drawing within reach takes E first (see press_interact), so the level's own offer is
 	# only shown where there is none.
 	var offer: Dictionary = _level_interact_offer() if can_act and not can_pick_up else {}
+	if tutorial != null and (can_pick_up or not offer.is_empty()):
+		tutorial.note("pickup_ready")
 	if not offer.is_empty():
 		action_prompts.set_pickup_available(true, String(offer.get("name", "")),
 			String(offer.get("verb", "USE")))
@@ -3267,6 +3460,17 @@ func _tick_tutorial() -> void:
 		_has_moved = true
 	if _has_moved:
 		tutorial.note("moved")
+	# HOW THIS FORM MOVES. Polled, not hung off `became_creature`: that fires before the new body
+	# is adopted, and "in the water" is a thing that happens to a form long after it arrives.
+	var form := player as ActiveRagdollMorph
+	if form == null:
+		return
+	var rig_type := String(form.rig_profile.get("rig_type", ""))
+	if rig_type == "flier":
+		tutorial.note("can_fly")
+	elif (rig_type == "swimmer" or bool(form.rig_profile.get("can_swim", false))) \
+			and form.is_in_water():
+		tutorial.note("swimming")
 
 
 func _drawing_display_name(drawing: PhysicsShapeObject) -> String:
@@ -3277,20 +3481,22 @@ func _drawing_display_name(drawing: PhysicsShapeObject) -> String:
 	return drawing.name.replace("_", " ").capitalize()
 
 
-func _drop_equipped_before_morph(previous_state: Dictionary) -> void:
-	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
+func _release_equipped_for_morph(previous_state: Dictionary) -> void:
+	var held := _equipped_utility
+	if not is_instance_valid(held):
 		_equipped_utility = null
 		return
+	# Equipping a slotted tool leaves its data in the bag. Stow its held instance
+	# before freeing the old grip so the same drawing never exists in both places.
+	if inventory_manager.holds(held.item_data):
+		_stow_equipped()
+		inventory_hud.set_selected(-1)
+		return
+	# Use the level's bounds before a loose tool resumes physics. The drop emits
+	# left_the_hand synchronously, which clears the level's equipped reference.
 	var drop_position := Vector2(previous_state.get("position", spawn_point.global_position))
-	_equipped_utility.drop_to_world(world_item_root, drop_position)
-	# AND TELL IT HOW BIG THE WORLD IS, which only _on_placement_confirmed was doing.
-	# PhysicsShapeObject clamps itself back into Rect2(0, -520, 3760, 1200) when it is not
-	# told otherwise, and both interiors sit a thousand units above the top of that -- so a
-	# tool dropped by a morph inside a room was teleported out of the room and down into the
-	# valley on its first physics tick.
-	if _equipped_utility.has_method("set_world_bounds"):
-		_equipped_utility.call("set_world_bounds", Rect2(environment.get("world_bounds")))
-	_equipped_utility = null
+	held.set_world_bounds(Rect2(environment.get("world_bounds")))
+	held.drop_to_world(world_item_root, drop_position)
 
 
 ## A shared minimap and brush stack at the top left, with the morph and brief feedback right.
@@ -3731,7 +3937,7 @@ var _curtain_closed := 0.0
 var _story_veil := 1.0
 ## The HUD pieces along the bottom of the screen, which is where Lolo's story box stands.
 const UNDER_THE_STORY_BOX := [&"GoalLabelChip", &"RequirementStrip",
-	&"DrawButton", &"ActionPrompts"]
+	&"DrawButton", &"ActionPrompts", &"QuickSlots"]
 
 
 ## THE ONE PLACE THE HUD'S ALPHA IS DECIDED.
@@ -3829,6 +4035,8 @@ func _on_form_changed(form_name: String, _form_id: String) -> void:
 	if morph_card != null and form_name.is_empty():
 		morph_card.hide_form()
 	if tutorial != null and not form_name.is_empty():
+		# She has already found out, so the card that tells her she can is spent unshown.
+		tutorial.mark_taught(["become"])
 		tutorial.note("became_creature")
 
 
@@ -3861,12 +4069,13 @@ func _physics_process(_delta: float) -> void:
 		_objective_clock = OBJECTIVE_EVERY
 		refresh_objective()
 	_offer_the_nearest_sign()
-	var anchor_position := player.global_position
-	if player.has_method("get_physics_anchor"):
-		var anchor := player.call("get_physics_anchor") as Node2D
-		if anchor != null:
-			anchor_position = anchor.global_position
+	_tend_beat_advice(_delta)
+	var physics_player := player
+	var anchor_position := _player_anchor_position()
 	_level_physics(anchor_position)
+	# A level can rescue or replace the player during its own physics tick.
+	if _level_completed or player != physics_player or _player_anchor_position() != anchor_position:
+		return
 	_tend_the_fading(anchor_position.x)
 	_tend_diary_pages(anchor_position)
 	_mantle_onto_a_drawing()
@@ -3895,15 +4104,12 @@ func _physics_process(_delta: float) -> void:
 	# -- so without this the water is not a gate, it is a hole to be stuck in. A drawn
 	# creature that swims is not rescued: being in the water is the whole point of it.
 	# A level that lets the apo swim on a breath (Dagat) looks after its own water.
-	if player is Wanderer and bool(player.call("is_in_water")) and not _apo_can_swim():
+	if player is Wanderer and (player as Wanderer).is_in_water() \
+			and not (player as Wanderer).is_riding() and not _apo_can_swim():
 		_submerged_seconds += _delta
 		if _submerged_seconds > 1.1:
 			_submerged_seconds = 0.0
-			# POINTED AT THE ANSWER, not at the problem. It used to say "draw something that
-			# can cross it", which is what the beat asked for when Span came first -- and
-			# Span cannot cross three hundred pixels of water. The way over is the plank.
-			var words := _drowning_words()
-			_return_to_safety(words[0], words[1])
+			_rescue_from_water()
 			return
 	else:
 		_submerged_seconds = 0.0
@@ -4194,9 +4400,6 @@ func _revert_to_base_form() -> void:
 	var previous_state: Dictionary = {}
 	if player != null and is_instance_valid(player) and player.has_method("capture_morph_state"):
 		previous_state = player.call("capture_morph_state")
-	# Same reason a morph drops what it holds: the held item is parented to the OLD body's
-	# grip, so it has to be re-homed into the world before that body is freed.
-	_drop_equipped_before_morph(previous_state)
 
 	# Where the creature was, not the spawn point -- changing back is not restarting. Both
 	# kinds of player report "position", so the fallback only covers a body that answered
@@ -4214,13 +4417,13 @@ func _revert_to_base_form() -> void:
 		var feet := lowest_point_of(player)
 		if is_finite(feet):
 			landing.y = feet
-	if not previous_state.is_empty():
-		previous_state["position"] = landing
-
 	var wanderer := _instantiate_wanderer()
 	if wanderer == null:
 		status_label.text = "Could not change back"
 		return
+	_release_equipped_for_morph(previous_state)
+	if not previous_state.is_empty():
+		previous_state["position"] = landing
 	wanderer.global_position = landing
 	_adopt_player(wanderer, previous_state, true)
 
@@ -4574,6 +4777,12 @@ var resume_enabled := not preload("res://scripts/user_data.gd").is_test_run()
 ## How long the level is on screen before the opening speaks, so the first line does not land
 ## on the frame the scene appears.
 const OPENING_DELAY := 0.8
+## The level's first words have been said, or it has none. Everything else that speaks waits
+## for it (`_until_she_can_listen`). See `_play_opening`.
+signal opening_finished
+var _opening_running := false
+## Beats she has entered whose advice waits for their arrival line. See `_on_obstacle_entered`.
+var _advice_held: Dictionary = {}
 
 
 ## THE LEVEL'S FIRST WORDS, chosen by whether the apo has been here before.
@@ -4584,18 +4793,25 @@ const OPENING_DELAY := 0.8
 ## replaying does not mean hearing the same welcome twice. Either way the tutorial waits: it
 ## shows nothing over anyone talking (TutorialDirector), so Walk comes after the last word.
 func _play_opening() -> void:
+	_opening_running = true
+	await _say_the_opening()
+	_opening_running = false
+	opening_finished.emit()
+
+
+func _say_the_opening() -> void:
 	var level_id := LevelManager.current_level_id
 	var visits := 1
 	if PlayerProfile.has_method("record_level_visit"):
 		visits = int(PlayerProfile.record_level_visit(level_id))
-	# BACK AT THE LAST CHECKPOINT, if they left part way through. Before anything is said, so
-	# the welcome is spoken where they are standing and not at the start of the level.
+	# Restore first so we can distinguish a checkpoint continuation from a fresh arrival.
 	var resumed := _resume_saved_checkpoint()
 	# Both story and the short greeting wait until the painting has become the world.
 	if LevelManager.is_transitioning():
 		await LevelManager.transition_finished
 	if not intro_enabled or script_lines == null or dialogue_box == null:
-		_greet()
+		if not resumed:
+			_greet()
 		return
 	# A profile that finished the level before visits were counted is a return, not a first.
 	var first_time := visits <= 1 and not PlayerProfile.is_level_completed(level_id)
@@ -4608,6 +4824,8 @@ func _play_opening() -> void:
 	if not first_time and resumed and PlayerProfile.is_level_completed(level_id) \
 			and tutorial != null:
 		tutorial.set_enabled(false)
+	if resumed:
+		return
 	await get_tree().create_timer(OPENING_DELAY).timeout
 	if not is_inside_tree():
 		return
@@ -4827,6 +5045,25 @@ func _on_dialogue_node_approached() -> void:
 		if dialogue_node != null and dialogue_node.has_method("rearm"):
 			dialogue_node.call("rearm")
 		return
+	await _until_she_can_listen()
+	if not is_inside_tree():
+		return
+	# ⚠ ITS OPENING LINE, ITS WAYS THROUGH, THEN THE QUESTION, AND NEVER TWO AT ONCE. At Payyo's
+	# gorge the fork's box and the arrival's box begin at the same x, so the question and seven
+	# lines of Lolo opened on one frame, in whichever order the physics server reported them.
+	# Fork first, and the lines ran under the question and the key turning their pages answered
+	# it: the route was committed by reading. Arrival first, and opening the question would have
+	# ended the conversation unread. Each is said once, so the second pass through here (after
+	# they are read) goes straight to the question.
+	var setting_up := _dialogue_node_obstacle_id()
+	if not setting_up.is_empty() and script_lines != null:
+		_speak_on_arrival(_arrival_hook(setting_up))
+		_speak_on_arrival("%s.teach" % setting_up)
+	if dialogue_box != null and dialogue_box.is_open():
+		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
+			dialogue_box.conversation_finished.connect(_on_dialogue_node_approached,
+				CONNECT_ONE_SHOT)
+		return
 	if lolo != null and is_instance_valid(lolo):
 		lolo.hush()
 	# Payyo's own script, when it has one. The three buttons are read off the commit
@@ -4980,6 +5217,10 @@ func _complete_level() -> void:
 ## The level is finished -- and if that is what opens the next one, the house is told to open
 ## it in front of the player (LevelManager.pending_reveal, Painting2D.reveal).
 func mark_finished(level_id: String) -> void:
+	# What this route never reached is owed to the next level. Not on a replay: its tutorial is
+	# off, so nothing was spent there and it has no idea what the first time through covered.
+	if tutorial != null and tutorial.is_enabled():
+		PlayerProfile.set_lessons_owed(tutorial.owed_ids())
 	var next := LevelManager.next_level_id(level_id)
 	var was_open := next.is_empty() or LevelManager.is_unlocked(next)
 	PlayerProfile.mark_level_completed(level_id)

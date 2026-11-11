@@ -37,6 +37,7 @@ const STUN_SECONDS := 0.3
 const KNOCK_BASE := 220.0
 const KNOCK_PER_DAMAGE := 80.0
 const DEATH_FADE := 0.4
+const HITBOX_PADDING := Vector2(20.0, 8.0)
 ## PLACEHOLDER BODY until there is art for it: a shape darker than the dark, and its eyes.
 const SHADE := Color(0.055, 0.047, 0.067)
 const EYE := Color(1.0, 0.62, 0.22)
@@ -109,7 +110,7 @@ func _ready() -> void:
 	add_child(shape)
 	hurtbox = _area("Hurtbox", PhysicsLayers.WORLD | PhysicsLayers.ENEMY_HURTBOX, 0, body_size)
 	hurtbox.monitoring = false
-	hitbox = _area("Hitbox", 0, PhysicsLayers.PLAYER_HURTBOX, body_size + Vector2(20.0, 8.0))
+	hitbox = _area("Hitbox", 0, PhysicsLayers.PLAYER_HURTBOX, body_size + HITBOX_PADDING)
 	hitbox.monitorable = false
 	art = PixelStripAnimator.new()
 	art.name = "Art"
@@ -155,6 +156,9 @@ func _physics_process(delta: float) -> void:
 				_enter(State.ATTACK)
 		State.ATTACK:
 			_try_to_land()
+			# A fatal strike can restore the checkpoint inside receive_hit().
+			if state != State.ATTACK or is_queued_for_deletion():
+				return
 			if _state_left <= 0.0:
 				_enter(State.RECOVER)
 		State.RECOVER:
@@ -359,6 +363,12 @@ func _enter(next: State) -> void:
 
 func _try_to_land() -> void:
 	if _landed or _prey == null:
+		return
+	# Area overlaps are from the last physics sync. Check where she is now before
+	# counting a hit, especially after a dodge, transformation, or checkpoint move.
+	var gap := (_prey.middle() - hitbox.global_position).abs()
+	var reach := (body_size + HITBOX_PADDING + PlayerHurtbox2D.SIZE) * 0.5
+	if gap.x > reach.x or gap.y > reach.y:
 		return
 	for area in hitbox.get_overlapping_areas():
 		if area == _prey:

@@ -190,7 +190,8 @@ damage is. The way back is the daylight in the wall, which is the only bright th
 **The nail is out of reach, and that is the room's puzzle.** It hangs 250 above the floor;
 the apo is 96 tall and her jump apex is 94.3 (`wanderer.gd`), so she is about forty pixels
 short. Anything at all to stand on closes that — the one place in the level where the puzzle
-is height and nothing else, with no tag to satisfy and no wrong answer.
+is height and nothing else, with no tag to satisfy and no wrong answer. The hint beneath
+the nail suggests drawing a ladder or placing something to stand on.
 
 > ⚠ A drawing placed in here needs the **level's** bounds. `PhysicsShapeObject` defaults to
 > `Rect2(0, −520, 3760, 1200)` and clamps itself back inside it; the room is a thousand units
@@ -239,14 +240,13 @@ you deal with the heap from outside. They are different questions and the level 
 `haybale_animation_4.png` is the widest, last airborne pose. The scene still has three
 `StrawPile2D` nodes because route state and the one entrance are authored that way, but only
 the entrance node draws the composite group. Drawing it from every node would stamp the same
-three piles over themselves. The four poses own the screen for three seconds before any
-acquisition or dialogue popup opens, then settle into a low bed of loose straw that actually
-touches the terrace. Every supplied pose has its own measured support row: the images do not
+three piles over themselves. The camera frames the four wind poses and the loose straw
+settling on the terrace in a three-second beat. Dialogue and the acquisition card wait
+until it finishes. Every supplied pose has its own measured support row: the images do not
 share a baseline, and aligning their canvas edges or their lowest stray alpha pixel leaves
-the visible piles floating. Checkpoint restores keep `SCATTERED` and do not rebuild the pile.
-The Protector choice's commit line is deferred too: the button carries the intention, all
-four wind poses and the grounded result play unobstructed, and only then may dialogue and
-the brass-key acquisition card cover the world.
+the visible piles floating. Choosing to scatter the heap closes its entrance. The wind brings
+the baul onto the terrace so its diary page stays reachable. CP2 records the solve so Continue
+restores the loose straw, closed entrance, and brass key together.
 
 **And the arrival SAYS there are two ways at it.** `L1_N2.enter` used to say only "it is in
 there, inside the straw", so a player who could not fit through the mouth concluded the key
@@ -532,8 +532,9 @@ as its own literal so a bump fails loudly until the migration is confirmed.
 ## Arrival speaks once
 
 `<obstacle>.enter` and `L1_N2.inside` play themselves the **first** time and never again.
-`DialogueScript.has_heard` tracks it per hook; `game_level._speak_on_arrival` is the only
-caller allowed to fire an arrival.
+`DialogueScript.has_heard` tracks it per hook; `LevelBase._speak_on_arrival` is the only
+caller allowed to fire an arrival. What each beat says, in what order and where, follows
+**LEVEL_TEMPLATE.md, "When the game speaks"**, which `run_line_timing_probe` walks.
 
 This is not the same as a line's authored `once`, which means "spent, never again for
 anyone" and is right for the refusal beat. Arrival lore stays **readable** — it moves to
@@ -603,6 +604,28 @@ home. So the first thing a new player sees is this level's opening, and its orde
    draw, the climb and the lantern, on Terrace 2;
 4. `B0_HAGDAN.enter`, then **Draw** at the wall.
 
+⚠ **Nothing goes before the first of these.** A key already held as the level appeared counted
+as the first step, so Jump's lead was said before the apo woke up and Walk was spent unshown.
+Lessons wait for the opening now (`_tutorial_context`).
+
+**At the gorge the order is `L1_N1.enter`, its three ways (`kind: lore`, in the box), then the
+question.** The fork's box and the arrival's box both begin at x 2950. They used to open on one
+frame, and the key turning Lolo's pages answered the question.
+
+After that, each lesson waits for its moment, and most of them only come if the player does the
+thing (`tutorial.json`). Three come for everyone once the first gate is behind her:
+
+5. the checkpoint, at Ang Hagdan's lantern;
+6. **Quest** (`quest`), which lights the quest card, then **Become** (`become`), six seconds on and
+   before the lake, the first place it can matter. It is spent unshown if she has already become
+   something;
+7. **E** (`interact`), the next time its prompt is up. ⚠ It waits for the checkpoint and it is a
+   `look` card, because E is first offered beside the first drawing she set down, among the lessons
+   about it, and a `do` card there would have her press E and pocket what she was about to climb.
+
+**Fly** and **Swim** come only to a form that can do them, and Swim only once it is in the water.
+A lesson a route never reached is owed to the next level: AGENTS.md has the rule.
+
 ⚠ **The greeting is not said on a first visit** (`_greets_on_first_visit`). It came straight
 after the intro, at the spawn — "press R and draw", the first instruction in the game, with
 nothing in front of her to draw for — and the `draw` lesson's lead says the same thing at the
@@ -623,6 +646,13 @@ opening line was read through the card's dim. `run_opening_probe` walks it strai
 | `L1_N2` | 3640 – 4380 | the three straw piles (3654–4368), on Terrace5 |
 | `L1_N3` | 4430 – 4810 | the bale's floor (4520–4760) and both bululs |
 
+⚠ **`L1_N3`'s arrival box is 4430–4610, not centred on the house.** Centred, it began at 4530, and
+the post stops her at 4516: "There is the house… the way up is gone" played only once she had
+climbed onto the deck. Its board stands at 4370, 60 px before it.
+
+**The bulul speak to somebody who stays** (`Bulul2D.LINGER`, 1.2 s). "Do not" used to fire on
+anyone walking up to the house, a moment after Lolo's first words about it.
+
 No two overlap now; `L1_N2` and `L1_N3` used to share 20px.
 
 ---
@@ -634,7 +664,8 @@ cloth pennant, which read as one more signboard in a level that is already full 
 signboards ("you placed a sign in the checkpoint spots"). The state is LIGHT rather than
 colour, because a change from grey cloth to gold cloth is a change you have to be looking at
 it to notice. The two decorative fence sprites are deleted outright: one of them was standing
-on CP0.
+on CP0. Its trigger starts on the upper terrace, and its authored landing there also takes
+over from older CP0 snapshots written partway up the climb.
 
 **The gorge has a BOTTOM, and the cave is a hole you can see.** `has_a_floor` lays rubble and
 silt across the foot of the shaft with a column of daylight down the middle, and `cave_at` /
@@ -819,11 +850,17 @@ are not.
 **The lake before the gorge (`CentralPaddy`) is 600px, x 2280–2880** (Kent, 2026-10-03: "longer
 instead of a puddle"). It was a 300px paddy, which a 340px drawn bridge spanned; it grew west
 into the bank before it, so the gorge and everything after it did not move. A bridge no longer
-reaches across. A boat does, and so does something that swims. It is 160 deep and filled to
-the rim, so the apo cannot wade it, and going under puts her back at her last checkpoint.
-`run_walk_level1` holds the width, keeps water, bed and basin bank to bank, checks no signpost
-stands in it, and rides a boat across. It is not in `GATES.md` and has no beat or hint of its
-own: the banner says "Follow the terraces east to the gorge" all the way across it.
+reaches across. A boat does, and so does something that swims. Lolo explains the transformation
+on the west bank. The lake is 160 deep and filled to the rim, so an unboarded apo who wades in
+is rescued to a dry bank with her drawings and ink intact. Sailboats land at the waterline,
+and submarines placed in clear water wait at that depth until boarded. `run_walk_level1` checks both
+placements and rides the sailboat across.
+
+**The sky has a lid (`GameplayPlane/SkyLid`, underside y -440).** Kent: "when i try to fly up above
+in level 1, i get to go to the houses, hay". Both insides are parked over the valley (the heap at
+y -900, Ang Bale at y -1180) and a room is entered by position (`_room_holding_player`), so a bird
+flapped off the top of the painted sky and into them. The lid is world collision, and doors
+teleport past it. `run_level1_flight_ceiling_probe` flies at it with real flaps.
 
 ## What the player is told to do
 
@@ -859,7 +896,8 @@ the obstacle reads as hers to draw before anyone says so. Kent (2026-11-01): ful
 - ⚠ **`drain.gdshader` reads `COLOR` as it is.** Godot 4's `COLOR` already carries the texture;
   sampling `TEXTURE` again squared every colour (0.42 came out 0.17), so whatever wore the drain
   drew darker than painted from the start. It once had a flag for this; now no level samples
-  twice, and `run_drain_probe` fails if the shader does.
+  twice, and `run_drain_probe` fails if the shader does. The one read it allows is `.a`: Mayon's
+  edge feather asks how far the art reaches, and no colour comes of that.
 
 ## Verify
 

@@ -118,7 +118,7 @@ func _new_game_to_payyo(manager: Node) -> void:
 		"carried")
 	var level := current_scene
 	var badge := level.get("level_badge") as Label
-	_check(badge != null and badge.text.contains("PAYYO"), "and the badge says so",
+	_check(badge != null and badge.text.contains("TERRACES"), "and the badge says so",
 		badge.text if badge != null else "-")
 
 

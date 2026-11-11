@@ -39,7 +39,7 @@ in three waves until dawn.
 | Choosing a route | **By what you do — no popup.** Drawing a light at the sigbin *is* the artist choice; backing against the rock *is* pragmatic; landing a hit *is* protector. A popup would freeze a fight. **And it stays open until one is answered** (as built): a blade swung first and then a light is the light (`LevelDirector.routes_stay_open`). |
 | The tally | Every encounter's route is logged for the thesis telemetry, but the ending gets **one point from Dilim**: its majority route. Six forks must not decide the ending alone. |
 | "Absurd" | The bungisngis laughs itself helpless at **sea things in a forest**: fish, shark, octopus, sailboat, submarine. The game can only see a class, so the joke had to be a set of classes. |
-| Quick slots | Four, on **Z X C V**. Z/X rotate a drawing only while placing, and quick slots are off while placing. |
+| Quick slots | Five, on **Z X C V B** (four until 2026-11-06, when Kent added B: the lamp oil, found last, had no key in any run that saved everything). Z/X rotate a drawing only while placing, and quick slots are off while placing. |
 | Creature art | **Sculpted pixel strips**, in the delivered art's idiom: chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour (`tools/creature_sculpt.py`). Replaceable by name when the art team delivers -- the kapre, the manananggal and a white lady as the lean aswang came in `Creatures.zip`; the crawling aswang, tikbalang and tiyanak sheets were supplied on 2026-11-01, and the repaired-arm bungisngis, wakwak, sigbin and nuno on 2026-11-04. All ten are cut by `tools/build_dilim_delivered.py`. |
 | Defaults taken | Shift = walk (the santelmo's rule needs one). The opening is design Draft A, naming the manananggal and the tikbalang, played as the level's intro. |
 
@@ -76,7 +76,8 @@ CP3        FINAL CLEARING — aswang waves until dawn
   an edge ripple that shrinks as it nears, then the lantern leans and gutters when it is nearly on
   her — a positive tell, never an absence. The tiyanak's cry is an amber ripple plus a rustle in
   the undergrowth.
-- **The canopy blocks flight physically** (a ceiling ~440 px up), not by a rule.
+- **The canopy blocks flight physically** with an invisible ceiling 440 px up. The forest
+  backdrop supplies the visible trees.
 - **No damage numbers.** Hit flashes and knockback.
 - **Cultural guardrails:** the nuno's mound gets nothing — no hurtbox, no protector route. The
   tiyanak fight earns nothing — no drops. The aswangs are authored encounters, not drawable
@@ -89,8 +90,8 @@ CP3        FINAL CLEARING — aswang waves until dawn
 | Asin (salt) | Thrown, burns over time. The only thing that kills a manananggal's lower half. |
 | Bawang (garlic) | Area repellent; anything that hunts by smell will not cross it. Buys room to draw. |
 | Langis (lamp oil) | Refills the lantern. The only healing; never drops during the finale. |
-| Abo (ash) | A cloud that reveals what hides in shadow. The only counter to the tik-tik. |
-| Kandila (candle) | Portable light that costs no ink; burns down. |
+| Abo (ash) | A cloud that reveals what hides in shadow, there or flying in while it hangs. The only counter to the tik-tik. |
+| Kandila (candle) | Portable light that costs no ink; burns down. A light like any other: it answers what a drawn light answers. |
 | Buntot pagi (stingray tail) | A whip. High damage, limited uses, rare. |
 
 ## Build order, as shipped (each a PR that shipped green; every new behaviour is a LevelBase hook that defaults off)
@@ -148,7 +149,7 @@ alongside this file; the numbers below are its starting points.
 | The finale | `DilimFinale2D` (the clock, the three waves, the dead tree) · `DawnClockHud` · `Wakwak2D` · `Tiktik2D` · `DeadTree2D` (`art_kind = "dead_tree"`, Dilim's own, drawn; `stands_solid` off) |
 | Lola's things | `Satchel` · `SatchelPickup2D` · `QuickSlotBar` · `AsinThrow2D` · `AboDust2D` · `BawangWard2D` · `CandleFlame2D` · `WhipLash2D` |
 | Art | `MakilingBackdrop2D` · `MakilingTerrain2D` · `PixelStripAnimator` · `tools/build_dilim.py` (plates, tiles) · `tools/build_dilim_creatures.py` (the sculpted creatures, the kapre's balete, smoke and cigar) · `tools/build_dilim_delivered.py` (the art team's: the kapre, the manananggal, the white lady) · `tools/build_dilim_props.py` (satchel icons) |
-| Tests | `run_level4_audit` · `run_level4_enablers_probe` · `run_level4_seg1/seg2/seg3_probe` · `run_level4_finale_probe` · `run_level4_tiktik_probe` · `run_level4_whip_probe` · `run_satchel_probe` · `run_combat_probe` · `run_enemy_probe` · `run_weapon_probe` · `run_darkness_probe` · `run_makiling_probe` · `run_journey_probe` (Dagat → house → Dilim → dawn → ending) · windowed looks `run_visual_dilim_light`, `run_visual_makiling`, `run_visual_dilim_creatures` |
+| Tests | `run_level4_audit` · `run_level4_enablers_probe` · `run_level4_seg1/seg2/seg3_probe` · `run_level4_finale_probe` · `run_level4_tiktik_probe` · `run_level4_whip_probe` · `run_satchel_probe` · `run_combat_probe` · `run_enemy_probe` · `run_weapon_probe` · `run_darkness_probe` · `run_makiling_probe` · `run_journey_probe` (Dagat → house → Dilim → dawn → ending) · windowed looks `run_visual_dilim_light`, `run_visual_makiling`, `run_visual_dilim_creatures`, `run_visual_level4_clock` |
 
 ## As built, against the design
 
@@ -230,20 +231,32 @@ What the build does that the design above does not say, and what it does not do 
   A drawn sun still brings dawn 15 s nearer, once a wave. The manananggal is driven off at 8.
   `run_visual_level4_dawn.gd` samples the real lighting controller at 0 / 60 / 75 / 90 s;
   the reviewed contact sheet is `docs/screenshots/dilim_dawn_progression.png`.
+- **Diary defeats survive a checkpoint retry.** Salt on the Manananggal's lower half
+  prevents her from returning. Driving off her upper half with a weapon lets her return
+  in wave two, with the same lower half reachable west of the dead tree. Defeating the
+  Tik-Tik after revealing it with ash keeps it out of later attempts. Its windup and dive
+  are visible, and ash still opens it to weapon hits.
 - **The dead tree** is the woods' own, drawn in the balete's bark (Level 1's was standing in). It
   stands at the clearing's middle and falls east into a 64-px log that shuts the east side; a felled tree stays down through a knockout, so a retried night starts with it shut.
-- **The tik-tik** is shown by ash for the dust's 6 s and blinded for 1.5 s; inside 220 px of her
-  lantern the HUD leans and gutters and the light drops 18%.
+- **The tik-tik** is shown by ash for the dust's 6 s and blinded for 1.5 s, at the throw or flying into
+  the cloud while it hangs (1.6 s); inside 220 px of her lantern the HUD leans and gutters and the
+  light drops 18%, which is her signal to throw.
 - **The buntot pagi** drops only in waves 2 and 3 (2%), lashes 10 times, and reaches fliers. Its
   lashes left are saved with the run, and every lash flashes its quick slot and is logged.
 - **What to do is said where it is done** (Kent, 2026-10-19: "the game's instructions are all
   unclear"). Inside an encounter not yet answered the banner names Lola's three ways past it, no
   class named ("Show it light, put my back to a rock, or fight it."), each at the banner's full
-  size; the first of each of Lola's things says what it does and its key ("Kandila -- a candle. X
-  sets it down: light that costs no ink."); the santelmo's walk is taught ~3 s before it can see
+  size; the first of each of Lola's things says what it does, its key and when ("Kandila, a candle.
+  X sets it at my feet: a light like any other, and it costs no ink."); the santelmo's walk is taught ~3 s before it can see
   her, and the first salt lies past it so nothing takes the hint bar from that.
 - **No "?" boards.** They promised Lolo's help, and stood on the creature; every beat keeps its
   story board at its approach (`LevelObstacle2D.plants_hint_sign`).
+- **A beat speaks as its subject comes into the lamp**, within about 400 px of it (`announce_offset`,
+  with the board beside it). The volumes are as wide as the encounters and the lines fired at their
+  leading edge: "A mound on the path" 600 px out in the dark, and the bestiary page with it.
+- **"This is the same rock. I have passed it three times now" is said when she has**, the second
+  time she is led back (`_arrival_hook`, `LED_BACK_TO_NOTICE`). It was the tikbalang's arrival, so
+  it played on the first approach.
 - **A clearing is saved as she walks in**; its lantern stands where the light is made and her light
   lights it (`CheckpointArea2D.lights_on_entry`), with the lamp filled and a curse lifted.
 - **The mound is asked from its foot** (56 px), where a jump from standing clears it.
@@ -284,6 +297,42 @@ What the build does that the design above does not say, and what it does not do 
 - **The Makiling tileset** is used in part: the six plates, its seamless tiles and (below) its
   mud, stone, leaf cover, grassy edge, ferns and mushrooms; no slopes, root or log platforms,
   waterfall or flowers. The vine frame plate stands only behind her (in front of play it hid her).
+
+## Lola's things and the morning clock (2026-11-06)
+
+Kent: "not that clear to use and when to use"; "start off as a moon and then slowly transform into a sun".
+
+- **Each thing says what, which key and when.** On finding it (`found`), on its slot for as long as
+  she carries it (`does`), and at its moment: `level_4.gd` `_wanted_now` asks every tick what would
+  help now, and that slot wears a Now chip. Advice only; no press changes. The words wait for what
+  is up to be read and speak as an aside, so advice standing through a beat comes back after them.
+- **Everything lying in the woods has a slot.** Only the whip, which drops late in the night, can find
+  all five held: it then says so, stands on the bar with no key and takes the next slot spent.
+- **A press that does nothing says why**: oil on a full lamp, a slot with none left, ash with nothing
+  in reach, a candle where only a drawn light answers.
+- **Garlic's ring** stands over the dark and closes as it runs out. It is room to breathe, not "room
+  to draw" as the design table has it: drawing stops the world, so the words say ten seconds, stay in.
+- **`DawnClockHud`** is a window on the sky: a crescent among stars, full by halfway, silver warming
+  to gold, rays by morning, with the time in words and the two waves marked on its path. It pictures
+  a sun at Kent's request; no line names one.
+- **The night's words:** one line on arriving, the wave's line and her keys on the hint bar, the quest
+  card by what is after her (`_night_objective`). A retried night repeats what is happening, and the
+  list of her things only for the wave that knocked her out.
+
+`run_visual_level4_clock` writes the clock through the night to `/tmp/obra_dawn_clock.png`; the reviewed
+sheet is `docs/screenshots/dilim_morning_clock.png`.
+
+**Two of Kent's decisions came with this (2026-11-06):**
+
+- **A candle is a light like any other.** It fills a clearing's lamp (`solve_with_item`, with the
+  clearing's line) and is the artist's way past the sigbin and the tiyanak, at once and from anywhere in
+  the beat, as a drawn light is. Set beside the manananggal's lower half it answers in the same two
+  seconds, with no route chosen first, so salt stays open until then. It counts as the artist's route in
+  the tally. The Now chip stays off at a clearing, since arriving always fills her ink.
+- **Ash shows what flies in while it hangs.** Asked only at the throw, ash thrown as the lamp leaned at
+  220 px reached nothing, since the cloud reaches 160. It goes on looking for its 1.6 s, and the tik-tik
+  comes in at 110 px/s, so "when the lamp leans, throw" is always in time. That lean is the slot's Now.
+  Walkers are still blinded only at the throw. An empty cloud says so once it has gone.
 
 ## The ground is built the way Mayon's is, in Makiling's mud (2026-11-02)
 
@@ -367,6 +416,26 @@ Collision stays rectangular.
 across ground and floating shelves were drawn above the darkness by `MakilingTerrain2D`,
 not missing pixels in the artwork. Those extra rim layers are gone; the moonlit moss texture
 now supplies the continuous visible edge. Earlier build notes describing rims are historical.
+
+**The supplied trees replace the standing tree art (2026-11-05).** The first reference is
+the Kapre's buttressed trunk, its branch aligned to his existing feet. The second is the
+clearing's hollow dead tree and the repeating forest trees, replacing the old vine-tree
+frame. Both felled trunks use the supplied bark. Sources and rebuild notes live in
+`LEVEL4_Mt.Makiling/authored/trees/`; `game/tools/build_dilim_trees.gd` exports to the separate
+`assets/Level4/trees/` folder. `ForestBand.plate_texture` replaces the scenery while keeping
+its parallax and dawn tint. Chopping, smoke, cigar targets, collision and encounter geometry
+keep their existing rules. The older sculpted tree outputs remain historical build outputs.
+`run_visual_dilim_trees.gd` captures all three replacements and both felled states.
+
+**Dilim's outdoor backdrop uses the supplied vista behind the existing trees (2026-11-07).**
+Three ImageGen edits under `assets/Level4/backdrop_reference/` form the sky, single Makiling
+peak, and forest canopy. Their horizontal camera rates are 0.02, 0.044, and 0.29. The sky
+and canopy mirror at the joins. The supplied `forest_plate.png` repeats in front of the
+canopy at 0.62, with its original scale and top edge. All four bands draw behind the
+play plane and share the finale's night-to-dawn grade.
+`run_makiling_probe` checks the live bands and `run_visual_makiling` shows the joins and
+ravine. The [generation prompts](LEVEL4_Mt.Makiling/authored/backdrop_reference_prompts.md)
+record the artwork edits.
 
 ## The old way over the ravine fades (2026-11-01)
 

@@ -7,7 +7,7 @@ extends Node
 ## data directory in which progression and accumulated telemetry are stored between
 ## sessions."
 ##
-## One JSON document at user://profile.json, written atomically (temp file then
+## One profile.json document, written atomically (temp file then
 ## rename) so a crash mid-write cannot corrupt the live profile. An unreadable or
 ## schema-incompatible profile is treated as a new profile, never a fatal error
 ## (thesis §3.2.8: a profile may be "absent on first launch, truncated by a power"
@@ -46,8 +46,7 @@ const SETTING_DEFAULTS := {
 	"reduce_motion": false,
 }
 
-## user://profile.json when a player runs the game; a test run's own copy otherwise, so no
-## suite can start from, or leave behind, anybody's real progress. See user_data.gd.
+## Source, exported and test runs each resolve their own location in user_data.gd.
 var profile_path: String = UserData.path("profile.json")
 ## class id -> its kept drawing (or null once looked for and not found). See class_drawing.
 var _drawings: Dictionary = {}
@@ -90,6 +89,7 @@ func _default_profile() -> Dictionary:
 		"route_history": [],             # every route taken, oldest first
 		"collectibles": [],
 		"diary_pages": [],               # Lola's diary entries found, by config/diary.json id
+		"lessons_owed": [],              # Level 1 lessons this route missed, taught when first needed
 		"used_items": [],                # found things given up: the brass key left in the lock
 		"counts": {"submissions": 0, "declines": 0},
 		"settings": _default_settings(),
@@ -207,6 +207,66 @@ func _drawing_path(entity_id: String) -> String:
 	return profile_path.get_base_dir().path_join("drawings").path_join("%s.png" % entity_id)
 
 
+## The ending keeps each submitted page, even when the same class was drawn again.
+func record_gallery_drawing(strokes: Array) -> bool:
+	if not strokes.any(func(stroke: Dictionary) -> bool: return stroke["points"].size() > 1):
+		return false
+	var folder := _gallery_folder()
+	if DirAccess.make_dir_recursive_absolute(folder) != OK:
+		return false
+	var next := 1
+	for name in DirAccess.get_files_at(folder):
+		if name.begins_with("page-") and name.ends_with(".strokes"):
+			next = maxi(next, int(name.get_basename().trim_prefix("page-")) + 1)
+	if next == 1:
+		# Copy the earlier save's class pictures before a new recognition can replace them.
+		var old := _legacy_drawing_paths()
+		for index in old.size():
+			var copy := folder.path_join("legacy-%04d.png" % index)
+			if not FileAccess.file_exists(copy):
+				DirAccess.copy_absolute(old[index], copy)
+	var path := folder.path_join("page-%012d.strokes" % next)
+	var temporary := path + ".tmp"
+	var file := FileAccess.open(temporary, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_var(strokes)
+	file.flush()
+	var written := file.get_error() == OK
+	file.close()
+	if written and DirAccess.rename_absolute(temporary, path) == OK:
+		return true
+	DirAccess.remove_absolute(temporary)
+	return false
+
+
+func gallery_drawing_paths() -> PackedStringArray:
+	var folder := _gallery_folder()
+	if not DirAccess.dir_exists_absolute(folder):
+		return _legacy_drawing_paths()
+	var paths := PackedStringArray()
+	for name in DirAccess.get_files_at(folder):
+		if name.ends_with(".strokes") or name.ends_with(".png"):
+			paths.append(folder.path_join(name))
+	paths.sort()
+	return paths if not paths.is_empty() else _legacy_drawing_paths()
+
+
+func _legacy_drawing_paths() -> PackedStringArray:
+	var paths := PackedStringArray()
+	for entity_id: String in get_drawn_classes():
+		if not entity_id.is_valid_identifier():
+			continue
+		var path := _drawing_path(entity_id)
+		if FileAccess.file_exists(path):
+			paths.append(path)
+	return paths
+
+
+func _gallery_folder() -> String:
+	return profile_path.get_base_dir().path_join("drawing_gallery")
+
+
 ## Count one submission and, if it was declined by the recogniser, one decline.
 ## Backs the redraw rate (thesis §3.2.8).
 func note_submission(accepted: bool) -> void:
@@ -319,6 +379,20 @@ func record_new_brush() -> void:
 
 func has_new_brush() -> bool:
 	return bool(_data.get("new_brush", false))
+
+
+## THE LESSONS LEVEL 1 COULD NOT REACH ON THIS ROUTE, shown once by a later level when their
+## moment comes (TutorialDirector._take_on_what_is_owed).
+##
+## No schema bump, and the default is the point of it: a save from before this has no such key
+## and owes nothing, which is right for somebody who is already past the tutorial.
+func set_lessons_owed(ids: Array) -> void:
+	_data["lessons_owed"] = ids.duplicate()
+	_commit()
+
+
+func lessons_owed() -> Array:
+	return (_data.get("lessons_owed", []) as Array).duplicate()
 
 
 ## Lolo stops at the island at the end of Dagat, because beyond it is past what he remembers.
@@ -464,19 +538,13 @@ func reset_progress() -> void:
 	var settings: Dictionary = (_data.get("settings", _default_settings()) as Dictionary).duplicate(true)
 	_data = _default_profile()
 	_data["settings"] = settings
-	var folder := profile_path.get_base_dir().path_join("drawings")
-	var dir := DirAccess.open(folder)
-	if dir != null:
-		for file in dir.get_files():
-			DirAccess.remove_absolute(folder.path_join(file))
+	var base := profile_path.get_base_dir()
+	for folder: String in [base.path_join("drawings"), _gallery_folder(), base.path_join("checkpoints")]:
+		if DirAccess.dir_exists_absolute(folder):
+			for file in DirAccess.get_files_at(folder):
+				DirAccess.remove_absolute(folder.path_join(file))
 	_drawings.clear()
 	drawings_version += 1
-	# And the checkpoints kept between visits: a new game starts every level at its start.
-	var saves := profile_path.get_base_dir().path_join("checkpoints")
-	var saves_dir := DirAccess.open(saves)
-	if saves_dir != null:
-		for file in saves_dir.get_files():
-			DirAccess.remove_absolute(saves.path_join(file))
 	_commit()
 
 

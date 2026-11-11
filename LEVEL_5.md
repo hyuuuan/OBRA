@@ -1,5 +1,218 @@
 # Level 5 — Mayon
 
+**Current design and build: 5 November 2026.** The crater journey replaces the long upper
+ascent and the three areas of floating memory pictures. The previous build record is archived
+below. Level 5 remains the last painting and leads into the existing summit and house ending.
+
+## The journey
+
+**Foot of Mayon → two drawing gates → active crater → jump inside → twelve walkable places
+→ Lolo's farewell → white summit → Lola → home.**
+
+The original lower slopes end at the crater near x5250. Its mouth is an actual 500px opening
+in the collision ground. Lava, embers and smoke are visible below its rim. Entering the throat
+with the player's physics anchor starts the drop; there is no E interaction, death, ink charge
+or health system. Smoke covers the transfer to the first remembered place.
+
+**Mayon's ascent follows the supplied sunset vista.** The visible cone and grass bank use
+pixels from the reference. ImageGen filled the scenery behind the cone and trees and matched
+the bare basalt, ash, cliff caps, and loose rocks to the same palette. The sky, single cone,
+barren ridges, and forest crowns scroll at separate rates. The trees, palms, and Cagsawa tower
+stand on the existing route. The forest gives way to bare ridges as the apo climbs to the crater.
+The broadleaf trees, coconut palms and ash snags use Dilim's stepped outlines and bark in
+Mayon's sunset colours. Each sprite stands on its original anchor, including the palm the ash takes.
+Cagsawa's tower uses the same dark outlines around its silhouette, masonry and arches.
+The [art sources and prompts](LEVEL5_Mayon/authored/mayon_vista_prompts.md) describe the cuts.
+
+| Earlier painting | Short places, in order |
+|---|---|
+| Payyo | Terraces, Ang Tulay, Ang Bale |
+| Piyesta | Dancing plaza, church nave, bandarita alley |
+| Dagat | Shore and bangka, coral and bakunawa waters, island |
+| Dilim | Forest path, waterfall clearing, dawn clearing |
+
+Each memory has **1,280 world units** of forward travel, including the dawn clearing: about
+one screen at normal play, and less than one screen in both the 1600×900 and taller-window
+framing. Shallow rises and descents stay in the middle, with matching floor at the borders.
+The flower footholds and Lolo's farewell fit inside the last clearing. All twelve can be
+crossed as the apo with no ink. These are scenery and local preservation landmarks, not instances of the earlier levels' quest hosts, combat or progression.
+
+## Remembered life
+
+The nine Payyo, Dagat and Dilim stops have authored scenery groups in each vignette's
+`staging.props`. They share the delivered art's proportions and follow the actual floor.
+Piyesta keeps its existing plaza, nave and alley composition.
+The plaza memory continues its retaining wall down the frame with staggered courses cut
+from the original stones at their existing pixel scale. The paving and collision line stay aligned.
+The alley uses Alley 1's own paving and road on its painted walk row (895). The road meets
+the opening between the storefronts, and the wall continues in whole brick courses below the vines.
+
+- **Payyo:** the terraces' target is Payyo's own painted terraces and river (`terraces_landmark.png`),
+  standing behind the walkable steps with the village climbing the hillside behind them. It replaced
+  `rice_beds.png`, three slabs of stalks drawn by code and wider than the steps, which Kent found
+  "full of grass" (5 November); the builder still writes that file, but no place uses it. Ang Tulay crosses a flowing river between
+  planted banks and fences. Ang Bale has a gate, storage pot, lamp and stored harvest around its
+  raised yard. Perched birds lift as the apo approaches; butterflies move between the beds.
+- **Dagat:** palms frame the beach, surf spans the visible water behind the bangka, and a paddle
+  rests beside it. Painted water continues into the inlet, where the sand curves down to the
+  original collision step. The reef has distant ridges, coral, swaying kelp, fish schools, jellyfish and
+  bubbles. The apo uses Dagat's swim controls and breath bubbles in the reef. The memory is
+  fully underwater, so the apo stays submerged and can swim through without a breath timer.
+  The preservation bakunawa uses thirteen original swimming frames, on one common
+  canvas so its scale and the saved strokes stay registered. The island has a landing, shells,
+  palms, passing gulls and an offshore bangka.
+- **Dilim:** the forest, waterfall, and dawn share Level 4's current sky, Makiling, canopy,
+  and supplied forest trees. The bands move at Dilim's parallax rates and the moonlit
+  ground kit follows Mayon's existing route and flower footholds. The forest landmark
+  uses Dilim's hollow tree, including when it returns at the summit. Fireflies brighten
+  near the apo. The [pixel-art waterfall](LEVEL5_Mayon/authored/dilim_waterfall.prompt.txt)
+  matches the same vista and keeps its moving water and mist. Warm shafts and butterflies
+  open up the dawn clearing.
+
+`mayon_memory_stage.gd` draws only scenery, light and wildlife. Its clocks run in the mounted
+pair, pause with drawing/dialogue, and hold decorative motion under Reduce Motion. It adds no
+physics, health, combat, pickups, UI prompts or sound. Scene spans, the shared collision route,
+ink, irreversible preservation outcomes and the ending stay unchanged.
+
+## The moving foreground mask
+
+`MayonMemoryJourney` mounts only the current pair of visual scenes into two scenery-only
+SubViewports. Their visual World2Ds contain no bodies or actors. Both use the main gameplay
+camera's canvas transform. Collision, the apo, Lolo and placed drawings exist once, in the main
+world. Two complementary masks show the old place left and the next place right.
+A black column with a **280px opaque center and 360px soft falloff on each side** covers their
+shared edge in front of the actors and below all HUD. Its outline stays slightly irregular.
+The opaque center hides the scenery seam and briefly occludes the actors; the blurred outside
+edges fade naturally into both places.
+
+The column advances from camera travel at **2.2×** ordinary scrolling. It stops with the camera
+and reverses on backtracking. It does not run on a timer. The divider also decides which place
+surrounds the player for preservation targeting. Both visual passes draw exactly the same
+collision rectangles at their shared boundary. Resize and camera zoom update both targets;
+paused gameplay freezes the travel parameter while the camera transform remains registered.
+Reduce Motion removes decorative eruption motion, while retaining this functional transition.
+
+The minimap borrows the current place's visual canvas; it never stacks the two scenery passes.
+The scene textures and the foreground column remain part of the world for painting transitions.
+
+## Ink, preservation and the ending
+
+Six visible units, no refills, one unit per accepted drawing, and continuous creature drain
+remain unchanged. The two-unit hidden reserve still funds only eligible placements at the
+ascent's Span and Climb gates. Every preservation choice uses visible ink alone.
+
+The twelve original preservation IDs and `holds_lolo` memberships stay stable. Targets now stand in the places themselves. The terraces and Bale belong to Payyo;
+the dancers, church and bunting to Piyesta; the storm and bangka to the shore, coral and
+bakunawa to the sea; the forest, waterfall and optional flower to Dilim. The church's votive
+rack is its local target. The complete authored troupe frames stay registered as one animation.
+
+A nearby target receives the highlight. Draw opens a separate sketchbook and locks that target.
+Any nonempty freehand sketch can preserve it for one visible ink. Saving restores its colour
+and retains the player's original polylines. Whitening starts when its place is entered, pauses during modals, and takes 90s to
+paper. Leaving through the forward shadow takes unsaved landmarks to blank over four seconds.
+Backtracking can revisit scenery, but never reopens a lost choice. The farewell closes any
+remaining choices before Lolo goes; late or migrated rewards cannot bring his voice back.
+
+The flower remains off the main path, reached by three 60px one-way footholds. Its fifth-flower
+reward and Artist credit are durable and awarded once. Saving terraces, church or bangka still
+steadies Lolo. His fade follows journey progress, and his farewell begins after the last
+preservation choices. Saved memories still delay that moment. After he goes, the final shadow
+reveals the white summit. The brush refusals, free painting, saved places blooming with her
+ink, route-dependent voice, both flower endings, last diary page and return home are retained.
+
+Mayon remains silent. No enemy, health, boss or required replay of an earlier quest is added.
+
+## Player instructions and completion (5 November 2026)
+
+Lolo explains the finite ink at the foot of Mayon. At the memories he explains how to approach
+a landmark, sketch it and press Preserve, and which choices fade. The objective asks the
+player to approach and gives the Draw key when a landmark is in reach. The sketchbook shows
+its reference beside the paper.
+**Preserve · 1 ink** commits the sketch. Closing the book costs nothing. When the brush is
+empty, the objective tells the player they can continue to the ending. HudNotice confirms
+when a memory is preserved or lost.
+
+The Lolo, Lola and final free-paint pages show the task, a visible drawing surface and Paint.
+These pages wait for Paint and use the existing quiet brush and free-paint sequences.
+
+The summit retains its objective and the Draw button when drawing is available. It tells
+the player to approach Lola, attempt her drawing, then draw any remembered place for free.
+After the last diary page, the objective confirms **Mayon complete. Progress saved. Returning
+home.** The house confirms **Journey complete. Progress saved.** and labels completed
+paintings **Replay**. Even an ending with no memories preserved returns to a house with
+all its paintings and lets Mayon start over. `run_level5_frame_probe` exercises that route.
+
+`run_level5_guidance_probe` checks these states, remapped input, a freehand house sketch,
+Preserve and Paint clicks, empty ink, loss feedback and completion acknowledgement. With `-- --visual` it also saves
+screenshots, including a taller final-page layout. The continuous finish runner clicks
+Paint on each guided ending page.
+
+The summit camera holds its eye 80 units above the configured floor in a 1,200-unit-tall
+frame, keeping both figures and the restored places above the dialogue box. This adapts the
+incoming summit framing fix to the crater journey's coordinates. The house keeps its separate
+82-unit eye drop while Lola speaks. Ending bloom sizes and elevations do not move the journey's
+preservation landmarks.
+
+## The summit, looked at again (5 November)
+
+Kent: where Lola paints, "stuff do not make sense like it is not pleasing to the eye, there is no
+proper animation to the painting".
+
+- **Her painting is being painted.** The canvas starts as a pale underdrawing with the sky blocked
+  in. Each time her brush reaches it, more is painted, a row at a time from the sky down
+  (`Lola2D.BRUSH_ON_CANVAS`, `paint_reveal.gdshader`). It stops short of finished (0.94), so it is
+  "nearly finished" when she turns. The easel stands clear of her body, and Reduce Motion shows
+  the canvas most of the way done.
+- **What she saved stands apart** (`bloom_layout`). Places on the ground share the frame's width,
+  with the largest at the edges and the smallest behind the pair. The storm and the fiesta flags
+  (`bloom_layer: "sky"`) hang across the top behind them. The endings probe fails if a place runs
+  off the frame or is more than half hidden.
+- **The sketch page says what to draw** (6 November). Kent: "how are they supposed to know what
+  to draw in that moment". The memory's picture lies faintly on the paper to trace
+  (`TraceGuide`, under her strokes and never part of them). Beside it are three steps (trace or
+  sketch the picture; a few lines are enough; Preserve, 1 ink), where the sketch goes (the
+  summit), and the ink left. `run_level5_guidance_probe` checks all of it.
+
+## The final scene in the house
+
+Lola's house easel starts with an underpainting of Mayon. Her brush poses add colour before
+the camera gives the house back. Her dialogue portrait uses the same bust height and pixel
+scale as Lolo and the apo.
+
+**Your Drawings** opens after the scene and can be reopened from the house. Each submitted
+page is kept in order, including repeated classes, recognition declines and Mayon's guided
+pages. The gallery can show the class thumbnails older saves already kept. New Game clears
+the gallery with the rest of the run.
+
+## Implementation and checks
+
+- `level_05.json` owns the ordered vignette scenes, terrain profiles, landmark placements and
+  named crater/entry/farewell/summit anchors. `layout_version` is **5**.
+- `level_5.gd` owns the phases `ascent`, `crater_drop`, `memories`, `farewell`, and `summit`.
+  The old corridor and summit x thresholds no longer drive the story.
+- Checkpoints preserve outcomes, whitening, raw ink, save order, departed places, Lolo, phase,
+  camera position and flower credit. Version 1–3 CP1 resumes at the memory entrance; CP2
+  resumes below the new summit with Lolo gone. Version 4 resumes at the matching vignette
+  entrance or farewell/summit entrance, since the long itinerary used different coordinates.
+  Existing ink, landmark outcomes, strokes and collectible records survive.
+- `tools/build_mayon_journey.py` produces registered backgrounds, silhouette cuts and trimmed
+  landmarks from existing delivered art. `--check` verifies freshness. No source plate is edited. The church is cut at its painted
+  walk line, ocean registration margins are removed, grounded buildings share world motion,
+  and a foreground ground pass plants landmarks into the authoritative collision rectangles.
+- `run_level5_crater_probe` drives crater input, mask speed/reversal/pause/resize, target locking,
+  exact strokes, zero-ink traversal, the flower and legacy saves. `run_level5_memory_walk`
+  checks actual movement and target access in all twelve places. Existing gate, ink, ending,
+  dialogue, house and continuous-finish probes remain part of validation.
+- `run_visual_level5_crater` photographs every place, each shadow crossing at three positions,
+  the crater, and taller-window compositions. It compares actual frames of paddy, reef and
+  waterfall motion. `run_level5_staging_probe` checks approach reactions, mounted-scene clocks,
+  registered animation, pause and Reduce Motion. Import generated images before running them.
+
+<details>
+<summary>Previous design and implementation record — superseded 5 November 2026</summary>
+
+# Level 5 — Mayon
+
 **Status: BUILT, on the hub, and the level the run ends on.** Shipped in PRs #120-#132 (2026-10-25
 to 10-29). The design as decided is below, then [where it lives](#where-it-lives) and
 [how the build differs from the design](#as-built-against-the-design). Read `LEVEL_TEMPLATE.md` first; this file holds only what is
@@ -72,14 +285,14 @@ ACT THREE  THE SUMMIT — quiet: no ash, no tremor, no sound
            five flowers → for a moment lola says her name, and lolo's; then it passes
            fewer → warm to a child she does not know; pleased with the painting; the apo stays
 HOME       her last page, at lola's easel · "Lolo. Let's go home." → the house: lolo in every
-           painting, alive · lola takes her for him · "in all your works" · lola walks to an
-           empty easel: "Who are you? Will you watch me paint?" (the frame's room, until 2026-11-01)
+           painting, alive · lola takes her for him · "in all your works" · lola paints at
+           her easel · the apo's gallery (the frame's room, until 2026-11-01)
 ```
 
 ## Rules this level adds
 
 - **The brush refuses twice, and both times look the same.** Drawing at Lolo, and at Lola, the
-  canvas takes no guess, shows no words, spends no ink and records nothing; when she paints, her
+  canvas takes no guess, shows no words, spends no ink and records no recognition result; when she paints, her
   lines fade to paper and the page closes. This must not reuse any decline feedback from another
   level. These are the only moments in the game where the recogniser is deliberately given
   nothing to answer.
@@ -121,8 +334,9 @@ Act Two.**
   once she is 600 px past it — there is no going back down.
 - **Lolo:** thinner by the act (0.25 / 0.45 / 0.7 of the way gone); a fragment with him in it
   steadies him for 60 s. He goes either way.
-- **Refusals:** if she does not raise the brush herself, the apo does after 8 s; a refused stroke
-  fades over 1.2 s.
+- **Refusals:** if she does not raise the brush herself, the apo does after 4 s; a refused stroke
+  fades over 1.2 s. A quiet page left untouched for 4 s plays on without her lines (the refusal, or
+  the places blooming) -- Kent, 5 November: with nothing on the page to say "draw", it read as a hang.
 
 ## Gate classes clear BR-7 (held-out recall, `model/metrics.json`)
 
@@ -420,3 +634,5 @@ Validation: scenery freshness and `run_level5_audit` pass. A windowed tour check
 props against the actual floor rectangles, bottom registration, absence of colliders, and
 paper wash/reset; frames from the cone, all three memory areas, and upper approach were
 inspected. The audit retains its documented baseline shutdown resource diagnostics.
+
+</details>

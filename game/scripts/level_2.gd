@@ -120,10 +120,8 @@ var _alleys: Dictionary = {}
 ## presented and when it is committed, and it must give the same answer to each.
 var _live_node_obstacle := "L2_N1"
 var _plaza_node: DialogueNode2D
-## Where the last thing set down in an alley was put, for the flock to come down to, and how
-## far it reaches either side of that. INF and 0 when the answer was a tool used in the hand.
-var _feed_at := Vector2.INF
-var _feed_half_width := 0.0
+## The placed offering being judged. A tool used in the hand has no placed offering.
+var _feed_offering: PhysicsShapeObject
 ## Whether the kandila is in hand. LEVEL RUN STATE, not the profile: `has_object` is
 ## permanent by design, so recording it there would open every later run of Piyesta with the
 ## candle already found and the whole of Problem 1 already answered. Level 1 made exactly
@@ -454,6 +452,8 @@ func _build_the_dance_screen() -> void:
 
 
 func _on_route_committed_here(obstacle_id: String, route: String) -> void:
+	if obstacle_id == "L2_N1" and route == "protector":
+		_warn_about_the_dancers()
 	if obstacle_id != "L2_N1" or route != "artist" or dance_screen == null:
 		return
 	# FIRST THE DANCERS, THEN THE PUZZLE. Restart their authored three-frame phrase and wait
@@ -510,7 +510,28 @@ func _bring_out_the_dancers() -> void:
 ## signal to arrive BEFORE the commit, and this fires off the dancers' own approach volume
 ## rather than off the choice screen -- so it is said about the people it is about, while the
 ## player is looking at them.
+##
+## ⚠ BUT NOT BEFORE THE PLAZA HAS BEEN INTRODUCED, AND NOT TO SOMEBODY DOING SOMETHING ELSE. The
+## volume begins almost at her feet, so "If you do this they will not come back" was the first
+## thing the level said to somebody who had taken one step and been asked to do nothing. It waits
+## for the fork to have said what they are; a player who chose to clear them, and is still among
+## them, hears it then, with the deed still ahead of them.
 func _on_dancers_noticed(_text: String) -> void:
+	_among_the_dancers = true
+	_warn_about_the_dancers()
+
+
+func _warn_about_the_dancers() -> void:
+	if not _among_the_dancers:
+		return
+	if not script_lines.has_heard("L2_N1.enter"):
+		# They only tell once, and this was not it: the next time she comes up to them can be.
+		if dancers != null:
+			dancers.forget_telling()
+		return
+	var route: String = director.committed_route("L2_N1")
+	if not route.is_empty() and route != "protector":
+		return
 	var lines := script_lines.fire("L2_N1.protector.warn")
 	# Remember which of them is the HINT, because that is the one that lands on the bar and
 	# the one walking away should take back down. The rest is a story beat and dismisses
@@ -529,6 +550,7 @@ func _on_dancers_noticed(_text: String) -> void:
 ## about to do. Cleared only if the bar is still saying it, because one channel carries
 ## several voices and taking down somebody else's message is worse than leaving this one up.
 func _on_dancers_notice_left() -> void:
+	_among_the_dancers = false
 	if hint_bar == null or _warning.is_empty():
 		return
 	if hint_bar.current_text() == _warning:
@@ -718,6 +740,26 @@ func _wire_dialogue_node() -> void:
 		alley.fork.route_chosen.connect(_on_route_chosen)
 
 
+## Standing in the dancers' notice. See `_on_dancers_noticed`.
+var _among_the_dancers := false
+
+
+## ⚠ THE PLAZA'S OPENING LINE WAITS FOR ITS FORK. Its volume begins ten pixels from where she
+## wakes, so "The church first" was said on her first step, straight after the level's own
+## opening, and its three ways were gone the same frame. Both are said at the fork now, just
+## before the question they introduce -- as Dagat's crossing does.
+func _on_obstacle_arrived(obstacle_id: String) -> void:
+	if obstacle_id == "L2_N1":
+		return
+	super._on_obstacle_arrived(obstacle_id)
+
+
+## Every beat in Piyesta is a fork, and `_dialogue_node_obstacle_id()` answers for whichever is
+## live, not for the one being entered.
+func _teaches_on_entering(_obstacle_id: String) -> bool:
+	return false
+
+
 ## A FORK IS APPROACHED. The base's handler reads `dialogue_node` and
 ## `_dialogue_node_obstacle_id()`, so both are pointed at this one before it runs.
 func _on_fork_approached(fork: DialogueNode2D, obstacle_id: String) -> void:
@@ -732,6 +774,7 @@ func _on_fork_approached(fork: DialogueNode2D, obstacle_id: String) -> void:
 		# four verbs -- and Lolo's arrival is said first, and the choice waits for him.
 		director.enter_obstacle(obstacle_id)
 		_speak_on_arrival("%s.enter" % obstacle_id)
+		_speak_on_arrival("%s.teach" % obstacle_id)
 	# The choice after the conversation that sets it up, never over it.
 	if dialogue_box != null and dialogue_box.is_open():
 		if not dialogue_box.conversation_finished.is_connected(_on_dialogue_node_approached):
@@ -998,12 +1041,16 @@ func _clear_of_drawings(alley: _Alley, x: float) -> float:
 func _feed_the_flock(alley: _Alley) -> void:
 	if alley == null:
 		return
-	var landing := _feed_at
-	var reach := _feed_half_width
-	_feed_at = Vector2.INF
-	if not landing.is_finite() or not Rect2(alley.room.bounds()).grow(60.0).has_point(landing):
-		landing = _player_anchor_position()
-		reach = 0.0
+	var offering := _feed_offering
+	var landing := _player_anchor_position()
+	var reach := 0.0
+	if is_instance_valid(offering):
+		var extent := offering.world_extent()
+		if Rect2(alley.room.bounds()).grow(60.0).has_point(extent.get_center()):
+			landing = extent.get_center()
+			reach = extent.size.x * 0.5
+		else:
+			offering = null
 	var clear := _between_the_doors(alley.room)
 	var left := alley.room.global_position.x + clear.x
 	var right := alley.room.global_position.x + clear.y
@@ -1028,11 +1075,19 @@ func _feed_the_flock(alley: _Alley) -> void:
 				break
 			slots.append(clampf(x, left, right))
 			rank += 1
+	var floor_y := alley.room.global_position.y
+	var last_landing := 0.0
 	for index in range(count):
 		# More birds than the floor has room for, somehow: the rest come down at the edge.
 		var x: float = slots[index] if index < slots.size() else clampf(landing.x, left, right)
-		alley.birds[index].calm(Vector2(x, alley.room.global_position.y),
-			Vector2(landing.x, alley.room.global_position.y))
+		var bird := alley.birds[index]
+		var spot := Vector2(x, floor_y)
+		bird.calm(spot, Vector2(landing.x, floor_y))
+		last_landing = maxf(last_landing, bird.global_position.distance_to(spot) / ScrapBird2D.DESCEND_SPEED)
+	# Drop every scrap in the clear before taking turns at the same piece of food.
+	if is_instance_valid(offering):
+		for index in range(count):
+			alley.birds[index].schedule_peck(offering, last_landing + index * ScrapBird2D.FEED_TURN_SECONDS)
 
 
 ## THE PRAGMATIST ROUTE, answered: the strings come down, the nests with them, and every bird
@@ -1201,14 +1256,12 @@ func _where_the_apo_is() -> Vector2:
 ## for the second half of the level" -- and that is what opens the way out.
 func _on_priest_arrived() -> void:
 	_speak(script_lines.fire("SCENE_2.priest"))
-	# CP2 is this moment. Written here rather than by a volume at the far door, because the
-	# scene is finished by being watched rather than by being walked through -- a player who
-	# heard the priest and then died in the first alley must not have to sit through him again.
-	_write_checkpoint("CP2")
 	if lolo != null and is_instance_valid(lolo):
 		lolo.follow(player)
 	if church != null:
 		church.open_onward()
+	# Capture the open door so Continue can proceed straight to the first alley.
+	_write_checkpoint("CP2")
 
 
 ## The priest is the one person here who is neither Lolo nor the apo. See LevelBase._speak.
@@ -1232,10 +1285,11 @@ func _on_at_door(standing: bool, door: PiyestaDoor2D) -> void:
 	if not standing:
 		# Only if the bar is still saying what this door put there -- one channel carries
 		# several voices, and clearing unconditionally takes somebody else's message with it.
-		if hint_bar.current_text() == door.prompt():
-			hint_bar.clear()
+		hint_bar.take_down(door.prompt())
 		return
-	hint_bar.show_hint(door.prompt(), Lolo.SPEAKER)
+	# An aside. The plaza's two rules are going up as she takes her first steps past these doors,
+	# and a door replacing them replaced them for good.
+	hint_bar.interject(door.prompt(), Lolo.SPEAKER, 0.0)
 
 
 ## E at an open door. Tried between a placed drawing and a signpost, which is where the base
@@ -1274,6 +1328,17 @@ func _enter_room(room: PiyestaRoom2D, came_from: Vector2) -> void:
 ## Back out the way they came in.
 func _leave_room(room: PiyestaRoom2D) -> void:
 	var back: Vector2 = _step_back.get(room.name, Vector2.ZERO)
+	# A continued run starts inside a room without having crossed its entrance.
+	if back == Vector2.ZERO:
+		if room == alley_1 and church != null:
+			back = church.return_point()
+		elif room == alley_2 and alley_1 != null:
+			back = alley_1.return_point()
+		else:
+			var door_id := DOOR_CHURCH if room == church else DOOR_LIT_HOUSE
+			var door := _doors.get(door_id) as PiyestaDoor2D
+			if door != null:
+				back = door.step_out_point()
 	if back == Vector2.ZERO:
 		return
 	_step_through(back)
@@ -1442,13 +1507,9 @@ func _on_placement_confirmed(
 	placed: PhysicsShapeObject,
 	source_slot: int
 ) -> void:
-	if placed != null and is_instance_valid(placed):
-		var extent := placed.world_extent()
-		_feed_at = extent.get_center() if extent.size != Vector2.ZERO else placed.global_position
-		_feed_half_width = extent.size.x * 0.5
+	_feed_offering = placed
 	super(item, placed, source_slot)
-	_feed_at = Vector2.INF
-	_feed_half_width = 0.0
+	_feed_offering = null
 
 
 ## At a flock being thrown at, the drawn things that are thrown answer it -- at either half of
@@ -1683,11 +1744,18 @@ func _restore_level_run_state(state: Dictionary) -> void:
 		dancers.set_already_gone()
 	if bool(state.get("kandila", false)):
 		_hold_the_kandila()
-	if chancel != null and bool(state.get("kandila_on_rack", false)):
+	var kandila_placed := bool(state.get("kandila_on_rack", false))
+	if chancel != null and kandila_placed:
 		chancel.kandila_on_rack = true
 		chancel.queue_redraw()
+		script_lines.set_flag("kandila_placed")
+		var door := _doors.get(DOOR_CHURCH) as PiyestaDoor2D
+		if door != null:
+			door.set_open(true)
 	var onward: Dictionary = state.get("onward", {})
-	if church != null and bool(onward.get("church", false)):
+	# Older CP2 saves were written just before the priest opened the door.
+	if church != null and (bool(onward.get("church", false))
+			or (checkpoints.latest_id() == "CP2" and kandila_placed)):
 		church.open_onward()
 	if alley_1 != null and bool(onward.get("alley_1", false)):
 		alley_1.open_onward()

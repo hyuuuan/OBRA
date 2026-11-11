@@ -132,6 +132,11 @@ func _on_body(body: Node, coming_in: bool) -> void:
 	notice_left.emit()
 
 
+## The level did not say it yet, so the next approach counts as the first. See `_on_body`.
+func forget_telling() -> void:
+	_told = false
+
+
 func state() -> int:
 	return _state
 

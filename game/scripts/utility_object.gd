@@ -811,7 +811,10 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# level entirely instead of being stopped at its edge. It sets _grounded too, so
 	# there is nothing left here to repeat.
 	super._integrate_forces(state)
-	if utility_behavior not in ["sailboat", "submarine"] or not _is_in_water():
+	if utility_behavior not in ["sailboat", "submarine"]:
+		return
+	if not _is_in_water():
+		gravity_scale = 1.0
 		return
 	# The submarine was left out of this entirely, so the one vessel whose whole job is
 	# to sit in water had no buoyancy and no drag at all.
@@ -820,7 +823,10 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# out of the water; letting the pool do it INSTEAD is the tidier design but it is not
 	# a swap to make while the vehicles are still unreliable, so the hull keeps the
 	# behaviour its own test documents.
-	gravity_scale = 0.18 if utility_behavior == "sailboat" else 0.62
+	# An empty submarine waits at the placed depth. Remove the initial fall speed
+	# too, since water overlap is reported a tick after placement.
+	var waiting := utility_behavior == "submarine" and not is_instance_valid(_boarded_actor)
+	gravity_scale = 0.0 if waiting else (0.18 if utility_behavior == "sailboat" else 0.62)
 	var velocity := state.linear_velocity
 	state.apply_central_force(-state.total_gravity * mass * 0.82)
 	state.apply_central_force(-velocity * mass * 2.4)
@@ -849,11 +855,27 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# after the cap had supposedly been moved into the physics callback.
 	state.linear_velocity = Vector2(
 		clampf(state.linear_velocity.x, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED),
-		clampf(state.linear_velocity.y, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED))
+		0.0 if waiting else clampf(state.linear_velocity.y, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED))
 
 
 ## How far below the body's origin its lowest point is, in its own frame: the keel a hull floats
 ## by. Read off the collision the drawing was built into, so it is the hull that was drawn.
+## The placement preview uses the same waterline as the sailboat's physics.
+func water_placement_y() -> float:
+	if utility_behavior not in ["sailboat", "submarine"]:
+		return INF
+	var keel := _keel()
+	for node in get_tree().get_nodes_in_group(&"water_medium"):
+		var pool := node as WaterArea2D
+		if pool == null or absf(global_position.x - pool.global_position.x) >= pool.surface_size.x * 0.5:
+			continue
+		var surface := pool.surface_y()
+		if global_position.y + keel < surface or global_position.y >= surface + pool.surface_size.y:
+			continue
+		return surface + HULL_DRAFT - keel if utility_behavior == "sailboat" else global_position.y
+	return INF
+
+
 func _keel() -> float:
 	var keel := -INF
 	for child in get_children():

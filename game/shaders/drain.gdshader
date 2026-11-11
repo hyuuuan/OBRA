@@ -18,6 +18,8 @@ uniform vec4 paper : source_color = vec4(0.957, 0.937, 0.894, 1.0);
 uniform float wash : hint_range(0.0, 1.0) = 1.0;
 // Where it starts to go, at all. Mayon's holds whole until it is flat paper (0.85).
 uniform float vanish_from : hint_range(0.0, 1.0) = 0.85;
+// Wide scenery cuts may soften their painted edges into the scene.
+uniform vec2 edge_feather_uv = vec2(0.0);
 
 void fragment() {
 	// ⚠ COLOR, as it is. In Godot 4 a canvas shader's COLOR already carries the texture, and
@@ -31,6 +33,20 @@ void fragment() {
 	vec3 rgb = mix(colour.rgb, mix(vec3(luminance), ghost, pale), pale);
 	rgb = mix(rgb, paper.rgb, smoothstep(0.5, 0.85, drain));
 	colour.rgb = mix(colour.rgb, rgb, wash);
+	if (edge_feather_uv.x > 0.0) {
+		// ⚠ Its neighbours' .a and nothing else: how far the art reaches, which changes no colour.
+		// Their colour would square it, as above, and run_drain_probe fails on one.
+		float interior = 0.0;
+		for (int ring = 1; ring <= 3; ring++) {
+			vec2 offset = edge_feather_uv * (float(ring) / 3.0);
+			float across = min(texture(TEXTURE, UV - vec2(offset.x, 0.0)).a,
+				texture(TEXTURE, UV + vec2(offset.x, 0.0)).a);
+			float vertical = min(texture(TEXTURE, UV - vec2(0.0, offset.y)).a,
+				texture(TEXTURE, UV + vec2(0.0, offset.y)).a);
+			interior += min(across, vertical) / 3.0;
+		}
+		colour.a *= mix(0.12, 1.0, smoothstep(0.0, 1.0, interior));
+	}
 	colour.a *= 1.0 - smoothstep(vanish_from, 1.0, drain);
 	COLOR = colour;
 }

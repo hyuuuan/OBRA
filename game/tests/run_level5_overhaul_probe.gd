@@ -2,7 +2,7 @@ extends SceneTree
 ## Contracts that teleport-driven old probes could not establish: locked context, paused
 ## clocks, exact saved ink, real canvas input, no recognition for quiet/free drawing,
 ## a mid-line disappearance, and a visible ordinary brush.
-const CHECKS := 15
+const CHECKS := 16
 var checked := 0
 var failures := 0
 var level: Node
@@ -34,30 +34,26 @@ func _run() -> void:
 	var church: MemoryFragment2D = level.call("_fragment", "church")
 	_put(kubo.global_position + Vector2(0, 60))
 	await _wait(.15)
-	var four := 0
-	for id in ["kubo", "terraces", "bandaritas", "dancers"]:
-		four += int((level.call("_fragment", id) as MemoryFragment2D).state() == "draining")
-	_check(four == 4 and church.state() == "whole", "one cluster starts together; remote memories wait")
+	_check(kubo.state() == "draining" and church.state() == "whole", "entering a place starts its live landmark; remote places wait")
 	# Back down below the entry, as a run-up or a misstep would take her: nothing is spent.
-	_put(Vector2(5200, 100))
+	_put(Vector2(8360, 98))
 	await _wait(.15)
-	_check(kubo.is_open() and not (level.get("_clusters_left") as Array).has("memory_1"),
+	_check(kubo.is_open() and not (level.get("_clusters_left") as Array).has("payyo_bale"),
 		"stepping back below a cluster does not leave it")
 	_put(kubo.global_position + Vector2(0, 60))
 	await _wait(.15)
 	level.call("_open_the_page", true)
 	var before := kubo.drain()
 	await _wait(.25)
-	var ref := panel.panel_root.get_node_or_null("MemoryReference")
-	_check(is_equal_approx(before, kubo.drain()) and ref != null and not panel.canvas_viewport.is_ancestor_of(ref),
-		"drawing pauses whitening and its reference stays outside captured ink")
+	var sketch: Node = level.get("memory_sketch")
+	_check(is_equal_approx(before, kubo.drain()) and sketch.is_open() and not panel.is_open(),
+		"the separate memory sketchbook pauses whitening")
 	_put((level.call("_fragment", "terraces") as Node2D).global_position + Vector2(0, 60))
-	panel.close_panel()
 	var strokes := [{"points": PackedVector2Array([Vector2(12, 19), Vector2(51, 89), Vector2(92, 21)]), "width": 6.0, "color": Color.BLACK}]
 	var image := Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	level.call("_on_drawing_ready", "door", "Door", image, {}, strokes, 1.0)
+	level.call("_preserve_memory", strokes)
 	_check(kubo.state() == "saved" and (level.call("_fragment", "terraces") as MemoryFragment2D).state() != "saved",
-		"a prediction saves the memory selected when the page opened")
+		"a sketch saves the memory selected when the page opened")
 	var lolo: Lolo = level.get("lolo")
 	lolo.set_thinness(.63)
 	var snapshot: Dictionary = level.call("_level_run_state")
@@ -68,18 +64,22 @@ func _run() -> void:
 	_check(kubo.strokes() == [[12.0, 19.0, 51.0, 89.0, 92.0, 21.0]] and level.get("_save_order") == ["kubo"]
 		and is_equal_approx(lolo.thinness(), .63),
 		"checkpoint restores exact ink, its outcome, and save order")
-	level.call("_tend_clusters", 7000.0)
+	_put(Vector2(11320,98))
+	level.call("_tend_clusters", 11320.0)
 	await _wait(4.2)
 	var lost: MemoryFragment2D = level.call("_fragment", "dancers")
 	var left: Dictionary = level.call("_level_run_state")
 	level.call("_restore_level_run_state", left)
-	_check(lost.state() == "lost" and "memory_1" in level.get("_clusters_left"), "departed choices stay lost on reload")
-	level.call("_tend_clusters", 7200.0)
-	level.call("_tend_clusters", 7000.0)
-	var stayed := church.is_open() and not (level.get("_clusters_left") as Array).has("memory_2")
-	level.call("_tend_clusters", 8600.0)
-	_check(stayed and church.state() == "passing" and "memory_2" in level.get("_clusters_left"),
-		"a cluster is left only past its far edge, never by stepping back downhill")
+	_check(lost.state() == "lost" and "piyesta_plaza" in level.get("_clusters_left"), "departed choices stay lost on reload")
+	_put(Vector2(11620,98))
+	level.call("_tend_clusters",11620.0)
+	_put(Vector2(11020,98))
+	level.call("_tend_clusters",11020.0)
+	var stayed := church.is_open() and not (level.get("_clusters_left") as Array).has("piyesta_church")
+	_put(Vector2(12700,98))
+	level.call("_tend_clusters",12700.0)
+	_check(stayed and church.state() == "passing" and "piyesta_church" in level.get("_clusters_left"),
+		"a place is left only through its forward shadow, never by stepping back")
 	var profile := root.get_node("PlayerProfile")
 	var routes_before: int = profile.call("route_count", "artist")
 	level.call("_on_fragment_saved", "flower")
@@ -91,6 +91,15 @@ func _run() -> void:
 	_check(bool(level.call("_may_use_hidden_ink", "bridge")) and not bool(level.call("_may_use_hidden_ink", "sword"))
 		and not bool(level.call("_may_use_hidden_ink", "bat")), "an unrelated drawing cannot spend a gate's reserve")
 	director.exit_obstacle("L5_SPAN")
+	ink.committed = ink.capacity - InkManager.UNIT
+	var apo: Node2D = level.get("player")
+	panel.drawing_ready.emit("monkey", "Monkey", image, {}, strokes, 0.0)
+	await physics_frame
+	_check(level.get("player") == apo and is_equal_approx(ink.remaining(), InkManager.UNIT)
+		and is_equal_approx(ink.hidden_reserve, 2.0),
+		"a creature that would immediately revert leaves the last ink unit available")
+	if level.get("player") != apo:
+		level.call("_revert_to_base_form")
 	ink.committed = ink.capacity
 	_check(not bool(level.call("_spawn_or_replace", "monkey", "Monkey", image, strokes)) and is_equal_approx(ink.hidden_reserve, 2),
 		"an empty brush cannot borrow reserve for a creature")
@@ -126,8 +135,10 @@ func _run() -> void:
 	_check(panel.canvas_frame.visible and not optional_ui.visible,
 		"returning to normal restores the caller's original UI visibility")
 	panel.close_panel()
-	# Real dialogue typing: he must be gone while the interrupted line is still on screen.
+	# Real dialogue typing: his interrupted line ends the conversation without a second press.
 	var box: DialogueBox = level.get("dialogue_box")
+	var hint: HintBar = level.get("hint_bar")
+	hint.show_hint("Lolo's last standing hint.", Lolo.SPEAKER)
 	box.set_auto_dismiss(false)
 	level.set("_lolo_moment", "going")
 	level.call("_let_him_go")
@@ -135,7 +146,10 @@ func _run() -> void:
 	box.complete()
 	box.call("_advance")
 	var gone := await _until(func() -> bool: return (level.get("lolo") as Lolo).is_gone(), 7.0)
-	_check(gone and box.is_visible_in_tree() and box.current_line().ends_with("kept m"), "Lolo goes during his unfinished line, before dismissal")
+	await _wait(.25)
+	_check(gone and box.current_line().ends_with("kept m") and not box.is_open()
+		and not box.is_visible_in_tree() and not hint.is_showing() and not paused,
+		"Lolo's interrupted line clears the dialogue and hints without dismissal")
 	box.skip_all()
 	box.set_auto_dismiss(true)
 	# The frame performance is checked in its existing probe; keep this runner's expected count exact.
@@ -149,7 +163,7 @@ func _run() -> void:
 
 
 func _put(at: Vector2) -> void:
-	level.get("player").call("apply_morph_state", {"position": at, "linear_velocity": Vector2.ZERO})
+	preload("res://tests/level5_journey_fixture.gd").prepare(level,at)
 
 
 func _canvas_stroke(panel: DrawPanel) -> void:

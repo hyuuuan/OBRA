@@ -50,6 +50,7 @@ var _prepared_scene: PackedScene
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	set_process(false)
 	_load_catalog()
 	_build_transition_overlay()
 	_painting_transition = PaintingTransition.new()
@@ -89,7 +90,7 @@ func is_transitioning() -> bool:
 ## Load while the player is looking at the picture, rather than making E pay for disk IO.
 ## Keep only the latest scene; walking the whole hall must not retain five levels.
 func prepare_level(level_id: String) -> void:
-	if not is_unlocked(level_id) or not is_playable(level_id):
+	if not has_brush() or not is_unlocked(level_id) or not is_playable(level_id):
 		return
 	var path := String(get_level(level_id).get("scene_path", ""))
 	if path == _prepared_path or path == _preparing_path:
@@ -126,6 +127,7 @@ func _poll_prepared_level() -> void:
 		_next_preload_path = ""
 		if ResourceLoader.load_threaded_request(_preparing_path, "PackedScene") != OK:
 			_preparing_path = ""
+	set_process(not _preparing_path.is_empty())
 
 
 func open_level(level_id: String, painting: Node2D = null) -> bool:
@@ -379,13 +381,15 @@ func _enter_painting(scene_path: String, level_id: String, painting: Node2D) -> 
 	prepare_level(level_id)
 	while _prepared_path != scene_path and not _preparing_path.is_empty():
 		await get_tree().process_frame
-	if _prepared_path != scene_path or _prepared_scene == null \
-			or not is_instance_valid(painting):
+	# Prefetch is an optimization. An unavailable result must not refuse an unlocked painting.
+	var destination := _prepared_scene if _prepared_path == scene_path else null
+	if destination == null and is_instance_valid(painting):
+		destination = load(scene_path) as PackedScene
+	if destination == null or not is_instance_valid(painting):
 		_release_players(frozen)
 		push_error("Could not prepare painting destination %s" % scene_path)
 		_finish_transition(scene_path)
 		return
-	var destination := _prepared_scene
 	_painting_transition.take_hall_interface(get_tree().current_scene)
 	var hall: Texture2D = _painting_transition.capture_world()
 	_painting_transition.prepare(painting.call("transition_source"), hall)

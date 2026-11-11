@@ -113,7 +113,7 @@ func _ready() -> void:
 	tree_art.name = "TreeArt"
 	tree_art.z_index = -1
 	add_child(tree_art)
-	tree_art.load_kind(Enemy2D.ART, "kapre_tree", ["idle", "felled"])
+	tree_art.load_kind("res://assets/Level4/trees/", "kapre_tree", ["idle", "felled"])
 	tree_art.play("idle")
 	_make_art("kapre", ["idle", "knocked", "falling", "walk"], false, ART_AT)
 	var puffs := Enemy2D.ART + "kapre_smoke_idle.png"

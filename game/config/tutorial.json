@@ -10,7 +10,7 @@
     "",
     "`delay` is how long a lesson waits, once its moment has come, before it shows. If the player does the thing in that time it is spent unshown: a player who walks at once is never told how to walk.",
     "",
-    "`context` (world / placing / creature / canvas / any) is when it may show; `anchor` is what it lights up, resolved by LevelBase._tutorial_target -- the tutorial's own vocabulary, not node paths. A lesson whose context or anchor does not hold waits for it, and gives up after `patience` seconds (default 8) to be offered again by its event.",
+    "`context` is when a lesson may show; `anchor` is what it lights up, resolved by LevelBase._tutorial_target. A lesson whose context or anchor does not hold waits for it, and gives up after `patience` seconds (default 8) to be offered again by its event. A `say` reminder also gives up if it waits too long for the hint bar.",
     "",
     "KEYS ARE NOT WRITTEN HERE. `action` (plus `through` for a pair or a numbered run) is read off the live InputMap and drawn as caps, so a rebinding cannot leave a lesson showing a key that no longer does anything. `mouse` lists the mouse inputs a lesson teaches: left, right, wheel, shift_wheel. `text` is the full sentence, still what the hint bar says when there is no spotlight, and what the audits read.",
     "",
@@ -18,7 +18,11 @@
     "",
     "`at` is the event that offers a lesson; `after` holds it back until another has been spent, so the order survives a player who does things out of sequence. Cut on this pass because they were the dumping: `pause` (Escape is the one key everybody already knows), `sure` (the confidence number is shown on the card; explaining it at the second second of a ten-second life was a third card in a row), `sign` (the E READ prompt already says it), and the canvas briefing, four lines of Lolo inside the panel -- the canvas is now taught by two cards that only appear if the player hesitates.",
     "",
-    "`lead` is what Lolo says in the story box BEFORE a card shows, so the card answers something he asked: 'Come, apo, walk with me' and then the keys. Said once, through TutorialDirector.bind_lead. Not used on `say` lessons (they are Lolo already) or on the canvas, whose story box is hidden under the drawing panel -- the `draw` lesson leads into it. Cards do not play at all on a return visit."
+    "`lead` is what Lolo says in the story box BEFORE a card shows, so the card answers something he asked: 'Come, apo, walk with me' and then the keys. Said once, through TutorialDirector.bind_lead. Not used on `say` lessons (they are Lolo already) or on the canvas, whose story box is hidden under the drawing panel -- the `draw` lesson leads into it. Cards do not play at all on a return visit.",
+    "",
+    "LEVEL 1 TEACHES THE GAME; A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: 'fix level 1 like tutorial part make sure it covers everything and other levels wont have any tutorials if necessary'. run_tutorial_audit holds both halves: every control that works in Level 1 has a lesson here, and a later level may show a card only for a rule or control Level 1 cannot teach. Everything else a later level says goes to the hint bar (`say`), which dims nothing and stops nothing.",
+    "",
+    "`carries` IS WHAT A ROUTE CAN MISS. Most of Level 1's lessons wait for the player to do the thing, and a run can finish it having never become anything. A `carries` lesson still unspent when the level ends is owed (PlayerProfile.lessons_owed) and is shown once, the first time its moment comes in a later level, without its `lead`: Lolo is not in every level, and nobody there was building up to it. A press on SKIP TUTORIAL owes nothing. A lesson that is not true everywhere (`undo`, `ink`: the ink rules change) does not carry."
   ],
   "version": 2,
   "levels": {
@@ -103,6 +107,7 @@
         },
         {
           "id": "place",
+          "carries": true,
           "at": "placement_started",
           "mode": "do",
           "visual": "place",
@@ -119,6 +124,7 @@
         },
         {
           "id": "resize",
+          "carries": true,
           "at": "placement_started",
           "after": "place",
           "mode": "do",
@@ -139,6 +145,7 @@
         },
         {
           "id": "rotate",
+          "carries": true,
           "at": "placement_started",
           "after": "resize",
           "mode": "do",
@@ -173,6 +180,7 @@
         },
         {
           "id": "revert",
+          "carries": true,
           "at": "became_creature",
           "mode": "look",
           "visual": "revert",
@@ -185,7 +193,41 @@
           "lead": "You can always come back to yourself, apo. Remember how."
         },
         {
+          "id": "fly",
+          "carries": true,
+          "at": "can_fly",
+          "after": "revert",
+          "mode": "do",
+          "visual": "jump",
+          "context": "creature",
+          "anchor": "player",
+          "action": "jump",
+          "delay": 0.2,
+          "seconds": 10.0,
+          "caption": "Tap it again and again to rise",
+          "text": "{keys}, again and again, keeps you in the air.",
+          "lead": "You have to work for the sky, apo. Keep beating, or down you come."
+        },
+        {
+          "id": "swim",
+          "carries": true,
+          "at": "swimming",
+          "mode": "do",
+          "visual": "keys",
+          "context": "creature",
+          "anchor": "player",
+          "action": "move_up",
+          "through": "move_down",
+          "join": " and ",
+          "delay": 0.4,
+          "seconds": 10.0,
+          "caption": "Swim up and down",
+          "text": "{keys} take you up and down in the water.",
+          "lead": "The water will have you now, apo. Go as deep as you like."
+        },
+        {
           "id": "clock",
+          "carries": true,
           "at": "morph_running",
           "after": "revert",
           "mode": "look",
@@ -219,6 +261,7 @@
         },
         {
           "id": "requirement",
+          "carries": true,
           "at": "requirement_shown",
           "after": "draw",
           "mode": "look",
@@ -241,7 +284,49 @@
           "lead": "A lantern! She lit these so nobody would lose their way."
         },
         {
+          "id": "quest",
+          "at": "moved",
+          "after": "checkpoint",
+          "mode": "look",
+          "visual": "quest",
+          "context": "world",
+          "anchor": "quest_card",
+          "delay": 2.0,
+          "caption": "Your next task is always here",
+          "text": "The card at the top says what comes next, apo.",
+          "lead": "If you ever lose your way, apo, look up. That card says what comes next."
+        },
+        {
+          "id": "become",
+          "at": "moved",
+          "after": "quest",
+          "mode": "look",
+          "visual": "become",
+          "context": "world",
+          "anchor": "player",
+          "delay": 6.0,
+          "caption": "Draw something alive and you become it",
+          "text": "Draw something alive, apo, and you become it.",
+          "lead": "One more thing, apo. Paint something alive and you do not carry it. You become it."
+        },
+        {
+          "id": "interact",
+          "carries": true,
+          "at": "pickup_ready",
+          "after": "checkpoint",
+          "mode": "look",
+          "visual": "keys",
+          "context": "world",
+          "anchor": "pickup_prompt",
+          "action": "interact",
+          "delay": 0.4,
+          "caption": "Pick up or use what is near",
+          "text": "{keys} picks up or uses whatever is near you, apo.",
+          "lead": "See that key over your head? It works on whatever you are standing near."
+        },
+        {
           "id": "bag",
+          "carries": true,
           "at": "item_stored",
           "mode": "do",
           "visual": "keys",
@@ -257,6 +342,7 @@
         },
         {
           "id": "bag_open",
+          "carries": true,
           "at": "item_stored",
           "after": "bag",
           "mode": "look",
@@ -270,6 +356,7 @@
         },
         {
           "id": "climb",
+          "carries": true,
           "at": "climb_ready",
           "mode": "do",
           "visual": "hold",
@@ -284,6 +371,7 @@
         },
         {
           "id": "hold",
+          "carries": true,
           "at": "tool_held",
           "mode": "look",
           "visual": "keys",
@@ -313,7 +401,13 @@
         "",
         "The shore is where all of this lands, before the fork. The design is firm about why:",
         "once the player is underwater, learning the ink rule by running out of it is a",
-        "punishment rather than a lesson."
+        "punishment rather than a lesson.",
+        "",
+        "TWO CARDS, AND ONLY TWO. `new_brush` carries the whole rule and `jars` the one way to",
+        "refill, because neither can be taught anywhere else. The drain, the free change back",
+        "and running low are reminders of what the card already said, so they are lines on the",
+        "bar. ⚠ A line on the bar waits for the bar, and Lolo is on it for most of the dive, so",
+        "nothing the player cannot do without may live only there: that is why `jars` stays a card."
       ],
       "speaker_default": "lolo",
       "lessons": [
@@ -325,53 +419,46 @@
           "context": "world",
           "anchor": "ink_gauge",
           "speaker": "Lolo",
-          "caption": "This brush spends ink, not time",
-          "text": "Hers counted you down. This one does not count at all.",
+          "caption": "Holding a shape spends ink, not time",
+          "text": "Hers counted you down. This one spends ink the whole time you hold a shape.",
           "lead": "A new brush! Hers counted the time down... this one is different."
         },
         {
           "id": "drain",
           "at": "ink_draining",
           "after": "new_brush",
-          "mode": "look",
-          "visual": "ink",
-          "context": "world",
-          "anchor": "morph_card",
+          "mode": "say",
+          "context": "creature",
           "speaker": "Lolo",
-          "caption": "Holding a shape drains your ink",
-          "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape.",
-          "lead": "Careful, apo. Out here, holding a shape costs ink the whole time."
+          "seconds": 7.0,
+          "text": "That bar is your ink now, apo. It goes down the whole time you are holding the shape."
         },
         {
           "id": "revert_is_free",
           "at": "ink_draining",
           "after": "drain",
-          "mode": "look",
-          "visual": "revert",
-          "context": "world",
-          "anchor": "revert_prompt",
+          "mode": "say",
+          "context": "creature",
           "speaker": "Lolo",
+          "seconds": 7.0,
           "action": "revert_form",
-          "caption": "Change back to stop it. That is free",
-          "text": "{keys} puts you back, and stops it going down. Changing back never costs.",
-          "lead": "If it gets low, let go of the shape. Being yourself costs nothing."
+          "text": "{keys} puts you back, and stops it going down. Changing back never costs."
         },
         {
           "id": "refill",
           "at": "ink_low",
-          "mode": "look",
-          "visual": "ink",
-          "context": "world",
-          "anchor": "morph_card",
+          "mode": "say",
+          "context": "low_ink",
           "speaker": "Lolo",
-          "caption": "Nearly out. Find more ink",
-          "text": "You are nearly out. It does not come back on its own out here — you have to find more of it.",
-          "lead": "The ink is nearly gone. Look around — the sea keeps some, if you know where."
+          "seconds": 7.0,
+          "text": "You are nearly out. It does not come back on its own out here — you have to find more of it."
         },
         {
           "id": "no_drowning",
           "at": "ink_emptied",
           "mode": "say",
+          "context": "underwater",
+          "patience": 1.0,
           "speaker": "Lolo",
           "seconds": 7.0,
           "text": "Up you come. You lost the crossing, not anything else. Go again."
@@ -380,6 +467,7 @@
           "id": "belongs_down_here",
           "at": "underwater",
           "mode": "say",
+          "context": "underwater",
           "speaker": "Lolo",
           "seconds": 8.0,
           "text": "Only what belongs down here will hold, apo. Anything else will start drowning on you."
@@ -403,10 +491,10 @@
         "DILIM TEACHES WHAT IS NEW ABOUT A FIGHT, AND NOTHING ELSE.",
         "",
         "Lolo is not here, so every lesson is hers (`speaker` Apo) and none has a `lead`: there is",
-        "nobody to ask the question a card answers. Three cards with pictures -- the lamp that is",
-        "her life, the click that swings, and the ink every drawing costs -- and two lines on the hint bar, which never",
-        "stops play, for the moments that come mid-fight: the first hit to the lantern, and a",
-        "weapon nearly worn through.",
+        "nobody to ask the question a card answers. Two cards with pictures, for what Level 1 cannot",
+        "teach because it does nothing there -- the lamp that is her life and the click that swings",
+        "-- and lines on the hint bar, which never stops play, for the rest: the ink every drawing",
+        "costs, the first hit to the lantern, and a weapon nearly worn through.",
         "",
         "Every event is level_4.gd's or LevelBase's: weapon_in_hand and weapon_wearing are polled",
         "off the weapon in her hand, lantern_hit is the lantern's own signal, ink_spent is the",
@@ -460,12 +548,9 @@
         {
           "id": "every_drawing_costs",
           "at": "ink_spent",
-          "mode": "look",
-          "visual": "ink",
-          "context": "world",
-          "anchor": "ink_gauge",
+          "mode": "say",
           "speaker": "Apo",
-          "caption": "Every drawing costs ink here",
+          "seconds": 7.0,
           "text": "Out here every drawing costs ink, even one I have drawn before. The clearings fill it back up."
         },
         {
@@ -483,27 +568,6 @@
           "speaker": "Apo",
           "seconds": 6.0,
           "text": "This one is nearly worn through. When it goes, I draw another."
-        }
-      ]
-    },
-    "level_5": {
-      "$comment": [
-        "MAYON TEACHES ONE THING: the ink is all there is. The first drawing she pays for lights the",
-        "gauge and says so, in Lolo's voice. Nothing else is new: the verb is the one she has used for four levels."
-      ],
-      "speaker_default": "lolo",
-      "lessons": [
-        {
-          "id": "no_more_ink",
-          "at": "ink_spent",
-          "delay": 1.0,
-          "mode": "look",
-          "visual": "ink",
-          "context": "world",
-          "anchor": "ink_gauge",
-          "speaker": "Lolo",
-          "caption": "No ink comes back here",
-          "text": "Watch that, apo. Nothing on this mountain fills it again. What is in the brush is all there is."
         }
       ]
     }

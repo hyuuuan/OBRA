@@ -16,6 +16,16 @@ what is left. The superseded provisional design is folded away at the bottom.
 
 ---
 
+
+> **What the plaza says, in order (2026-11-06).** The opening and its two rules, then at the fork:
+> `L2_N1.enter`, its three ways (`kind: lore`), the question. The volume begins ten pixels from
+> where she wakes, so `.enter` used to fire on her first step and its ways were gone the same frame.
+> The dancers' warning waits for the plaza to have been introduced and is not said to somebody who
+> chose another way (`_warn_about_the_dancers`). The doors are asides (`HintBar.interject`), so
+> walking past one no longer costs the two rules. Alleys: `.enter`, `.teach`, question, at the fork.
+> ⚠ `Signpost2D._yield_if_crowded` compared only x, and the two alleys are stacked rooms: the second
+> had no boards at all.
+
 ## What the first playthrough found
 
 The suites were green and the level was not finished. Every one of these passed
@@ -231,6 +241,11 @@ way into each alley, and **both alleys are the same problem with the same three 
 Every way through an alley ends with its pieces **on the floor**, and they are picked up by
 walking over them; the way on opens only when every piece from that alley is in hand. Nothing
 escapes and nothing runs on a clock, so no road to the table can lose one.
+
+For a placed offering, the birds drop their scraps on clear floor, then take turns pecking
+at the drawing. The peck point follows the offering if it moves.
+
+In the dance, press Space or finish a stroke on the beat. Both inputs use the same timing windows.
 
 ---
 

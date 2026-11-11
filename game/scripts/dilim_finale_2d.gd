@@ -6,12 +6,12 @@ extends Node2D
 ## THREE WAVES ON THE NIGHT'S CLOCK (Kent's design: "W1 two aswang (dog / pig) · W2 + manananggal
 ## and wakwak (fliers) · W3 the TIK-TIK"). Each opens at its time in WAVES: its aswang on the ground
 ## -- never more of them alive than the wave says, one back REPLACE_SECONDS after one falls -- and
-## its fliers, once each, from the clearing's edges. The manananggal comes back for the night the
-## segment drove her off, and is driven off sooner (MANANANGGAL_DRIVE_OFF). Morning at DAWN_SECONDS.
+## its fliers, once each, from the clearing's edges. The manananggal returns with both halves
+## unless her lower half was salted. An ash-assisted defeat of the tik-tik survives retries.
 ##
 ## It starts itself once she is in the clearing (her hurtbox past `arena_west`), so a knockout
-## that puts her back at the clearing's edge starts it again from nothing. At dawn whatever is
-## still after her fades and `dawned` is said: the level takes the dark away and ends.
+## that puts her back at the clearing's edge restarts the clock. At dawn whatever is still after
+## her fades and `dawned` is said: the level takes the dark away and ends.
 
 signal began
 ## A wave opening, 0 to 2: the level's cue to say what has come.
@@ -44,6 +44,8 @@ const TREE_CRUSH := 8
 const TREE_REACH_UP := 120.0
 ## How high over the ground the fliers come in.
 const FLIER_HEIGHT := 260.0
+## West of the dead tree, on the ground even after the tree falls east.
+const LOWER_HALF_OFFSET := Vector2(-250.0, -25.0)
 ## Where they come from: the clearing's edges, this far either side of its middle, on the ground.
 const ENTRY_OFFSET := 460.0
 const FLEE_FADE := 0.8
@@ -63,6 +65,8 @@ var _forms := 0
 ## The wave a sun last hurried, so each wave takes only one.
 var _hurried := -1
 var tree: DeadTree2D
+var manananggal_lower: ManananggalLower2D
+var tiktik_defeated := false
 
 
 func _ready() -> void:
@@ -98,14 +102,15 @@ func _physics_process(delta: float) -> void:
 			_begin()
 		return
 	elapsed += delta
+	if elapsed >= DAWN_SECONDS:
+		_dawn()
+		return
 	_open_waves()
 	for index in range(_waiting.size() - 1, -1, -1):
 		_waiting[index] -= delta
 		if _waiting[index] <= 0.0:
 			_waiting.remove_at(index)
 			_send_one()
-	if elapsed >= DAWN_SECONDS:
-		_dawn()
 
 
 func is_running() -> bool:
@@ -162,6 +167,7 @@ func alive() -> Array[Enemy2D]:
 func reset_for_restore() -> void:
 	for foe in _foes:
 		if is_instance_valid(foe):
+			foe.process_mode = Node.PROCESS_MODE_DISABLED
 			foe.queue_free()
 	_foes.clear()
 	_waiting.clear()
@@ -221,8 +227,15 @@ func _send_flier(kind: String) -> void:
 	var foe: Enemy2D
 	match kind:
 		"manananggal_upper":
+			if manananggal_lower != null:
+				if manananggal_lower.is_salted():
+					return
+				# Move the same lower half. It returns to its hollow on checkpoint reset.
+				manananggal_lower.global_position = to_global(LOWER_HALF_OFFSET)
 			foe = ManananggalUpper2D.new()
 		"tiktik":
+			if tiktik_defeated:
+				return
 			foe = Tiktik2D.new()
 		"wakwak":
 			foe = Wakwak2D.new()
@@ -233,6 +246,13 @@ func _send_flier(kind: String) -> void:
 	if foe is ManananggalUpper2D:
 		foe.max_hp = MANANANGGAL_DRIVE_OFF
 		foe.hp = MANANANGGAL_DRIVE_OFF
+
+
+func banish_manananggal() -> void:
+	for foe in alive():
+		if foe is ManananggalUpper2D:
+			foe.leave()
+			_remove_after_fade(foe)
 
 
 func _enter(foe: Enemy2D, at: Vector2) -> void:
@@ -250,10 +270,19 @@ func _enter(foe: Enemy2D, at: Vector2) -> void:
 func _on_foe_died(foe: Enemy2D) -> void:
 	if foe is GroundEnemy2D:
 		_waiting.append(REPLACE_SECONDS)
-	get_tree().create_timer(Enemy2D.DEATH_FADE + 0.1, false).timeout.connect(func() -> void:
+	elif foe is Tiktik2D and foe.was_revealed_with_ash:
+		tiktik_defeated = true
+	_remove_after_fade(foe)
+
+
+func _remove_after_fade(foe: Enemy2D) -> void:
+	var fade := ManananggalUpper2D.RISE_SECONDS if foe is ManananggalUpper2D else Enemy2D.DEATH_FADE
+	# A checkpoint retry frees the foe and cancels its pending cleanup.
+	var cleanup := foe.create_tween()
+	cleanup.tween_interval(fade + 0.1)
+	cleanup.tween_callback(func() -> void:
 		_foes.erase(foe)
-		if is_instance_valid(foe):
-			foe.queue_free())
+		foe.queue_free())
 
 
 ## Morning. Whatever is still after her goes, and the night is over.

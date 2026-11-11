@@ -105,7 +105,8 @@ DEEP_RGB = np.array([1.0, 27.0, 70.0])
 ## camera ever looks. The shore band pins its pieces by this top: top_row = LAND_TOP - (-230).
 LAND_TOP, LAND_BOTTOM = 556, 1867
 SURFACE_Y = 560
-SAND_ROWS, FACE_ROWS = 34, 96
+SAND_LIP = 4
+SAND_ROWS, FACE_ROWS = 34 + SAND_LIP, 96
 ## Where in the retaining wall a course is cut: under the grass, at its first mortar line, down to
 ## the full mortar band along its foot.
 COURSE_ROWS = (10, 96)
@@ -220,7 +221,7 @@ SAND_WIDTH = 288
 
 
 def _sand_strip() -> np.ndarray:
-    """The 34 rows the feet are on: a lit lip, the plate's five sands dithered, a few ripples
+    """The sand the feet are on: a lit lip, the plate's five sands dithered, a few ripples
     and shells, damp along the foot where it meets the stones."""
     rng = np.random.default_rng(3101)
     broad = _periodic_noise(SAND_WIDTH, SAND_ROWS, 6, 3)
@@ -391,7 +392,7 @@ def draw_land(name: str, phase: int | None = None) -> Image.Image:
     out = np.zeros((height, width, 4), dtype=np.uint8)
     # Laid by WORLD x, so the strip and the stones line up with nothing that moves with them.
     columns = np.arange(left, right)
-    surface = SURFACE_Y - LAND_TOP
+    surface = SURFACE_Y - SAND_LIP - LAND_TOP
     out[surface:surface + SAND_ROWS] = sand[:, columns % sand.shape[1]]
     face_top = surface + SAND_ROWS
     out[face_top:face_top + FACE_ROWS] = wall[:, (columns + phase) % wall.shape[1]]
@@ -413,12 +414,14 @@ def draw_land(name: str, phase: int | None = None) -> Image.Image:
     else:
         out[face_top:, :near.start] = 0
 
-    # The sand ends ON the collision's edge -- at the walking row, exactly where the apo stops --
-    # rounded at the top, bulging a few pixels at its middle, wet toward the end.
+    # Roll the lip over the beach edge. The visible shoulder is above the walking row,
+    # where the sand still reaches the collision edge.
     wet = np.array([20.0, 38.0, 62.0])
     for row in range(SAND_ROWS):
         y = surface + row
         bulge = int(round(SAND_BULGE * math.sin(math.pi * min(1.0, (row + 1) / 30.0)) ** 0.8))
+        depth = max(0.0, 1.0 - row / 8.0)
+        bulge -= round(16.0 * (1.0 - math.sqrt(1.0 - depth * depth)))
         # The last column of sand facing right, the first facing left.
         stop = cut - 2 + bulge if facing_right else cut + 1 - bulge
         if facing_right:
@@ -495,7 +498,7 @@ def _edge_fit(name: str, image: Image.Image) -> tuple:
             return int(left + solid.max() + 1 - edge)
         return int(edge - (right - width + solid.min()))
 
-    surface = SURFACE_Y - LAND_TOP
+    surface = SURFACE_Y - SAND_LIP - LAND_TOP
     face_top = surface + SAND_ROWS
     return ([reach(surface + row) for row in range(SAND_ROWS)],
             np.array([reach(row) for row in range(face_top, alpha.shape[0])]))

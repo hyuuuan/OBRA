@@ -91,11 +91,16 @@ and after pulling changes:
 | macOS | Double-click [`play_mac.command`](play_mac.command) |
 | Windows | Double-click [`play_windows.bat`](play_windows.bat) |
 
+For packaged playtests, build the self-contained Windows zip with
+`python3 tools/build_windows.py` or the macOS package with
+`python3 tools/build_macos.py`. The macOS telemetry workflow is documented in
+[`docs/PLAYTEST_MACOS.md`](docs/PLAYTEST_MACOS.md).
+
 **Development mode is on by default for everyone running from this repository.**
 The shared flag is `debug/dev_mode/enabled=true` in [`game/project.godot`](game/project.godot).
 All five paintings are unlocked through the normal house; collect the brush and play as usual.
 **DEV MODE** stays visible on screen and appears in the window title. Set the flag to `false`
-to restore progression locks. Release exports keep normal progression.
+to restore progression locks. Exports keep normal progression.
 
 You can provide a Godot executable when it is not on `PATH`:
 
@@ -206,10 +211,11 @@ save data.
 
 ## Persistence and telemetry
 
-Progress is stored locally in a schema-versioned JSON profile at
-`user://profile.json`. Recognition and gameplay telemetry are anonymous and
-remain on the player's computer in `user://telemetry/`. Use
-`tools/aggregate_telemetry.py` to summarise local telemetry.
+Source runs use `user://profile.json` for progress and `user://telemetry/` for
+anonymous recognition and gameplay telemetry. Each exported copy creates
+`gamesession/` in its package on first launch. It keeps its own profile,
+drawings, checkpoints and telemetry there and starts with a fresh profile.
+Use `tools/aggregate_telemetry.py` to summarise local telemetry.
 
 Test runs use `user://test_runs/` instead of the real profile and telemetry
 locations.

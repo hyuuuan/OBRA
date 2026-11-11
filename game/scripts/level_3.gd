@@ -678,8 +678,7 @@ func _scatter_the_ambience() -> void:
 	var coral := _mark("CoralMark")
 	if coral == null:
 		return
-	# Columns rise off the bed; schools drift through the middle of the column. Placed by
-	# hand rather than by random so nothing lands inside a terrace or on top of a fact.
+	# Columns rise off the bed. Place them by hand to keep them clear of the terraces and facts.
 	var bed := BED_Y
 	var placings := [
 		[AMBIENCE + "bubbles_long", Vector2(1915.0, bed - 20.0), 210.0, 3.0],
@@ -688,10 +687,6 @@ func _scatter_the_ambience() -> void:
 		[AMBIENCE + "bubbles_short", Vector2(4820.0, bed - 50.0), 140.0, 3.2],
 		[AMBIENCE + "bubbles_long", Vector2(5820.0, bed - 20.0), 200.0, 2.8],
 		[AMBIENCE + "bubbles_short", Vector2(6560.0, bed - 50.0), 135.0, 3.4],
-		[AMBIENCE + "school", Vector2(2390.0, 1180.0), 175.0, 2.2],
-		[AMBIENCE + "school", Vector2(3960.0, 1060.0), 210.0, 1.8],
-		[AMBIENCE + "school", Vector2(5360.0, 1240.0), 165.0, 2.4],
-		[AMBIENCE + "school", Vector2(4560.0, 1100.0), 195.0, 2.0],
 	]
 	for index in placings.size():
 		var row: Array = placings[index]
@@ -709,24 +704,51 @@ func _scatter_the_ambience() -> void:
 		piece.modulate = Color(1.0, 1.0, 1.0, 0.75)
 		coral.get_parent().add_child(piece)
 		piece.global_position = row[1]
-		# ⚠ A SCHOOL THAT STAYS PUT IS A PICTURE OF ONE. They patrol a stretch of the column
-		# and turn at each end; the columns of bubbles stay where they rise from.
-		if String(row[0]).ends_with("school"):
-			_patrol(piece, 150.0 + float(index % 3) * 40.0, 7.0 + float(index % 4))
+	_scatter_the_schools(coral.get_parent())
+
+
+func _scatter_the_schools(parent: Node) -> void:
+	var locations := [Vector2(2390.0, 1092.0), Vector2(3960.0, 955.0),
+		Vector2(5360.0, 1157.0), Vector2(4560.0, 1002.0)]
+	# Offset and scale each fish so the tails and silhouettes vary within the school.
+	var formation := [Vector3(-86.0, -17.0, 0.30), Vector3(-32.0, -38.0, 0.36),
+		Vector3(37.0, -25.0, 0.27), Vector3(-48.0, 16.0, 0.28),
+		Vector3(22.0, 5.0, 0.34), Vector3(75.0, 21.0, 0.25)]
+	for index in locations.size():
+		var school := Node2D.new()
+		school.name = "FishSchool%d" % (index + 1)
+		school.z_index = -20
+		school.modulate.a = 0.70
+		parent.add_child(school)
+		school.global_position = locations[index]
+		for slot in formation.size():
+			var pose: Vector3 = formation[slot]
+			var fish := AnimatedSprite2D.new()
+			fish.sprite_frames = SeaCreatureClass.BANGUS_SWIM
+			fish.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			fish.position = Vector2(pose.x, pose.y)
+			fish.scale = Vector2.ONE * pose.z
+			fish.speed_scale = 0.85 + float((index + slot) % 4) * 0.10
+			school.add_child(fish)
+			fish.play(&"swim")
+			fish.set_frame_and_progress((index + slot) % fish.sprite_frames.get_frame_count(&"swim"), 0.0)
+		_patrol_school(school, 150.0 + float(index % 3) * 40.0, 7.0 + float(index))
 
 
 ## Back and forth across `reach`, turning to face the way it swims.
-func _patrol(piece: Sprite2D, reach: float, seconds: float) -> void:
-	var home := piece.position.x
-	var loop := piece.create_tween().set_loops()
-	loop.tween_callback(func() -> void: piece.flip_h = false)
-	loop.tween_property(piece, "position:x", home + reach, seconds) \
+func _patrol_school(school: Node2D, reach: float, seconds: float) -> void:
+	var home := school.position.x
+	var face := func(left: bool) -> void:
+		for fish: AnimatedSprite2D in school.get_children():
+			fish.flip_h = left
+	var loop := school.create_tween().set_loops()
+	loop.tween_property(school, "position:x", home + reach, seconds) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	loop.tween_callback(func() -> void: piece.flip_h = true)
-	loop.tween_property(piece, "position:x", home - reach, seconds * 2.0) \
+	loop.tween_callback(face.bind(true))
+	loop.tween_property(school, "position:x", home - reach, seconds * 2.0) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	loop.tween_callback(func() -> void: piece.flip_h = false)
-	loop.tween_property(piece, "position:x", home, seconds) \
+	loop.tween_callback(face.bind(false))
+	loop.tween_property(school, "position:x", home, seconds) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
@@ -1230,6 +1252,8 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_pace_the_advice(delta)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
+	if _anchor_now() != anchor_position:
+		return
 	_guide_the_bakunawa(anchor_position)
 	_breathe(anchor_position, delta)
 	_push_in_the_current(anchor_position, delta)
@@ -1420,6 +1444,15 @@ func _on_low_ink(_remaining: float, _capacity: float) -> void:
 	if tutorial != null:
 		tutorial.note("ink_low")
 	_say_why("It is nearly gone, apo.")
+
+
+func _tutorial_context(context: String) -> bool:
+	match context:
+		"low_ink":
+			return super("creature") and _drain != null and ink_manager.remaining_ratio() <= _drain.warning_ratio
+		"underwater":
+			return super("world") and _anchor_now().y > _waterline_y
+	return super(context)
 
 
 ## THE ZERO CASE. Revert, lose the stretch, never die. There is no death state anywhere in this
@@ -2673,17 +2706,17 @@ const STEERING_ACTIONS: Array[StringName] = [
 	&"move_left", &"move_right", &"move_up", &"move_down", &"jump"]
 
 
-func _post_advice(advice: Array[Dictionary]) -> void:
-	if advice.is_empty():
+func _post_advice(advice: Array[Dictionary], while_relevant := Callable()) -> void:
+	if advice.is_empty() or (while_relevant.is_valid() and not while_relevant.call()):
 		return
 	if _advice_left > 0.0 or not _advice_waiting.is_empty():
-		_advice_waiting.append(advice)
+		_advice_waiting.append({"lines": advice, "while_relevant": while_relevant})
 		return
-	_advise_now(advice)
+	_advise_now(advice, while_relevant)
 
 
-func _advise_now(advice: Array[Dictionary]) -> void:
-	super._post_advice(advice)
+func _advise_now(advice: Array[Dictionary], while_relevant: Callable) -> void:
+	super._post_advice(advice, while_relevant)
 	var reading := 0.0
 	for line: Dictionary in advice:
 		reading += _reading_time(String(line.get("text", "")))
@@ -2708,9 +2741,12 @@ func _pace_the_advice(delta: float) -> void:
 	if _advice_left > 0.0:
 		_advice_left = maxf(0.0, _advice_left - delta)
 		return
-	if not _advice_waiting.is_empty():
-		_advise_now(_advice_waiting.pop_front())
-		return
+	while not _advice_waiting.is_empty():
+		var batch: Dictionary = _advice_waiting.pop_front()
+		var while_relevant: Callable = batch["while_relevant"]
+		if not while_relevant.is_valid() or while_relevant.call():
+			_advise_now(batch["lines"], while_relevant)
+			return
 	if _coral_waiting.is_empty():
 		return
 	var field := coral_field()
@@ -3093,7 +3129,7 @@ func _on_gift_offered() -> void:
 		director.solve_with_item("L3_N2", "led_home")
 
 
-## A blow landed: the creature flashes red (Bakunawa2D), and the bar says how many are left.
+## A blow landed: the creature flashes red and one of its hearts goes out (Bakunawa2D).
 func _on_bakunawa_hit(hits: int, needed: int) -> void:
 	if hits < needed:
 		status_label.text = "Hit! %d more" % (needed - hits)
@@ -3445,18 +3481,23 @@ func _told_the_dive(anchor_position: Vector2) -> void:
 	for step in [[2100.0, "L3_DIVE.lore1"], [2900.0, "L3_DIVE.lore2"],
 			[3700.0, "L3_DIVE.lore3"], [4500.0, "L3_DIVE.lore4"], [5150.0, "L3_DIVE.light"]]:
 		if anchor_position.x >= float(step[0]):
-			_tell(String(step[1]))
+			var hook := String(step[1])
+			# The two lines that ask the player to do something belong in the water.
+			var context := Callable()
+			if hook in ["L3_DIVE.lore1", "L3_DIVE.light"]:
+				context = func() -> bool: return not _arrived and _anchor_now().y > _waterline_y
+			_tell(hook, context)
 	if _told.has("L3_DIVE.lore4"):
 		script_lines.set_flag("heard_about_lola")
 
 
 ## Once each, and remembered in the run state so a checkpoint restore does not replay the
 ## crossing from the top.
-func _tell(hook: String) -> void:
-	if _told.has(hook):
+func _tell(hook: String, advice_context := Callable()) -> void:
+	if _told.has(hook) or (advice_context.is_valid() and not advice_context.call()):
 		return
 	_told[hook] = true
-	_speak(script_lines.fire(hook))
+	_speak(script_lines.fire(hook), advice_context)
 
 
 ## THE CREATURE'S OWN SILHOUETTE, passing under the hull and going the wrong way round. The
@@ -3906,18 +3947,18 @@ func _put_back_what_the_restore_undid() -> void:
 func _float_the_bangka_again(state: Dictionary) -> void:
 	if not bool(state.get("boat_afloat", false)):
 		return
-	if _boat_afloat():
-		return
-	_launch_the_bangka()
+	if not _boat_afloat():
+		_launch_the_bangka()
 	var boat := _launched_boat
 	if boat == null or not is_instance_valid(boat) or boat.is_queued_for_deletion():
 		return
-	var at := Vector2(float(state.get("boat_x", boat.global_position.x)),
+	var landing := boat.global_transform
+	landing.origin = Vector2(float(state.get("boat_x", boat.global_position.x)),
 		float(state.get("boat_y", boat.global_position.y)))
-	PhysicsServer2D.body_set_state(boat.get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM,
-		Transform2D(0.0, at))
-	boat.global_position = at
+	PhysicsServer2D.body_set_state(boat.get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM, landing)
+	boat.global_transform = landing
 	boat.linear_velocity = Vector2.ZERO
+	boat.angular_velocity = 0.0
 	if bool(state.get("aboard", false)):
 		_seat_the_apo_again.call_deferred(boat)
 

@@ -28,9 +28,13 @@ enum DrawingMode { NORMAL, QUIET_REFUSAL, FREE_PAINT }
 var drawing_mode: DrawingMode = DrawingMode.NORMAL
 var _quiet_idle := 0.0
 var _quiet_revision := -1
-var _reference: TextureRect
-var _reference_texture: Texture2D
 var _quiet_visibility := {}
+## Optional task instructions, outside the captured ink. Mayon's guided pages use an
+## explicit Paint button rather than treating a pause between strokes as completion.
+var _context_card: PanelContainer
+var _context_heading: Label
+var _context_body: Label
+var _context_title := ""
 
 @export var debug_timing_logs: bool = false
 
@@ -48,6 +52,7 @@ var ink_manager: InkManager
 @onready var canvas: Control = $PanelRoot/SubViewportContainer/SubViewport/Canvas
 @onready var canvas_frame: UIOvalFrame = $PanelRoot/CanvasFrame
 @onready var transform_button: Button = $PanelRoot/TransformButton
+@onready var undo_button: Button = $PanelRoot/UndoButton
 @onready var clear_button: Button = $PanelRoot/ClearButton
 @onready var status: Label = $PanelRoot/StatusLabel
 @onready var guess_label: Label = $PanelRoot/GuessLabel
@@ -56,6 +61,7 @@ var ink_manager: InkManager
 ## How much line fits on one page, in canvas diagonals. NOT the ink budget -- see the note
 ## in open_panel. Generous: the busiest class in the roster is well under this.
 const PAGE_ALLOWANCE := 8.0
+const INK_LIMIT_STATUS := "Page full. Paint, undo, or clear."
 
 const OPEN_DURATION := 0.54
 ## How long a refused drawing takes to fade to the bare page.
@@ -63,6 +69,8 @@ const REFUSAL_FADE := 1.2
 ## How far a quiet page dims the world: the page's own lens, faint. Light enough that her black
 ## lines still read on Mayon's white summit; enough to say the world has stopped for the brush.
 const QUIET_DIM := 0.4
+## How long a quiet page waits, untouched, before the attempt plays on without her lines.
+const QUIET_UNTOUCHED := 4.0
 
 ## The header's own ink readout. The scrim covers the HUD, so while the panel is open the
 ## gauge in the corner of the screen is hidden -- at exactly the moment ink matters most.
@@ -74,13 +82,14 @@ var _ink_value: Label
 
 
 var _pending_strokes: Array = []
+var _archived_revision := -1
 var _is_open := false
 ## Read by UIRouter.refresh_pause through the modal_overlays group.
 var pauses_game := true
 var _submitting := false
 ## THE BRUSH REFUSES. Mayon's two people -- lolo near the top, lola at the summit -- are the only
 ## things in the game the brush will not make, and the design asks that it not even try: no
-## running guess, no words, no ink taken, nothing sent to the recogniser and nothing recorded.
+## running guess, no words, no ink taken and nothing sent to the recogniser.
 ## Resting the hand fades the lines and closes the page. Cancelling leaves the beat pending.
 ## It must not
 ## look like a decline -- a decline is the game failing to read a drawing, and this is the game
@@ -131,6 +140,7 @@ func _ready() -> void:
 	client.set("paper_color", canvas_frame.paper)
 	client.set("debug_timing_logs", debug_timing_logs)
 	transform_button.pressed.connect(_on_transform_pressed)
+	undo_button.pressed.connect(_undo_last_stroke)
 	clear_button.pressed.connect(_clear_canvas)
 	canvas.stroke_cost_changed.connect(_on_stroke_cost_changed)
 	canvas.ink_blocked.connect(_on_ink_blocked)
@@ -170,21 +180,54 @@ func set_drawing_mode(mode: DrawingMode) -> void:
 	_quiet_revision = -1
 
 
-## Sibling of the capture viewport: reference pixels NEVER reach the recognizer.
-func set_memory_reference(picture: Texture2D) -> void:
-	_reference_texture = picture
-	if _reference == null:
-		_reference = TextureRect.new()
-		_reference.name = "MemoryReference"
-		_reference.position = Vector2(-250, 150)
-		_reference.size = Vector2(260, 220)
-		_reference.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		_reference.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		_reference.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_reference.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		panel_root.add_child(_reference)
-	_reference.texture = picture
-	_reference.visible = picture != null and not _refusing
+func set_drawing_context(title: String, instructions: String) -> void:
+	_context_title = title
+	if _context_card == null:
+		if title.is_empty(): return
+		_context_card = PanelContainer.new()
+		_context_card.name = "DrawingInstructions"
+		_context_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_context_card.add_theme_stylebox_override(&"panel", UISkin.frame())
+		add_child(_context_card)
+		var column := VBoxContainer.new()
+		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		column.add_theme_constant_override(&"separation", 12)
+		_context_card.add_child(column)
+		_context_heading = Label.new()
+		_context_heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_context_heading.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
+		_context_heading.add_theme_color_override(&"font_color", UISkin.GOLD_PALE)
+		column.add_child(_context_heading)
+		_context_body = Label.new()
+		_context_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_context_body.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
+		_context_body.add_theme_color_override(&"font_color", UISkin.CREAM_TEXT)
+		column.add_child(_context_body)
+		get_viewport().size_changed.connect(_layout_drawing_context)
+	_context_heading.text = title
+	_context_body.text = instructions
+	_context_card.visible = not title.is_empty()
+	_layout_drawing_context()
+	_fit_drawing_context.call_deferred()
+
+
+func _layout_drawing_context() -> void:
+	if _context_card == null: return
+	_context_card.custom_minimum_size.x = 360.0
+	_context_heading.custom_minimum_size.x = 320.0
+	_context_body.custom_minimum_size.x = 320.0
+	_context_card.size.x = 360.0
+	_context_card.reset_size()
+	_context_card.position = Vector2(maxf(24.0, panel_root.position.x - 400.0),
+		maxf(110.0, panel_root.position.y + 110.0))
+
+
+func _fit_drawing_context() -> void:
+	# Container sorting first supplies the labels' wrapping width. Their first
+	# height can be measured at zero width, and must not become the card's height.
+	await get_tree().process_frame
+	if is_instance_valid(_context_card):
+		_context_card.size = Vector2(360.0, _context_card.get_combined_minimum_size().y)
 
 
 func _present_drawing_mode() -> void:
@@ -197,15 +240,21 @@ func _present_drawing_mode() -> void:
 				if not _quiet_visibility.has(child):
 					_quiet_visibility[child] = (child as CanvasItem).visible
 				(child as CanvasItem).hide()
+		if not _context_title.is_empty():
+			# A visible drawing surface and an explicit submit action. Both people still
+			# receive the same quiet fade, without recognition or decline feedback.
+			panel_root.get_node("CanvasPaper").show()
+			canvas_frame.show()
+			transform_button.show()
+			undo_button.show()
+			clear_button.show()
 	else:
 		# Normal callers keep their authored visibility, including tutorial-owned children.
 		for child in _quiet_visibility:
 			if is_instance_valid(child):
 				(child as CanvasItem).visible = bool(_quiet_visibility[child])
 		_quiet_visibility.clear()
-	if _reference != null:
-		_reference.visible = not _refusing and _reference_texture != null
-	canvas.call("set_drawable_bounds", Rect2() if _refusing else canvas_frame.opening())
+	canvas.call("set_drawable_bounds", Rect2() if _refusing and _context_title.is_empty() else canvas_frame.opening())
 
 
 func is_refusing() -> bool:
@@ -252,6 +301,8 @@ func open_panel() -> void:
 		# Nothing on the page says what will happen. It is the drawing that has to find out.
 		status.text = ""
 		guess_label.text = ""
+	if not _context_title.is_empty():
+		status.text = ""
 	# Nothing has been drawn yet, so there is nothing to transform.
 	transform_button.disabled = true
 	_refresh_ink_row()
@@ -293,6 +344,7 @@ func close_panel(emit_closed: bool = true, release_ink: bool = true) -> void:
 	if release_ink and ink_manager != null:
 		ink_manager.release_attempt()
 	UIRouter.refresh_pause(get_tree())
+	set_drawing_context("", "")
 	if emit_closed:
 		panel_closed.emit()
 
@@ -313,6 +365,8 @@ func _process(delta: float) -> void:
 	if _submitting:
 		return
 	if _refusing:
+		if not _context_title.is_empty():
+			return
 		var changed: int = canvas.content_revision()
 		if changed != _quiet_revision or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			_quiet_revision = changed
@@ -321,6 +375,15 @@ func _process(delta: float) -> void:
 			_quiet_idle += delta
 			if _quiet_idle >= 1.4:
 				_on_transform_pressed()
+		else:
+			# ⚠ AN UNTOUCHED PAGE DOES NOT WAIT FOREVER (Kent, 2026-11-05: "this screen ... takes soo
+			# long i dont know what to do ... i cant play the game like this"). Nothing on a quiet
+			# page says to draw, by design, so a player who did not try found the world stopped for
+			# good. The attempt plays on without her lines. A Paint press or Escape on an empty page
+			# still counts for nothing; only the wait does.
+			_quiet_idle += delta
+			if _quiet_idle >= QUIET_UNTOUCHED:
+				_refuse_quietly()
 		return
 	_live_cooldown = maxf(0.0, _live_cooldown - delta)
 	var revision: int = canvas.content_revision()
@@ -349,7 +412,7 @@ func _on_live_prediction(
 	margin: float,
 	_response: Dictionary
 ) -> void:
-	if not _is_open or _submitting or _refusing:
+	if not _is_open or _submitting or _refusing or _guessed_revision != canvas.content_revision():
 		return
 	_guess_entity = entity
 	_guess_display = display_name
@@ -369,7 +432,7 @@ func _on_live_prediction(
 
 
 func _on_live_prediction_failed(message: String) -> void:
-	if not _is_open or _submitting:
+	if not _is_open or _submitting or _refusing or _guessed_revision != canvas.content_revision():
 		return
 	_forget_guess()
 	# Deliberately NOT resetting the cooldown: it was set when the request went out, so
@@ -410,12 +473,10 @@ func _style_panel() -> void:
 	status.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
 	status.add_theme_color_override(&"font_color", UISkin.MUTED)
 
-	# Hierarchy: one of these is the thing you came here to do and the other undoes your
-	# work. They were identical twins. It is a family now rather than a stylebox built
-	# here, so the green button in this panel and the green button on the pause menu
-	# cannot drift apart.
+	# Paint is the primary action. Undo and Clear use the shared secondary style.
 	transform_button.theme_type_variation = &"PrimaryButton"
 	transform_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
+	undo_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
 	clear_button.add_theme_font_size_override(&"font_size", UISkin.FONT_BODY)
 
 
@@ -556,6 +617,13 @@ func _forget_guess() -> void:
 	transform_button.text = "Paint"
 
 
+func _set_submitting(submitting: bool) -> void:
+	_submitting = submitting
+	transform_button.disabled = submitting
+	clear_button.disabled = submitting
+	undo_button.disabled = submitting or not canvas.has_strokes()
+
+
 func _on_transform_pressed() -> void:
 	if _submitting:
 		return
@@ -564,15 +632,14 @@ func _on_transform_pressed() -> void:
 			return
 		_refuse_quietly()
 		return
-	_submitting = true
-	transform_button.disabled = true
-	clear_button.disabled = true
+	_set_submitting(true)
 	status.text = "Recognizing..."
 	_submit_started_usec = Time.get_ticks_usec()
 	_submit_started_frame = Engine.get_frames_drawn()
 	# Capture the stroke vectors alongside the rasterized image so the rig can
 	# animate the actual drawn lines.
 	_pending_strokes = canvas.get_strokes()
+	_keep_gallery_drawing(_pending_strokes)
 	# ⚠ NOTHING IS RESERVED HERE ANY MORE, and refusing here would be wrong.
 	#
 	# Under the old length-based economy the page itself cost ink, so a submission could be
@@ -656,9 +723,7 @@ func _on_entity_declined(
 		_profile.note_submission(false)
 	if ink_manager != null:
 		ink_manager.release_attempt()
-	_submitting = false
-	transform_button.disabled = false
-	clear_button.disabled = false
+	_set_submitting(false)
 	# A "brush" decline was READ -- the brush simply wants it surer -- so it is not told it
 	# looked like nothing. Neither line names what the drawing was taken for.
 	status.text = "close — the brush wants a surer line" if reason == "brush" \
@@ -696,9 +761,7 @@ func _submit_latency_ms() -> float:
 func _on_prediction_failed(message: String) -> void:
 	if ink_manager != null:
 		ink_manager.release_attempt()
-	_submitting = false
-	transform_button.disabled = false
-	clear_button.disabled = false
+	_set_submitting(false)
 	status.text = message
 
 
@@ -710,6 +773,11 @@ func _clear_canvas() -> void:
 		ink_manager.release_attempt()
 
 
+func _undo_last_stroke() -> void:
+	if not _submitting and canvas.undo_last_stroke():
+		_clear_guess()
+
+
 func _on_stroke_cost_changed(cost: float) -> void:
 	# Clearing the hidden canvas after a successful prediction must not replace
 	# the pending utility reservation with zero before placement/storage commits.
@@ -717,9 +785,14 @@ func _on_stroke_cost_changed(cost: float) -> void:
 		return
 	# There is ink on the canvas now, so there is something to offer the recogniser.
 	transform_button.disabled = cost <= 0.0
+	undo_button.disabled = _submitting or not canvas.has_strokes()
+	if status.text == INK_LIMIT_STATUS:
+		status.text = ""
 	if _refusing:
 		# Nothing will be taken for it, so the brush shows nothing going.
 		return
+	if not _guess_entity.is_empty() and _guessed_revision != canvas.content_revision():
+		_forget_guess()
 	# Nothing is spent while a stroke is down -- a unit goes when a thing is acquired or set
 	# down -- but the brush shows what this drawing is taking. See CLAIM_EASE.
 	_claim = InkManager.UNIT * clampf(cost / PAGE_ALLOWANCE, 0.0, 1.0)
@@ -732,7 +805,7 @@ func _on_stroke_cost_changed(cost: float) -> void:
 func _on_ink_blocked() -> void:
 	if _refusing:
 		return
-	status.text = "Ink limit reached — transform or clear"
+	status.text = INK_LIMIT_STATUS
 
 
 ## Called by UIRouter, ahead of the pause menu in the cancel chain. Mid-submission the
@@ -749,10 +822,9 @@ func handle_cancel() -> bool:
 
 ## The lines fade to the bare page, and the page closes. Nothing is sent and nothing is said.
 func _refuse_quietly() -> void:
-	_submitting = true
-	transform_button.disabled = true
-	clear_button.disabled = true
+	_set_submitting(true)
 	var strokes: Array = canvas.get_strokes().duplicate(true)
+	_keep_gallery_drawing(strokes)
 	var mode := drawing_mode
 	# ⚠ ALWAYS RUNS. The panel processes only while the tree is paused, and a refusal must not
 	# hang on the page if anything unpauses it mid-fade.
@@ -769,6 +841,12 @@ func _refuse_quietly() -> void:
 		free_paint_completed.emit(strokes)
 	else:
 		quietly_refused.emit(strokes.size())
+
+
+func _keep_gallery_drawing(strokes: Array) -> void:
+	var revision := int(canvas.content_revision())
+	if _profile != null and revision != _archived_revision and _profile.record_gallery_drawing(strokes):
+		_archived_revision = revision
 
 
 ## A quiet page's only sign: the lens, faint, with no opening burst -- the same at every quiet

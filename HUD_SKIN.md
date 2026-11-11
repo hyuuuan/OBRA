@@ -115,6 +115,11 @@ Taken pixel by pixel off the sheet, not approximated.
 | `PENDING` | `FFBD3D` | ink claimed but not spent; the slot currently in hand |
 | `BEVEL` | `4D4E48` | the grey highlight ring inside a button's edge |
 
+`DawnClockHud`, Dilim's morning clock, is the one part of the HUD with a sky in it: `SKY_*`, `MOON_*`,
+`SUN_CORE` and `TREES_*` in `ui_skin.gd`, stepped, with no red, because nothing on it is a loss. Its
+moon-to-sun body is baked from rules in art pixels of three screen pixels (`body_image`).
+`run_visual_level4_clock` writes it through the night.
+
 ### What you ARE is top right; what you HAVE is top left
 
 The two corners split by whether a reading survives a morph. The left frame holds the brush

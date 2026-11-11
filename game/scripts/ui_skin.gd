@@ -188,6 +188,28 @@ const OFF_FILL := Color(0.176, 0.157, 0.118, 1.0)     # 2D281E
 const OFF_EDGE := Color(0.227, 0.204, 0.157, 1.0)     # 3A3428
 const OFF_LABEL := Color(0.435, 0.404, 0.341, 1.0)    # 6F6757
 
+# --- The night's sky --------------------------------------------------------------------
+## Dilim's morning clock (DawnClockHud) is a small painted window, so it is the one part of the HUD
+## with a sky in it: night indigo, a mauve before dawn, morning blue over gold. Soft and stepped, and
+## no red in it anywhere, because nothing on that clock is a loss.
+const SKY_NIGHT_TOP := Color(0.039, 0.063, 0.141, 1.0)    # 0A1024  the level's own night
+const SKY_NIGHT_LOW := Color(0.110, 0.133, 0.259, 1.0)    # 1C2242
+const SKY_PREDAWN_TOP := Color(0.118, 0.165, 0.345, 1.0)  # 1E2A58
+const SKY_PREDAWN_LOW := Color(0.478, 0.353, 0.471, 1.0)  # 7A5A78
+const SKY_MORNING_TOP := Color(0.435, 0.690, 0.863, 1.0)  # 6FB0DC
+const SKY_MORNING_LOW := Color(0.953, 0.875, 0.659, 1.0)  # F3DFA8
+## The moon she starts under: silver, cratered, its dark side only just there.
+const MOON_LIT := Color(0.902, 0.918, 0.949, 1.0)         # E6EAF2
+const MOON_SHADE := Color(0.682, 0.714, 0.784, 1.0)       # AEB6C8
+const MOON_DARK := Color(0.165, 0.188, 0.314, 1.0)        # 2A3050
+## The sun it becomes: GOLD_PALE and GOLD round a hot middle.
+const SUN_CORE := Color(1.0, 0.961, 0.800, 1.0)           # FFF5CC
+## The woods along the bottom of that window, a silhouette at night and green by morning.
+const TREES_NIGHT := Color(0.024, 0.039, 0.071, 1.0)      # 060A12
+const TREES_FAR_NIGHT := Color(0.051, 0.075, 0.133, 1.0)  # 0D1322
+const TREES_MORNING := Color(0.122, 0.227, 0.165, 1.0)    # 1F3A2A
+const TREES_FAR_MORNING := Color(0.247, 0.396, 0.298, 1.0) # 3F654C
+
 # --- Metrics ----------------------------------------------------------------------------
 ## Ring widths, in the mockup's own pixels. Every frame in the sheet is 4 px per ring; a
 ## chip small enough that three rings would eat it uses THIN.

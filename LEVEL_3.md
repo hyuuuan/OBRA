@@ -1,5 +1,10 @@
 # Level 3 — Dagat
 
+**Fish and Bakunawa health:** the catchable bangus and background schools share the three
+swim poses from `LEVEL3_Dagat/creatures/fish.JPG`. `tools/build_dagat_bangus.py` registers
+the poses at the eye and cuts them onto a transparent strip. Bakunawa shows one heart for
+each of its 15 hits, with spent slots preserved when it throws the player back.
+
 **Strong currents (2026-11-01):** the marked open-water band steadily pushes non-aquatic
 players LEFT, including when idle, near a boat, or on the island half of the crossing.
 The force builds gradually on entry and eases to a bounded drift. Aquatic forms use the
@@ -616,6 +621,7 @@ What that found, in the order a player meets it:
 | The objective | Jumped to "It cannot see. Decide what you are going to do about that" the moment the crossing was answered -- on the beach, to a player who had never seen what "it" was | `cross_by_boat` / `cross_by_dive` until the encounter's volume is entered |
 | The HUD | The ink panel said "Fish [vector/3 bodies/2 joints \| 2 strokes]" after every drawing, in every level. The form card went on saying FISH over the apo rowing, because it was only hidden by MorphLife and Dagat never starts MorphLife | The rig summary is behind `debug_timing_logs`; changing back hides the card directly |
 | The jars | Nothing said what they are. A line on the bar never landed -- Lolo tells the dive as a story and is on the bar for most of it | The `jars` lesson, beside the ink card, the first time one is within 360 px |
+| The cards (Kent, 2026-11-06: "other levels wont have any tutorials if necessary") | Five cards in a row for one rule | Two: `new_brush`, now saying the whole rule, and `jars`. The drain, the free change back and running low are `say` lines, reminders of what the card already said, and may wait for the bar |
 | The island, by boat, going around it | Slipping past was answered only at 420 px beyond the creature. The boat's hull runs aground on the island with the passenger at x 4417, so a boat player sat at the island's edge inside the sweep's reach, with the island's checkpoint written under them, and was caught and put back there over and over. The level could not end | Reaching the island unseen is slipping past, whatever carried the player there |
 
 And three things in the backgrounds, all seen only from the diver's side of the screen: the rain
@@ -787,6 +793,11 @@ on screen and photographing each step. Three things, each its own commit:
   times in twenty seconds by a light it could barely see. It is half as bright again, has motes
   drifting in it, is cut into cells so it has no hard side, and is lit all the way to the rule's
   edge -- fading only outside it, so it never looks dark where it can see you.
+  **Since then (2026-11-07) that light is a flashlight's** (Kent: "nothing similar to how light is
+  presented in a flashlight"): the hand-cut wedge stopped on a hard arc, so it now uses the player's
+  `flashlight_beam.gdshader`, with a lit lens and no edge. It asks the shader for more light, kept
+  further out, so it is lit as far as before; it still goes out only past what `sees()` catches, and
+  `sees()` did not change. In a fight the same lamp goes red.
 - **And there was no way through at a swimmer's speed.** Along the bed a swimmer makes about
   100 px/s. At the old sweep (1.05 either side, 0.55 a second) there was no moment at which a run
   straight through the reach went unseen; the dark under the belly was 34 px of unmarked seabed; a

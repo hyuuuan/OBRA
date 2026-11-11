@@ -255,6 +255,7 @@ const SWAY_HZ := 0.35
 const LOOK_UP := 40.0
 ## How close two signs have to be before one of them is redundant. See _yield_if_crowded.
 const CROWD := 90.0
+const CROWD_HEIGHT := 200.0
 ## How close the player stands before the board offers to be read. Matched to the 96px the
 ## interact key already reaches for a placed drawing, so one key has one range.
 const READ_RANGE := 96.0
@@ -301,7 +302,7 @@ func _ready() -> void:
 	# between a prop and a flag, which is exactly what a sign is.
 	z_index = 7
 	_sea = UnderTheSea.holds(self)
-	set_process(true)
+	set_process(_sea)
 	_settle()
 
 
@@ -348,6 +349,7 @@ func _settle() -> void:
 	# Asked again where it has come to rest: the host that planted it may have been hanging
 	# in the water column, and it is the seabed it ends up on that decides what it is.
 	_sea = UnderTheSea.holds(self)
+	set_process(_sea)
 	queue_redraw()
 	_yield_if_crowded()
 
@@ -376,7 +378,11 @@ func _yield_if_crowded() -> void:
 		var rival := other as Signpost2D
 		if rival == null or rival == self:
 			continue
-		if absf(rival.global_position.x - global_position.x) > CROWD:
+		# ⚠ AND ON THE SAME GROUND. This asked only about x, and Piyesta's two alleys are the same
+		# room stacked one above the other, a thousand pixels apart: the second had no boards at
+		# all, because the first was standing over them.
+		if absf(rival.global_position.x - global_position.x) > CROWD \
+				or absf(rival.global_position.y - global_position.y) > CROWD_HEIGHT:
 			continue
 		if _rank(rival.mark) > _rank(mark):
 			_hand_over(rival)
@@ -431,21 +437,17 @@ func offer(on: bool) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	if not _sea:
-		return
 	# Redrawn only when the kelp has actually moved. The sway is a WHOLE pixel either way, so
 	# at a third of a cycle a second it changes about once a second.
 	var sway := roundf(sin(TAU * (_time * SWAY_HZ + phase)) * SWAY_PIXELS)
 	if not is_equal_approx(sway, _sway):
 		_sway = sway
 		queue_redraw()
-	if _sea:
-		# The carving breathes, slowly, in four steps -- light from something alive in the
-		# grooves, not a lamp.
-		var pulse := int(roundf((sin(TAU * (_time * 0.22 + phase)) * 0.5 + 0.5) * 3.0))
-		if pulse != _pulse:
-			_pulse = pulse
-			queue_redraw()
+	# The carving breathes in four steps.
+	var pulse := int(roundf((sin(TAU * (_time * 0.22 + phase)) * 0.5 + 0.5) * 3.0))
+	if pulse != _pulse:
+		_pulse = pulse
+		queue_redraw()
 
 
 func _draw() -> void:

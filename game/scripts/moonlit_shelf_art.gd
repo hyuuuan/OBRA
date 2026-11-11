@@ -1,18 +1,20 @@
 extends RefCounted
 ## One native-pixel outline for every moonlit floating shelf, solid or one-way.
 
+const EdgeArt = preload("res://scripts/terrain_edge_art.gd")
+
 
 static func draw_on(canvas: CanvasItem, texture: Texture2D, rect: Rect2) -> void:
 	var width := rect.size.x
 	var height := float(texture.get_height())
-	var corner := minf(8.0, minf(width * 0.25, height * 0.5))
-	var step := corner * 0.5
-	var contour := PackedVector2Array([
-		Vector2(corner, 0), Vector2(width - corner, 0),
-		Vector2(width - corner, step), Vector2(width - step, step),
-		Vector2(width - step, corner), Vector2(width, corner),
-		Vector2(width, height), Vector2(0, height), Vector2(0, corner),
-		Vector2(step, corner), Vector2(step, step), Vector2(corner, step)])
+	var corner := EdgeArt.radius(rect, height * 0.5)
+	var contour := EdgeArt.top_edge(width, corner)
+	# A narrow tuck at the foot gives the shelf a rounded underside too.
+	var foot := minf(10.0, width / 3.0)
+	contour.append_array(PackedVector2Array([
+		Vector2(width, height * 0.8125), Vector2(width - foot * 0.4, height * 0.9375),
+		Vector2(width - foot, height), Vector2(foot, height),
+		Vector2(foot * 0.4, height * 0.9375), Vector2(0.0, height * 0.8125)]))
 	var points := PackedVector2Array()
 	var uv := PackedVector2Array()
 	for point in contour:

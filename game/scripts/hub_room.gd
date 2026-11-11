@@ -100,12 +100,39 @@ const FLOOR_LIT := Color(0.451, 0.278, 0.153, 1.0)    # 734727
 ## Capiz: shell panes, milk-white and faintly warm, in a grid of thin muntins.
 const CAPIZ := Color(0.902, 0.878, 0.784, 1.0)        # E6E0C8
 const CAPIZ_SHADE := Color(0.780, 0.749, 0.647, 1.0)  # C7BFA5
+const CEILING_TILE_WIDTH := 72.0
+
+var _backdrop: ViewportTexture
+var _backdrop_origin := Vector2.ZERO
+var _paint_source := false
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	z_index = -10
-	queue_redraw()
+	if not _paint_source and DisplayServer.get_name() != "headless":
+		_bake_backdrop()
+
+
+func _bake_backdrop() -> void:
+	# Ceiling tiles and floorboards can extend past the nominal room bounds.
+	var bounds := Rect2(0.0, ceiling_y(), room_width, drawn_height() + floor_run_on).grow(CEILING_TILE_WIDTH)
+	var painter := duplicate(Node.DUPLICATE_SCRIPTS) as HubRoom
+	painter._paint_source = true
+	painter.position = -bounds.position
+	var target := SubViewport.new()
+	target.name = "BackdropCache"
+	target.size = Vector2i(bounds.size.ceil())
+	target.world_2d = World2D.new()
+	target.disable_3d = true
+	target.transparent_bg = true
+	target.render_target_update_mode = SubViewport.UPDATE_ONCE
+	target.add_child(painter)
+	add_child(target)
+	_backdrop = target.get_texture()
+	_backdrop_origin = bounds.position
+	# The viewport keeps the texture after its one render.
+	RenderingServer.frame_post_draw.connect(painter.queue_free, CONNECT_ONE_SHOT)
 
 
 ## Where the apo stands. The room owns it so the scene does not have to repeat the number.
@@ -135,6 +162,9 @@ func painting_anchor(index: int) -> Vector2:
 
 
 func _draw() -> void:
+	if _backdrop != null:
+		draw_texture(_backdrop, _backdrop_origin)
+		return
 	_draw_wall()
 	_draw_piers()
 	_draw_doors()
@@ -249,7 +279,7 @@ func _draw_ceiling(top: float, cornice: float) -> void:
 			draw_rect(Rect2(mid.x - 1.0, mid.y - 6.0, 2.0, 12.0), tin_lit)
 			draw_rect(Rect2(mid.x - 3.0, mid.y - 3.0, 6.0, 6.0), tin)
 			draw_rect(Rect2(x + 70.0, y + 2.0, 2.0, course_h - 4.0), tin_dark)
-			x += 72.0
+			x += CEILING_TILE_WIDTH
 
 
 ## The piers: the panelled stretches of wall the pictures hang on, between one doorway and

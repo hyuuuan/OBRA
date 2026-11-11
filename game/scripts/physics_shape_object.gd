@@ -581,7 +581,9 @@ func _rebuild_collision() -> void:
 		var width := float(stroke.get("width", 6.0))
 		if _points_are_closed(points, width):
 			var hull := Geometry2D.convex_hull(points)
-			if hull.size() >= 3:
+			if hull.size() >= 4:
+				# Drop the closing vertex before building the collision shape.
+				hull.resize(hull.size() - 1)
 				var polygon := ConvexPolygonShape2D.new()
 				polygon.points = hull
 				_add_generated_shape(polygon, Vector2.ZERO, 0.0)

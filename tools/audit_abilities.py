@@ -71,6 +71,9 @@ TAG_NEEDS: dict[str, str | None] = {
     "crush": "crush",
     "light": "light",
     "shield": "shield",
+    "hoof": "animal_morph",
+    "beast": "animal_morph",
+    "absurd": None,      # Bungisngis reacts to the drawing's presence
 }
 
 
@@ -184,9 +187,14 @@ def main(check: bool) -> int:
             continue
         for cid in members:
             entity, profile = entities[cid], profiles[cid]
+            how = ""
             if need == "climb" and not climb_capable(cid, entity, profile, hard_coded, utility):
                 how = ("prop with no interact() case" if entity["kind"] == "object"
                        else "rig_type %s, no wall-climb" % (profile.get("rig_type") or "?"))
+            elif need == "animal_morph" and (entity["kind"] != "animal"
+                                            or entity.get("runtime_role") != "active_ragdoll_morph"):
+                how = "not a playable animal"
+            if how:
                 print("  UNIMPLEMENTED  %-8s %-12s %s" % (tag, cid, how))
                 problems.append((tag, cid, how))
     if not problems:

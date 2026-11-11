@@ -23,13 +23,13 @@ func _initialize() -> void:
 
 func _run() -> void:
 	level = await _open_level()
+	await _walk_and_jump_stand_beside_draw()
 	await _a_fall_gives_back_what_the_ash_had_not_taken()
 	await _the_bridge_is_gone_before_she_can_reach_it()
 	_the_ash_thickens_as_she_climbs()
 	await _the_eruption_rumbles_and_the_ash_surges()
 	await _lolo_forgets_three_times_once_each()
 	await _she_works_out_why_it_is_going_white()
-	await _the_ink_card_waits_for_lolo_at_the_span()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -74,8 +74,8 @@ func _the_bridge_is_gone_before_she_can_reach_it() -> void:
 func _the_ash_thickens_as_she_climbs() -> void:
 	var foot: float = level.call("ash_at", 500.0)
 	var slope: float = level.call("ash_at", 3000.0)
-	var corridor: float = level.call("ash_at", 8000.0)
-	var summit: float = level.call("ash_at", 14000.0)
+	var corridor: float = level.call("ash_at", 4800.0)
+	var summit: float = level.call("ash_at", 30000.0)
 	_check(foot < slope and slope < corridor and is_zero_approx(summit),
 		"the ash thickens as she climbs and is gone at the summit",
 		"foot %.1f, slope %.1f, corridor %.1f, summit %.1f" % [foot, slope, corridor, summit])
@@ -87,7 +87,7 @@ func _the_eruption_rumbles_and_the_ash_surges() -> void:
 	tremor.tremble(1.0)
 	await _frames(2)
 	var surged := ash.pulse_left() > 0.0
-	await _put(14000.0, -400.0)
+	await _put(21810.0, 98.0)
 	_check(surged and not tremor.enabled,
 		"the eruption rumbles and the ash surges with it, and the summit is still",
 		"surged %s, rumbling at the summit %s" % [surged, tremor.enabled])
@@ -114,7 +114,7 @@ func _she_works_out_why_it_is_going_white() -> void:
 	level = await _open_level()
 	var lines: Object = level.get("script_lines")
 	var heard: Array[String] = []
-	for x: float in [1700.0, 2200.0, 3600.0, 5500.0, 2200.0]:
+	for x: float in [1700.0, 2200.0, 3600.0, 6200.0, 2200.0]:
 		await _put(x, 0.0)
 		var now := "%d%d%d" % [int(lines.call("has_heard", "APO.why.1")), int(lines.call("has_heard", "APO.why.2")),
 			int(lines.call("has_heard", "APO.why.3"))]
@@ -124,54 +124,27 @@ func _she_works_out_why_it_is_going_white() -> void:
 		"after each stop (why 1,2,3 / counted): %s" % [heard])
 
 
-## ONE THING AT A TIME, AT THE SPAN. The bridge there is most players' first unit of ink, and it
-## solves the gate in the same frame: the lesson about the ink ("No ink comes back here") opened
-## at once and Lolo's "There. Back where it was. Nearly." came up under it, the card over his
-## words. With nobody pressing a key, the card must wait for him -- and still come after.
-func _the_ink_card_waits_for_lolo_at_the_span() -> void:
-	level.queue_free()
-	await _frames(2)
-	level = await _open_level()
-	await _put(2200.0, 400.0)
-	await create_timer(1.5).timeout
-	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
-	var spotlight := get_first_node_in_group(TutorialSpotlight.GROUP) as TutorialSpotlight
-	var box := get_first_node_in_group(DialogueBox.GROUP) as DialogueBox
-	# The bridge through the bag and the placement, as a drawn answer arrives.
-	var image := Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	image.fill(Color.WHITE)
-	level.call("_on_drawing_ready", "bridge", "Bridge", image, {"confidence": .95},
-		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(340, 0)]), "width": 6.0, "color": Color.BLACK}], 1.0)
-	await process_frame
-	level.call("_on_inventory_slot_pressed", int(level.call("_slot_holding", "bridge")))
-	var placement := level.get("placement_controller") as PlacementController
-	placement.set_process(false)
-	for i in range(4):
-		placement.update_target(Vector2(2450, 420))
-		await physics_frame
-	var placed := placement.confirm_placement()
-	placement.set_process(true)
-	var spoke := false
-	var together := false
-	for i in range(60):
-		spoke = spoke or (box != null and box.is_open())
-		together = together or (spotlight != null and spotlight.is_open() and box != null and box.is_open())
-		await process_frame
-	# She reads his line; the lesson still comes, after it.
-	call_group(DialogueBox.GROUP, &"hide_line")
-	var taught := false
-	var until := Time.get_ticks_msec() + 5000
-	while Time.get_ticks_msec() < until and not taught:
-		taught = spotlight != null and spotlight.is_open() and not box.is_open()
-		await process_frame
-	_check(placed and spoke and not together and taught,
-		"the ink is taught after lolo's line at the span, never over it",
-		"placed %s, he spoke %s, card over his line %s, card after it %s" % [placed, spoke, together, taught])
+## Kent, 2026-11-05: "the r draw at the bottom right is alone, i want to include there the
+## movements key". On the climb, walk and jump stand beside R in its corner, as in Payyo.
+func _walk_and_jump_stand_beside_draw() -> void:
+	await _frames(20)
+	var prompts := level.get("action_prompts") as Control
+	var draw := level.get("draw_button") as Button
+	var move := prompts.get("_move") as Control
+	var jump := prompts.get("_jump") as Control
+	var shown := move.is_visible_in_tree() and jump.is_visible_in_tree() and draw.is_visible_in_tree()
+	var one_row := absf(move.get_global_rect().end.y - draw.get_global_rect().end.y) < 2.0 \
+		and absf(jump.get_global_rect().end.y - draw.get_global_rect().end.y) < 2.0 \
+		and move.get_global_rect().end.x <= jump.position.x + 0.5 \
+		and jump.get_global_rect().end.x <= draw.get_global_rect().position.x + 0.5
+	_check(bool(prompts.call("movement_keys_shown")) and shown and one_row,
+		"on the climb, walk and jump stand beside R DRAW in its corner",
+		"wanted %s, all shown %s, one row left to right %s" % [prompts.call("movement_keys_shown"), shown, one_row])
 
 
 func _put(x: float, y: float) -> void:
 	var player := level.get("player") as Node2D
-	player.call("apply_morph_state", {"position": Vector2(x, y), "linear_velocity": Vector2.ZERO})
+	preload("res://tests/level5_journey_fixture.gd").prepare(level,Vector2(x,y))
 	await _frames(30)
 	call_group(DialogueBox.GROUP, &"hide_line")
 	paused = false

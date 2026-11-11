@@ -365,6 +365,13 @@
       "text": "Then I only have to last until morning."
     },
     {
+      "id": "L4_FN_006",
+      "at": "L4_FINALE.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Salt burns them. Garlic keeps them off. Ash shows the one I cannot see."
+    },
+    {
       "id": "L4_FN_003",
       "at": "L4_FINALE.solved",
       "speaker": "apo",
@@ -376,7 +383,14 @@
       "at": "L4_FINALE.wave2",
       "speaker": "apo",
       "kind": "hint",
-      "text": "Wings over the trees. A blade on the ground will not reach them."
+      "text": "Wings over the trees. They hang high, then dive: step aside at the glint."
+    },
+    {
+      "id": "L4_FN_LOWER_HALF",
+      "at": "L4_FINALE.lower_half",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Her lower half is on the west side. Salt will keep her from coming back."
     },
     {
       "id": "L4_FN_005",
@@ -384,6 +398,27 @@
       "speaker": "apo",
       "kind": "hint",
       "text": "Tik... tik... It sounds far, so it is close. Ash shows it."
+    },
+    {
+      "id": "L4_FN_007",
+      "at": "L4_FINALE.wave1",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "They keep coming. Nothing has to fall: I only have to last."
+    },
+    {
+      "id": "L4_FN_008",
+      "at": "L4_FINALE.bright",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Something as bright as day would bring the morning on."
+    },
+    {
+      "id": "L4_FN_009",
+      "at": "L4_FINALE.hurried",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "The morning came nearer."
     },
     {
       "id": "L4_RT_001",

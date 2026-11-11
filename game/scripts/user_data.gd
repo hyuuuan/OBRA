@@ -1,8 +1,11 @@
 extends RefCounted
 ## WHERE THE PLAYER'S THINGS ARE KEPT, AND WHERE A TEST'S ARE.
 ##
-## The profile and the telemetry log live in the player's user data folder, and so did every
-## test run's. A suite plays a level with the real autoloads, and the real autoloads wrote to
+## Source runs use Godot's user data folder. Each export keeps its save and telemetry in
+## its own package's gamesession folder, starting fresh on the first launch.
+##
+## Test runs used to share the player's user data folder. A suite plays a level with the
+## real autoloads, and the real autoloads wrote to
 ## the real folder: by September it held 3,839 telemetry sessions, nearly all of them bots, and
 ## the profile on the development machine was whatever the last suite had left in it. Two
 ## suites DELETE it on purpose, to start clean. A playtest after a test run began from a save
@@ -24,6 +27,7 @@ extends RefCounted
 const TEST_ROOT := "user://test_runs"
 
 static var _run_root := ""
+static var _export_root := ""
 
 
 static func is_test_run() -> bool:
@@ -31,11 +35,29 @@ static func is_test_run() -> bool:
 	return args.has("--script") or args.has("-s")
 
 
-## Where `relative` lives for this run: the player's folder, or the test run's own.
+static func is_exported_build() -> bool:
+	return OS.has_feature("template") and not is_test_run()
+
+
 static func path(relative: String) -> String:
-	if not is_test_run():
-		return "user://" + relative
-	return run_root().path_join(relative)
+	if is_test_run():
+		return run_root().path_join(relative)
+	if OS.has_feature("template"):
+		if _export_root.is_empty():
+			_export_root = export_package_root().path_join("gamesession")
+			if DirAccess.make_dir_recursive_absolute(_export_root) != OK:
+				push_error("Could not create the game session folder: %s" % _export_root)
+		return _export_root.path_join(relative)
+	return "user://" + relative
+
+
+## Packages put the binary in game/ and the recogniser and session data one level up.
+## For a standalone export, keep the session folder beside the executable or app bundle.
+static func export_package_root(executable: String = OS.get_executable_path()) -> String:
+	var folder := executable.simplify_path().get_base_dir()
+	if folder.ends_with(".app/Contents/MacOS"):
+		folder = folder.get_base_dir().get_base_dir().get_base_dir()
+	return folder.get_base_dir() if folder.get_file() == "game" else folder
 
 
 ## This test run's own folder, empty the first time it is asked for.

@@ -50,7 +50,7 @@ const BACKDROP_FLOOR_ROW := 555.0
 ## line is about Lola keeping things in here, and the requirement strip does not apply
 ## because this is not an obstacle volume. A player who walked in, looked around a dark room
 ## and walked out again had seen the whole of it.
-const NAIL_NOTICE := "The nail is higher than you can jump. Stand on something."
+const NAIL_NOTICE := "Draw a ladder or something to stand on to reach the nail."
 
 ## How long the room is. Fifteen metres of barn, against a screenful of eleven at this zoom
 ## -- so the way out and the chest are never quite on screen together and there is somewhere

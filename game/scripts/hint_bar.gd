@@ -85,9 +85,18 @@ var _lesson_plain := ""
 ## screenshot. Re-measuring for a few frames lets the wrap settle and then fits to it.
 var _refit := 0
 var _life := 0.0
-## The rest of a beat, waiting its turn: [{text, speaker}]. Empty for every ordinary hint,
-## which is one line that stands until something replaces it.
+## The rest of a beat, waiting its turn: [{text, speaker, seconds?, while_relevant?}]. Empty for every ordinary
+## hint, which is one line that stands until something replaces it.
 var _queue: Array[Dictionary] = []
+var _while_relevant := Callable()
+## Whether the last line of the queue stands, or goes after its reading time. See show_beat.
+var _last_stands := true
+## Who is saying the current line, as given: `_speaker` holds it as printed.
+var _speaker_id := ""
+## How long the current line has been up with nobody talking over it. See is_being_read.
+var _read_for := 0.0
+## The current line is a remark in passing with a time of its own. See show_beat.
+var _is_aside := false
 ## The fade this node's own alpha is currently under, so the next one can cancel it.
 ##
 ## A CLEAR AND A SHOW IN THE SAME FRAME USED TO CANCEL EACH OTHER THE WRONG WAY ROUND.
@@ -296,7 +305,8 @@ func _key_cap(caps: String, tail: String = "") -> Control:
 	return badge
 
 
-func show_hint(text: String, speaker: String = "", seconds: float = 0.0) -> void:
+func show_hint(text: String, speaker: String = "", seconds: float = 0.0,
+		while_relevant := Callable()) -> void:
 	if text.is_empty():
 		clear()
 		return
@@ -310,11 +320,16 @@ func show_hint(text: String, speaker: String = "", seconds: float = 0.0) -> void
 	_text.text = text
 	_lesson_plain = ""
 	_show(speaker, seconds)
+	_while_relevant = while_relevant
 
 
 ## The half both entry points share: who is speaking, how long it stands, and the arrival.
 func _show(speaker: String, seconds: float) -> void:
 	_queue.clear()
+	_while_relevant = Callable()
+	_read_for = 0.0
+	_is_aside = false
+	_speaker_id = speaker
 	_speaker.text = "%s:" % speaker.to_upper() if not speaker.is_empty() else ""
 	_speaker.visible = not speaker.is_empty()
 	_life = seconds
@@ -356,8 +371,12 @@ func _show(speaker: String, seconds: float) -> void:
 ## Only the last survived." -- and the hint channel was left with it.
 ##
 ## The LAST line stands indefinitely, like any ordinary hint: the beat ends with the advice
-## still on screen rather than with the bar going blank.
-func show_beat(entries: Array, speaker: String = "") -> void:
+## still on screen rather than with the bar going blank. `stands` false has it go after its
+## reading time, for words with nothing to end them (LevelBase._post_advice).
+func show_beat(entries: Array, speaker: String = "", stands: bool = true,
+		while_relevant := Callable()) -> void:
+	if while_relevant.is_valid() and not while_relevant.call():
+		return
 	var lines: Array[Dictionary] = []
 	for value: Variant in entries:
 		if value is Dictionary:
@@ -371,14 +390,64 @@ func show_beat(entries: Array, speaker: String = "") -> void:
 			lines.append({"text": value as String, "speaker": speaker})
 	if lines.is_empty():
 		return
-	if lines.size() == 1:
-		show_hint(String(lines[0]["text"]), String(lines[0]["speaker"]))
+	if while_relevant.is_valid():
+		for line: Dictionary in lines:
+			line["while_relevant"] = while_relevant
+	_last_stands = stands
+	# ⚠ A REMARK IS READ FIRST. Lolo's remarks are spent the moment they go up, so one replaced a
+	# moment later was never said again: Dagat's "That bar is your ink now" lands on the same
+	# beat as "That one has the back for it". The advice waits for the reading time, and no longer.
+	if _is_aside and _life > 0.0 and _read_for < _dwell_for(_text.text):
+		_queue = lines
+		_life = minf(_life, _dwell_for(_text.text) - _read_for)
 		return
 	var head: Dictionary = lines[0]
-	_queue = lines.slice(1)
-	show_hint(String(head["text"]), String(head["speaker"]), _dwell_for(String(head["text"])))
+	var dwell := _dwell_for(String(head["text"])) if lines.size() > 1 or not stands else 0.0
+	show_hint(String(head["text"]), String(head["speaker"]), dwell, while_relevant)
 	# show_hint drops the queue, because a standing prompt has to be able to. Put it back.
 	_queue = lines.slice(1)
+
+
+## SAY THIS, THEN GO BACK TO WHAT YOU WERE SAYING. `show_hint` replaces, which is right for a
+## prompt about where she is standing. It is wrong for a remark made in passing, which took the
+## rest of a beat of advice with it. What was up comes back after, with the time it had left.
+## `seconds` of 0 stands until `take_down`.
+func interject(text: String, speaker: String, seconds: float, while_relevant := Callable()) -> void:
+	if not is_showing() or _lesson.visible or _text.text.is_empty():
+		show_hint(text, speaker, seconds, while_relevant)
+		_is_aside = seconds > 0.0
+		return
+	var rest: Array[Dictionary] = [{"text": _text.text, "speaker": _speaker_id, "seconds": _life,
+		"while_relevant": _while_relevant}]
+	rest.append_array(_queue)
+	show_hint(text, speaker, seconds, while_relevant)
+	_queue = _without(rest, text)
+	_is_aside = seconds > 0.0
+
+
+## Take this sentence down if it is still what is up, and go back to whatever it interrupted. A
+## prompt about where she is standing, put up with `interject` and taken down as she walks off.
+##
+## ⚠ AND IT LEAVES THE QUEUE TOO. A prompt with an aside over it is waiting its turn, and she can
+## walk off while it waits: left there, "There is a light on in there" came back at the far end of
+## the plaza and stood for good, with nothing left to take it down.
+func take_down(text: String) -> void:
+	_queue = _without(_queue, text)
+	if current_text() != text:
+		return
+	if _queue.is_empty():
+		clear()
+	else:
+		# The next `_process` moves on to it, under the same rule as a line whose time is up.
+		_life = 0.001
+
+
+func _without(lines: Array[Dictionary], text: String) -> Array[Dictionary]:
+	var kept: Array[Dictionary] = []
+	for line in lines:
+		if String(line.get("text", "")) != text:
+			kept.append(line)
+	return kept
 
 
 ## How long one line of a beat is held. Long enough to read, capped so a wordy line cannot
@@ -389,6 +458,7 @@ func _dwell_for(text: String) -> float:
 
 func clear() -> void:
 	_queue.clear()
+	_while_relevant = Callable()
 	_life = 0.0
 	if not visible:
 		set_process(false)
@@ -410,6 +480,16 @@ func clear() -> void:
 
 func is_showing() -> bool:
 	return visible
+
+
+## WHETHER SOMEBODY IS STILL PART-WAY THROUGH WHAT IS UP. `is_showing` only says there are words.
+## Advice stands for as long as its beat lasts now, so anything waiting on `is_showing` waited the
+## whole beat: Dagat's rule about the ink was still waiting when the shape was given back. A line
+## that stands has been read after the time a timed line of its length would have had.
+func is_being_read() -> bool:
+	if not visible:
+		return false
+	return _life > 0.0 or _read_for < _dwell_for(_lesson_plain if _lesson.visible else _text.text)
 
 
 func current_speaker() -> String:
@@ -455,22 +535,30 @@ func _process(delta: float) -> void:
 		_panel.modulate.a = 0.0 if speaking else 1.0
 	if speaking:
 		return
-	if _life <= 0.0:
+	var relevant := not _while_relevant.is_valid() or bool(_while_relevant.call())
+	if relevant:
+		_read_for += delta
+		if _life <= 0.0:
+			return
+		_life -= delta
+		if _life > 0.0:
+			return
+	while not _queue.is_empty():
+		var next: Dictionary = _queue.pop_front()
+		var context: Callable = next.get("while_relevant", Callable())
+		if context.is_valid() and not context.call():
+			continue
+		var text := String(next["text"])
+		# The last line may stand. A line put back by interject keeps the time it had.
+		var dwell := _dwell_for(text) if not _queue.is_empty() or not _last_stands else 0.0
+		dwell = float(next.get("seconds", dwell))
+		var rest := _queue.duplicate()
+		show_hint(text, String(next.get("speaker", "")), dwell, context)
+		_queue = rest
 		return
-	_life -= delta
-	if _life > 0.0:
-		return
-	if _queue.is_empty():
-		clear()
-		return
-	# NOT clear() -- that drops the queue, which is the whole thing being advanced.
-	var next: Dictionary = _queue.pop_front()
-	var text := String(next["text"])
-	# The last line of a beat stands, like any ordinary hint; the ones before it are timed.
-	var dwell := 0.0 if _queue.is_empty() else _dwell_for(text)
-	var rest := _queue.duplicate()
-	show_hint(text, String(next.get("speaker", "")), dwell)
-	_queue = rest
+	if not relevant:
+		hide()
+	clear()
 
 
 ## Sized to its own text up to a limit, then centred. It has no fixed width because unlike

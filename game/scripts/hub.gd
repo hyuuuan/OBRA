@@ -18,18 +18,20 @@ extends Node2D
 
 const HubRoomScript = preload("res://scripts/hub_room.gd")
 const PaintingScript = preload("res://scripts/painting_2d.gd")
+const DrawingGallery = preload("res://scripts/drawing_gallery.gd")
 const BrushStandScript = preload("res://scripts/brush_stand_2d.gd")
 const BrushSheet: Texture2D = preload("res://assets/hud/brush_full.png")
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 const WandererScene = preload("res://creatures/wanderer.tscn")
 
 ## The five, in the order they hang. The title comes out of the catalog; this only says
 ## which painting goes where and what the plate reads.
 const WALL: Array[Dictionary] = [
-	{"id": "level_1", "plate": "PAYYO"},
-	{"id": "level_2", "plate": "PIYESTA"},
-	{"id": "level_3", "plate": "DAGAT"},
-	{"id": "level_4", "plate": "DILIM"},
-	{"id": "level_5", "plate": "MAYON"},
+	{"id": "level_1", "plate": "TERRACES", "art": preload("res://assets/hub/paintings/level_1.png")},
+	{"id": "level_2", "plate": "PIYESTA", "art": preload("res://assets/hub/paintings/level_2.png")},
+	{"id": "level_3", "plate": "DAGAT", "art": preload("res://assets/hub/paintings/level_3.png")},
+	{"id": "level_4", "plate": "DILIM", "art": preload("res://assets/hub/paintings/level_4.png")},
+	{"id": "level_5", "plate": "MAYON", "art": preload("res://assets/hub/paintings/level_5.png")},
 ]
 
 ## Where the apo comes in: in front of the first painting rather than at the end of the
@@ -70,7 +72,7 @@ var _stand: Node2D
 var _paintings: Array[Node2D] = []
 var _carried: Control
 ## What the prompt is currently saying. NONE until the first target comes into reach.
-enum Wear { NONE, TAKE, VIEW, REFUSE, LOCKED, UNFINISHED }
+enum Wear { NONE, TAKE, VIEW, REPLAY, REFUSE, LOCKED, UNFINISHED }
 ## The card that says a thing is yours now. See AcquiredOverlay.
 var _acquired: AcquiredOverlay
 var _wearing: Wear = Wear.NONE
@@ -79,6 +81,8 @@ var _look_at := NAN
 var _revealing := false
 ## The house after the run: Lolo in the paintings, Lola in the room. See HouseEpilogue.
 var _epilogue: HouseEpilogue
+var _gallery: DrawingGallery
+var _drawings_button: Button
 var _last_hall_x := SPAWN_X
 
 
@@ -187,6 +191,26 @@ func _play_the_epilogue() -> void:
 	await _epilogue.play()
 	_revealing = false
 	_player.set_physics_process(true)
+	_write_status()
+	if _drawings_button != null:
+		_drawings_button.show()
+		_show_drawings()
+
+
+func _show_drawings() -> void:
+	var paths := _drawing_paths()
+	if paths.is_empty():
+		return
+	if _gallery == null:
+		_gallery = DrawingGallery.new()
+		_gallery.name = "DrawingGallery"
+		add_child(_gallery)
+	_gallery.present(paths)
+
+
+func _drawing_paths() -> PackedStringArray:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	return profile.call(&"gallery_drawing_paths") if profile != null else PackedStringArray()
 
 
 ## Where the camera looks while the house shows her something, and back to her.
@@ -228,10 +252,7 @@ func painting_for_level(level_id: String) -> Node2D:
 ## padlock comes off and the picture comes up into its colours (Painting2D.reveal), and the
 ## line under the title says where to go. The apo waits while it plays.
 func _open_in_front_of_her(level_id: String) -> void:
-	var painting: Node2D = null
-	for node in _paintings:
-		if String(node.get("level_id")) == level_id:
-			painting = node as Node2D
+	var painting := painting_for_level(level_id)
 	if painting == null:
 		return
 	_revealing = true
@@ -265,9 +286,7 @@ func _hang(index: int, entry: Dictionary) -> void:
 	painting.name = "Painting%d" % (index + 1)
 	painting.set("level_id", String(entry["id"]))
 	painting.set("plate_text", String(entry["plate"]))
-	var art_path := "res://assets/hub/paintings/%s.png" % String(entry["id"])
-	if ResourceLoader.exists(art_path):
-		painting.set("art", load(art_path))
+	painting.set("art", entry["art"])
 	painting.position = _room.call("painting_anchor", index)
 	add_child(painting)
 	_paintings.append(painting)
@@ -311,6 +330,8 @@ func _build_hud() -> void:
 
 	_build_carried(layer)
 	_build_menu_button(layer)
+	if HouseEpilogue.after_the_run() and not _drawing_paths().is_empty():
+		_build_drawings_button(layer)
 
 	# The prompt follows the painting rather than the player: it is a label on the picture,
 	# and one pinned over the apo's head covers the thing they are looking at.
@@ -413,7 +434,9 @@ func _process(_delta: float) -> void:
 	elif bool(_near.call("is_locked")):
 		_wear(Wear.LOCKED)
 	else:
-		_wear(Wear.VIEW)
+		var profile := get_node(^"/root/PlayerProfile")
+		var completed := bool(profile.call("is_level_completed", String(_near.get("level_id"))))
+		_wear(Wear.REPLAY if completed else Wear.VIEW)
 	# Placed in screen space so it reads with the thing it belongs to: under the plate on a
 	# picture, and ABOVE the case, clear of the dome -- the plate is on the floor at its
 	# foot and the brush is inside the glass between the two.
@@ -478,6 +501,22 @@ func _build_menu_button(layer: CanvasLayer) -> void:
 	layer.add_child(button)
 
 
+func _build_drawings_button(layer: CanvasLayer) -> void:
+	_drawings_button = Button.new()
+	_drawings_button.name = "DrawingsButton"
+	_drawings_button.text = "Your Drawings"
+	_drawings_button.theme_type_variation = &"DialogButton"
+	_drawings_button.focus_mode = Control.FOCUS_NONE
+	_drawings_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_drawings_button.offset_left = 300.0
+	_drawings_button.offset_right = 520.0
+	_drawings_button.offset_top = -72.0
+	_drawings_button.offset_bottom = -24.0
+	_drawings_button.visible = HouseEpilogue.has_played()
+	_drawings_button.pressed.connect(_show_drawings)
+	layer.add_child(_drawings_button)
+
+
 func _to_main_menu() -> void:
 	remember_position()
 	var manager := get_node_or_null(^"/root/LevelManager")
@@ -521,11 +560,10 @@ func _on_painting_chosen(level_id: String) -> void:
 		# having pressed the key anyway.
 		_status.text = "Lola has not painted that one yet."
 		return
-	for painting in _paintings:
-		if String(painting.get("level_id")) == level_id:
-			remember_position()
-			manager.call("open_level", level_id, painting)
-			return
+	var painting := painting_for_level(level_id)
+	if painting != null:
+		remember_position()
+		manager.call("open_level", level_id, painting)
 
 
 ## WHAT THE KEY WILL DO, not a generic verb. Standing at a painting without the brush is
@@ -547,6 +585,9 @@ func _wear(state: Wear) -> void:
 			_prompt.add_theme_color_override(&"font_color", UISkin.GILT_HI)
 		Wear.VIEW:
 			_prompt.text = "E   VIEW"
+			_prompt.add_theme_color_override(&"font_color", UISkin.GOLD)
+		Wear.REPLAY:
+			_prompt.text = "%s   REPLAY" % ControlsKeys.keys_for("interact")
 			_prompt.add_theme_color_override(&"font_color", UISkin.GOLD)
 		Wear.REFUSE:
 			_prompt.text = "NEEDS LOLA'S BRUSH"
@@ -587,6 +628,10 @@ func _on_brush_taken() -> void:
 ## The line under the title. It is the room's only standing instruction, so it says the
 ## thing the player cannot do anything without: on a first visit, where the brush is.
 func _write_status() -> void:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile != null and bool(profile.call("is_level_completed", "level_5")):
+		_status.text = "Journey complete. Progress saved. You can explore or revisit a painting."
+		return
 	_status.text = "Walk to a painting and press E" if _has_brush() \
 		else "Lola's brush is at the end of the hall. Take it first."
 
