@@ -287,6 +287,26 @@ func key_mark() -> Vector2:
 	return key_at + Vector2(0.0, -30.0)
 
 
+## THE CAMERA LEANS TOWARD THE KEY WHILE IT HANGS: how far to the side of her the frame should
+## sit, in world units, for somebody standing at `at`. Half the way to the key, never more than
+## KEY_LEAD, nothing once it is taken.
+##
+## She lands 395 in from the nail and the room's camera sees about 370 either side of her
+## (zoom 2.16 in a 1600x900 window), so on arrival the key was just past the right-hand edge --
+## the thing the room is for, out of frame. Leading by half the distance puts both of them on
+## screen from the first step, and as she walks over to it the lead runs out and she is in
+## the middle again. Never more than KEY_LEAD, so she stays well inside the frame on a narrow
+## screen; past the key it leans back the other way.
+const KEY_LEAD := 200.0
+
+
+func camera_lead(at: Vector2) -> float:
+	if _taken:
+		return 0.0
+	var key_x := global_position.x + key_at.x
+	return clampf((key_x - at.x) * 0.5, -KEY_LEAD, KEY_LEAD)
+
+
 ## Already off the nail -- taken earlier in a run that is being continued. No flourish, and
 ## nothing to walk into.
 func mark_key_taken() -> void:

@@ -958,6 +958,7 @@ func _level_answers_first() -> bool:
 func _level_physics(anchor_position: Vector2) -> void:
 	_offer_the_found_key()
 	_tell_her_about_the_lake(anchor_position)
+	_lean_toward_the_key(anchor_position)
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
 	#
@@ -966,6 +967,21 @@ func _level_physics(anchor_position: Vector2) -> void:
 	# the player was still falling into it.
 	if anchor_position.x > 3660.0:
 		_show_memory_if_earned()
+
+
+## Inside the heap the frame leans toward the brass on its nail (StrawRoom2D.camera_lead); out
+## of it, and once the key is taken, it sits on her again. Written every tick rather than on
+## the way through the door, because the lead shrinks as she walks to the key -- and Payyo uses
+## the x offset for nothing else, so zero is always "no opinion".
+func _lean_toward_the_key(at: Vector2) -> void:
+	var world_camera := _world_camera()
+	if world_camera == null:
+		return
+	var room := _room_holding_player()
+	var lead := 0.0
+	if room != null and room.has_method("camera_lead"):
+		lead = float(room.call("camera_lead", at))
+	world_camera.target_offset.x = lead
 
 
 func _tell_her_about_the_lake(at: Vector2) -> void:
