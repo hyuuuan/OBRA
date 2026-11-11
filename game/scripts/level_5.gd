@@ -442,6 +442,7 @@ func _tend_clusters(_her_x: float) -> void:
 	if _journey == null or not _journey.enabled: return
 	var index: int = _journey.active_index(_player_anchor_position())
 	var current: String = _journey.places[index].id
+	_active_cluster = current
 	if not _clusters_seen.has(current):
 		_clusters_seen.append(current)
 		for fragment in _fragments:
@@ -453,7 +454,6 @@ func _tend_clusters(_her_x: float) -> void:
 		for fragment in _fragments:
 			if fragment.vignette_id == id: fragment.leave_behind()
 		_write_checkpoint("CP1")
-	_active_cluster = current
 
 var _performance: Sprite2D
 
@@ -1351,3 +1351,8 @@ func _restore_checkpoint() -> String:
 		_journey.travel_camera_x = camera.global_position.x
 		_journey.sync()
 	return result
+
+
+func _snap_camera_after_resume() -> void:
+	# _restore_checkpoint already restored the camera and synced the memory journey.
+	pass

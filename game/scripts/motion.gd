@@ -132,9 +132,9 @@ static func leave(item: CanvasItem, done: Callable = Callable()) -> Tween:
 ## A pulse: up to PULSE_TO and back, overshooting -- for a count or a pip that just changed.
 ## Reduced motion keeps it still (a change in a number reads without it).
 static func pulse(item: CanvasItem, to: float = PULSE_TO) -> Tween:
-	var tween := _fresh(item)
 	if reduced():
-		return tween
+		return null
+	var tween := _fresh(item)
 	_centre(item)
 	step(tween, item, "scale", Vector2.ONE * to, PULSE_SECONDS * 0.35, Tween.TRANS_CUBIC, Tween.EASE_OUT, 0.0)
 	step(tween, item, "scale", Vector2.ONE, PULSE_SECONDS * 0.65, Tween.TRANS_BACK, Tween.EASE_OUT, 0.0)
@@ -143,9 +143,9 @@ static func pulse(item: CanvasItem, to: float = PULSE_TO) -> Tween:
 
 ## A shake side to side, settling -- for a refusal or a hit. Reduced motion keeps it still.
 static func shake(item: Control, strength: float = 8.0) -> Tween:
-	var tween := _fresh(item)
 	if reduced():
-		return tween
+		return null
+	var tween := _fresh(item)
 	var home := item.position
 	for i in range(5):
 		var side := strength * (1.0 - i / 5.0) * (1.0 if i % 2 == 0 else -1.0)

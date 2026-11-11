@@ -1256,14 +1256,12 @@ func _where_the_apo_is() -> Vector2:
 ## for the second half of the level" -- and that is what opens the way out.
 func _on_priest_arrived() -> void:
 	_speak(script_lines.fire("SCENE_2.priest"))
-	# CP2 is this moment. Written here rather than by a volume at the far door, because the
-	# scene is finished by being watched rather than by being walked through -- a player who
-	# heard the priest and then died in the first alley must not have to sit through him again.
-	_write_checkpoint("CP2")
 	if lolo != null and is_instance_valid(lolo):
 		lolo.follow(player)
 	if church != null:
 		church.open_onward()
+	# Capture the open door so Continue can proceed straight to the first alley.
+	_write_checkpoint("CP2")
 
 
 ## The priest is the one person here who is neither Lolo nor the apo. See LevelBase._speak.
@@ -1330,6 +1328,17 @@ func _enter_room(room: PiyestaRoom2D, came_from: Vector2) -> void:
 ## Back out the way they came in.
 func _leave_room(room: PiyestaRoom2D) -> void:
 	var back: Vector2 = _step_back.get(room.name, Vector2.ZERO)
+	# A continued run starts inside a room without having crossed its entrance.
+	if back == Vector2.ZERO:
+		if room == alley_1 and church != null:
+			back = church.return_point()
+		elif room == alley_2 and alley_1 != null:
+			back = alley_1.return_point()
+		else:
+			var door_id := DOOR_CHURCH if room == church else DOOR_LIT_HOUSE
+			var door := _doors.get(door_id) as PiyestaDoor2D
+			if door != null:
+				back = door.step_out_point()
 	if back == Vector2.ZERO:
 		return
 	_step_through(back)
@@ -1735,11 +1744,18 @@ func _restore_level_run_state(state: Dictionary) -> void:
 		dancers.set_already_gone()
 	if bool(state.get("kandila", false)):
 		_hold_the_kandila()
-	if chancel != null and bool(state.get("kandila_on_rack", false)):
+	var kandila_placed := bool(state.get("kandila_on_rack", false))
+	if chancel != null and kandila_placed:
 		chancel.kandila_on_rack = true
 		chancel.queue_redraw()
+		script_lines.set_flag("kandila_placed")
+		var door := _doors.get(DOOR_CHURCH) as PiyestaDoor2D
+		if door != null:
+			door.set_open(true)
 	var onward: Dictionary = state.get("onward", {})
-	if church != null and bool(onward.get("church", false)):
+	# Older CP2 saves were written just before the priest opened the door.
+	if church != null and (bool(onward.get("church", false))
+			or (checkpoints.latest_id() == "CP2" and kandila_placed)):
 		church.open_onward()
 	if alley_1 != null and bool(onward.get("alley_1", false)):
 		alley_1.open_onward()

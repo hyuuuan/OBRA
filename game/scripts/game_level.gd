@@ -684,6 +684,7 @@ func _go_home_with_the_canvas() -> void:
 	if _level_completed:
 		return
 	_level_completed = true
+	_forget_saved_checkpoint()
 	# After the card and the lines: the reward is read before the scene changes.
 	var waited := 0.0
 	while waited < 30.0 and (get_tree().paused or (acquired_overlay != null

@@ -1252,6 +1252,8 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_pace_the_advice(delta)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
+	if _anchor_now() != anchor_position:
+		return
 	_guide_the_bakunawa(anchor_position)
 	_breathe(anchor_position, delta)
 	_push_in_the_current(anchor_position, delta)
@@ -3945,18 +3947,18 @@ func _put_back_what_the_restore_undid() -> void:
 func _float_the_bangka_again(state: Dictionary) -> void:
 	if not bool(state.get("boat_afloat", false)):
 		return
-	if _boat_afloat():
-		return
-	_launch_the_bangka()
+	if not _boat_afloat():
+		_launch_the_bangka()
 	var boat := _launched_boat
 	if boat == null or not is_instance_valid(boat) or boat.is_queued_for_deletion():
 		return
-	var at := Vector2(float(state.get("boat_x", boat.global_position.x)),
+	var landing := boat.global_transform
+	landing.origin = Vector2(float(state.get("boat_x", boat.global_position.x)),
 		float(state.get("boat_y", boat.global_position.y)))
-	PhysicsServer2D.body_set_state(boat.get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM,
-		Transform2D(0.0, at))
-	boat.global_position = at
+	PhysicsServer2D.body_set_state(boat.get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM, landing)
+	boat.global_transform = landing
 	boat.linear_velocity = Vector2.ZERO
+	boat.angular_velocity = 0.0
 	if bool(state.get("aboard", false)):
 		_seat_the_apo_again.call_deferred(boat)
 

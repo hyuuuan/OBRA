@@ -412,7 +412,7 @@ func _on_live_prediction(
 	margin: float,
 	_response: Dictionary
 ) -> void:
-	if not _is_open or _submitting or _refusing or _guessed_revision < 0:
+	if not _is_open or _submitting or _refusing or _guessed_revision != canvas.content_revision():
 		return
 	_guess_entity = entity
 	_guess_display = display_name
@@ -432,7 +432,7 @@ func _on_live_prediction(
 
 
 func _on_live_prediction_failed(message: String) -> void:
-	if not _is_open or _submitting or _guessed_revision < 0:
+	if not _is_open or _submitting or _refusing or _guessed_revision != canvas.content_revision():
 		return
 	_forget_guess()
 	# Deliberately NOT resetting the cooldown: it was set when the request went out, so
@@ -791,6 +791,8 @@ func _on_stroke_cost_changed(cost: float) -> void:
 	if _refusing:
 		# Nothing will be taken for it, so the brush shows nothing going.
 		return
+	if not _guess_entity.is_empty() and _guessed_revision != canvas.content_revision():
+		_forget_guess()
 	# Nothing is spent while a stroke is down -- a unit goes when a thing is acquired or set
 	# down -- but the brush shows what this drawing is taking. See CLAIM_EASE.
 	_claim = InkManager.UNIT * clampf(cost / PAGE_ALLOWANCE, 0.0, 1.0)
