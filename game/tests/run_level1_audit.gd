@@ -47,7 +47,7 @@ func _fail(what: String, detail: String) -> void:
 	failures += 1
 
 
-func _check(ok: bool, what: String, detail: String) -> void:
+func _check(ok: bool, what: String, detail: String = "") -> void:
 	if ok:
 		_pass(what, detail)
 	else:
@@ -978,7 +978,19 @@ func _walk_node_two(route: String) -> void:
 
 	# Solve it the way that route asks for.
 	var solver: String = {"artist": "rake", "pragmatist": "ant", "protector": "fan"}[route]
-	level.call("_judge_submission", solver)
+	var dialogue := level.get("dialogue_box") as DialogueBox
+	if route == "protector":
+		_check(bool(level.get("_at_straw_mouth")), "standing at the open haystack offers entry")
+		# The retry line is generic, so it can open even when the route's own lines wait.
+		level.call("_on_recognition_declined", "", 0.0, 0.0, "confidence")
+		dialogue.set_auto_dismiss(false)
+		var bag := level.get("inventory_manager") as Node
+		var slot := int(bag.call("add_item", DrawnItemData.from_prediction(
+			"fan", "Fan", _blank_image(), [], 0.0, {})))
+		level.call("_on_inventory_slot_pressed", slot)
+		await _tap_action(&"use_utility")
+	else:
+		level.call("_judge_submission", solver)
 	if route == "protector":
 		var entrance_pile: Node = null
 		for child in dayami.get_children():
@@ -1012,6 +1024,11 @@ func _walk_node_two(route: String) -> void:
 			_check(not bool(script_lines.call("has_heard", "L1_N2.protector.commit")),
 				"the route-choice popup also waits for the wind",
 				"the player's sentence is still deferred")
+			_check(not dialogue.is_open(), "the retry line stays off the wind")
+			await _tap_action(&"interact")
+			await _tap_action(&"move_down")
+			_check(level.call("_room_holding_player") == null,
+				"E and Down stay outside during the wind")
 			var pose_seconds := animation_seconds / 4.0
 			for expected_frame in range(1, 4):
 				await create_timer(pose_seconds + (0.10 if expected_frame == 1 else 0.0),
@@ -1022,6 +1039,7 @@ func _walk_node_two(route: String) -> void:
 				_check(acquired != null and not bool(acquired.call("is_open")),
 					"pose %d is not covered by an acquisition popup" % (expected_frame + 1),
 					"the wind still owns the screen")
+				_check(not dialogue.is_open(), "pose %d is clear of dialogue" % (expected_frame + 1))
 			# Frame 4 holds for the final quarter rather than disappearing on the tick it
 			# arrives; only after that does the grounded aftermath and its popups replace it.
 			await create_timer(pose_seconds, true).timeout
@@ -1040,6 +1058,13 @@ func _walk_node_two(route: String) -> void:
 			_check(bool(script_lines.call("has_heard", "L1_N2.protector.commit")),
 				"the deferred route popup follows the wind",
 				"the player's line fires only after the hay lands")
+			_check(dialogue.is_open(), "deferred dialogue opens after the wind")
+			dialogue.set_auto_dismiss(true)
+			acquired.call("close")
+			await _tap_action(&"interact")
+			await _tap_action(&"move_down")
+			_check(level.call("_room_holding_player") == null and level.call("_level_interact_offer") == {},
+				"scattered hay has no entrance or entry prompt")
 	# The artist route plays out over a couple of seconds; the others are immediate.
 	for _frame in range(150):
 		await physics_frame
@@ -1078,9 +1103,34 @@ func _walk_node_two(route: String) -> void:
 	if route == "protector":
 		_check(scattered, "scattering is recorded",
 			"straw_scattered is set, and the exit line is gated on it")
+		_check(chest2 != null and chest2.global_position.y > 0.0,
+			"the baul can still be reached from the terrace")
 
 	level.queue_free()
 	await process_frame
+	if route == "protector":
+		level = packed.instantiate()
+		(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+		level.set("resume_enabled", true)
+		root.add_child(level)
+		call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+		await physics_frame
+		var heap := level.get("_straw_entrance") as StrawPile2D
+		_check(heap != null and not heap.has_open_mouth() and heap.scatter_animation_finished(),
+			"Continue keeps the hay scattered without replaying the wind")
+		_check(bool(level.call("pickup_taken_this_run", "L1_bale_key")),
+			"Continue keeps the brass key from the scattered hay")
+		level.queue_free()
+		await process_frame
+
+
+func _tap_action(action: StringName) -> void:
+	for pressed: bool in [true, false]:
+		var event := InputEventAction.new()
+		event.action = action
+		event.pressed = pressed
+		Input.parse_input_event(event)
+		await process_frame
 
 
 ## The ward sequence: does a drawn key's SHAPE decide anything?
@@ -1475,6 +1525,9 @@ func _audit_the_nail_is_out_of_reach(level: Node, room: Node2D, player: Node2D,
 	player.global_position = Vector2(nail.x, room.global_position.y - 40.0)
 	for _frame in range(40):
 		await physics_frame
+	var bar := level.get("hint_bar") as HintBar
+	_check(bar.current_text().contains("ladder"), "the hint under the nail suggests a ladder",
+		bar.current_text())
 	for _burst in range(6):
 		Input.action_press("jump")
 		for _frame in range(4):
