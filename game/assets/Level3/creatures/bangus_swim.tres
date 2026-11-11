@@ -1,0 +1,38 @@
+[gd_resource type="SpriteFrames" load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/Level3/creatures/bangus_swim.png" id="1_strip"]
+
+[sub_resource type="AtlasTexture" id="Atlas_up"]
+atlas = ExtResource("1_strip")
+region = Rect2(0, 0, 120, 36)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_mid"]
+atlas = ExtResource("1_strip")
+region = Rect2(120, 0, 120, 36)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="Atlas_down"]
+atlas = ExtResource("1_strip")
+region = Rect2(240, 0, 120, 36)
+filter_clip = true
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("Atlas_up")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_mid")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_down")
+}, {
+"duration": 1.0,
+"texture": SubResource("Atlas_mid")
+}],
+"loop": true,
+"name": &"swim",
+"speed": 8.0
+}]

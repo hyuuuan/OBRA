@@ -100,6 +100,7 @@ func _the_longer_level() -> void:
 	_check(float(rates.get("fish", 1.0)) <= 0.09 and float(rates.get("shark", 1.0)) <= 0.17,
 		"and a shape drinks ink half as fast", "fish %.3f/s, shark %.3f/s" % [
 			float(rates.get("fish", 0.0)), float(rates.get("shark", 0.0))])
+	await _the_fish_animate()
 	# "Keep rowing" is said well before "stop": rowed to the line, the shadow is not yet due.
 	var director = level.get("director")
 	await _take_the_brush()
@@ -115,6 +116,29 @@ func _the_longer_level() -> void:
 	level.call("_told_the_boat", Vector2(5460.0, 520.0))
 	_check(told.has("L3_BOAT.shadow"), "and the shadow comes seven hundred on", "at x 5460")
 	await _close_the_level()
+
+
+func _the_fish_animate() -> void:
+	var skin: Sprite2D
+	for fish in get_nodes_in_group(&"sea_creatures"):
+		if fish.get("kind") == "bangus":
+			skin = fish.get_node_or_null(^"Skin") as Sprite2D
+			break
+	var school := level.get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Marks/FishSchool1")
+	var school_fish := school.get_child(0) as AnimatedSprite2D if school != null else null
+	if skin == null or school_fish == null:
+		_check(false, "the bangus and the school are on screen", "missing fish sprites")
+		return
+	var bangus_poses := {}
+	var school_poses := {}
+	for _frame in range(60):
+		bangus_poses[skin.texture] = true
+		school_poses[school_fish.sprite_frames.get_frame_texture(&"swim", school_fish.frame)] = true
+		await physics_frame
+	_check(bangus_poses.size() == 3 and school_poses.size() == 3 \
+			and school_poses.keys().all(func(pose: Texture2D) -> bool: return bangus_poses.has(pose)),
+		"the bangus and the school swim through the same three poses",
+		"%d catchable poses, %d school poses" % [bangus_poses.size(), school_poses.size()])
 
 
 # --- The apo dives on a breath ---------------------------------------------------------------
@@ -363,12 +387,18 @@ func _fifteen_blows_and_away() -> void:
 	director.call("enter_obstacle", "L3_N2")
 	director.call("commit_route", "L3_N2", "protector")
 	await _unpause()
+	var hearts := creature.get_node(^"HitMeter") as Node2D
+	_check(hearts.visible and int(hearts.get("needed")) == Bakunawa.HITS_TO_SUBDUE \
+			and int(hearts.get("hits")) == 0, "the fight starts with a full row of hearts",
+		"%d full slots" % int(hearts.get("needed")))
 	creature.apply_tool_hit("sword", 420.0, null)
 	await process_frame
 	await process_frame
 	var skin := creature.get_node("Skin") as Sprite2D
 	_check(skin.modulate.r > skin.modulate.g * 2.0, "a blow shows, in red",
 		"tint %s" % skin.modulate)
+	_check(int(hearts.get("hits")) == 1 and float(hearts.get("flash")) > 0.0,
+		"the first blow empties one heart", "the spent slot flashes")
 	for _blow in range(9):
 		creature.apply_tool_hit("sword", 420.0, null)
 	# Thrown off: the creature is put back on its guard and keeps the ten.
@@ -377,6 +407,9 @@ func _fifteen_blows_and_away() -> void:
 	_check(int(creature.state()) == Bakunawa.State.FIGHTING and int(creature.hits_taken()) == 10,
 		"being thrown off does not undo the blows", "%d of %d still landed" % [
 			int(creature.hits_taken()), Bakunawa.HITS_TO_SUBDUE])
+	_check(hearts.visible and int(hearts.get("hits")) == 10,
+		"the hearts reflect the fight after being thrown off",
+		"%d full hearts" % (int(hearts.get("needed")) - int(hearts.get("hits"))))
 	for _blow in range(4):
 		creature.apply_tool_hit("sword", 420.0, null)
 	_check(int(creature.state()) == Bakunawa.State.FIGHTING, "fourteen is not enough",
@@ -397,6 +430,7 @@ func _fifteen_blows_and_away() -> void:
 			break
 	_check(creature.is_gone() and furthest > 1000.0, "and it swims away, a good way, before it is gone",
 		"%.0f px off" % furthest)
+	_check(not hearts.visible, "the hearts leave with the fight", "hidden")
 	_check(bool(director.call("is_solved", "L3_N2")), "and the fight is over", "L3_N2 solved")
 	await _close_the_level()
 

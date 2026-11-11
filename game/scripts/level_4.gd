@@ -1042,12 +1042,12 @@ func _on_dawn() -> void:
 	if dawn_clock != null:
 		dawn_clock.morning()
 	await _speak_and_wait(script_lines.fire("L4_FINALE.solved"))
-	if not is_inside_tree():
+	if not is_inside_tree() or not _morning:
 		return
 	if dawn_clock != null:
 		dawn_clock.hide_night()
 	await get_tree().create_timer(MORNING_HOLD, false).timeout
-	if is_inside_tree():
+	if is_inside_tree() and _morning:
 		_complete_level()
 
 

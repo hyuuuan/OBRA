@@ -12,7 +12,7 @@ extends Node
 ##     "Mahal! You look so young!" -- "Lola, I'm your apo. I'm not Lolo." -- "Where is he, then?"
 ##     -- "He's right here. In all your works." -- "Oh."
 ##
-## and walks the length of the house, past every one of them, to an empty easel at the far end,
+## and walks the length of the house, past every one of them, to her easel at the far end,
 ## and asks the apo who she is, and whether she will watch her paint. Then the house is the
 ## player's again, and stays this way for the save: Lolo in the paintings, Lola at her easel.
 ##
@@ -33,7 +33,7 @@ const LOLO_ART := {
 	"level_4": preload("res://assets/hub/paintings/level_4_lolo.png"),
 	"level_5": preload("res://assets/hub/paintings/level_5_lolo.png"),
 }
-## The empty easel, in the bay at the far end from Mayon's painting: "the other side of the room".
+## The easel in the bay at the far end from Mayon's painting.
 ## Clear of Payyo's frame, which begins at 236.
 const EASEL_X := 150.0
 ## She stands this far left of it, the canvas at her right hand, as she stands at Mayon's.
@@ -48,7 +48,10 @@ const BESIDE := 150.0
 ## An old woman's walk, the length of the house.
 const WALK_SPEED := 170.0
 ## How long the camera stays on her at the easel before it goes back to the apo.
-const HOLD_ON_HER := 1.5
+const HOLD_ON_HER := 3.4
+const PAINT_STEP := 0.16
+## Where the raised brush touches the house canvas, in canvas UVs.
+const BRUSH_CONTACT := Vector2(0.24, 0.64)
 ## HOW FAR THE EYE DROPS while the house talks (Kent, 2026-11-05: "do something about it so that
 ## it wont hide both figures"). At the house's zoom of 2 the floor sat 702 px down a 900 px frame
 ## and the dialogue box's top edge is at 556, so only their heads showed for the whole scene; 82
@@ -56,8 +59,6 @@ const HOLD_ON_HER := 1.5
 const EYE_DROP := 82.0
 const EYE_SECONDS := 0.6
 const WOOD := Color(0.36, 0.24, 0.15)
-const CANVAS := Color(0.96, 0.94, 0.89)
-const CANVAS_EDGE := Color(0.78, 0.74, 0.66)
 
 var lola: Lola2D
 var easel: Node2D
@@ -94,7 +95,7 @@ func build(hub: Node, paintings: Array, ground_y: float, apo_x: float, before: N
 			painting.set("art", art)
 			painting.queue_redraw()
 	easel = Node2D.new()
-	easel.name = "EmptyEasel"
+	easel.name = "Easel"
 	easel.position = Vector2(EASEL_X, ground_y)
 	easel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	easel.draw.connect(_draw_easel)
@@ -103,10 +104,13 @@ func build(hub: Node, paintings: Array, ground_y: float, apo_x: float, before: N
 	lola.name = "Lola"
 	lola.with_easel = false
 	hub.add_child(lola)
+	var returning := has_played()
+	lola.mount_canvas(easel, _canvas_rect(), Lola2D.PAINT_STILL if returning else 0.16,
+		PAINT_STEP, BRUSH_CONTACT)
 	if before != null and before.get_parent() == hub:
 		hub.move_child(easel, before.get_index())
 		hub.move_child(lola, before.get_index())
-	if has_played():
+	if returning:
 		lola.position = Vector2(EASEL_X - AT_EASEL, ground_y)
 	else:
 		lola.position = Vector2(apo_x + BESIDE, ground_y)
@@ -154,7 +158,7 @@ func play() -> void:
 	var profile := _profile()
 	if profile != null:
 		profile.call(&"note_dialogue_heard", HEARD)
-	await get_tree().create_timer(HOLD_ON_HER).timeout
+	await get_tree().create_timer(0.35 if Motion.reduced() else HOLD_ON_HER).timeout
 	_hub.call(&"look_back")
 	_drop_the_eye(0.0)
 	finished.emit()
@@ -196,16 +200,17 @@ func _say(hook: String) -> void:
 		await _box.conversation_finished
 
 
-## An easel with nothing on it yet: Lola's own easel's shape (Lola2D), and a bare canvas.
+func _canvas_rect() -> Rect2:
+	return Rect2(Vector2(-CANVAS_SIZE.x * 0.5, -CANVAS_TOP), CANVAS_SIZE)
+
+
 func _draw_easel() -> void:
 	easel.draw_line(Vector2(-22, 0), Vector2(0, -LEGS), WOOD, 4)
 	easel.draw_line(Vector2(22, 0), Vector2(0, -LEGS), WOOD, 4)
 	easel.draw_line(Vector2(0, -LEGS), Vector2(8, 0), WOOD, 3)
-	var canvas := Rect2(Vector2(-CANVAS_SIZE.x * 0.5, -CANVAS_TOP), CANVAS_SIZE)
+	var canvas := _canvas_rect()
 	easel.draw_rect(Rect2(canvas.position.x - 6.0, canvas.end.y, canvas.size.x + 12.0, 4.0), WOOD)
 	easel.draw_rect(canvas.grow(3.0), WOOD)
-	easel.draw_rect(canvas, CANVAS)
-	easel.draw_rect(canvas, CANVAS_EDGE, false, 2.0)
 
 
 

@@ -127,10 +127,10 @@ func _reduced_motion_keeps_it_still() -> void:
 	_check(is_equal_approx(smallest, 1.0) and is_equal_approx(largest, 1.0) and box.modulate.a > 0.99,
 		"with motion reduced it arrives by a fade, never scaling", "scale %.2f..%.2f alpha %.2f" % [smallest, largest, box.modulate.a])
 	var before := box.position
-	Motion.shake(box)
-	Motion.pulse(box)
+	var shake := Motion.shake(box)
+	var pulse := Motion.pulse(box)
 	await _seconds(Motion.SHAKE_SECONDS + SETTLE)
-	_check(box.position == before and is_equal_approx(box.scale.x, 1.0),
+	_check(shake == null and pulse == null and box.position == before and is_equal_approx(box.scale.x, 1.0),
 		"and a shake or a pulse keeps still", "moved %s, scale %.2f" % [box.position - before, box.scale.x])
 	_reduce(false)
 	box.queue_free()

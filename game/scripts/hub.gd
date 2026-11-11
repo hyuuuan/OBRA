@@ -18,6 +18,7 @@ extends Node2D
 
 const HubRoomScript = preload("res://scripts/hub_room.gd")
 const PaintingScript = preload("res://scripts/painting_2d.gd")
+const DrawingGallery = preload("res://scripts/drawing_gallery.gd")
 const BrushStandScript = preload("res://scripts/brush_stand_2d.gd")
 const BrushSheet: Texture2D = preload("res://assets/hud/brush_full.png")
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
@@ -80,6 +81,8 @@ var _look_at := NAN
 var _revealing := false
 ## The house after the run: Lolo in the paintings, Lola in the room. See HouseEpilogue.
 var _epilogue: HouseEpilogue
+var _gallery: DrawingGallery
+var _drawings_button: Button
 var _last_hall_x := SPAWN_X
 
 
@@ -189,6 +192,25 @@ func _play_the_epilogue() -> void:
 	_revealing = false
 	_player.set_physics_process(true)
 	_write_status()
+	if _drawings_button != null:
+		_drawings_button.show()
+		_show_drawings()
+
+
+func _show_drawings() -> void:
+	var paths := _drawing_paths()
+	if paths.is_empty():
+		return
+	if _gallery == null:
+		_gallery = DrawingGallery.new()
+		_gallery.name = "DrawingGallery"
+		add_child(_gallery)
+	_gallery.present(paths)
+
+
+func _drawing_paths() -> PackedStringArray:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	return profile.call(&"gallery_drawing_paths") if profile != null else PackedStringArray()
 
 
 ## Where the camera looks while the house shows her something, and back to her.
@@ -308,6 +330,8 @@ func _build_hud() -> void:
 
 	_build_carried(layer)
 	_build_menu_button(layer)
+	if HouseEpilogue.after_the_run() and not _drawing_paths().is_empty():
+		_build_drawings_button(layer)
 
 	# The prompt follows the painting rather than the player: it is a label on the picture,
 	# and one pinned over the apo's head covers the thing they are looking at.
@@ -475,6 +499,22 @@ func _build_menu_button(layer: CanvasLayer) -> void:
 	button.offset_bottom = -24.0
 	button.pressed.connect(_to_main_menu)
 	layer.add_child(button)
+
+
+func _build_drawings_button(layer: CanvasLayer) -> void:
+	_drawings_button = Button.new()
+	_drawings_button.name = "DrawingsButton"
+	_drawings_button.text = "Your Drawings"
+	_drawings_button.theme_type_variation = &"DialogButton"
+	_drawings_button.focus_mode = Control.FOCUS_NONE
+	_drawings_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_drawings_button.offset_left = 300.0
+	_drawings_button.offset_right = 520.0
+	_drawings_button.offset_top = -72.0
+	_drawings_button.offset_bottom = -24.0
+	_drawings_button.visible = HouseEpilogue.has_played()
+	_drawings_button.pressed.connect(_show_drawings)
+	layer.add_child(_drawings_button)
 
 
 func _to_main_menu() -> void:

@@ -17,9 +17,12 @@ class StubClient extends Node:
 	func send_drawing() -> void:
 		sent += 1
 
+	func decline_reason(_confidence: float, _margin: float) -> String:
+		return "confidence"
+
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 6
+const CHECKS := 8
 
 var failures := 0
 var checked := 0
@@ -58,6 +61,7 @@ func _a_refusing_page_takes_nothing_and_fades() -> void:
 	var ink := level.get("ink_manager") as InkManager
 	var ink_before := ink.remaining()
 	var profile := root.get_node("PlayerProfile")
+	var before: PackedStringArray = profile.call("gallery_drawing_paths")
 	var drawn_before: int = profile.call("class_diversity")
 	var heard: Array[int] = []
 	panel.quietly_refused.connect(func(strokes: int) -> void: heard.append(strokes))
@@ -120,6 +124,14 @@ func _a_refusing_page_takes_nothing_and_fades() -> void:
 		"an untouched page waits a moment, then plays on without her lines",
 		"open at half the wait %s; refused untouched %s (heard %s); free page closed %s, completed %s" % [
 			waited, refused_untouched, heard, not panel.is_open(), free])
+	panel.set_drawing_mode(DrawPanel.DrawingMode.FREE_PAINT)
+	panel.open_panel()
+	_draw_two_lines(panel)
+	panel.transform_button.pressed.emit()
+	await create_timer(0.6).timeout
+	var after: PackedStringArray = profile.call("gallery_drawing_paths")
+	_check(free == [0, 2] and after.size() == before.size() + 2,
+		"the gallery keeps the painted quiet and free pages", "%d pages added" % (after.size() - before.size()))
 	level.queue_free()
 	await _frames(3)
 
@@ -130,6 +142,8 @@ func _an_ordinary_page_is_unchanged() -> void:
 	var stub := StubClient.new()
 	panel.add_child(stub)
 	panel.client = stub
+	var profile := root.get_node("PlayerProfile")
+	var before: PackedStringArray = profile.call("gallery_drawing_paths")
 	level.call("_on_draw_button_pressed")
 	_draw_two_lines(panel)
 	await create_timer(1.0).timeout
@@ -140,6 +154,11 @@ func _an_ordinary_page_is_unchanged() -> void:
 		"everywhere else the page guesses as she draws and sends what she paints",
 		"refusing %s, guesses asked %d, sent %d, status '%s'" % [panel.is_refusing(), stub.live,
 			stub.sent, panel.status.text])
+	panel.call("_on_entity_declined", "", 0.1, 0.0, {"gate_reason": "confidence"})
+	panel.transform_button.pressed.emit()
+	var after: PackedStringArray = profile.call("gallery_drawing_paths")
+	_check(stub.sent == 2 and after.size() == before.size() + 1,
+		"a declined drawing stays in the gallery when Paint is retried", "%d page added" % (after.size() - before.size()))
 	panel.close_panel()
 	level.queue_free()
 	await _frames(3)

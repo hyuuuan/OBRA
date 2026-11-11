@@ -23,3 +23,5 @@ thesisdocs/
 # Personal tool settings and indexes: each person's own, never the project's
 .claude/settings.local.json
 .codebase-memory/
+game/tests/run_tutorial_coverage_probe.gd.uid
+game/tests/run_level1_flight_ceiling_probe.gd.uid
