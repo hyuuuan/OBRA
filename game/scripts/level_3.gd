@@ -1105,6 +1105,13 @@ func _frame_the_water(anchor_position: Vector2) -> void:
 	if world_camera == null or not is_finite(_waterline_y):
 		return
 	var under := clampf((anchor_position.y - _waterline_y) / LOOK_EASE_DEPTH, 0.0, 1.0)
+	# ⚠ LEADING IT HOME, THE CAMERA LOOKS DOWN FROM THE BOAT TOO. The light goes where the pointer
+	# is, and a pointer cannot leave the screen: framed for the deck, the screen ended at y 785, so
+	# the deepest the creature could be led was 700 px over the cave mouth -- outside HOME_REACH.
+	# It never went in, and the boat + light run could not be finished (Kent, 2026-11-11). What
+	# the player is steering is under the water, so the water is what is framed.
+	if _guiding():
+		under = 1.0
 	var deep_look := clampf(BED_Y - BED_IN_VIEW - anchor_position.y, LEAST_LOOK, MOST_LOOK)
 	world_camera.target_offset.y = lerpf(SURFACE_LOOK, deep_look, under)
 
