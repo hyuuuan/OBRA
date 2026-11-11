@@ -28,6 +28,10 @@ const OUTLINE := Color(0.027, 0.035, 0.024, 0.9)
 var _target := Vector2.INF
 var _player: Node2D = null
 var _time := 0.0
+## The target is above her reach, so being under it is not being there and the chevron stays.
+## Payyo's key hangs 250 over the floor: inside ARRIVED's 300, so the chevron went out exactly
+## when she stood beneath the thing she had to work out how to get up to.
+var _out_of_reach := false
 
 
 func _init() -> void:
@@ -35,9 +39,10 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
-func point_at(world: Vector2, player: Node2D) -> void:
+func point_at(world: Vector2, player: Node2D, out_of_reach: bool = false) -> void:
 	_target = world
 	_player = player
+	_out_of_reach = out_of_reach
 
 
 func clear() -> void:
@@ -79,7 +84,7 @@ func _process(delta: float) -> void:
 
 
 func _arrived() -> bool:
-	if _player == null or not is_instance_valid(_player):
+	if _out_of_reach or _player == null or not is_instance_valid(_player):
 		return false
 	var apart := _player.global_position - _target
 	return absf(apart.x) < ARRIVED.x and absf(apart.y) < ARRIVED.y

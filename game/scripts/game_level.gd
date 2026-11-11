@@ -1050,6 +1050,22 @@ func _current_objective() -> Dictionary:
 	var at := player.global_position if player != null and is_instance_valid(player) \
 		else Vector2.ZERO
 
+	# ⚠ INSIDE THE HEAP FIRST, BEFORE ANYTHING ASKED BY POSITION. The room is parked in the
+	# sky at x 2030..3130, which is over the gorge's x on the terrace below, so a player who
+	# got past the gorge some way other than its answer (a bird) walked into the heap and was
+	# told to follow the terraces to the gorge -- with no arrow at all, because the gorge is
+	# not in the room. Kent: "when a player goes there they cant see the key so like the arrow
+	# should just point at the key".
+	var straw_room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	if room != null and room == straw_room:
+		if not pickup_taken_this_run(FOUND_KEY):
+			# OUT OF REACH, so standing under it is not having arrived: the chevron stays over
+			# the key the whole time she is working out how to get up there.
+			return {"key": "straw_inside", "out_of_reach": true,
+				"target": straw_room.global_position + Vector2(straw_room.call("key_mark"))}
+		return {"key": "straw_leave",
+			"target": straw_room.global_position + Rect2(straw_room.call("exit_rect")).get_center()}
+
 	if not director.is_solved("B0_HAGDAN") and at.x < HAGDAN_TOP_X:
 		# The foot of Ang Hagdan's wall, where the drawing goes.
 		return {"key": "b0_sub1", "obstacle": "B0_HAGDAN", "target": Vector2(1130.0, 470.0)}
@@ -1060,14 +1076,6 @@ func _current_objective() -> Dictionary:
 			var node_at := dialogue_node.global_position if dialogue_node != null else gorge
 			return {"key": "gorge", "target": node_at + Vector2(0.0, -110.0)}
 		return {"key": "gorge", "obstacle": "L1_N1", "target": gorge + Vector2(0.0, -130.0)}
-
-	var straw_room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
-	if room != null and room == straw_room:
-		if not pickup_taken_this_run(FOUND_KEY):
-			return {"key": "straw_inside",
-				"target": straw_room.global_position + Vector2(straw_room.get("key_at"))}
-		return {"key": "straw_leave",
-			"target": straw_room.global_position + Rect2(straw_room.call("exit_rect")).get_center()}
 
 	var heap := _obstacle_point("L1_N2")
 	if not director.is_solved("L1_N2") and not pickup_taken_this_run(FOUND_KEY) \

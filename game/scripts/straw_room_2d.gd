@@ -281,6 +281,12 @@ func key_is_taken() -> bool:
 	return _taken
 
 
+## Where the objective arrow points, in the room's space: just over the nail, so the chevron
+## sits above the key rather than across it.
+func key_mark() -> Vector2:
+	return key_at + Vector2(0.0, -30.0)
+
+
 ## Already off the nail -- taken earlier in a run that is being continued. No flourish, and
 ## nothing to walk into.
 func mark_key_taken() -> void:
