@@ -259,6 +259,7 @@ func _on_straw_entered() -> void:
 	if room.has_method("disarm_the_way_out"):
 		room.call("disarm_the_way_out")
 	_step_through(Vector2(room.call("entry_point")))
+	_retire_the_heaps_advice()
 	# ARRIVING FIRST, THEN THE CHEST. `speak` appends to the queue, so the order these are
 	# called in is the order the player reads them -- and uncovering first put "Locked. Of
 	# course.", which is the line that CLOSES this node, ahead of "you can stand up in here",
@@ -266,6 +267,30 @@ func _on_straw_entered() -> void:
 	# seen yet, in a room they had not been told they were in.
 	_speak_on_arrival("L1_N2.inside")
 	_uncover_the_baul()
+
+
+## THE HEAP'S WAYS THROUGH ARE ABOUT GETTING AT THE KEY FROM OUTSIDE IT. Inside the heap, and
+## once the key is in hand, they are about nothing. "We can do it slowly -- something that can
+## FORAGE, that sifts through" was still up on the bar as she walked in, over a room whose
+## puzzle is height and nothing else, and it came back as a reminder when she walked out past
+## the heap with the key already in her bag. Kent: "its so confusing there".
+func _advise_the_beat(obstacle_id: String) -> void:
+	if obstacle_id == "L1_N2" and _the_heap_has_nothing_to_ask():
+		return
+	super(obstacle_id)
+
+
+func _the_heap_has_nothing_to_ask() -> bool:
+	if pickup_taken_this_run(FOUND_KEY):
+		return true
+	var room := _room_holding_player()
+	return room != null and room.is_in_group(&"straw_rooms")
+
+
+## Only the heap's own advice: anything else on the bar is somebody else's to take down.
+func _retire_the_heaps_advice() -> void:
+	if _beat_advice_of == "L1_N2":
+		_retire_beat_advice()
 
 
 func _on_straw_exit() -> void:
@@ -325,6 +350,7 @@ func _take_the_bale_key(how: String) -> void:
 	if pickup_taken_this_run(FOUND_KEY):
 		return
 	note_pickup_taken(FOUND_KEY)
+	_retire_the_heaps_advice()
 	announce_acquisition("The Brass Key",
 		"Too small for the chest. It belongs to a house you have only seen painted.",
 		UIIcons.key())
