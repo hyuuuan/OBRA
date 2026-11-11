@@ -192,17 +192,28 @@ the apo is 96 tall and her jump apex is 94.3 (`wanderer.gd`), so she is about fo
 short. Anything at all to stand on closes that — the one place in the level where the puzzle
 is height and nothing else, with no tag to satisfy and no wrong answer.
 
-**The brass glints** (Kent: "make the key in the haybale standout since its not noticeable").
+**The key is found, not stumbled on** (Kent: "make the key in the haybale standout since its
+not noticeable", then "they cant see the key so like the arrow should just point at the key").
 Measured in a 1600×900 window, the room's camera (zoom ≈2.16) sees about 370 units either side
-of her and the nail is 395 in from where she lands, so on arrival the key is just past the
-right-hand edge; on screen it was brass on same-hue straw, still, under the quest bar, and its
-halo's brass rings never showed on the gold. Now a near-white cross flashes on the bow every
-1.6 s (`StrawRoom2D.GLINT_*`, stepped at `Motion.PIXEL_FPS`, alpha in eighths) on the steady
-dark disc behind the key, which is the only thing it draws over. Under reduce motion it is a
-still catch of light. It goes the moment the key is taken. It says "metal, up there" and
-nothing about how to get up there. `run_room_probe` checks all of that. ⚠ Not changed: the
-camera still lands her with the key a step off-frame; the glint is what pulls the eye as it
-comes in.
+of her and the nail is 395 in from where she lands, so the key started just past the
+right-hand edge; on screen it was brass on same-hue straw (1.3:1), still, under the quest bar.
+- **It hangs on a dark board** by a twine loop from the nail (`StrawRoom2D.KEY_PLANK*`): about
+  5:1, held at 3:1 or better by `run_room_probe`. The board and nail stay once it is taken.
+- **One effect moves:** a near-white cross glints on the bow every 1.6 s (`GLINT_*`, stepped at
+  `Motion.PIXEL_FPS`, alpha in eighths), entirely on the board; still under reduce motion; gone
+  the moment the key is taken.
+- **The camera leans toward it** while it hangs (`camera_lead`, applied by
+  `GameLevel._lean_toward_the_key` as the camera's x offset): half the way, at most 200, so the
+  key and the apo are both in frame from the first step.
+- **The arrow is on it everywhere in the room.** The room's objective is asked before the
+  gorge's position check (the room is parked over the gorge's x, so an unanswered gorge used
+  to win in here, with no arrow), and it is `out_of_reach`, so the chevron stays while she
+  stands under the nail. `run_objective_probe` checks both.
+- **The heap stops asking.** Its FORAGE/CARRY/WEATHER advice comes down as she goes in and
+  when the key is taken, and is not given again while she is inside or once the key is in hand
+  (`GameLevel._advise_the_beat`).
+
+It says "the key, up there" and nothing about how to get up there, which is still the puzzle.
 
 > ⚠ A drawing placed in here needs the **level's** bounds. `PhysicsShapeObject` defaults to
 > `Rect2(0, −520, 3760, 1200)` and clamps itself back inside it; the room is a thousand units
