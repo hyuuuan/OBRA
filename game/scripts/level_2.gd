@@ -120,10 +120,8 @@ var _alleys: Dictionary = {}
 ## presented and when it is committed, and it must give the same answer to each.
 var _live_node_obstacle := "L2_N1"
 var _plaza_node: DialogueNode2D
-## Where the last thing set down in an alley was put, for the flock to come down to, and how
-## far it reaches either side of that. INF and 0 when the answer was a tool used in the hand.
-var _feed_at := Vector2.INF
-var _feed_half_width := 0.0
+## The placed offering being judged. A tool used in the hand has no placed offering.
+var _feed_offering: PhysicsShapeObject
 ## Whether the kandila is in hand. LEVEL RUN STATE, not the profile: `has_object` is
 ## permanent by design, so recording it there would open every later run of Piyesta with the
 ## candle already found and the whole of Problem 1 already answered. Level 1 made exactly
@@ -1043,12 +1041,16 @@ func _clear_of_drawings(alley: _Alley, x: float) -> float:
 func _feed_the_flock(alley: _Alley) -> void:
 	if alley == null:
 		return
-	var landing := _feed_at
-	var reach := _feed_half_width
-	_feed_at = Vector2.INF
-	if not landing.is_finite() or not Rect2(alley.room.bounds()).grow(60.0).has_point(landing):
-		landing = _player_anchor_position()
-		reach = 0.0
+	var offering := _feed_offering
+	var landing := _player_anchor_position()
+	var reach := 0.0
+	if is_instance_valid(offering):
+		var extent := offering.world_extent()
+		if Rect2(alley.room.bounds()).grow(60.0).has_point(extent.get_center()):
+			landing = extent.get_center()
+			reach = extent.size.x * 0.5
+		else:
+			offering = null
 	var clear := _between_the_doors(alley.room)
 	var left := alley.room.global_position.x + clear.x
 	var right := alley.room.global_position.x + clear.y
@@ -1073,11 +1075,19 @@ func _feed_the_flock(alley: _Alley) -> void:
 				break
 			slots.append(clampf(x, left, right))
 			rank += 1
+	var floor_y := alley.room.global_position.y
+	var last_landing := 0.0
 	for index in range(count):
 		# More birds than the floor has room for, somehow: the rest come down at the edge.
 		var x: float = slots[index] if index < slots.size() else clampf(landing.x, left, right)
-		alley.birds[index].calm(Vector2(x, alley.room.global_position.y),
-			Vector2(landing.x, alley.room.global_position.y))
+		var bird := alley.birds[index]
+		var spot := Vector2(x, floor_y)
+		bird.calm(spot, Vector2(landing.x, floor_y))
+		last_landing = maxf(last_landing, bird.global_position.distance_to(spot) / ScrapBird2D.DESCEND_SPEED)
+	# Drop every scrap in the clear before taking turns at the same piece of food.
+	if is_instance_valid(offering):
+		for index in range(count):
+			alley.birds[index].schedule_peck(offering, last_landing + index * ScrapBird2D.FEED_TURN_SECONDS)
 
 
 ## THE PRAGMATIST ROUTE, answered: the strings come down, the nests with them, and every bird
@@ -1488,13 +1498,9 @@ func _on_placement_confirmed(
 	placed: PhysicsShapeObject,
 	source_slot: int
 ) -> void:
-	if placed != null and is_instance_valid(placed):
-		var extent := placed.world_extent()
-		_feed_at = extent.get_center() if extent.size != Vector2.ZERO else placed.global_position
-		_feed_half_width = extent.size.x * 0.5
+	_feed_offering = placed
 	super(item, placed, source_slot)
-	_feed_at = Vector2.INF
-	_feed_half_width = 0.0
+	_feed_offering = null
 
 
 ## At a flock being thrown at, the drawn things that are thrown answer it -- at either half of

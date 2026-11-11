@@ -2,11 +2,8 @@ class_name DanceMinigame
 extends Node
 ## Piyesta's one screen that is not free drawing.
 ##
-## The dancers will hand over the kandila if the apo dances for them. A cue appears, the
-## player draws the shape, and **the timing of the completed stroke is what is scored** --
-## not what the shape was. The recogniser is not involved, so this costs no ink: it is a
-## performance, not a summoning, and charging for it would make the flower cost something
-## the other two routes at this node do not.
+## The dancers hand over the kandila if the apo dances for them. Each cue is scored by
+## the time of a Space press or completed stroke. Dancing costs no ink.
 ##
 ## THE LEVEL IS UNLOSEABLE AND THAT IS THE DESIGN. Clear it inside two attempts and the
 ## dancers give the kandila AND the flower. Fail both and they give the kandila anyway and
@@ -72,9 +69,7 @@ func attempts_left() -> int:
 	return maxi(0, MAX_ATTEMPTS - _attempts)
 
 
-## Score one completed stroke against the cue it was aimed at. `at_seconds` is when the
-## stroke FINISHED, because that is the moment the player commits to it -- scoring the
-## moment it started would reward a stroke begun early and dragged onto the beat.
+## Score an input against its cue. `at_seconds` is when Space was pressed or a stroke ended.
 func judge(index: int, at_seconds: float) -> String:
 	if index < 0 or index >= _beats.size():
 		return "miss"
