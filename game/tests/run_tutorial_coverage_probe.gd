@@ -364,6 +364,9 @@ func _with_nobody_at_the_keys() -> void:
 		events[String((tutorial.call("_find", id) as Dictionary).get("at", ""))] = true
 	for event: String in events:
 		tutorial.note(event)
+	# And a suite that wants to read a line itself turns auto-dismiss off part-way through, as
+	# run_level1_audit does: the run began with nobody at the keys and goes on as it began.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	while tutorial.is_teaching_everything() and Time.get_ticks_msec() - since < 10000:
 		await process_frame
 	var took := (Time.get_ticks_msec() - since) / 1000.0
@@ -374,7 +377,8 @@ func _with_nobody_at_the_keys() -> void:
 	for id in _cards():
 		if int(_counts.get(id, 0)) != 1:
 			wrong.append("%s x%d" % [id, int(_counts.get(id, 0))])
-	_check(not tutorial.is_teaching_everything() and took < 6.0 and wrong.is_empty(),
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	_check(not tutorial.is_teaching_everything() and took < 6.0 and wrong.is_empty() and not paused,
 		"with nobody at the keys, the run goes by itself, each card once",
 		"%.1f s; %s" % [took, ", ".join(wrong) if not wrong.is_empty() else "all once"])
 
