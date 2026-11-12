@@ -1151,7 +1151,9 @@ var _stroke := 0.0
 func _row(delta: float) -> void:
 	# Whichever boat: the bangka, or one the player drew.
 	var boat := _boat_carrying_player()
-	if boat == null:
+	# ⚠ A SUBMARINE IS NOT ROWED. Kent: "when i try to ride it, it rows". It is driven -- move to
+	# steer, down to dive -- so it gets no paddle, no stroke and no splash on a surface it is under.
+	if boat == null or boat.utility_behavior == "submarine":
 		if _paddle != null and is_instance_valid(_paddle):
 			_paddle.queue_free()
 		_paddle = null
@@ -1893,6 +1895,15 @@ func _breathe(anchor_position: Vector2, delta: float) -> void:
 			_air_meter.visible = false
 		return
 	apo.can_swim = true
+	# ⚠ A PASSENGER BREATHES. Kent: "when i try to ride it ... my oxygen is affected which should
+	# not be happening". Seated in a submarine that has dived, she is in the water by every test
+	# below, and her breath ran out at seven seconds -- inside a sealed hull. Whatever she rides,
+	# the vessel holds her air; the breath is for swimming.
+	if _boat_carrying_player() != null:
+		apo.surfacing = false
+		_air = AIR_SECONDS
+		_show_the_breath(anchor_position, false)
+		return
 	var wet := bool(apo.call("is_in_water"))
 	var under := wet and anchor_position.y > _waterline_y + AIR_DEPTH
 	# Reaching air must give steering back at the same depth that refills the breath.
