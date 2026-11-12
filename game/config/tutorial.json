@@ -338,6 +338,17 @@
           "lead": "You kept it. Good — whatever goes in your bag, you can bring out again."
         },
         {
+          "id": "bag_drag",
+          "at": "item_stored",
+          "after": "bag_open",
+          "mode": "look",
+          "visual": "drag",
+          "context": "world",
+          "anchor": "inventory_bar",
+          "caption": "Drag a drawing out of your bag",
+          "text": "Pull a drawing off its slot, apo, and let go where you want it."
+        },
+        {
           "id": "bag_open",
           "carries": true,
           "at": "item_stored",

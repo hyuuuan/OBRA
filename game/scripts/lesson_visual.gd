@@ -20,7 +20,7 @@ extends Control
 ## Every picture `_draw` knows. `keys` is the plain row of caps; anything unknown draws as that.
 const KINDS := ["keys", "walk", "jump", "hold", "draw_key", "revert", "place", "take_back",
 	"rotate", "resize", "draw", "click", "clock", "ink", "checkpoint", "requirement", "lamp",
-	"become", "quest"]
+	"become", "quest", "drag"]
 const SIZE := Vector2(440.0, 150.0)
 const CAP_HEIGHT := 50.0
 const CAP_TRAVEL := 5.0
@@ -119,6 +119,8 @@ func _draw() -> void:
 			_draw_become()
 		"quest":
 			_draw_quest()
+		"drag":
+			_draw_drag()
 		_:
 			_draw_keys()
 	if waits_for_click:
@@ -541,6 +543,37 @@ func _draw_quest() -> void:
 	var go := _ease(clampf(_phase(2.8) / 0.7, 0.0, 1.0))
 	_figure(Vector2(lerpf(120.0, 300.0, go), ground), 1.0, go > 0.0 and go < 1.0)
 	_chevron(Vector2(336.0, 112.0 + sin(_t * 5.0) * 4.0), Vector2.DOWN, 1.0, 14.0)
+
+
+## A drawing pulled off its slot in the bag, carried on the pointer as a ghost, and let go in the
+## world, where it is set down; then the slot has it again and it starts over.
+func _draw_drag() -> void:
+	var p := _phase(3.2)
+	for i in 3:
+		_rounded("drag_slot", Rect2(24.0 + i * 60.0, 90.0, 50.0, 46.0), UISkin.PANEL_LIT, 8.0,
+			UISkin.RING_MID, 2.0)
+	var slot := Vector2(49.0, 113.0)
+	var spot := Vector2(338.0, 76.0)
+	draw_line(Vector2(262.0, 104.0), Vector2(414.0, 104.0), DIM_LINE, 2.0, true)
+	var reach := _ease(clampf(p / 0.16, 0.0, 1.0))
+	var pull := _ease(clampf((p - 0.2) / 0.38, 0.0, 1.0))
+	var held := p >= 0.2 and p < 0.6
+	var again := clampf((p - 0.86) / 0.14, 0.0, 1.0)
+	var at := slot.lerp(spot, pull) + Vector2(0.0, -sin(pull * PI) * 44.0)
+	var tip := Vector2(150.0, 30.0).lerp(slot, reach)
+	if p >= 0.6:
+		# Set down solid where it was let go, and the pointer away.
+		_scrap(spot, Vector2(76.0, 50.0), 0.0, 1.0 - again)
+		_scrap(slot, Vector2(38.0, 28.0), 0.0, again)
+		tip = spot.lerp(Vector2(410.0, 24.0), _ease(clampf((p - 0.6) / 0.25, 0.0, 1.0)))
+	else:
+		# Small in its slot; on the end of the pointer, a ghost the size it will be.
+		_scrap(at, Vector2(38.0, 28.0).lerp(Vector2(76.0, 50.0), pull), 0.0, 1.0 if pull <= 0.0 else 0.55)
+		if p >= 0.2:
+			tip = at
+	if held:
+		draw_arc(tip, 12.0, 0.0, TAU, 24, Color(LIT, 0.85), 3.0, true)
+	_cursor(tip)
 
 
 ## A row of caps pressed in turn: one key, or a run of them like the bag's 1 to 6.
