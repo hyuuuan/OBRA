@@ -73,7 +73,8 @@ func _new_game_lands_in_payyo(manager: Node, profile: Node) -> void:
 		String(manager.get("current_level_id")))
 	_check(bool(profile.call("has_brush")), "carrying Lola's brush, which the door asks for",
 		"has_brush")
-	_check(not paused, "and nothing is left paused", "running" if not paused else "PAUSED")
+	await _read_the_cards()
+	_check(not paused, "and once its cards are read, nothing is left paused", "running" if not paused else "PAUSED")
 	var tutorial := current_scene.get("tutorial") as Node
 	_check(tutorial != null and bool(tutorial.get("_enabled")),
 		"with the tutorial teaching, on a first visit",
@@ -185,4 +186,24 @@ func _read_the_lines() -> void:
 		await create_timer(0.15, true, false, true).timeout
 		waited += 0.15
 	for _i in range(30):
+		await process_frame
+
+
+## PAYYO OPENS ON ITS CARDS, holding the world until each is read -- on purpose. Read them as a
+## player does, so "nothing is left paused" asks about what is left after them.
+func _read_the_cards() -> void:
+	var tutorial = current_scene.get("tutorial") if current_scene != null else null
+	var spot = current_scene.get("tutorial_spotlight") if current_scene != null else null
+	if tutorial == null or spot == null:
+		return
+	var since := Time.get_ticks_msec()
+	while bool(tutorial.call("is_teaching_everything")) and Time.get_ticks_msec() - since < 60000:
+		await process_frame
+		if bool(spot.call("is_showing")) and float(spot.get("_age")) > TutorialSpotlight.LOOK_MIN_SEC + 0.05:
+			for down in [true, false]:
+				var event := InputEventAction.new()
+				event.action = &"ui_accept"
+				event.pressed = down
+				Input.parse_input_event(event)
+	for _i in range(5):
 		await process_frame
