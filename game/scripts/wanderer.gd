@@ -244,6 +244,13 @@ func _physics_process(delta: float) -> void:
 		# locomotion would otherwise carry us straight off the deck -- which is exactly
 		# what a boat "leaving the player behind" was.
 		velocity = Vector2.ZERO
+		# ⚠ AND WHAT PUSHES HER WHILE SHE RIDES IS NOT KEPT FOR LATER. This returns before the
+		# frame spends its impulse and its pushes, so a cannon fired from the deck banked every
+		# recoil -- sixteen shots at the bakunawa came to 1650 px/s -- and paid it all out the
+		# frame she stepped ashore, throwing her off the island into the sea, where there is no
+		# way back up (Dagat, 2026-11-12). The boat carries her; nothing else moves her.
+		_impulse = Vector2.ZERO
+		_assist = Vector2.ZERO
 		if Input.is_action_just_pressed(&"jump"):
 			end_ride()
 			_jump()

@@ -1127,6 +1127,13 @@ func _frame_the_water(anchor_position: Vector2) -> void:
 	if world_camera == null or not is_finite(_waterline_y):
 		return
 	var under := clampf((anchor_position.y - _waterline_y) / LOOK_EASE_DEPTH, 0.0, 1.0)
+	# ⚠ LEADING IT HOME, THE CAMERA LOOKS DOWN FROM THE BOAT TOO. The light goes where the pointer
+	# is, and a pointer cannot leave the screen: framed for the deck, the screen ended at y 785, so
+	# the deepest the creature could be led was 700 px over the cave mouth -- outside HOME_REACH.
+	# It never went in, and the boat + light run could not be finished (Kent, 2026-11-11). What
+	# the player is steering is under the water, so the water is what is framed.
+	if _guiding():
+		under = 1.0
 	var deep_look := clampf(BED_Y - BED_IN_VIEW - anchor_position.y, LEAST_LOOK, MOST_LOOK)
 	world_camera.target_offset.y = lerpf(SURFACE_LOOK, deep_look, under)
 
@@ -3250,10 +3257,37 @@ func _use_equipped_utility() -> void:
 		if director.current_obstacle() == "L3_N2" and director.stage("L3_N2") == 0:
 			_judge_submission(item.entity_id, item.strokes)
 		_fought_with[item.entity_id] = true
+		var landed := _bakunawa.hits_taken() if _bakunawa != null else 0.0
 		var outcome := _equipped_utility.describe_use(player)
 		status_label.text = outcome if not outcome.is_empty() else item.display_name
+		_strike_over_the_side(item.entity_id, outcome, landed)
 		return
 	super()
+
+
+## ⚠ FROM THE DECK, A BLADE GOES OVER THE SIDE. Staged for the boat, the creature lies under the
+## hull with its back about 50 px under the water, and a sword or an axe reaches 96 px from the
+## apo's hand -- about 110 px short of it, and with the boat against its coils, behind her. Played,
+## 150 presses of F from the boat landed nothing and the fight never ended (2026-11-12); the cannon
+## and the boomerang reach it from up here, the blades never did. So a swing from the deck that
+## struck nothing is swung down into the water: it lands if the creature's back is within the
+## blade's reach of the waterline under her. Only the blades: a shot or a throw lands frames later,
+## on its own.
+const OVER_THE_SIDE := ["sword", "axe"]
+
+
+func _strike_over_the_side(weapon: String, outcome: String, landed_before: float) -> void:
+	if outcome.is_empty() or not OVER_THE_SIDE.has(weapon) or not _aboard() \
+			or _bakunawa == null or _bakunawa.hits_taken() > landed_before:
+		return
+	var reach := WeaponTable.reach(weapon)
+	var under := _anchor_now()
+	var body := _bakunawa.global_position
+	var back := body.y - BakunawaClass.BODY_DEPTH * 0.7
+	if absf(under.x - body.x) > BakunawaClass.BODY_LENGTH * 0.5 + reach \
+			or back - _waterline_y > reach:
+		return
+	_bakunawa.apply_tool_hit(weapon, 420.0, player)
 
 
 ## Being seen, and being hit, both cost the current stretch and not the approach. CP3b sits

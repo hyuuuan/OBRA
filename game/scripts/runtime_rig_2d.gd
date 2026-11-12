@@ -471,6 +471,46 @@ func debug_skin_transform() -> Transform2D:
 	return _skin_root.global_transform
 
 
+## Where the space the strokes are drawn in sits in the world (see debug_skin_transform), for
+## code that places something against the drawing -- a fan's wind at its blades.
+func stroke_space() -> Transform2D:
+	return debug_skin_transform()
+
+
+## Turns whole strokes rigidly about `pivot` (stroke space) by `angle` -- a drawn fan's blades.
+##
+## ⚠ BY THE LINE'S TRANSFORM, NEVER ITS POINTS. Every point on screen is still exactly where the
+## player put it relative to the rest of its stroke, so ink integrity (AGENTS.md "Stable
+## Contracts") holds by construction: debug_skin_points and the ink audit read the same
+## polylines spinning or not. Writing rotated points instead would also be undone the next
+## frame, because _animate_skinned_ink reassigns every line's points from the skin.
+func turn_strokes(indices: PackedInt32Array, pivot: Vector2, angle: float) -> void:
+	var turned := Transform2D(0.0, pivot) * Transform2D(angle, Vector2.ZERO) * Transform2D(0.0, -pivot)
+	for index in indices:
+		if index < 0 or index >= _skin_lines.size():
+			continue
+		for line in [_skin_lines[index], _skin_halos[index]]:
+			if is_instance_valid(line):
+				(line as Line2D).transform = turned
+
+
+## How far each drawn stroke is turned right now (turn_strokes), radians, one per stroke.
+func stroke_turns() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	for line in _skin_lines:
+		out.append(line.rotation if is_instance_valid(line) else 0.0)
+	return out
+
+
+## Each drawn stroke's turn as a whole transform in stroke space, one per stroke: what a probe
+## needs to see a stroke turns ABOUT a point rather than drifting off it.
+func stroke_transforms() -> Array[Transform2D]:
+	var out: Array[Transform2D] = []
+	for line in _skin_lines:
+		out.append(line.transform if is_instance_valid(line) else Transform2D.IDENTITY)
+	return out
+
+
 ## Share of the drawing each bone carries, by bone name. A bone that owns almost no
 ## ink can swing as hard as it likes and the player sees nothing move.
 func debug_bone_ink_mass() -> Dictionary:

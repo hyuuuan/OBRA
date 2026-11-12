@@ -45,7 +45,9 @@ Godot uses the original stroke vectors to animate a morph or create a utility.
 - Keep `RuntimeRig2D` driven by drawn strokes and rig profiles. Every rendered
   polyline must be an exact contiguous slice of a player stroke. The post-build
   audit demotes divergent rigs to an intact compound body. Preserve
-  `_test_ink_integrity` in `game/tests/run_tests.gd`.
+  `_test_ink_integrity` in `game/tests/run_tests.gd`. To move part of a drawing
+  (a fan's blades), turn whole strokes by their `Line2D` transform
+  (`RuntimeRig2D.turn_strokes`), never by rewriting their points.
 - Obstacles declare ability tags. `AbilityTags` resolves classes and
   `tools/build_tags.py` generates `game/config/tags.json`. Run
   `python3 tools/audit_abilities.py --check` after changing a rig profile,
