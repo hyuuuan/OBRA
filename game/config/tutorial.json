@@ -413,6 +413,17 @@
           "lead": "See that word? It tells you what must be DONE here — not what to draw."
         },
         {
+          "id": "marker",
+          "at": "moved",
+          "after": "quest",
+          "mode": "look",
+          "visual": "marker",
+          "context": "world",
+          "anchor": "objective_marker",
+          "caption": "The arrow points the way",
+          "text": "That arrow points to what comes next, apo."
+        },
+        {
           "id": "life",
           "at": "morph_low",
           "after": "revert",

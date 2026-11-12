@@ -20,7 +20,7 @@ extends Control
 ## Every picture `_draw` knows. `keys` is the plain row of caps; anything unknown draws as that.
 const KINDS := ["keys", "walk", "jump", "hold", "draw_key", "revert", "place", "take_back",
 	"rotate", "resize", "draw", "click", "clock", "ink", "checkpoint", "requirement", "lamp",
-	"become", "quest", "drag", "card_hint"]
+	"become", "quest", "drag", "card_hint", "marker"]
 const SIZE := Vector2(440.0, 150.0)
 const CAP_HEIGHT := 50.0
 const CAP_TRAVEL := 5.0
@@ -123,6 +123,8 @@ func _draw() -> void:
 			_draw_drag()
 		"card_hint":
 			_draw_card_hint()
+		"marker":
+			_draw_marker()
 		_:
 			_draw_keys()
 	if waits_for_click:
@@ -608,6 +610,21 @@ func _draw_card_hint() -> void:
 	_cursor(Vector2(150.0, 146.0).lerp(Vector2(214.0, 82.0), travel))
 
 
+## The arrow over the world: bobbing over the place, the apo walking to it, and gone when she is
+## there -- the HUD's own arrow does exactly that (ObjectiveMarker: nothing drawn once arrived).
+func _draw_marker() -> void:
+	var p := _phase(3.0)
+	var ground := 128.0
+	var spot := Vector2(330.0, ground)
+	draw_line(Vector2(70.0, ground), Vector2(390.0, ground), DIM_LINE, 2.0, true)
+	draw_circle(spot, 5.0, Color(LIT, 0.5))
+	var go := _ease(clampf(p / 0.62, 0.0, 1.0))
+	_figure(Vector2(lerpf(100.0, spot.x - 28.0, go), ground), 1.0, go > 0.0 and go < 1.0)
+	var there := clampf((p - 0.64) / 0.12, 0.0, 1.0)
+	var bob := sin(_t * 4.2) * 5.0
+	_hud_arrow(spot + Vector2(0.0, -64.0 + bob), Vector2.DOWN, 0.8, 1.0 - there)
+
+
 ## A row of caps pressed in turn: one key, or a run of them like the bag's 1 to 6.
 func _draw_keys() -> void:
 	if caps.is_empty():
@@ -802,6 +819,20 @@ func _sparkle(at: Vector2, radius: float, colour: Color) -> void:
 		var r := radius if i % 2 == 0 else radius * 0.35
 		points.append(at + Vector2.UP.rotated(TAU * float(i) / 8.0) * r)
 	_soft_polygon(points, colour)
+
+
+## The HUD's objective arrow, the same shape and colours as ObjectiveMarker draws over the world.
+func _hud_arrow(tip: Vector2, toward: Vector2, size: float, alpha: float) -> void:
+	if alpha <= 0.01:
+		return
+	var outline := PackedVector2Array([Vector2(6, 0), Vector2(-31, 33), Vector2(-31, 14),
+		Vector2(-53, 14), Vector2(-53, -14), Vector2(-31, -14), Vector2(-31, -33)])
+	var body := PackedVector2Array([Vector2.ZERO, Vector2(-27, 24), Vector2(-27, 10),
+		Vector2(-49, 10), Vector2(-49, -10), Vector2(-27, -10), Vector2(-27, -24)])
+	draw_set_transform(tip, toward.angle(), Vector2.ONE * size)
+	_soft_polygon(outline, Color(UISkin.INK, alpha))
+	_soft_polygon(body, Color(UISkin.PENDING, alpha))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _arrow(from: Vector2, to: Vector2, colour: Color, width := 4.0) -> void:
