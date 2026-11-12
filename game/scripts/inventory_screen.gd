@@ -145,6 +145,14 @@ const STACKS := {
 ## The count, as a card writes it at the head of a sentence.
 const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
 
+## ⚠ THE ONE PLACE A FACE-DOWN CARD'S HINT IS DECIDED. Kent: "if they click a card that is not
+## yet unlocked, the game hints them on what that card is for them to draw it". The thesis's rule
+## is that a T1 or T2 hint never names a class (LevelDirector), so by default the card says what
+## its class can DO -- its ability tags, which the requirement strip already names -- and names
+## nothing. Set true and it names its own class instead. Either way, opening it is logged as
+## assistance (`locked_card_hint`), so a later drawing of it is not counted as unaided.
+const LOCKED_HINT_NAMES_THE_CLASS := false
+
 ## How a creature gets about, as the card prints it.
 const MOVES := {
 	"fly": "Flies",
@@ -222,9 +230,13 @@ var _moves_value: Label
 var _note_row: HBoxContainer
 var _detail_note: Label
 var _use_button: Button
-## What is selected, as {"kind": "bag"|"found"|"drawn", "index"/"id"}.
+## What is selected, as {"kind": "bag"|"found"|"drawn"|"locked", "index"/"id"}; "locked" is a
+## card still face down.
 var _chosen: Dictionary = {}
 var _thumbnails: Dictionary = {}
+## Face-down cards whose hint has been logged since the bag was opened: one assistance event per
+## card per look, not one per time the arrows pass over it.
+var _hinted: Dictionary = {}
 
 ## ⚠ IT WAS A STILL PICTURE YOU COULD ONLY CLICK. Kent, of this screen: "i dont like how the
 ## animation is happening ... i cant scroll, drag, etc. from it". It snapped on in one frame,
@@ -311,6 +323,7 @@ func _on_opened() -> void:
 	# on purpose. Same courtesy MemoryOverlay pays.
 	get_tree().call_group(DialogueBox.GROUP, &"hide_line")
 	_chosen = {}
+	_hinted = {}
 	_pan = 0.0
 	refresh()
 	_rise()
@@ -398,8 +411,8 @@ func _choices() -> Array[Dictionary]:
 	var drawn: Array = profile.call("get_drawn_classes") if profile != null else []
 	for band: Variant in BANDS:
 		for id in _ids_with_role(String((band as Dictionary)["role"])):
-			if drawn.has(id):
-				out.append({"kind": "drawn", "id": id})
+			# A face-down card is chosen too, by the arrows as by the mouse: it hints.
+			out.append({"kind": "drawn" if drawn.has(id) else "locked", "id": id})
 	return out
 
 
@@ -1201,7 +1214,8 @@ func _paint(button: Button, occupied: bool, chosen: bool, quiet: bool = false) -
 			box = _flat(UISkin.GILT_HI if chosen else UISkin.GILT,
 				UISkin.GILT_HI if chosen else UISkin.GILT_EDGE, 4 if chosen else 3, 4)
 		else:
-			box = _flat(UISkin.WOOD_DARK, UISkin.WOOD_EDGE, 3, 4)
+			box = _flat(UISkin.WOOD if chosen else UISkin.WOOD_DARK,
+				UISkin.GILT_HI if chosen else UISkin.WOOD_EDGE, 4 if chosen else 3, 4)
 	else:
 		# A pocket sewn into the lining -- with a sheet of the canvas's paper in it once it
 		# holds a drawing, or the dark ink vanishes into the leather.
@@ -1210,7 +1224,8 @@ func _paint(button: Button, occupied: bool, chosen: bool, quiet: bool = false) -
 	for state in [&"normal", &"hover", &"pressed", &"disabled", &"focus"]:
 		button.add_theme_stylebox_override(state, box)
 	button.modulate = Color(1.1, 1.1, 1.04) if chosen else Color.WHITE
-	button.set_meta(&"live", occupied)
+	# Every roster card can be picked now -- a face-down one for its hint -- so every one lifts.
+	button.set_meta(&"live", occupied or quiet)
 
 
 func _show_tab(role: String) -> void:
@@ -1329,8 +1344,8 @@ func _refresh_roster() -> void:
 	var built_for := [drawn.duplicate(), version]
 	if _roster_built_for is Array and (_roster_built_for as Array) == built_for:
 		for id: String in _roster_buttons:
-			var chosen := String(_chosen.get("kind", "")) == "drawn" \
-				and String(_chosen.get("id", "")) == id and drawn.has(id)
+			var chosen := String(_chosen.get("kind", "")) in ["drawn", "locked"] \
+				and String(_chosen.get("id", "")) == id
 			_paint(_roster_buttons[id] as Button, drawn.has(id), chosen, true)
 		return
 	_roster_built_for = built_for
@@ -1367,14 +1382,15 @@ func _fill_band(role: String, title: String, drawn: Array) -> void:
 		var button := _slot_button(ROSTER_SLOT)
 		button.set_meta(&"role", role)
 		var owned := drawn.has(id)
-		var chosen := String(_chosen.get("kind", "")) == "drawn" \
-			and String(_chosen.get("id", "")) == id and owned
+		var chosen := String(_chosen.get("kind", "")) in ["drawn", "locked"] \
+			and String(_chosen.get("id", "")) == id
 		grid.add_child(button)
 		_roster_buttons[id] = button
 		_paint(button, owned, chosen, true)
 		if not owned:
-			# Face down: unnamed, untooltipped, unclickable. What it says is "one more of this
-			# kind is out there", and nothing else.
+			# Face down: unnamed and untooltipped. Clicked, it hints at what to draw by what its
+			# class can do, never by its name -- see LOCKED_HINT_NAMES_THE_CLASS.
+			button.pressed.connect(_choose_locked.bind(id))
 			button.add_child(_card_back())
 			continue
 		button.tooltip_text = _display_name(id)
@@ -1559,6 +1575,9 @@ func _refresh_detail() -> void:
 		_set_rows("", "")
 		return
 	var class_id := String(_chosen.get("id", ""))
+	if kind == "locked":
+		_fill_locked_card(class_id)
+		return
 	_fill_class_card(class_id, _class_drawing(class_id))
 
 
@@ -1585,6 +1604,59 @@ func _fill_class_card(class_id: String, art: Texture2D) -> void:
 		moves = "Only on water"
 	_set_rows(moves, _role_of(class_id))
 
+
+
+## A card still face down: its kind and number, what its class can do, and nothing that names it.
+## Opening it is help, and is logged as help.
+func _fill_locked_card(class_id: String) -> void:
+	var entry: Dictionary = registry.get_entity(class_id) if registry != null else {}
+	var palette := _palette(String(entry.get("runtime_role", "")))
+	_style_detail(palette)
+	_detail_number.text = "No. %02d" % _roster_number(class_id)
+	_detail_title.text = "Not drawn yet"
+	_detail_kind.text = String(palette["kind"])
+	_set_art(null, "Still face down. Draw it to turn it over.")
+	_set_ability("Hint", locked_hint(class_id))
+	_set_skills(_skills_of(class_id))
+	_set_rows("", _role_of(class_id))
+	_log_locked_hint(class_id)
+
+
+## What a face-down card says about the class under it. See LOCKED_HINT_NAMES_THE_CLASS: by
+## default its abilities as the requirement strip words them ("something that can CLIMB or
+## CARRY"), only those this player has been taught, and never its name.
+func locked_hint(class_id: String) -> String:
+	if LOCKED_HINT_NAMES_THE_CLASS:
+		return "Try drawing a %s." % _display_name(class_id).to_lower()
+	var tags := get_node_or_null(^"/root/AbilityTags")
+	var can: Array[String] = []
+	if tags != null:
+		for tag_value: Variant in tags.call("tags_for_class", class_id):
+			var tag := String(tag_value)
+			if bool(tags.call("is_unlocked", tag)):
+				can.append(String(tags.call("can_phrase", tag)))
+	if can.is_empty():
+		# Nothing it does has been taught yet, so there is nothing to say of it but its kind.
+		return "What this one does has not been shown to you yet. Keep going, and come back."
+	var listed := can[0] if can.size() == 1 \
+		else "%s or %s" % [", ".join(PackedStringArray(can.slice(0, can.size() - 1))), can.back()]
+	return "Draw something that can %s." % listed
+
+
+func _log_locked_hint(class_id: String) -> void:
+	if _hinted.has(class_id):
+		return
+	_hinted[class_id] = true
+	var telemetry := get_node_or_null(^"/root/Telemetry")
+	var levels := get_node_or_null(^"/root/LevelManager")
+	if telemetry == null:
+		return
+	telemetry.call("record_event", "locked_card_hint", {
+		"level_id": String(levels.get("current_level_id")) if levels != null else "",
+		"entity_id": class_id,
+		"names_the_class": LOCKED_HINT_NAMES_THE_CLASS,
+		"assisted": true,
+	})
 
 
 func _style_detail(palette: Dictionary) -> void:
@@ -1662,12 +1734,19 @@ func _choose_drawn(id: String) -> void:
 	_show_choice()
 
 
+func _choose_locked(id: String) -> void:
+	_chosen = {"kind": "locked", "id": id}
+	_follow_choice_to_tab()
+	refresh()
+	_show_choice()
+
+
 ## What is chosen -- a card, or a drawing in a pocket -- may be of a kind whose tab is not
 ## open; open it, so its card is in view beside the big one.
 func _follow_choice_to_tab() -> void:
 	var kind := String(_chosen.get("kind", ""))
 	var id := ""
-	if kind == "drawn":
+	if kind in ["drawn", "locked"]:
 		id = String(_chosen.get("id", ""))
 	elif kind == "bag" and inventory_manager != null:
 		var item := inventory_manager.peek_item(int(_chosen.get("index", -1)))
