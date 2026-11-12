@@ -1059,6 +1059,16 @@ recoil was banked while she rode and paid out the frame she stepped off. A rider
 pushes her; the boat carries her. The same probe fires a cannon from the deck before setting out and
 checks she stays on the sand (mutation-tested).
 
+## A submarine, ridden (2026-11-12)
+
+Kent: *"when i try to ride it, it rows but then my oxygen is affected which should not be
+happening"*. A drawn submarine, boarded and dived, put the apo in the water by every test `_breathe`
+makes, so her seven seconds of breath ran out inside a sealed hull and she was sent up "out of
+breath"; and `_row` handed her the bangka's paddle and stroked it the whole way down. A passenger
+now breathes whatever she rides -- the breath is for swimming -- and a submarine gets no paddle, no
+stroke and no splash: it is driven. `run_level3_submarine_probe` draws one, sets it in the sea,
+boards it with E and dives for ten seconds (mutation-tested: without either line, its check fails).
+
 ## Build order
 
 Straight from `LEVEL_TEMPLATE.md`, with this level's specifics.
