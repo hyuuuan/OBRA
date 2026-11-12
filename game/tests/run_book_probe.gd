@@ -139,5 +139,131 @@ func _run() -> void:
 	_check(inky.is_empty(), "and nothing on the bag mentions ink",
 		"none" if inky.is_empty() else ", ".join(inky))
 
+	await _a_face_down_card_hints()
+
 	print("OBRA_BOOK_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
+
+
+## The fifty in Filipino, as run_diary_probe lists them: a hint may name none of them either.
+const FILIPINO := ["tulay", "hagdan", "hagdanan", "pinto", "puno", "susi", "ulap", "ibon", "isda",
+	"gagamba", "unggoy", "palaka", "pating", "pugita", "alimango", "kabayo", "elepante", "ahas",
+	"pagong", "langgam", "bubuyog", "baboy", "alakdan", "palakol", "espada", "kanyon", "payong",
+	"orasan", "gulong", "tinapay", "balde", "gunting", "kalaykay", "paniki", "paruparo",
+	"siga", "pamaypay", "submarino", "parasyut", "palihan", "bilog", "parisukat", "tatsulok"]
+
+
+## ⚠ A FACE-DOWN CARD HINTS, AND STILL NAMES NOTHING. Kent: "if they click a card that is not yet
+## unlocked, the game hints them on what that card is for them to draw it". Clicked -- or reached
+## with the arrows -- a card not yet drawn says what its class can do, by the tags the player has
+## been taught, and nothing on the screen names it; and the look is logged as assistance.
+func _a_face_down_card_hints() -> void:
+	var tags := root.get_node_or_null("AbilityTags")
+	var roster: Dictionary = screen.get("_roster_buttons")
+	# A fresh profile has been taught nothing; teach one ability a face-down card has, the way a
+	# level teaches it at its first gate.
+	for id: String in roster:
+		var its: Array = tags.call("tags_for_class", id)
+		if not profile_drawn().has(id) and not its.is_empty():
+			tags.call("unlock", String(its[0]))
+			break
+	# A face-down card whose class can do something this player has been taught.
+	var pick := ""
+	var taught: Array[String] = []
+	for id: String in roster:
+		if (profile_drawn()).has(id):
+			continue
+		var can: Array[String] = []
+		for tag: Variant in tags.call("tags_for_class", id):
+			if bool(tags.call("is_unlocked", String(tag))):
+				can.append(String(tags.call("can_phrase", String(tag))))
+		if not can.is_empty():
+			pick = id
+			taught = can
+			break
+	if pick.is_empty():
+		_check(false, "a face-down card with a taught ability exists to try", "none found")
+		return
+	var log_before := _telemetry_lines()
+	(roster[pick] as Button).pressed.emit()
+	await _wait(0.2)
+	var chosen: Dictionary = screen.get("_chosen")
+	var title := (screen.get("_detail_title") as Label).text
+	var hint := (screen.get("_ability_text") as Label).text
+	_check(String(chosen.get("kind", "")) == "locked" and title == "Not drawn yet",
+		"a face-down card can be picked, and says it is not drawn yet",
+		"chosen %s, title \"%s\"" % [str(chosen), title])
+	var missing: Array[String] = []
+	for phrase in taught:
+		if not hint.contains(phrase):
+			missing.append(phrase)
+	_check(missing.is_empty() and hint.begins_with("Draw something that can"),
+		"and hints at it by what it can do", "\"%s\"" % hint)
+	# Every word the hint puts up -- the big card and its plaques, its skill chips -- and on the
+	# face-down card itself. (Drawn cards elsewhere on the screen are named, as they should be.)
+	var said: Array[String] = []
+	for field in ["_detail_title", "_detail_kind", "_detail_number", "_ability_verb", "_ability_text",
+			"_detail_blank", "_detail_note", "_moves_value"]:
+		var label := screen.get(field) as Label
+		if label != null and label.is_visible_in_tree():
+			said.append(label.text.to_lower())
+	for chip in (screen.get("_skills_flow") as Node).find_children("*", "Label", true, false):
+		said.append((chip as Label).text.to_lower())
+	var card := roster[pick] as Button
+	said.append(card.tooltip_text.to_lower())
+	for label in card.find_children("*", "Label", true, false):
+		said.append((label as Label).text.to_lower())
+	var spoken := " ".join(said)
+	var named := _names_in(spoken)
+	_check(named.is_empty(), "and nothing on the screen names its class",
+		"names nothing" if named.is_empty() else "NAMES: %s" % ", ".join(named))
+	_check(not spoken.contains("ink"), "and nothing on it mentions ink",
+		"none" if not spoken.contains("ink") else "SAYS: %s" % spoken)
+	var logged := false
+	for line: String in _telemetry_lines().slice(log_before.size()):
+		var event: Variant = JSON.parse_string(line)
+		if event is Dictionary and String(event.get("type", "")) == "locked_card_hint" \
+				and String(event.get("entity_id", "")) == pick and bool(event.get("assisted", false)):
+			logged = true
+	_check(logged, "and the look is logged as assistance", "locked_card_hint, assisted")
+	# And the arrows reach a face-down card, as the mouse does.
+	var choices: Array = screen.call("_choices")
+	var face_down := 0
+	for choice: Variant in choices:
+		if String((choice as Dictionary).get("kind", "")) == "locked":
+			face_down += 1
+	_check(face_down == 50 - profile_drawn().size(), "and the arrows can reach every face-down card",
+		"%d of %d" % [face_down, 50 - profile_drawn().size()])
+
+
+func profile_drawn() -> Array:
+	return root.get_node("PlayerProfile").call("get_drawn_classes")
+
+
+## Which classes, in English or Filipino, `text` names as a whole word.
+func _names_in(text: String) -> Array[String]:
+	var words: Array[String] = []
+	var manifest: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://config/entities.json"))
+	var entities: Array = (manifest as Dictionary).get("entities", []) if manifest is Dictionary else manifest
+	for entry: Variant in entities:
+		var e := entry as Dictionary
+		for term: String in [String(e.get("id", "")).replace("_", " "), String(e.get("display_name", ""))]:
+			if not term.is_empty():
+				words.append(term.to_lower())
+	words.append_array(FILIPINO)
+	var found: Array[String] = []
+	var regex := RegEx.new()
+	for word in words:
+		regex.compile("\\b%s\\b" % word)
+		if regex.search(text) != null and not found.has(word):
+			found.append(word)
+	return found
+
+
+func _telemetry_lines() -> Array:
+	var telemetry := root.get_node_or_null("Telemetry")
+	var file: Variant = telemetry.get("_file") if telemetry != null else null
+	if not (file is FileAccess):
+		return []
+	var text := FileAccess.get_file_as_string((file as FileAccess).get_path_absolute())
+	return Array(text.split("\n", false))
