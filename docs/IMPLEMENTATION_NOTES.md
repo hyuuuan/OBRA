@@ -825,6 +825,17 @@ fitting its page, and being given by some level's script.
   grid. ⚠ It names a class only when the player has already drawn and had it accepted — the
   rest are unnamed empty frames. Naming the roster would turn every obstacle in the game
   into a lookup, which is the rule `RequirementStrip` exists to hold.
+- **A drawing in the bar is dragged out into the world** (Kent: "make the inventory draggable so
+  that the users wont have to draw the exact same thing"). `InventoryHUD` makes each full slot a
+  Godot drag source; the level answers through `_drag_out_of_slot`, which runs the slot through
+  `_on_inventory_slot_pressed` -- the key's own path -- so a drag costs what the key costs and is
+  refused where the key is refused, in every level (Mayon's ink, Dilim's wear, the paid-once
+  placeable). A placeable's ghost follows the pointer and is set down where it is let go; a tool
+  goes into the hand. ⚠ The world is not a Control: a full-screen `BagDropCatcher` behind the HUD
+  takes the drop only while a drag is on, and hands the wheel and right button it catches to
+  `PlacementController.handle_pointer`. A refused drop ends the drag unsuccessfully and is heard
+  in `InventoryHUD._notification(NOTIFICATION_DRAG_END)`. `run_bag_drag_probe` checks every level
+  against the key; `run_click_ui` drags one with a real mouse.
 - **Presence in a level is a question about THIS RUN; ownership is a question for the
   profile.** `PlayerProfile.has_object` is permanent by design, and Ang Bale's interior was
   asking it whether the painting was still there — so every run after the first opened the

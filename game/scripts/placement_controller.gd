@@ -127,6 +127,16 @@ func is_at_reach_limit() -> bool:
 	return _at_reach_limit
 
 
+## Whether a click -- or a drawing let go of -- would set it down where the ghost is now.
+func is_valid() -> bool:
+	return is_placing() and _valid
+
+
+## The bag slot the drawing being placed came out of, or -1.
+func source_slot() -> int:
+	return _source_slot if is_placing() else -1
+
+
 func is_held_by_room() -> bool:
 	return _held_by_room
 
@@ -212,8 +222,17 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if handle_pointer(event):
+		get_viewport().set_input_as_handled()
+
+
+## The wheel, a pinch and the buttons while something is being placed. True when it used the
+## event. Public because a drawing dragged out of the bag is placed with the left button still
+## held, and the GUI's drag takes every other mouse event on the way (InventoryHUD) -- so the
+## drag hands them here, and turning, resizing or putting it back works mid-drag as after a click.
+func handle_pointer(event: InputEvent) -> bool:
 	if not is_placing():
-		return
+		return false
 	# A pinch on a trackpad. ⚠ ONCE PER FRAME FOR THE SAME FACTOR: a gesture reaches this twice
 	# for one movement (InventoryScreen found the same of the pan gesture), and taken twice a
 	# 25% pinch was a 56% one.
@@ -223,34 +242,32 @@ func _unhandled_input(event: InputEvent) -> void:
 			_last_pinch_frame = frame
 			_last_pinch = event.factor
 			resize_preview(event.factor)
-		get_viewport().set_input_as_handled()
-		return
+		return true
 	# ⚠ SHIFT OR CTRL TURNS THE WHEEL INTO SIZE, and both directions of it count. macOS sends
 	# Shift+scroll as a SIDEWAYS scroll, so up-or-left grows and down-or-right shrinks; and
 	# Windows sends a trackpad pinch as Ctrl+scroll.
 	if event is InputEventMouseButton and event.pressed and (event.shift_pressed or event.ctrl_pressed):
 		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT]:
 			resize_preview(RESIZE_STEP)
-			get_viewport().set_input_as_handled()
-			return
+			return true
 		if event.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_RIGHT]:
 			resize_preview(1.0 / RESIZE_STEP)
-			get_viewport().set_input_as_handled()
-			return
+			return true
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			_preview.rotation -= deg_to_rad(rotation_step_degrees)
-			get_viewport().set_input_as_handled()
+			return true
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			_preview.rotation += deg_to_rad(rotation_step_degrees)
-			get_viewport().set_input_as_handled()
+			return true
 		elif event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			get_viewport().set_input_as_handled()
 			if not confirm_placement():
 				placement_rejected.emit()
+			return true
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-			get_viewport().set_input_as_handled()
 			cancel_placement()
+			return true
+	return false
 
 
 func confirm_placement() -> bool:

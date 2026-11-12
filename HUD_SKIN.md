@@ -491,6 +491,15 @@ JUMP and its lit hole took in the bottom of both. With Q up the row reaches to a
 goal chip at 1600; `run_action_prompt_probe` measures that gap, and so should anything that
 widens a chip in this row.
 
+⚠ **The toolbelt drags.** A drawing in it is pulled off its slot and let go in the world: a thing
+to set down is its own ghost on the pointer and lands where it is let go; a tool goes into her
+hand. Its states, all from `UISkin`: a full slot under the pointer lifts its ring to `GOLD_PALE`
+(`UISkin.slot(..., lifted)`) with a hand cursor; while dragging, the caption over the tray says
+"Let go to set it down · back on the bag to keep it" (20 px, the floor), the ghost carries the
+placement's valid or refused tint and the pointer shows can-drop or no; back over the bar the tray
+wears `UISkin.drop_ring()` and letting go puts it back; let go where the ghost will not stand, the
+drawing flies back into its slot from there and the bar says why. The keys still do all of it.
+
 ⚠ **The keybind strip is gone and the node is not.** `CanvasLayer/HintLabel` still exists in
 `game_level.tscn` and is hidden at build time; the live key caps replaced it. Do not revive
 it -- it advertised six verbs from the first frame, four of which could do nothing.

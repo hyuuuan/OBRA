@@ -639,6 +639,12 @@ func _ready() -> void:
 	draw_panel.recognition_declined.connect(_on_recognition_declined)
 	ink_manager.ink_changed.connect(_on_ink_changed)
 	inventory_hud.slot_pressed.connect(_on_inventory_slot_pressed)
+	# Dragged off the bar, a drawing comes out the way its key takes it out. See InventoryHUD.
+	inventory_hud.drag_begins = _drag_out_of_slot
+	inventory_hud.drop_allowed = _may_let_go_of_slot
+	inventory_hud.pointer_during_drag = placement_controller.handle_pointer
+	inventory_hud.slot_dropped.connect(_on_slot_dropped)
+	inventory_hud.slot_drag_failed.connect(_on_slot_drag_failed)
 	placement_controller.placement_confirmed.connect(_on_placement_confirmed)
 	placement_controller.placement_canceled.connect(_on_placement_canceled)
 	placement_controller.placement_changed.connect(_on_placement_changed)
@@ -2778,6 +2784,73 @@ func _on_inventory_slot_pressed(slot: int) -> void:
 	status_label.text = "Placing %s — click to set it down, right-click to put it back" % item.display_name
 
 
+## ⚠ DRAGGED OFF THE BAR, OUT THE WAY ITS KEY TAKES IT (see InventoryHUD). One answer to "what
+## does this slot do" -- the key's -- so a drag costs what the key costs and is refused where the
+## key is refused: the placeable paid for once, Mayon's ink, Dilim's wear. "place": its ghost is
+## on the pointer now. "hold": a tool, for her hand where it is let go. "": it cannot come out,
+## and the status line has said why.
+func _drag_out_of_slot(slot: int) -> String:
+	if placement_controller.is_placing() or get_tree().paused:
+		return ""
+	var item := inventory_manager.peek_item(slot)
+	if item == null or player == null or not is_instance_valid(player):
+		return ""
+	if _is_held_tool(item):
+		return "hold"
+	_on_inventory_slot_pressed(slot)
+	if placement_controller.source_slot() != slot:
+		return ""
+	status_label.text = "Placing %s — let go to set it down, back on the bag to keep it" % item.display_name
+	return "place"
+
+
+## Whether letting go out in the world would do anything: the ghost standing somewhere it can, or
+## a tool, which goes into her hand wherever it is let go.
+func _may_let_go_of_slot(slot: int) -> bool:
+	if placement_controller.is_placing():
+		return placement_controller.source_slot() == slot and placement_controller.is_valid()
+	var item := inventory_manager.peek_item(slot)
+	return item != null and _is_held_tool(item)
+
+
+func _on_slot_dropped(slot: int, on_bar: bool) -> void:
+	if placement_controller.is_placing() and placement_controller.source_slot() == slot:
+		# Back on the bar: put back, as a right-click puts it back.
+		if on_bar:
+			placement_controller.cancel_placement()
+		elif not placement_controller.confirm_placement():
+			_on_slot_drag_failed(slot)
+		return
+	var item := inventory_manager.peek_item(slot)
+	if on_bar or item == null or not _is_held_tool(item):
+		return
+	# ⚠ NOT THE KEY'S TOGGLE. Pressed again, a tool's key puts it away; dragged out to where it is
+	# wanted, one already in hand stays there.
+	if _equipped_utility != null and is_instance_valid(_equipped_utility) \
+			and _equipped_utility.item_data != null \
+			and _equipped_utility.item_data.entity_id == item.entity_id:
+		status_label.text = "%s is already in hand — %s to use it" % [item.display_name,
+			ControlsKeys.keys_for("use_utility")]
+		return
+	_equip_from_slot(slot, item)
+
+
+## Let go where it would not go: back into its slot, flown there from where it was let go, and
+## why it came back said over the bag.
+func _on_slot_drag_failed(slot: int) -> void:
+	if not (placement_controller.is_placing() and placement_controller.source_slot() == slot):
+		return
+	var pointer := inventory_hud.get_viewport().get_mouse_position()
+	placement_controller.cancel_placement()
+	var back := inventory_manager.peek_item(slot)
+	if back == null:
+		return
+	var why := "No room there — %s is back in slot %d" % [back.display_name, slot + 1]
+	status_label.text = why
+	inventory_hud.arrive(slot, DrawingSkin2D.thumbnail(back.image) if back.image != null else null,
+		why, pointer)
+
+
 func _is_held_tool(item: DrawnItemData) -> bool:
 	return is_a_tool(registry.get_entity(item.entity_id))
 
@@ -3033,10 +3106,17 @@ func _on_placement_changed(active: bool, valid: bool) -> void:
 	if action_prompts != null:
 		action_prompts.set_placement_active(active)
 	if not active:
+		# Put back some other way -- Escape, a right-click -- a drag off the bar is over too.
+		inventory_hud.end_drag()
 		return
 	# The mouse is all three halves of placement and the game never said so anywhere.
 	if tutorial != null:
 		tutorial.note("placement_started")
+	# Dragged off the bar, the button is already down: there is nothing to click, only to let go.
+	if inventory_hud.is_dragging():
+		status_label.text = "Let go to set it down — back on the bag to keep it. Scroll turns it" \
+			if valid else "No room there — move it to a clearer spot"
+		return
 	if not valid:
 		status_label.text = "No room there — aim at a clearer spot"
 	elif placement_controller.is_held_by_room():

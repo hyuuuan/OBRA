@@ -12,6 +12,18 @@ extends HBoxContainer
 ## going unused. An empty slot recedes to its number and stops asking for attention.
 
 signal slot_pressed(slot: int)
+## ⚠ DRAGGED OUT INTO THE WORLD. Kent: "make the inventory draggable so that the users wont have
+## to draw the exact same thing". A drawing in the bar came out with its key or a click, and a
+## player who dragged it to where it should go got nothing -- the press never landed as a click --
+## and drew it again. Pulled off its slot now, a drawing comes out the way its key takes it out:
+## a thing to set down puts its ghost on the pointer and is set down where it is let go; a tool
+## goes into her hand. Let go back over the bar, it goes back. The level answers what each drawing
+## does (drag_begins), so a drag keeps every rule its key keeps: what it costs, and whether it may
+## come out at all.
+signal slot_dropped(slot: int, on_bar: bool)
+## Let go somewhere that would not take it -- a spot the ghost will not stand on, another panel --
+## or the drag was called off.
+signal slot_drag_failed(slot: int)
 
 const SLOT := Vector2(64.0, 64.0)
 const GOLD := UISkin.GOLD
@@ -36,6 +48,31 @@ var _counts: Array[Label] = []
 var _thumbnails: Dictionary = {}
 ## Which slot the player is currently acting on, or -1.
 var _selected: int = -1
+
+## The level's answer to a drawing pulled off `slot`: "place" when its ghost now follows the
+## pointer, "hold" for a tool that goes into her hand where it is let go, "" when it cannot come
+## out (the level has said why).
+var drag_begins: Callable
+## Whether letting go of `slot`'s drawing out in the world would do something -- the ghost's own
+## tint, or anywhere for a tool. It is what the pointer shows: a hand that can drop, or a no.
+var drop_allowed: Callable
+## The mouse events a drag catches on their way to the world -- the wheel that turns the ghost,
+## the right button that puts it back -- handed to whatever places it. True when it used one.
+var pointer_during_drag: Callable
+## What the drag carries, so nothing else's drop takes it for its own.
+const HUD_DRAG := "hud_slot"
+const DRAG_HINT := "Let go to set it down  ·  back on the bag to keep it"
+const HOLD_HINT := "Let go to take it in hand  ·  back on the bag to keep it"
+## The slot a drawing is being dragged out of, or -1.
+var _dragging := -1
+## Whether the pointer is back over the bar, where letting go puts it back.
+var _over_bar := false
+## ⚠ THE WORLD IS NOT A CONTROL, SO SOMETHING HAS TO CATCH THE DROP. Let go over nothing, Godot
+## ends a drag as refused and shows a forbidden pointer the whole way there -- over the very
+## ground the drawing is meant to go on. So behind the HUD lies one full-screen Control that
+## ignores the mouse except while a drawing is being dragged off the bar; then it takes the drop,
+## and says yes or no by the ghost (drop_allowed).
+var _catcher: Control
 
 ## ⚠ IT DOES NOT HIDE WHILE THE PLAYER WALKS ANY MORE.
 ##
@@ -129,6 +166,8 @@ func _ready() -> void:
 		button.text = ""
 		button.tooltip_text = "Empty"
 		button.pressed.connect(_on_slot_pressed.bind(index))
+		button.set_drag_forwarding(_drag_from_slot.bind(index), _can_drop_on_slot.bind(index),
+			_drop_on_slot.bind(index))
 		add_child(button)
 		_buttons.append(button)
 
@@ -246,6 +285,9 @@ const TRAY_PAD := 8.0
 func _draw() -> void:
 	var tray := Rect2(Vector2(-TRAY_PAD, -TRAY_PAD), size + Vector2(TRAY_PAD, TRAY_PAD) * 2.0)
 	draw_style_box(UISkin.strip(0.0, 0.0), tray)
+	# Dragged back over it, the bar says it will take the drawing back.
+	if _dragging >= 0 and _over_bar:
+		draw_style_box(UISkin.drop_ring(), tray.grow(UISkin.THIN * 2.0))
 
 
 ## HOW MANY OF ONE THING A SLOT HOLDS. Kent: "storing the same object in the inventory places
@@ -367,7 +409,11 @@ func _refresh(items: Array) -> void:
 		var occupied := item != null
 		var chosen := index == _selected and occupied
 		var button := _buttons[index]
-		button.tooltip_text = "Place %s" % item.display_name if occupied else "Empty"
+		button.tooltip_text = "%s — drag it out, or press %d" % [item.display_name, index + 1] \
+			if occupied else "Empty"
+		# A hand over what can be picked up; the arrow over an empty frame.
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if occupied \
+			else Control.CURSOR_ARROW
 		_art[index].texture = _thumbnail(item) if occupied else null
 		# Three states, three cues, because two of them have to be told apart at a glance
 		# while something is being placed: empty recedes to the panel, holding takes the
@@ -381,10 +427,14 @@ func _refresh(items: Array) -> void:
 		# ⚠ A SLOT WITH A DRAWING IN IT IS PAPER. The thumbnail is dark ink with the paper
 		# knocked out, and on the panel's near-black fill it disappeared.
 		var frame := UISkin.slot(occupied, chosen)
+		# Under the pointer, a slot with a drawing in it lifts its ring: it can be dragged out.
+		var lifted := UISkin.slot(occupied, chosen, occupied)
 		if occupied:
 			frame.bg_color = PAPER
-		for state in [&"normal", &"hover", &"pressed", &"disabled"]:
+			lifted.bg_color = PAPER
+		for state in [&"normal", &"pressed", &"disabled"]:
 			button.add_theme_stylebox_override(state, frame)
+		button.add_theme_stylebox_override(&"hover", lifted)
 		button.modulate = Color(1.12, 1.12, 1.04) if chosen else Color.WHITE
 		_numbers[index].add_theme_color_override(&"font_color", GOLD if occupied else DIM)
 		_tags[index].visible = chosen
@@ -428,10 +478,164 @@ func _on_slot_pressed(slot: int) -> void:
 	slot_pressed.emit(slot)
 
 
-## Fly `art` from the middle of the screen into `slot`, and say `caption` over the bag. See
+# --- Dragged out -------------------------------------------------------------------------------
+
+## Godot asks this of a slot pressed and moved. The level takes the drawing out the way its key
+## does; what it answers is what follows the pointer.
+func _drag_from_slot(_at: Vector2, index: int) -> Variant:
+	if _dragging >= 0 or _stowed or _click_through or _manager == null \
+			or not drag_begins.is_valid():
+		return null
+	var item := _manager.peek_item(index)
+	if item == null:
+		return null
+	# Before the level takes it: a placeable leaves the bag as it comes out.
+	var picture := _thumbnail(item)
+	var kind := String(drag_begins.call(index))
+	if kind.is_empty():
+		return null
+	_dragging = index
+	_over_bar = true
+	_ensure_catcher()
+	_catcher.mouse_filter = Control.MOUSE_FILTER_STOP
+	# A thing to set down is its own ghost in the world. A tool has none, so its drawing hangs
+	# from the pointer instead.
+	if kind == "hold" and picture != null:
+		_buttons[index].set_drag_preview(_drag_picture(picture))
+	_say(DRAG_HINT if kind == "place" else HOLD_HINT)
+	queue_redraw()
+	return {HUD_DRAG: index}
+
+
+func _can_drop_on_slot(_at: Vector2, data: Variant, _index: int) -> bool:
+	return _is_ours(data)
+
+
+func _drop_on_slot(_at: Vector2, data: Variant, _index: int) -> void:
+	if _is_ours(data):
+		_let_go(true)
+
+
+## The world's answer, through the catcher. `at` is a screen point: the catcher covers the screen
+## from its corner.
+func _can_drop_on_world(at: Vector2, data: Variant) -> bool:
+	if not _is_ours(data):
+		return false
+	if _bar_has(at):
+		return true
+	return drop_allowed.is_valid() and bool(drop_allowed.call(_dragging))
+
+
+func _drop_on_world(at: Vector2, data: Variant) -> void:
+	if _is_ours(data):
+		_let_go(_bar_has(at))
+
+
+## While the left button is held on a drag, the wheel and the right button land on the catcher
+## rather than in the world: handed on, and the right button ends the drag as it ends a placement.
+func _on_catcher_input(event: InputEvent) -> void:
+	if _dragging < 0:
+		return
+	if pointer_during_drag.is_valid():
+		pointer_during_drag.call(event)
+	var button := event as InputEventMouseButton
+	if button != null and button.pressed and button.button_index == MOUSE_BUTTON_RIGHT:
+		end_drag()
+
+
+func is_dragging() -> bool:
+	return _dragging >= 0
+
+
+## The catcher, for a probe that drops the way Godot drops.
+func drop_target() -> Control:
+	return _catcher
+
+
+## Call the drag off: the placement it began was put back some other way (Escape, a right-click).
+func end_drag() -> void:
+	if _dragging < 0:
+		return
+	var viewport := get_viewport()
+	if viewport != null and viewport.gui_is_dragging() and viewport.has_method("gui_cancel_drag"):
+		viewport.call("gui_cancel_drag")
+	_finish_drag()
+
+
+## ⚠ A REFUSED DROP IS HEARD HERE, NOT IN A DROP FUNCTION. Let go where nothing takes it -- the
+## ghost red, or over another panel -- Godot calls no drop at all; it ends the drag, unsuccessful,
+## and tells every Control. That is when the level puts the drawing back and says why.
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_DRAG_END or _dragging < 0:
+		return
+	var slot := _dragging
+	_finish_drag()
+	var viewport := get_viewport()
+	if viewport == null or not viewport.gui_is_drag_successful():
+		slot_drag_failed.emit(slot)
+
+
+func _let_go(on_bar: bool) -> void:
+	var slot := _dragging
+	# Cleared first: what the level does next ends the placement, which calls end_drag.
+	_finish_drag()
+	slot_dropped.emit(slot, on_bar)
+
+
+func _finish_drag() -> void:
+	_dragging = -1
+	_over_bar = false
+	if _catcher != null and is_instance_valid(_catcher):
+		_catcher.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	queue_redraw()
+
+
+func _is_ours(data: Variant) -> bool:
+	return _dragging >= 0 and data is Dictionary and (data as Dictionary).has(HUD_DRAG) \
+		and int((data as Dictionary)[HUD_DRAG]) == _dragging
+
+
+## Over the bar or its tray, where letting go puts a drawing back.
+func _bar_has(at: Vector2) -> bool:
+	return get_global_rect().grow(TRAY_PAD).has_point(at)
+
+
+func _ensure_catcher() -> void:
+	if _catcher != null and is_instance_valid(_catcher):
+		return
+	var layer := get_parent()
+	_catcher = Control.new()
+	_catcher.name = "BagDropCatcher"
+	_catcher.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_catcher.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_catcher.set_drag_forwarding(Callable(), _can_drop_on_world, _drop_on_world)
+	_catcher.gui_input.connect(_on_catcher_input)
+	# First in the layer, so everything the HUD draws is over it and is hit before it.
+	layer.add_child(_catcher)
+	layer.move_child(_catcher, 0)
+
+
+## A tool's drawing at the pointer, centred on it -- a preview hangs from its corner otherwise.
+func _drag_picture(picture: Texture2D) -> Control:
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var art := TextureRect.new()
+	art.texture = picture
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.size = SLOT
+	art.position = -SLOT * 0.5
+	art.modulate = Color(1.0, 1.0, 1.0, 0.85)
+	holder.add_child(art)
+	return holder
+
+
+## Fly `art` into `slot` -- from the middle of the screen, or from `from` (a screen point: where a
+## drawing that would not go down was let go) -- and say `caption` over the bag. See
 ## ARRIVE_SIZE. Called after the drawing is already in the slot: the slot's own picture is
 ## held back until the flying one lands on it.
-func arrive(slot: int, art: Texture2D, caption: String = "") -> void:
+func arrive(slot: int, art: Texture2D, caption: String = "", from: Variant = null) -> void:
 	if slot < 0 or slot >= _buttons.size():
 		return
 	_say(caption)
@@ -452,6 +656,8 @@ func arrive(slot: int, art: Texture2D, caption: String = "") -> void:
 	_art[slot].modulate.a = 0.0
 	var screen := get_viewport().get_visible_rect().size
 	var leaving := Rect2(screen * 0.5 - Vector2.ONE * ARRIVE_SIZE * 0.5, Vector2.ONE * ARRIVE_SIZE)
+	if from is Vector2:
+		leaving = Rect2((from as Vector2) - SLOT * 0.5, SLOT)
 	_fly(0.0, flier, leaving, slot)
 	var run := flier.create_tween()
 	# A drawing is very often answered by a line of story, and a line stops the world; one
@@ -638,6 +844,12 @@ func _process(delta: float) -> void:
 			(flier as CanvasItem).self_modulate.a = _curtain_alpha
 	if _dwell > 0.0:
 		_dwell = maxf(0.0, _dwell - delta)
+	# Read off the pointer, not off a drop query: over another HUD panel the catcher is not asked.
+	if _dragging >= 0:
+		var over := _bar_has(get_viewport().get_mouse_position())
+		if over != _over_bar:
+			_over_bar = over
+			queue_redraw()
 
 
 ## ⚠ THE OFFSETS, NOT `position`. This is an anchored Control inside a CanvasLayer, so its

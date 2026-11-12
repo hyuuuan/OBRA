@@ -61,6 +61,7 @@ func _run() -> void:
 	await _placing_click_reaches_the_world()
 	await _a_click_places_it_and_right_click_takes_it_back()
 	await _the_bag_screen_answers_the_mouse()
+	await _the_bar_drags_into_the_world()
 	await _dialogue_choices_answer_a_click()
 	await _a_page_turn_does_not_answer_the_question()
 	await _escape_during_a_question_is_not_a_pause_menu()
@@ -695,6 +696,83 @@ func _the_bag_screen_answers_the_mouse() -> void:
 		placement.cancel_placement()
 	if screen.is_open():
 		screen.close()
+
+
+## ⚠ THE BAR DRAGS, WITH A MOUSE. Kent: "make the inventory draggable so that the users wont have
+## to draw the exact same thing". Pressed on its slot and moved, a drawing in the bar comes out on
+## the pointer; let go on open ground it is set down there, and let go back on the bar it goes back.
+## run_bag_drag_probe holds the rules in every level; this holds that a real pointer does it.
+func _the_bar_drags_into_the_world() -> void:
+	var placement := level.get("placement_controller") as PlacementController
+	var bag := level.get("inventory_manager") as InventoryManager
+	var hud := level.get("inventory_hud") as InventoryHUD
+	var body := level.get("player") as Node2D
+	if placement == null or bag == null or hud == null or body == null:
+		_fail("the bar drags", "the level did not build what this needs")
+		return
+	if placement.is_placing():
+		placement.cancel_placement()
+	# Open ground beside her, asked of the placement itself, then a bag with one ladder in it.
+	var probe := _bar_item()
+	var ground: Variant = null
+	if placement.begin_placement(probe, body, -1):
+		var anchor := body.global_position
+		if body.has_method("get_physics_anchor") and body.call("get_physics_anchor") != null:
+			anchor = (body.call("get_physics_anchor") as Node2D).global_position
+		for offset: Vector2 in [Vector2(220, -80), Vector2(-220, -80), Vector2(160, -160),
+				Vector2(-160, -160), Vector2(260, -20)]:
+			placement.update_target(anchor + offset)
+			if placement.is_valid():
+				ground = anchor + offset
+				break
+		placement.cancel_placement()
+	for slot in range(bag.capacity):
+		while bag.take_item(slot) != null:
+			pass
+	if ground == null:
+		_fail("a drawing dragged off the bar is set down", "no open ground beside her to try")
+		return
+	var ladder := _bar_item()
+	bag.add_item(ladder, 0)
+	for _frame in range(90):
+		await process_frame
+		if hud.visible and hud.modulate.a > 0.95:
+			break
+	var slots: Array = hud.get("_buttons")
+	var from := (slots[0] as Control).get_global_rect().get_center()
+	var onto := (level as Node2D).get_viewport().get_canvas_transform() * (ground as Vector2)
+	await _drag(from, onto)
+	await _wait(0.3)
+	var placed := level.get("_last_placed") as Node2D
+	_check(not placement.is_placing() and bag.count(0) == 0 and placed != null
+			and is_instance_valid(placed) and placed.get("item_data") == ladder,
+		"a drawing dragged off the bar is set down where it is let go",
+		"placed at %s" % placed.global_position.round() if placed != null
+			and placed.get("item_data") == ladder else "placing %s, slot holds %d"
+			% [placement.is_placing(), bag.count(0)])
+	# Off the bar and back onto it: put back, nothing set down.
+	var again := _bar_item()
+	bag.add_item(again, 0)
+	await _wait(0.2)
+	await _drag((slots[0] as Control).get_global_rect().get_center(),
+		(slots[3] as Control).get_global_rect().get_center())
+	await _wait(0.3)
+	_check(not placement.is_placing() and bag.count(0) == 1 and level.get("_last_placed") != null
+			and (level.get("_last_placed") as Node).get("item_data") != again,
+		"and one dragged back onto the bar goes back in", "slot holds %d" % bag.count(0))
+	if placed != null and is_instance_valid(placed):
+		placed.queue_free()
+	for slot in range(bag.capacity):
+		while bag.take_item(slot) != null:
+			pass
+
+
+func _bar_item() -> DrawnItemData:
+	var item := DrawnItemData.new()
+	item.entity_id = "ladder"
+	item.display_name = "Ladder"
+	item.ink_committed = true
+	return item
 
 
 ## Press, move in steps with the button held, let go. Each step carries how far it moved,
