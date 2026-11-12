@@ -120,8 +120,12 @@ func _ready() -> void:
 
 
 func load_for(level_id: String) -> bool:
-	# A new ledger ends a run on the old one; its cards are not this ledger's to finish.
-	_end_entry()
+	# A new ledger ends a run on the old one, and the run's card goes with it: left up, a look card
+	# held the world and the new ledger's first lesson waited behind it.
+	if _entry_running:
+		_end_entry()
+		if _spotlight != null and _spotlight.is_open():
+			_spotlight.finish("closed")
 	_level_id = level_id
 	_lessons.clear()
 	_by_event.clear()
