@@ -22,7 +22,9 @@
     "",
     "LEVEL 1 TEACHES THE GAME; A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: 'fix level 1 like tutorial part make sure it covers everything and other levels wont have any tutorials if necessary'. run_tutorial_audit holds both halves: every control that works in Level 1 has a lesson here, and a later level may show a card only for a rule or control Level 1 cannot teach. Everything else a later level says goes to the hint bar (`say`), which dims nothing and stops nothing.",
     "",
-    "`carries` IS WHAT A ROUTE CAN MISS. Most of Level 1's lessons wait for the player to do the thing, and a run can finish it having never become anything. A `carries` lesson still unspent when the level ends is owed (PlayerProfile.lessons_owed) and is shown once, the first time its moment comes in a later level, without its `lead`: Lolo is not in every level, and nobody there was building up to it. A press on SKIP TUTORIAL owes nothing. A lesson that is not true everywhere (`undo`, `ink`: the ink rules change) does not carry."
+    "`carries` IS WHAT A ROUTE CAN MISS. Most of Level 1's lessons wait for the player to do the thing, and a run can finish it having never become anything. A `carries` lesson still unspent when the level ends is owed (PlayerProfile.lessons_owed) and is shown once, the first time its moment comes in a later level, without its `lead`: Lolo is not in every level, and nobody there was building up to it. A press on SKIP TUTORIAL owes nothing. A lesson that is not true everywhere (`undo`, `ink`: the ink rules change) does not carry.",
+    "",
+    "PAYYO PLAYS EVERY CARD AT THE DOOR. Kent: 'i want the pop ups to all be done right before the player does something in level 1 like the moment the player enters level 1, i want all tutorial pop ups to be present from movement to drawing to checking inventory, make sure nothing is left'. So level_1's cards are not waited for: once its opening has been said, every one of them plays, back to back, in the order they are listed here, as `look` cards over a world held still (TutorialDirector.teach_everything_now, LevelBase._teaches_everything_at_entry). No `lead` and no `delay` there -- each lead was written for a moment that has not come. Most of what the lessons are about does not exist yet at the door (no page, no placed drawing, no creature, an empty bag), so `entry_anchor` names what such a card lights instead: the control that will do it, or the apo. `at`, `after`, `anchor` and `lead` still say how a lesson is taught in its moment, which is how a later level shows one that is owed. Lolo's `say` lines are his, and keep their moments."
   ],
   "version": 2,
   "levels": {
@@ -36,6 +38,7 @@
           "visual": "walk",
           "context": "world",
           "anchor": "player",
+          "entry_anchor": "move_prompt",
           "action": "move_left",
           "through": "move_right",
           "join": " and ",
@@ -53,12 +56,28 @@
           "visual": "jump",
           "context": "world",
           "anchor": "player",
+          "entry_anchor": "jump_prompt",
           "action": "jump",
           "delay": 0.0,
           "seconds": 10.0,
           "caption": "Jump",
           "text": "{keys} to jump.",
           "lead": "Can you still jump, apo? Show me — the way up is never flat for long."
+        },
+        {
+          "id": "climb",
+          "carries": true,
+          "at": "climb_ready",
+          "mode": "do",
+          "visual": "hold",
+          "context": "world",
+          "anchor": "player",
+          "action": "move_up",
+          "delay": 1.0,
+          "seconds": 12.0,
+          "caption": "Hold to climb",
+          "text": "Stand at it and hold {keys}, apo. That is how you go up.",
+          "lead": "There — something to go up. Hold on tight and climb."
         },
         {
           "id": "draw",
@@ -84,6 +103,7 @@
           "visual": "draw",
           "context": "canvas",
           "anchor": "canvas_paper",
+          "entry_anchor": "draw_button",
           "mouse": [
             "left"
           ],
@@ -99,6 +119,7 @@
           "visual": "click",
           "context": "canvas",
           "anchor": "transform_button",
+          "entry_anchor": "draw_button",
           "delay": 3.0,
           "seconds": 10.0,
           "patience": 120.0,
@@ -113,6 +134,7 @@
           "visual": "place",
           "context": "placing",
           "anchor": "placement",
+          "entry_anchor": "player",
           "mouse": [
             "left"
           ],
@@ -131,6 +153,7 @@
           "visual": "resize",
           "context": "placing",
           "anchor": "placement",
+          "entry_anchor": "player",
           "action": "shrink_placement",
           "through": "grow_placement",
           "join": " and ",
@@ -152,6 +175,7 @@
           "visual": "rotate",
           "context": "placing",
           "anchor": "placement",
+          "entry_anchor": "player",
           "action": "rotate_left",
           "through": "rotate_right",
           "mouse": [
@@ -170,6 +194,7 @@
           "visual": "take_back",
           "context": "world",
           "anchor": "placed",
+          "entry_anchor": "ink_gauge",
           "mouse": [
             "right"
           ],
@@ -179,6 +204,45 @@
           "lead": "Changed your mind? You can always take a drawing back."
         },
         {
+          "id": "ink",
+          "at": "ink_spent",
+          "after": "undo",
+          "mode": "look",
+          "visual": "ink",
+          "context": "world",
+          "anchor": "ink_gauge",
+          "caption": "Every drawing costs ink",
+          "text": "That cost ink, apo. There is not much of it.",
+          "lead": "Her brush runs on ink, apo, and we do not have much. Spend it wisely."
+        },
+        {
+          "id": "become",
+          "at": "moved",
+          "after": "quest",
+          "mode": "look",
+          "visual": "become",
+          "context": "world",
+          "anchor": "player",
+          "delay": 6.0,
+          "caption": "Draw something alive and you become it",
+          "text": "Draw something alive, apo, and you become it.",
+          "lead": "One more thing, apo. Paint something alive and you do not carry it. You become it."
+        },
+        {
+          "id": "clock",
+          "carries": true,
+          "at": "morph_running",
+          "after": "revert",
+          "mode": "look",
+          "visual": "clock",
+          "context": "creature",
+          "anchor": "morph_card",
+          "entry_anchor": "player",
+          "caption": "It runs out",
+          "text": "That bar is the drawing's life, apo. It runs out.",
+          "lead": "Watch that bar, apo. Something you become does not last forever."
+        },
+        {
           "id": "revert",
           "carries": true,
           "at": "became_creature",
@@ -186,6 +250,7 @@
           "visual": "revert",
           "context": "creature",
           "anchor": "revert_prompt",
+          "entry_anchor": "player",
           "action": "revert_form",
           "delay": 0.6,
           "caption": "Change back to yourself",
@@ -226,90 +291,6 @@
           "lead": "The water will have you now, apo. Go as deep as you like."
         },
         {
-          "id": "clock",
-          "carries": true,
-          "at": "morph_running",
-          "after": "revert",
-          "mode": "look",
-          "visual": "clock",
-          "context": "creature",
-          "anchor": "morph_card",
-          "caption": "It runs out",
-          "text": "That bar is the drawing's life, apo. It runs out.",
-          "lead": "Watch that bar, apo. Something you become does not last forever."
-        },
-        {
-          "id": "life",
-          "at": "morph_low",
-          "after": "revert",
-          "mode": "say",
-          "speaker": "Lolo",
-          "seconds": 6.0,
-          "text": "It is going, apo. A drawing does not last."
-        },
-        {
-          "id": "ink",
-          "at": "ink_spent",
-          "after": "undo",
-          "mode": "look",
-          "visual": "ink",
-          "context": "world",
-          "anchor": "ink_gauge",
-          "caption": "Every drawing costs ink",
-          "text": "That cost ink, apo. There is not much of it.",
-          "lead": "Her brush runs on ink, apo, and we do not have much. Spend it wisely."
-        },
-        {
-          "id": "requirement",
-          "carries": true,
-          "at": "requirement_shown",
-          "after": "draw",
-          "mode": "look",
-          "visual": "requirement",
-          "context": "world",
-          "anchor": "requirement_strip",
-          "caption": "What it needs DONE, not drawn",
-          "text": "That word is what it needs DONE, not what to draw.",
-          "lead": "See that word? It tells you what must be DONE here — not what to draw."
-        },
-        {
-          "id": "checkpoint",
-          "at": "checkpoint",
-          "mode": "look",
-          "visual": "checkpoint",
-          "context": "world",
-          "anchor": "player",
-          "caption": "Fall, and you start again here",
-          "text": "That lantern is a checkpoint, apo. If you fall or get stuck, you start again from here, with the ink you had.",
-          "lead": "A lantern! She lit these so nobody would lose their way."
-        },
-        {
-          "id": "quest",
-          "at": "moved",
-          "after": "checkpoint",
-          "mode": "look",
-          "visual": "quest",
-          "context": "world",
-          "anchor": "quest_card",
-          "delay": 2.0,
-          "caption": "Your next task is always here",
-          "text": "The card at the top says what comes next, apo.",
-          "lead": "If you ever lose your way, apo, look up. That card says what comes next."
-        },
-        {
-          "id": "become",
-          "at": "moved",
-          "after": "quest",
-          "mode": "look",
-          "visual": "become",
-          "context": "world",
-          "anchor": "player",
-          "delay": 6.0,
-          "caption": "Draw something alive and you become it",
-          "text": "Draw something alive, apo, and you become it.",
-          "lead": "One more thing, apo. Paint something alive and you do not carry it. You become it."
-        },
-        {
           "id": "interact",
           "carries": true,
           "at": "pickup_ready",
@@ -318,11 +299,27 @@
           "visual": "keys",
           "context": "world",
           "anchor": "pickup_prompt",
+          "entry_anchor": "player",
           "action": "interact",
           "delay": 0.4,
           "caption": "Pick up or use what is near",
           "text": "{keys} picks up or uses whatever is near you, apo.",
           "lead": "See that key over your head? It works on whatever you are standing near."
+        },
+        {
+          "id": "hold",
+          "carries": true,
+          "at": "tool_held",
+          "mode": "look",
+          "visual": "keys",
+          "context": "world",
+          "anchor": "use_prompt",
+          "entry_anchor": "player",
+          "action": "use_utility",
+          "delay": 0.6,
+          "caption": "Use what you hold",
+          "text": "{keys} uses it.",
+          "lead": "You are holding it now. Go on, apo, use it."
         },
         {
           "id": "bag",
@@ -355,33 +352,51 @@
           "lead": "Your bag remembers everything you have ever drawn. Have a look inside sometime."
         },
         {
-          "id": "climb",
-          "carries": true,
-          "at": "climb_ready",
-          "mode": "do",
-          "visual": "hold",
+          "id": "checkpoint",
+          "at": "checkpoint",
+          "mode": "look",
+          "visual": "checkpoint",
           "context": "world",
           "anchor": "player",
-          "action": "move_up",
-          "delay": 1.0,
-          "seconds": 12.0,
-          "caption": "Hold to climb",
-          "text": "Stand at it and hold {keys}, apo. That is how you go up.",
-          "lead": "There — something to go up. Hold on tight and climb."
+          "caption": "Fall, and you start again here",
+          "text": "That lantern is a checkpoint, apo. If you fall or get stuck, you start again from here, with the ink you had.",
+          "lead": "A lantern! She lit these so nobody would lose their way."
         },
         {
-          "id": "hold",
-          "carries": true,
-          "at": "tool_held",
+          "id": "quest",
+          "at": "moved",
+          "after": "checkpoint",
           "mode": "look",
-          "visual": "keys",
+          "visual": "quest",
           "context": "world",
-          "anchor": "use_prompt",
-          "action": "use_utility",
-          "delay": 0.6,
-          "caption": "Use what you hold",
-          "text": "{keys} uses it.",
-          "lead": "You are holding it now. Go on, apo, use it."
+          "anchor": "quest_card",
+          "delay": 2.0,
+          "caption": "Your next task is always here",
+          "text": "The card at the top says what comes next, apo.",
+          "lead": "If you ever lose your way, apo, look up. That card says what comes next."
+        },
+        {
+          "id": "requirement",
+          "carries": true,
+          "at": "requirement_shown",
+          "after": "draw",
+          "mode": "look",
+          "visual": "requirement",
+          "context": "world",
+          "anchor": "requirement_strip",
+          "entry_anchor": "quest_card",
+          "caption": "What it needs DONE, not drawn",
+          "text": "That word is what it needs DONE, not what to draw.",
+          "lead": "See that word? It tells you what must be DONE here — not what to draw."
+        },
+        {
+          "id": "life",
+          "at": "morph_low",
+          "after": "revert",
+          "mode": "say",
+          "speaker": "Lolo",
+          "seconds": 6.0,
+          "text": "It is going, apo. A drawing does not last."
         }
       ]
     },

@@ -4911,8 +4911,41 @@ var _advice_held: Dictionary = {}
 func _play_opening() -> void:
 	_opening_running = true
 	await _say_the_opening()
+	# Still the opening: nothing that waits for her first words may start over a card.
+	if _teaches_everything_at_entry() and tutorial != null and tutorial.is_enabled():
+		_fill_in_the_hud()
+		await tutorial.teach_everything_now(_stage_entry_card)
 	_opening_running = false
 	opening_finished.emit()
+
+
+## Whether every lesson card plays the moment the level opens, after its first words, and none
+## waits for its moment (TutorialDirector.teach_everything_now). Off; Payyo turns it on.
+func _teaches_everything_at_entry() -> bool:
+	return false
+
+
+## Set the scene for a card in the run at the entry: the bag is hidden while it is empty, so a
+## card about it brings the six empty slots up to be lit. "" puts it all back.
+func _stage_entry_card(anchor: String) -> void:
+	if inventory_hud != null:
+		inventory_hud.show_empty(anchor == "inventory_bar")
+	# ⚠ Redrawn for its own card, not only at the start. The arrow is drawn through the camera
+	# as it stood then, and the camera was still settling: its card lit the wall beside it.
+	if anchor == "objective_marker" and objective_marker != null:
+		objective_marker.queue_redraw()
+
+
+## ⚠ THE HUD AS IT WILL BE, NOT AS IT WAS ON THE FIRST FRAME. The world is held from the first
+## card, which can be the level's first frame, and the quest card, its arrow and the map are
+## filled in by ticks that a held world does not run: every card lit an empty quest card, the
+## arrow's card a patch of empty wall, and the map's card a black square.
+func _fill_in_the_hud() -> void:
+	refresh_objective()
+	if objective_marker != null:
+		objective_marker.queue_redraw()
+	if minimap != null:
+		minimap.refresh()
 
 
 func _say_the_opening() -> void:
