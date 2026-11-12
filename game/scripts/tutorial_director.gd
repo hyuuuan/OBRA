@@ -104,6 +104,10 @@ var _level_id := ""
 ## The cards still to come in the run at the entry, in order, and whether one is on.
 var _entry: Array[String] = []
 var _entry_running := false
+## ⚠ DECIDED ONCE, AT THE START OF THE RUN: whether anyone is at the keys. Asked per card, a
+## suite that turned auto-dismiss off a second in -- to read one line itself -- got the next card
+## as a real one, which held the world and waited for a key nobody would press.
+var _entry_auto := false
 ## What the level does to set the scene for an entry card, given its anchor ("" at the end) --
 ## the empty bag shown while a card about the bag is up.
 var _stage := Callable()
@@ -447,6 +451,8 @@ func teach_everything_now(stage: Callable = Callable()) -> void:
 	_entry_running = true
 	if _spotlight != null:
 		_spotlight.hold(true)
+		# It holds only for somebody at the keys.
+		_entry_auto = not _spotlight.is_holding()
 	_pump_entry()
 	if _entry_running:
 		await everything_taught
@@ -491,6 +497,7 @@ func _pump_entry() -> void:
 		_stage.call(anchor)
 	var card := _card_for(lesson)
 	card["mode"] = "look"
+	card["auto"] = _entry_auto
 	card["auto_seconds"] = ENTRY_AUTO_SEC
 	_present(card, anchor)
 	lesson_taught.emit(id)

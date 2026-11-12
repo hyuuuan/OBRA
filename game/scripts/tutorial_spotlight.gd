@@ -255,7 +255,8 @@ func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable())
 	_first_frame = true
 	_closing = -1.0
 	_lost_for = 0.0
-	_auto = _nobody_at_the_keys()
+	# A run of cards says for itself, decided once when it began (TutorialDirector._entry_auto).
+	_auto = bool(lesson["auto"]) if lesson.has("auto") else _nobody_at_the_keys()
 	var look := _mode() == "look"
 	pauses_game = look and not _auto
 	_visual.show_kind(String(lesson.get("visual", "keys")),
