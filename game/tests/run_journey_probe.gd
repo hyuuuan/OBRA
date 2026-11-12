@@ -93,6 +93,7 @@ func _scene_name() -> String:
 ## A scene has just been walked into: is the world running, and is the scene the one expected?
 func _arrived(manager: Node, expected: String, what: String) -> void:
 	_check(_scene_name() == expected, "%s -- the scene is %s" % [what, expected], _scene_name())
+	await _read_the_cards()
 	_check(not paused, "%s -- and nothing is left paused" % what,
 		"running" if not paused else "THE TREE IS PAUSED -- the player arrives frozen")
 	_check(not bool(manager.call("is_transitioning")), "%s -- and the wipe has finished" % what,
@@ -396,3 +397,23 @@ func _press(action: StringName) -> void:
 		up.pressed = false
 		Input.parse_input_event(up)
 		return
+
+
+## PAYYO OPENS ON ITS CARDS, holding the world until each is read -- on purpose. Read them as a
+## player does, so "nothing is left paused" asks about what is left after them.
+func _read_the_cards() -> void:
+	var tutorial = current_scene.get("tutorial") if current_scene != null else null
+	var spot = current_scene.get("tutorial_spotlight") if current_scene != null else null
+	if tutorial == null or spot == null:
+		return
+	var since := Time.get_ticks_msec()
+	while bool(tutorial.call("is_teaching_everything")) and Time.get_ticks_msec() - since < 60000:
+		await process_frame
+		if bool(spot.call("is_showing")) and float(spot.get("_age")) > TutorialSpotlight.LOOK_MIN_SEC + 0.05:
+			for down in [true, false]:
+				var event := InputEventAction.new()
+				event.action = &"ui_accept"
+				event.pressed = down
+				Input.parse_input_event(event)
+	for _i in range(5):
+		await process_frame
