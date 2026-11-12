@@ -1876,6 +1876,7 @@ func _tend_the_kapre(delta: float) -> void:
 	_smoke_last_x = x
 	var blowing := director.committed_route("L4_KAPRE") == "artist" and not director.is_solved("L4_KAPRE") \
 		and _moving_air() and _within_smoke_reach(x)
+	_carry_the_wind_to_the_smoke(blowing)
 	# Working air opens the way while it clears. Stop partway through, and the bank can still
 	# turn her back; merely carrying a switched-off fan does not bypass the smoke.
 	var stopped_inside := _fanned > 0.0 and not blowing and x >= middle
@@ -1901,12 +1902,46 @@ func _within_smoke_reach(x: float) -> bool:
 	return x >= span.x - FAN_REACH and x <= span.y + FAN_REACH
 
 
+## A fan's wind is drawn out of it (FanWind2D), so it moves the smoke only blowing AT it: facing
+## the way the smoke is blown (east, Kapre2D.BLOWN_AWAY), with the bank still ahead of it. It
+## cleared the smoke facing away from it, while the wind on screen went the other way.
+func _fan_points_at_the_smoke(fan: UtilityObject) -> bool:
+	return fan.wind_axis().x > 0.0 and fan.wind_origin().x <= _kapre.smoke_span().y
+
+
+## How far into the bank its wind is drawn going, past the near edge.
+const SMOKE_WIND_INTO := 120.0
+
+
+## A fan's wind reaches WEATHER_RADIUS, and FAN_REACH lets her blow from further off than that:
+## from the edge of it the smoke moved while the wind stopped short of it -- the one thing the
+## wind on screen is there to explain. While it is blowing the smoke, it is drawn reaching in.
+func _carry_the_wind_to_the_smoke(blowing: bool) -> void:
+	var fan := _equipped_utility
+	if fan == null or not is_instance_valid(fan) or fan.utility_behavior != "fan":
+		return
+	var reach := UtilityObject.WEATHER_RADIUS
+	if blowing:
+		reach = maxf(reach, _kapre.smoke_span().x - fan.wind_origin().x + SMOKE_WIND_INTO)
+	fan.wind_reach = reach
+
+
 func _level_use_verb(entity_id: String) -> String:
-	if _kapre != null and player != null and not director.is_solved("L4_KAPRE") \
-			and _within_smoke_reach(PlayerHurtbox2D.middle_of(player).x) \
-			and String(registry.get_entity(entity_id).get("utility_behavior", "")) == "fan":
+	if _fan_offered_at_the_smoke(entity_id):
 		return "STOP" if _equipped_utility.is_active() else "BLOW"
 	return super(entity_id)
+
+
+## Whether F offers this held thing to the smoke as a fan, from anywhere within FAN_REACH of it.
+##
+## ⚠ OFFERED IS NOT DONE. FAN_REACH runs further out than the kapre's own ground, where F is
+## judged as an answer, and out there F BLOW only switched the fan on: nothing chose the artist
+## route, so the smoke -- the thing BLOW was about -- never moved. One question for the prompt
+## and the press, so the word on F and what F does cannot part again.
+func _fan_offered_at_the_smoke(entity_id: String) -> bool:
+	return _kapre != null and player != null and not director.is_solved("L4_KAPRE") \
+		and _within_smoke_reach(PlayerHurtbox2D.middle_of(player).x) \
+		and String(registry.get_entity(entity_id).get("utility_behavior", "")) == "fan"
 
 
 ## A blade swung at its tree is a chop -- the first one too, the swing that draws the route in.
@@ -1914,6 +1949,15 @@ func _level_use_verb(entity_id: String) -> String:
 func _use_equipped_utility() -> void:
 	var swung := _equipped_utility != null and is_instance_valid(_equipped_utility) \
 		and _equipped_utility.is_ready()
+	# F BLOW off the kapre's own ground chooses the route its press would choose on it: the one
+	# that switches the fan on, not the one that stops it.
+	var held_id := String(_equipped_utility.item_data.entity_id) \
+		if swung and _equipped_utility.item_data != null else ""
+	if not held_id.is_empty() and not _tool_answers_here(held_id) and _fan_offered_at_the_smoke(held_id) \
+			and not _equipped_utility.is_active():
+		if director.committed_route("L4_KAPRE").is_empty():
+			director.commit_route("L4_KAPRE", "artist")
+		director.switch_route("L4_KAPRE", "artist")
 	super()
 	if swung and _kapre != null and not _kapre.is_felled() and director != null \
 			and director.committed_route("L4_KAPRE") == "pragmatist" and not director.is_solved("L4_KAPRE") \
@@ -1932,7 +1976,7 @@ func _moving_air() -> bool:
 	var held := _equipped_utility != null and is_instance_valid(_equipped_utility) \
 		and _equipped_utility.item_data != null and takes.has(_equipped_utility.item_data.entity_id)
 	if held and _equipped_utility.utility_behavior == "fan":
-		held = _equipped_utility.is_active()
+		held = _equipped_utility.is_blowing() and _fan_points_at_the_smoke(_equipped_utility)
 	return held or takes.has(_current_form_id)
 
 

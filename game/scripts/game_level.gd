@@ -270,6 +270,7 @@ func _on_straw_entered() -> void:
 	if room.has_method("disarm_the_way_out"):
 		room.call("disarm_the_way_out")
 	_step_through(Vector2(room.call("entry_point")))
+	_retire_the_heaps_advice()
 	# ARRIVING FIRST, THEN THE CHEST. `speak` appends to the queue, so the order these are
 	# called in is the order the player reads them -- and uncovering first put "Locked. Of
 	# course.", which is the line that CLOSES this node, ahead of "you can stand up in here",
@@ -277,6 +278,30 @@ func _on_straw_entered() -> void:
 	# seen yet, in a room they had not been told they were in.
 	_speak_on_arrival("L1_N2.inside")
 	_uncover_the_baul()
+
+
+## THE HEAP'S WAYS THROUGH ARE ABOUT GETTING AT THE KEY FROM OUTSIDE IT. Inside the heap, and
+## once the key is in hand, they are about nothing. "We can do it slowly -- something that can
+## FORAGE, that sifts through" was still up on the bar as she walked in, over a room whose
+## puzzle is height and nothing else, and it came back as a reminder when she walked out past
+## the heap with the key already in her bag. Kent: "its so confusing there".
+func _advise_the_beat(obstacle_id: String) -> void:
+	if obstacle_id == "L1_N2" and _the_heap_has_nothing_to_ask():
+		return
+	super(obstacle_id)
+
+
+func _the_heap_has_nothing_to_ask() -> bool:
+	if pickup_taken_this_run(FOUND_KEY):
+		return true
+	var room := _room_holding_player()
+	return room != null and room.is_in_group(&"straw_rooms")
+
+
+## Only the heap's own advice: anything else on the bar is somebody else's to take down.
+func _retire_the_heaps_advice() -> void:
+	if _beat_advice_of == "L1_N2":
+		_retire_beat_advice()
 
 
 func _on_straw_exit() -> void:
@@ -331,6 +356,7 @@ func _take_the_bale_key(how: String) -> void:
 	if pickup_taken_this_run(FOUND_KEY):
 		return
 	note_pickup_taken(FOUND_KEY)
+	_retire_the_heaps_advice()
 	announce_acquisition("The Brass Key",
 		"Too small for the chest. It belongs to a house you have only seen painted.",
 		UIIcons.key())
@@ -1023,6 +1049,7 @@ func _level_answers_first() -> bool:
 func _level_physics(anchor_position: Vector2) -> void:
 	_offer_the_found_key()
 	_tell_her_about_the_lake(anchor_position)
+	_lean_toward_the_key(anchor_position)
 	# Crossing the far lip is what earns the memory, not choosing the route that would
 	# have earned it: the reward is for having rebuilt her bridge and walked over it.
 	#
@@ -1031,6 +1058,21 @@ func _level_physics(anchor_position: Vector2) -> void:
 	# the player was still falling into it.
 	if anchor_position.x > 3660.0:
 		_show_memory_if_earned()
+
+
+## Inside the heap the frame leans toward the brass on its nail (StrawRoom2D.camera_lead); out
+## of it, and once the key is taken, it sits on her again. Written every tick rather than on
+## the way through the door, because the lead shrinks as she walks to the key -- and Payyo uses
+## the x offset for nothing else, so zero is always "no opinion".
+func _lean_toward_the_key(at: Vector2) -> void:
+	var world_camera := _world_camera()
+	if world_camera == null:
+		return
+	var room := _room_holding_player()
+	var lead := 0.0
+	if room != null and room.has_method("camera_lead"):
+		lead = float(room.call("camera_lead", at))
+	world_camera.target_offset.x = lead
 
 
 func _tell_her_about_the_lake(at: Vector2) -> void:
@@ -1115,6 +1157,22 @@ func _current_objective() -> Dictionary:
 	var at := player.global_position if player != null and is_instance_valid(player) \
 		else Vector2.ZERO
 
+	# ⚠ INSIDE THE HEAP FIRST, BEFORE ANYTHING ASKED BY POSITION. The room is parked in the
+	# sky at x 2030..3130, which is over the gorge's x on the terrace below, so a player who
+	# got past the gorge some way other than its answer (a bird) walked into the heap and was
+	# told to follow the terraces to the gorge -- with no arrow at all, because the gorge is
+	# not in the room. Kent: "when a player goes there they cant see the key so like the arrow
+	# should just point at the key".
+	var straw_room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
+	if room != null and room == straw_room:
+		if not pickup_taken_this_run(FOUND_KEY):
+			# OUT OF REACH, so standing under it is not having arrived: the chevron stays over
+			# the key the whole time she is working out how to get up there.
+			return {"key": "straw_inside", "out_of_reach": true,
+				"target": straw_room.global_position + Vector2(straw_room.call("key_mark"))}
+		return {"key": "straw_leave",
+			"target": straw_room.global_position + Rect2(straw_room.call("exit_rect")).get_center()}
+
 	if not director.is_solved("B0_HAGDAN") and at.x < HAGDAN_TOP_X:
 		# The foot of Ang Hagdan's wall, where the drawing goes.
 		return {"key": "b0_sub1", "obstacle": "B0_HAGDAN", "target": Vector2(1130.0, 470.0)}
@@ -1125,14 +1183,6 @@ func _current_objective() -> Dictionary:
 			var node_at := dialogue_node.global_position if dialogue_node != null else gorge
 			return {"key": "gorge", "target": node_at + Vector2(0.0, -110.0)}
 		return {"key": "gorge", "obstacle": "L1_N1", "target": gorge + Vector2(0.0, -130.0)}
-
-	var straw_room := get_tree().get_first_node_in_group(&"straw_rooms") as Node2D
-	if room != null and room == straw_room:
-		if not pickup_taken_this_run(FOUND_KEY):
-			return {"key": "straw_inside",
-				"target": straw_room.global_position + Vector2(straw_room.get("key_at"))}
-		return {"key": "straw_leave",
-			"target": straw_room.global_position + Rect2(straw_room.call("exit_rect")).get_center()}
 
 	var heap := _obstacle_point("L1_N2")
 	if not director.is_solved("L1_N2") and not pickup_taken_this_run(FOUND_KEY) \

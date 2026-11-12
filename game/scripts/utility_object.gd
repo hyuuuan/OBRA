@@ -59,6 +59,24 @@ static func reach_of(behaviour: String) -> float:
 	return float(BEHAVIOUR_REACH.get(behaviour, TOOL_REACH))
 ## Continuous per-frame accelerations (px/s^2) the tools push the player with.
 const FAN_PUSH := 620.0
+## A fan's wind rises this much as it goes: it pushes along (facing, -FAN_LIFT), and its gusts
+## are drawn along that same line (FanWind2D).
+const FAN_LIFT := 0.35
+## How much a fan's stream widens per px out from its blades. One number for the gusts drawn and
+## the bodies pushed (in_the_wind), so what moves is what the wind on screen reaches.
+const WIND_SPREAD := 0.4
+## A drawn fan's blades turning while it blows (FanBlades): up to a turn a second, run up and
+## coasted down rather than switched, the way a motor does.
+const SPIN_TOP := TAU * 1.1
+const SPIN_UP_SECONDS := 0.4
+## Coasting down it never crawls slower than this, and it stops where it was drawn: the coast is
+## timed to land on a whole turn, at least COAST_SHORTEST away, so stopping is never a jolt.
+const COAST_SLOWEST := 3.0
+const COAST_SHORTEST := PI * 0.5
+## A fan with no blades to find (a hand fan, one stroke) flutters whole instead: this far either
+## way about its foot, this many times a second.
+const FLUTTER := 0.1
+const FLUTTER_HZ := 3.0
 const BALLOON_LIFT := -1180.0
 const PARACHUTE_DRAG := -820.0
 const PARACHUTE_FALL_LIMIT := 120.0
@@ -133,6 +151,24 @@ static var _cone_texture: ImageTexture = null
 var _point_light: PointLight2D
 var _interaction_area: Area2D
 var _vehicle_joint: PinJoint2D
+## How far a fan's wind goes from its hub, world px. A level may carry it further for a frame
+## (Dilim carries it to the kapre's smoke) and puts it back.
+var wind_reach := WEATHER_RADIUS
+## Which way the fan in her hand is blowing, 1 or -1; set as it pushes.
+var _wind_facing := 1.0
+var _wind: FanWind2D
+## FanBlades.find on this drawing: {} when it has no blades to turn, and it flutters instead.
+var _rotor: Dictionary = {}
+## The turn the drawing is at (radians), how fast it is going, and the coast it is on.
+var _turn := 0.0
+var _turn_speed := 0.0
+var _coast_to := -1.0
+var _coast_slowing := 0.0
+var _flutter_clock := 0.0
+## The turn on screen: _turn held at Motion.PIXEL_FPS.
+var _shown_turn := 0.0
+var _turn_clock := 0.0
+var _turn_frame := -1
 
 
 func _ready() -> void:
@@ -148,6 +184,14 @@ func _ready() -> void:
 		_set_light_active(true)
 	elif utility_behavior == "sun":
 		add_to_group(LightField.GROUP)
+	# Only a fan has anything to show per frame (its wind and its turn); nothing else pays for it.
+	set_process(utility_behavior == "fan")
+	if utility_behavior == "fan":
+		var skin := _get_skin()
+		if skin != null and skin.has_signal(&"rig_built"):
+			skin.connect(&"rig_built", _find_the_blades)
+		# The drawing may have been applied before it entered the tree, rig_built and all.
+		_find_the_blades(true)
 	add_to_group("drawn_utilities")
 	if utility_behavior in ["sailboat", "submarine"]:
 		# Hulls do their own buoyancy in _integrate_forces. Without this the pool lifts
@@ -467,13 +511,174 @@ func _apply_held_effects(_delta: float) -> void:
 			_push_actor(_equipped_actor, Vector2(0.0, BALLOON_LIFT))
 		"fan":
 			# Wind: it pushes the world, not the holder -- so it moves what is in front
-			# of you rather than shoving you backwards.
-			var facing := _facing_of(_equipped_actor)
-			for target in _reachable_targets(WEATHER_RADIUS):
+			# of you rather than shoving you backwards. Only what is in the stream drawn out
+			# of it (in_the_wind): it used to push everything within WEATHER_RADIUS, behind
+			# her too, which no wind on screen could account for.
+			_wind_facing = _facing_of(_equipped_actor)
+			var push := Vector2(_wind_facing, -FAN_LIFT) * FAN_PUSH
+			for target in _reachable_targets(wind_reach + _wind_base() + _target_size().length() * 0.5):
 				var body := target as RigidBody2D
-				if body == null or body == self or body.freeze or _is_player_body(body):
+				if body == null or body == self or body.freeze or _is_player_body(body) \
+						or not in_the_wind(body.global_position):
 					continue
-				body.apply_central_force(Vector2(facing * FAN_PUSH, -FAN_PUSH * 0.35) * body.mass)
+				body.apply_central_force(push * body.mass)
+
+
+## Whether this is a fan that is on in her hand -- the state it pushes in, so the state its
+## wind and its turning are shown in. On but put down, it does nothing, and shows nothing.
+func is_blowing() -> bool:
+	return utility_behavior == "fan" and _active and not is_preview \
+		and _equipped_actor != null and is_instance_valid(_equipped_actor)
+
+
+## Which way its wind goes: the way she faces, rising a little (FAN_LIFT). Unit length.
+func wind_axis() -> Vector2:
+	return Vector2(_wind_facing, -FAN_LIFT).normalized()
+
+
+## Where its wind starts: the hub its blades turn on, or the middle of the drawing.
+func wind_origin() -> Vector2:
+	var skin := _inked_skin()
+	if skin == null:
+		return global_position
+	var at: Vector2 = _rotor["hub"] if not _rotor.is_empty() else skin.get_stroke_bounds().get_center()
+	return skin.stroke_space() * at
+
+
+## Is `point` (world) in the stream its wind blows along: ahead of the hub, inside its reach,
+## inside the cone that widens out from the blades? The gusts are drawn over exactly this.
+func in_the_wind(point: Vector2) -> bool:
+	var axis := wind_axis()
+	var offset := point - wind_origin()
+	var along := offset.dot(axis)
+	if along < 0.0 or along > wind_reach:
+		return false
+	return absf(offset.cross(axis)) <= _wind_base() + along * WIND_SPREAD
+
+
+## Whether this drawing has blades to turn (FanBlades), rather than fluttering whole.
+func turns_its_blades() -> bool:
+	return not _rotor.is_empty()
+
+
+## The strokes that turn as it blows, and the hub they turn on (stroke space); {} if it flutters.
+func blades() -> Dictionary:
+	return _rotor.duplicate()
+
+
+## How far the drawing is turned on screen right now, radians: its blades, or the whole of it.
+func blade_turn() -> float:
+	return _shown_turn
+
+
+## The wind drawn out of it, made the first time it blows; null before that.
+func wind() -> FanWind2D:
+	return _wind
+
+
+func _process(delta: float) -> void:
+	var blowing := is_blowing()
+	_turn_the_fan(delta, blowing)
+	if blowing and _wind == null:
+		_wind = FanWind2D.make_for(self)
+	if _wind != null:
+		_wind.advance(delta, blowing, wind_origin(), wind_axis(), _wind_front(), wind_reach,
+			_wind_base(), WIND_SPREAD)
+
+
+## Its blades turn while it blows, run up to speed, and coast round to where they were drawn
+## when it stops. With no blades the whole drawing flutters about its foot. Reduced motion: it
+## stays as drawn (the wind still shows it is on).
+func _turn_the_fan(delta: float, blowing: bool) -> void:
+	if Motion.reduced() or (not blowing and _rotor.is_empty()):
+		_turn = 0.0
+		_turn_speed = 0.0
+		_coast_to = -1.0
+		_flutter_clock = 0.0
+	elif blowing and _rotor.is_empty():
+		_flutter_clock += delta
+		_turn = sin(_flutter_clock * TAU * FLUTTER_HZ) * FLUTTER
+	elif blowing:
+		_coast_to = -1.0
+		_turn_speed = move_toward(_turn_speed, SPIN_TOP, SPIN_TOP / SPIN_UP_SECONDS * delta)
+		_turn = fposmod(_turn + _turn_speed * delta, TAU)
+	elif _turn != 0.0:
+		if _coast_to < 0.0:
+			# Timed so it slows evenly and lands on a whole turn: v^2 = 2 a d.
+			var left := TAU - fposmod(_turn, TAU)
+			if left < COAST_SHORTEST:
+				left += TAU
+			_turn_speed = maxf(_turn_speed, COAST_SLOWEST)
+			_coast_to = _turn + left
+			_coast_slowing = _turn_speed * _turn_speed / (2.0 * left)
+		_turn_speed = maxf(COAST_SLOWEST * 0.25, _turn_speed - _coast_slowing * delta)
+		_turn += _turn_speed * delta
+		if _turn >= _coast_to:
+			_turn = 0.0
+			_turn_speed = 0.0
+			_coast_to = -1.0
+	_turn_clock += delta
+	var frame := floori(_turn_clock * Motion.PIXEL_FPS)
+	# Held at PIXEL_FPS like every other move, except that coming to rest is shown at once.
+	if frame == _turn_frame and _turn != 0.0:
+		return
+	_turn_frame = frame
+	if _turn != _shown_turn:
+		_shown_turn = _turn
+		_show_the_turn()
+
+
+func _show_the_turn() -> void:
+	var skin := _inked_skin()
+	if skin == null:
+		return
+	if not _rotor.is_empty():
+		skin.turn_strokes(_rotor["blades"], _rotor["hub"], _shown_turn)
+		return
+	var every := PackedInt32Array()
+	for index in range(skin.get_vector_strokes().size()):
+		every.append(index)
+	var box := skin.get_stroke_bounds()
+	skin.turn_strokes(every, Vector2(box.get_center().x, box.end.y), _shown_turn)
+
+
+## Read once per drawing (and again if it is rebuilt -- resized), when the strokes are in place.
+func _find_the_blades(_built: bool) -> void:
+	var skin := _inked_skin()
+	_rotor = FanBlades.find(skin.get_vector_strokes()) if skin != null else {}
+	_turn = 0.0
+	_turn_speed = 0.0
+	_coast_to = -1.0
+	_shown_turn = 0.0
+
+
+## The skin, when it is drawing the player's strokes (not a bitmap stand-in with nothing to turn).
+func _inked_skin() -> RuntimeRig2D:
+	var skin := _get_skin() as RuntimeRig2D
+	return skin if skin != null and skin.debug_skin_active() else null
+
+
+## From its hub to the front of the drawing, world px: where the gusts start.
+func _wind_front() -> float:
+	var skin := _inked_skin()
+	if skin == null:
+		return _target_size().x * 0.5
+	var scale_by := absf(skin.stroke_space().get_scale().x)
+	if not _rotor.is_empty():
+		return float(_rotor["radius"]) * scale_by
+	return skin.get_stroke_bounds().size.x * 0.5 * scale_by
+
+
+## Half the stream's width at the blades, world px.
+func _wind_base() -> float:
+	var skin := _inked_skin()
+	if skin == null:
+		return _target_size().y * 0.25
+	var scale_by := absf(skin.stroke_space().get_scale().y)
+	if not _rotor.is_empty():
+		return float(_rotor["radius"]) * scale_by
+	var box := skin.get_stroke_bounds()
+	return minf(box.size.x, box.size.y) * 0.25 * scale_by
 
 
 ## Props act by being where they were left. Nothing here needs the player to be
