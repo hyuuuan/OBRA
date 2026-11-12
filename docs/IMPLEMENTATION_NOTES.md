@@ -133,7 +133,7 @@ the player does something in level 1 like the moment the player enters level 1 .
 nothing is left"). `LevelBase._teaches_everything_at_entry` (Payyo only) has `_play_opening`
 await `TutorialDirector.teach_everything_now` after the level's first words: every unspent card,
 in ledger order, as a `look` card with no lead and no delay, lighting its `entry_anchor`. Then
-nothing is left to wait for its moment. Five things this cost:
+nothing is left to wait for its moment. Six things this cost:
 - **A card's pause goes the moment it starts to leave**, so back-to-back cards ran the world for
   every fade. `TutorialSpotlight.hold` keeps the run paused, and a card presented over one that
   is leaving takes its place (`_chained`): the dim stays and the hole slides to the next thing.
@@ -148,6 +148,11 @@ nothing is left to wait for its moment. Five things this cost:
   `InventoryHUD.show_empty` brings the six slots up for the bag's cards only.
 - **Nobody at the keys, 28 cards at `AUTO_SEC` would hold the hint bar for over a minute** in
   every suite that opens Payyo. An entry card stays `ENTRY_AUTO_SEC` there: about two seconds in all.
+  ⚠ The run decides once, when it begins (`_entry_auto`): `run_level1_audit` turns auto-dismiss
+  off a second in, and a card asked then became a real one that held the world for good.
+- **A probe that opens Payyo with nobody set to auto-dismiss now meets a held world** until the
+  cards are read. Read them (`_read_the_cards` in `run_new_game_probe`), or turn the tutorial off
+  before anything that needs the world running, as `run_level1_audit`'s arrival check does.
 
 ⚠ **EVERY CARD CARRIES SKIP TUTORIAL** (Kent: "There should be a skip button for tutorials that
 the players can use"). `[Backspace] SKIP TUTORIAL` -- the `skip_tutorial` action, its cap read
