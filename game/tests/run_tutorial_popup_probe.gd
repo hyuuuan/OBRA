@@ -134,6 +134,10 @@ func _audit_the_ledger_matches_the_level() -> void:
 		var anchor := String(lesson.get("anchor", ""))
 		if not anchor.is_empty():
 			_check(anchors.has(anchor), "'%s' lights something the level has" % id, anchor)
+		# And what it lights at the door, where Payyo shows it before its subject exists.
+		if lesson.has("entry_anchor"):
+			_check(anchors.has(String(lesson["entry_anchor"])),
+				"'%s' lights something the level has at the door" % id, String(lesson["entry_anchor"]))
 		var context := String(lesson.get("context", "world"))
 		_check(contexts.has(context), "'%s' waits for a moment the level knows" % id, context)
 
