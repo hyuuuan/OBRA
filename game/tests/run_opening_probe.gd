@@ -4,7 +4,7 @@ extends SceneTree
 ##
 ## The first time into Payyo the apo wakes in a place they do not know, meets a ghost, and is
 ## told where they are -- a conversation with questions the player answers, played before the
-## first tutorial card. Every time after, Lolo greets them from a pool, most relevant first,
+## first tutorial card -- and then every card, back to back, before the first step. Every time after, Lolo greets them from a pool, most relevant first,
 ## and nothing repeats until every eligible greeting has played. At a fork answered before he
 ## names what they chose and asks for something else.
 ##
@@ -13,7 +13,7 @@ extends SceneTree
 ## answers them the way a player would.
 
 ## Every check this probe makes, so a crash part-way cannot print OK.
-const CHECKS := 23
+const CHECKS := 24
 
 var failures := 0
 var checked := 0
@@ -21,6 +21,14 @@ var checked := 0
 var _watched: Node2D
 var _hints_heard: Array[String] = []
 var _last_hint := ""
+## Frames between the end of the intro and the first card on which the world ran.
+var _gap_frames := 0
+var _gap_level: Node2D
+## Where she stood when the last card went, and cards shown on the walk to the stair. Members,
+## because a lambda captures a local by value and a signal could never have counted it.
+var _x_at_the_end := INF
+var _cards_on_the_way := 0
+var _the_level: Node2D
 
 
 func _initialize() -> void:
@@ -76,31 +84,92 @@ func _hold(action: StringName, down: bool) -> void:
 	Input.parse_input_event(event)
 
 
-## WALK, THEN JUMP, THEN ANG HAGDAN. Played as a player who walks the moment the Walk card is up
-## and does not stop: they reached the stair's conversation before the jump lesson's three-second
-## wait was up, heard it, were taught to draw at the wall, and were told how to jump somewhere
-## past it. Jump is taught on the bank now, where nothing else is happening.
-func _walk_straight_on(level: Node2D) -> void:
+## EVERY CARD, THEN ANG HAGDAN. Kent: "i want the pop ups to all be done right before the player
+## does something in level 1 like the moment the player enters level 1". Played as a player
+## holding walk from the moment the intro ends: the cards come one after another with the world
+## held, she does not move until the last has gone, and walking on to the stair brings no card.
+func _every_card_then_the_stair(level: Node2D) -> void:
 	var tutorial = level.get("tutorial")
+	var spot := level.get("tutorial_spotlight") as TutorialSpotlight
 	var box := level.get("dialogue_box") as Node
 	var script_lines = level.get("script_lines")
 	var player := level.get("player") as Node2D
-	var stair := level.find_child("B0_HAGDAN", true, false) as Node2D
-	var bank_ends := stair.global_position.x - (stair.get("trigger_size") as Vector2).x * 0.5
+	var start_x := player.global_position.x
+	_the_level = level
+	_x_at_the_end = INF
+	tutorial.connect("everything_taught", _note_where_she_stands)
 	_hold(&"move_right", true)
+	var since := Time.get_ticks_msec()
+	while bool(tutorial.call("is_teaching_everything")) and Time.get_ticks_msec() - since < 60000:
+		await process_frame
+		if spot.is_showing() and float(spot.get("_age")) > TutorialSpotlight.LOOK_MIN_SEC + 0.05:
+			_hold(&"ui_accept", true)
+			_hold(&"ui_accept", false)
+	var cards := 0
+	var shown := 0
+	for id: String in tutorial.call("lesson_ids"):
+		if String((tutorial.call("_find", id) as Dictionary).get("mode", "")) == "say":
+			continue
+		cards += 1
+		if bool(tutorial.call("was_shown", id)):
+			shown += 1
+	_check(not bool(tutorial.call("is_teaching_everything")) and shown == cards and cards > 0
+		and absf(_x_at_the_end - start_x) < 0.5,
+		"every card plays before she has taken a step",
+		"%d of %d cards shown, x %.1f -> %.1f" % [shown, cards, start_x, _x_at_the_end])
+	var stair := level.find_child("B0_HAGDAN", true, false) as Node2D
+	_cards_on_the_way = 0
+	tutorial.connect("lesson_taught", _count_a_card)
 	var waited := 0.0
-	while waited < 12.0 and not bool(tutorial.call("was_shown", "jump")):
+	while waited < 20.0 and not bool(script_lines.call("has_heard", "B0_HAGDAN.enter")):
 		if box.call("is_open"):
 			box.call("skip_all")
 		await _wait(0.05)
 		waited += 0.05
-	var taught_at := player.global_position.x
 	_hold(&"move_right", false)
-	var stair_first := bool(script_lines.call("has_heard", "B0_HAGDAN.enter"))
-	_check(bool(tutorial.call("was_shown", "jump")) and not stair_first and taught_at < bank_ends,
-		"walking straight on, jump is taught on the bank",
-		"at x %d, Ang Hagdan from %d%s" % [int(taught_at), int(bank_ends),
-			" -- AFTER ITS LINE" if stair_first else ""])
+	# And at the wall, through the stair's own lines, for as long as a card in its moment took.
+	var at_the_wall := 0.0
+	while at_the_wall < 6.0:
+		if box.call("is_open"):
+			box.call("skip_all")
+		await _wait(0.05)
+		at_the_wall += 0.05
+	tutorial.disconnect("lesson_taught", _count_a_card)
+	_check(bool(script_lines.call("has_heard", "B0_HAGDAN.enter")) and _cards_on_the_way == 0
+		and not spot.is_busy(),
+		"walking on to Ang Hagdan, no card comes up", "%d cards on the way and at the wall, at x %d of %d" %
+			[_cards_on_the_way, int(player.global_position.x), int(stair.global_position.x)])
+
+
+func _note_where_she_stands() -> void:
+	_x_at_the_end = (_the_level.get("player") as Node2D).global_position.x
+
+
+## Lolo's own lines (`say`) are not cards, and keep their moments.
+func _count_a_card(id: String) -> void:
+	var lesson: Dictionary = _the_level.get("tutorial").call("_find", id)
+	if String(lesson.get("mode", "")) != "say":
+		_cards_on_the_way += 1
+
+
+## Every frame from the intro's last word to the first card: the world must not run between them.
+func _watch_the_gap(level: Node2D) -> void:
+	_gap_level = level
+	if not process_frame.is_connected(_note_the_gap):
+		process_frame.connect(_note_the_gap)
+
+
+func _note_the_gap() -> void:
+	if _gap_level == null or not is_instance_valid(_gap_level):
+		return
+	var tutorial = _gap_level.get("tutorial")
+	var box := _gap_level.get("dialogue_box") as Node
+	if not bool(_gap_level.get("script_lines").call("has_heard", "INTRO.q2.go")):
+		return
+	if bool(box.call("is_open")) or bool(tutorial.call("was_shown", "move")):
+		return
+	if not paused:
+		_gap_frames += 1
 
 
 ## The labels on the question the overlay is asking, or [] if none is up.
@@ -147,6 +216,7 @@ func _run() -> void:
 	print("\n===== THE FIRST TIME =====")
 	var level := _level()
 	_watch_the_bar(level)
+	_watch_the_gap(level)
 	await _wait(0.3)
 	var tutorial = level.get("tutorial")
 	_check(not level.get("script_lines").call("has_heard", "INTRO.wake"),
@@ -178,26 +248,31 @@ func _run() -> void:
 		"and walks on when they choose to", "%d questions answered" % asked)
 	_check(int(profile.call("level_visits", "level_1")) == 1, "the visit is counted",
 		"%d" % int(profile.call("level_visits", "level_1")))
-	# Then Lolo asks the apo to walk, and only then does the Walk card come up.
+	# Then the cards, the first straight after his last word: no lead in the story box, because
+	# each was written for a moment that has not come yet.
 	var box := level.get("dialogue_box") as Node
-	var lead_said := false
+	var spot := level.get("tutorial_spotlight") as TutorialSpotlight
+	var first := ""
+	var said := ""
 	for _i in range(240):
-		await process_frame
 		if box.call("is_open"):
-			lead_said = String(box.get("_full")).begins_with("Come, apo")
+			said = String(box.get("_full"))
 			break
-	_check(lead_said and not tutorial.call("was_shown", "move"),
-		"Lolo asks the apo to walk before the card", String(box.get("_full")))
-	box.call("skip_all")
-	await _wait(1.0)
-	_check(tutorial.call("was_shown", "move"), "and the Walk card follows his line", "move")
+		if spot.is_showing():
+			first = spot.lesson_id()
+			break
+		await process_frame
+	_check(first == "move" and said.is_empty(), "the cards start as the intro ends, Walk first, with no lead",
+		"first card '%s'%s" % [first, (", Lolo said: " + said) if not said.is_empty() else ""])
+	_check(_gap_frames == 0, "and the world does not run between his last word and the card",
+		"%d frames ran" % _gap_frames)
 	# ⚠ NOT "PRESS R AND DRAW" BEFORE A STEP. The greeting used to follow the opening as a hint,
 	# telling her to draw with nothing in front of her to draw for; the wall teaches it now.
 	var greeting := String((level.get("_script_lines") as Dictionary).get("greeting", ""))
 	_check(not greeting.is_empty() and not _hints_heard.has(greeting),
 		"and no hint tells her to draw before she has walked",
 		"the bar said: %s" % (" | ".join(_hints_heard) if not _hints_heard.is_empty() else "nothing"))
-	await _walk_straight_on(level)
+	await _every_card_then_the_stair(level)
 	level.queue_free()
 	await _wait(0.3)
 
