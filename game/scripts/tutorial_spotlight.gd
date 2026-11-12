@@ -93,8 +93,10 @@ const SINK_TO := 0.96
 const ARROW_FADE_SEC := 0.25
 
 ## Read by UIRouter.refresh_pause through the modal_overlays group: true only while a
-## `look` lesson is up and somebody is there to dismiss it.
-var pauses_game := false
+## `look` lesson is up and somebody is there to dismiss it -- or a run of cards is held (`hold`).
+var pauses_game := false:
+	get:
+		return pauses_game or _held
 
 var _open := false
 var _lesson: Dictionary = {}
@@ -119,6 +121,17 @@ var _card_goal := Vector2.ZERO
 ## dim, and its shader compiles then: that frame's delta came in at a seventh of a second and
 ## the fade began most of the way in -- a card that popped rather than rose.
 var _first_frame := false
+## A RUN OF CARDS, HELD. Payyo teaches every card the moment it opens, one after another, and
+## the player must not be able to act between them: a card's own pause is released the moment
+## it starts to leave, so the world ran for the length of every fade. While held, this counts as
+## open -- the tree stays paused and the hint bar waits -- whether or not a card is up.
+var _held := false
+## The card took over from one still up or leaving, so the dim stays where it is and the hole
+## travels from where it was rather than closing in from past the screen.
+var _chained := false
+var _iris_from := Rect2()
+var _fade_from := 0.0
+var _fade := 0.0
 
 var _root: Control
 var _dim: ColorRect
@@ -226,7 +239,14 @@ func _build() -> void:
 ## Put a lesson up. `lesson` is the director's resolved form of a `tutorial.json` entry:
 ## id, mode ("do" or "look"), visual, caps, caption, seconds, actions, mouse. `target`
 ## answers where the lit box is, every frame, as a screen Rect2 -- empty for none.
+##
+## Presented while another card is up or leaving, it takes that card's place: the dim stays,
+## the hole slides from the last thing lit to this one, and the new card fades in where it
+## stands. That is what a run of cards (`hold`) looks like; a lone card is unchanged.
 func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable()) -> void:
+	_chained = _open
+	_iris_from = _hole if _chained and _hole.has_area() else _screen().grow(240.0)
+	_fade_from = _fade if _chained else 0.0
 	_lesson = lesson
 	_target = target
 	_avoid = avoid
@@ -252,16 +272,33 @@ func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable())
 	_card_scale = 1.0
 	_place = _choose_place(rect, _card.get_combined_minimum_size())
 	_card.scale = Vector2.ONE * _card_scale
-	_hole = _screen().grow(240.0)
-	_set_fade(0.0)
+	_hole = _iris_from
+	_set_fade(_fade_from)
+	_holder.modulate.a = 0.0 if _chained else 1.0
 	_refresh(rect, 0.0)
 	UIRouter.refresh_pause(get_tree())
 
 
 ## Up and asking for attention. Not while it fades: the moment it is closing it no longer
-## holds the pause or the hint bar.
+## holds the pause or the hint bar. A held run of cards is open the whole time (`hold`).
 func is_open() -> bool:
+	return is_showing() or _held
+
+
+## A card is up and not leaving -- whatever the hold says.
+func is_showing() -> bool:
 	return _open and _closing < 0.0
+
+
+## Hold the world still across a run of cards, or let it go. Not with nobody at the keys: a run
+## that stopped the world there would hang the suite exactly as a look card would.
+func hold(on: bool) -> void:
+	_held = on and not _nobody_at_the_keys()
+	UIRouter.refresh_pause(get_tree())
+
+
+func is_holding() -> bool:
+	return _held
 
 
 ## Up at all, fading included -- what the director waits on before the next one.
@@ -291,7 +328,7 @@ func card_rect() -> Rect2:
 
 ## Where the card's SKIP is on screen; empty while no card is up.
 func skip_rect() -> Rect2:
-	return _skip.get_global_rect() if is_open() and _skip.is_visible_in_tree() else Rect2()
+	return _skip.get_global_rect() if is_showing() and _skip.is_visible_in_tree() else Rect2()
 
 
 func hole_rect() -> Rect2:
@@ -355,7 +392,10 @@ func _process(delta: float) -> void:
 		if _closing >= _close_length:
 			_teardown()
 		return
-	_set_fade(_ease_out(clampf(_age / FADE_SEC, 0.0, 1.0)))
+	var fade_in := _ease_out(clampf(_age / FADE_SEC, 0.0, 1.0))
+	_set_fade(lerpf(_fade_from, 1.0, fade_in))
+	if _chained:
+		_holder.modulate.a = fade_in
 	# ⚠ A STORY LINE TAKES THE SCREEN FROM A `do` CARD. The world runs under one, so the apo can
 	# walk into a beat with it still up -- in Payyo, the Jump card into Ang Hagdan's opening line --
 	# and the story box (layer 8) was read through this card's dim for the whole conversation.
@@ -376,7 +416,7 @@ func _process(delta: float) -> void:
 	else:
 		_lost_for = 0.0
 	_refresh(rect, delta)
-	if _auto and _age >= AUTO_SEC:
+	if _auto and _age >= float(_lesson.get("auto_seconds", AUTO_SEC)):
 		finish("auto")
 	elif _mode() == "do" and _age >= float(_lesson.get("seconds", 10.0)):
 		finish("timeout")
@@ -461,7 +501,7 @@ func _is_skip(event: InputEvent) -> bool:
 
 
 func _ask_to_skip() -> void:
-	if not is_open():
+	if not is_showing():
 		return
 	skip_requested.emit()
 	finish("skipped")
@@ -561,7 +601,7 @@ func _refresh(rect: Rect2, delta: float) -> void:
 	var iris := _ease_out(clampf(_age / IRIS_SEC, 0.0, 1.0))
 	if rect.has_area():
 		var goal := rect.grow(HOLE_PAD)
-		var from := view.grow(240.0)
+		var from := _iris_from if _iris_from.has_area() else view.grow(240.0)
 		_hole = Rect2(from.position.lerp(goal.position, iris), from.size.lerp(goal.size, iris))
 	else:
 		_hole = Rect2()
@@ -633,12 +673,15 @@ func _draw_pointer() -> void:
 ## The card and arrow fade with the node's modulate; the dim is a shader writing its own
 ## colour, so it is told.
 func _set_fade(amount: float) -> void:
+	_fade = amount
 	_root.modulate.a = amount
 	_material.set_shader_parameter(&"fade", amount)
 
 
 func _teardown() -> void:
 	_open = false
+	_chained = false
+	_holder.modulate.a = 1.0
 	visible = false
 	set_process(false)
 	_lesson = {}
