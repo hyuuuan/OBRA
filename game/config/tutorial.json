@@ -424,6 +424,17 @@
           "text": "That arrow points to what comes next, apo."
         },
         {
+          "id": "map",
+          "at": "moved",
+          "after": "marker",
+          "mode": "look",
+          "visual": "map",
+          "context": "world",
+          "anchor": "minimap",
+          "caption": "The map shows where you went",
+          "text": "The map in the corner shows where you have been, apo."
+        },
+        {
           "id": "life",
           "at": "morph_low",
           "after": "revert",

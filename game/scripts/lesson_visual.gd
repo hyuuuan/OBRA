@@ -20,7 +20,7 @@ extends Control
 ## Every picture `_draw` knows. `keys` is the plain row of caps; anything unknown draws as that.
 const KINDS := ["keys", "walk", "jump", "hold", "draw_key", "revert", "place", "take_back",
 	"rotate", "resize", "draw", "click", "clock", "ink", "checkpoint", "requirement", "lamp",
-	"become", "quest", "drag", "card_hint", "marker"]
+	"become", "quest", "drag", "card_hint", "marker", "map"]
 const SIZE := Vector2(440.0, 150.0)
 const CAP_HEIGHT := 50.0
 const CAP_TRAVEL := 5.0
@@ -125,6 +125,8 @@ func _draw() -> void:
 			_draw_card_hint()
 		"marker":
 			_draw_marker()
+		"map":
+			_draw_map()
 		_:
 			_draw_keys()
 	if waits_for_click:
@@ -623,6 +625,36 @@ func _draw_marker() -> void:
 	var there := clampf((p - 0.64) / 0.12, 0.0, 1.0)
 	var bob := sin(_t * 4.2) * 5.0
 	_hud_arrow(spot + Vector2(0.0, -64.0 + bob), Vector2.DOWN, 0.8, 1.0 - there)
+
+
+## The map in the corner: the way she has walked lit behind a dot that is her, and the part she
+## has not reached yet under fog. ⚠ Wider than tall and lit as a trail, not cells: a box of
+## little squares would be a picture of one of the fifty.
+func _draw_map() -> void:
+	var p := _phase(3.6)
+	var frame := Rect2(100.0, 14.0, 240.0, 124.0)
+	_rounded("map_frame", frame, UISkin.PANEL, 12.0, UISkin.GOLD_EDGE, 3.0)
+	var inner := frame.grow(-12.0)
+	var walked := _ease(clampf(p / 0.82, 0.0, 1.0))
+	var trail := PackedVector2Array()
+	var lit := PackedVector2Array()
+	var reached := inner.position.x + 12.0 + (inner.size.x - 24.0) * walked
+	for i in 41:
+		var u := float(i) / 40.0
+		var x := lerpf(inner.position.x + 12.0, inner.end.x - 12.0, u)
+		var point := Vector2(x, inner.get_center().y + 18.0 + sin(u * TAU * 1.3) * 16.0)
+		trail.append(point)
+		if x <= reached:
+			lit.append(point)
+	draw_polyline(trail, DIM_LINE, 3.0, true)
+	if lit.size() > 1:
+		draw_polyline(lit, LIT, 4.0, true)
+	if reached < inner.end.x - 4.0:
+		_rounded("map_fog", Rect2(reached + 10.0, inner.position.y, inner.end.x - reached - 10.0,
+			inner.size.y), Color(UISkin.INK, 0.5), 6.0)
+	var her := lit[lit.size() - 1] if not lit.is_empty() else trail[0]
+	draw_circle(her + Vector2(0.0, -9.0), 7.0, UISkin.CREAM_TEXT)
+	draw_arc(her + Vector2(0.0, -9.0), 11.0 + sin(_t * 6.0) * 2.0, 0.0, TAU, 24, Color(LIT, 0.8), 2.0, true)
 
 
 ## A row of caps pressed in turn: one key, or a run of them like the bag's 1 to 6.
