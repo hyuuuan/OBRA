@@ -85,6 +85,26 @@ func showing() -> bool:
 	return has_target() and not _arrived()
 
 
+## Where the arrow is drawn, as a box on the screen -- what a lesson about it lights. Empty while
+## nothing is drawn. The same placement `_draw` uses, without the bob, grown by the bob.
+func arrow_rect() -> Rect2:
+	if not showing():
+		return Rect2()
+	var at := screen_point()
+	var inner := _inner()
+	var tip := at + Vector2(0.0, -20.0)
+	var toward := Vector2.DOWN
+	var size := 0.85
+	if not inner.has_point(at):
+		var centre := inner.get_center()
+		toward = (at - centre).normalized()
+		tip = _edge_of(inner, centre, toward)
+		size = 1.0
+	# The outline reaches 53 back from its tip and 33 to either side.
+	var box := Rect2(tip, Vector2.ZERO).expand(tip - toward * 53.0 * size)
+	return box.grow(33.0 * size + 6.0).abs()
+
+
 func _process(delta: float) -> void:
 	_time += delta
 	if has_target():
