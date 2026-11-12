@@ -836,6 +836,13 @@ fitting its page, and being given by some level's script.
   `PlacementController.handle_pointer`. A refused drop ends the drag unsuccessfully and is heard
   in `InventoryHUD._notification(NOTIFICATION_DRAG_END)`. `run_bag_drag_probe` checks every level
   against the key; `run_click_ui` drags one with a real mouse.
+- **A face-down card hints, by what it can do** (Kent: "if they click a card that is not yet
+  unlocked, the game hints them on what that card is for them to draw it"). Clicked, or reached
+  with the arrows, a card not yet drawn says "Draw something that can CLIMB or CARRY" from its
+  class's taught tags (`AbilityTags.can_phrase`), and still names nothing: the thesis's T1 and T2
+  never name a class. ⚠ The rule is one constant, `InventoryScreen.LOCKED_HINT_NAMES_THE_CLASS`
+  (false); set true, the card names its own class. Either way the look is logged as assistance
+  (`locked_card_hint`, `assisted: true`), once per card per opening of the bag.
 - **Presence in a level is a question about THIS RUN; ownership is a question for the
   profile.** `PlayerProfile.has_object` is permanent by design, and Ang Bale's interior was
   asking it whether the painting was still there — so every run after the first opened the
