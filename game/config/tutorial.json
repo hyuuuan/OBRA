@@ -16,7 +16,7 @@
     "",
     "NO LESSON MAY NAME A DRAWABLE CLASS, in its text or its caption. Same rule as the dialogue: `key`, `door`, `wheel` are all classes and all answers somewhere. The pictures follow it too: 'your drawing' is drawn as a scrap of paper with a scribble on it, never a shape.",
     "",
-    "`at` is the event that offers a lesson; `after` holds it back until another has been spent, so the order survives a player who does things out of sequence. Cut on this pass because they were the dumping: `pause` (Escape is the one key everybody already knows), `sure` (the confidence number is shown on the card; explaining it at the second second of a ten-second life was a third card in a row), `sign` (the E READ prompt already says it), and the canvas briefing, four lines of Lolo inside the panel -- the canvas is now taught by two cards that only appear if the player hesitates.",
+    "`at` is the event that offers a lesson; `after` holds it back until another has been spent, so the order survives a player who does things out of sequence. Cut on this pass because they were the dumping: `pause` (Escape is the one key everybody already knows; taught again since every card plays at the door, because its list of controls is where a player who forgets one goes), `sure` (the confidence number is shown on the card; explaining it at the second second of a ten-second life was a third card in a row), `sign` (the E READ prompt already says it), and the canvas briefing, four lines of Lolo inside the panel -- the canvas is now taught by two cards that only appear if the player hesitates.",
     "",
     "`lead` is what Lolo says in the story box BEFORE a card shows, so the card answers something he asked: 'Come, apo, walk with me' and then the keys. Said once, through TutorialDirector.bind_lead. Not used on `say` lessons (they are Lolo already) or on the canvas, whose story box is hidden under the drawing panel -- the `draw` lesson leads into it. Cards do not play at all on a return visit.",
     "",
@@ -433,6 +433,18 @@
           "anchor": "minimap",
           "caption": "The map shows where you went",
           "text": "The map in the corner shows where you have been, apo."
+        },
+        {
+          "id": "pause",
+          "at": "moved",
+          "after": "map",
+          "mode": "look",
+          "visual": "keys",
+          "context": "world",
+          "anchor": "key_row",
+          "action": "pause",
+          "caption": "Pause, and see all the controls",
+          "text": "{keys} stops everything, and lists all the controls."
         },
         {
           "id": "life",

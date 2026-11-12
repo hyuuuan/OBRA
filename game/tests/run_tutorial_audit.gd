@@ -10,9 +10,9 @@ const LEDGER := "res://config/tutorial.json"
 const LEVEL_BASE := "res://scripts/level_base.gd"
 const TutorialScript = preload("res://scripts/tutorial_director.gd")
 const CONTROLS := "res://config/controls.json"
-## Controls that have no lesson, deliberately. `pause` was cut by Kent (see below), and
-## `skip_tutorial` is printed on every card, which is the only place it does anything.
-const UNTAUGHT_ON_PURPOSE := ["pause", "skip_tutorial"]
+## Controls that have no lesson, deliberately: `skip_tutorial` is printed on every card, which is
+## the only place it does anything. (`pause` was cut once, and is back: see below.)
+const UNTAUGHT_ON_PURPOSE := ["skip_tutorial"]
 ## A controls row that names the mouse, and the name a lesson's `mouse` list gives it.
 const MOUSE_ROWS := {"Left click": "left", "Right click": "right", "Scroll": "wheel",
 	"Shift + Scroll": "shift_wheel"}
@@ -84,12 +84,14 @@ func _initialize() -> void:
 	director.note("placement_started")
 	_check(director.has_taught("rotate"), "and the third the time after", "rotate")
 
-	# 8. LESS OF IT. Kent: "its just knowledge dumping at this point". The four cut on that
-	#    pass stay cut. Every card now plays at the door, so each costs every new player a card
-	#    before their first step: the list stays under thirty, and a new one has to raise this
-	#    on purpose.
-	for cut in ["pause", "sure", "sign"]:
+	# 8. LESS OF IT. Kent: "its just knowledge dumping at this point". Two of the four cut on that
+	#    pass stay cut. `pause` is back: every card now plays at the door, and Escape's list of
+	#    controls is where a player who has forgotten one of them goes. Every card costs every
+	#    new player a card before their first step, so the list stays under thirty -- a new one
+	#    has to raise this on purpose.
+	for cut in ["sure", "sign"]:
 		_check(not ids.has(cut), "'%s' stays cut" % cut, "absent" if not ids.has(cut) else "BACK")
+	_check(ids.has("pause"), "and Escape is taught, for everything else", "pause")
 	_check(lessons.size() < 30, "Level 1 says fewer than thirty things", "%d" % lessons.size())
 	_check(not ledger["levels"]["level_1"].has("canvas_briefing"),
 		"the canvas is taught by cards, not four lines of Lolo", "no briefing")
@@ -158,10 +160,11 @@ func _audit_level_1_teaches_at_the_door(lessons: Array) -> void:
 		order.append(id)
 		var anchor := String(lesson.get("entry_anchor", lesson.get("anchor", "")))
 		_check(anchors.has(anchor), "'%s' lights something at the door" % id, anchor)
-	# Movement, then drawing, then the bag -- the order he named.
-	var firsts := [order.find("move"), order.find("draw"), order.find("bag")]
-	_check(firsts[0] == 0 and firsts[0] < firsts[1] and firsts[1] < firsts[2],
-		"walking, then drawing, then the bag", ", ".join(order))
+	# Movement, then drawing, then the bag -- the order he named -- and the controls list last.
+	var firsts := [order.find("move"), order.find("draw"), order.find("bag"), order.find("pause")]
+	_check(firsts[0] == 0 and firsts[0] < firsts[1] and firsts[1] < firsts[2]
+		and firsts[3] == order.size() - 1,
+		"walking, then drawing, then the bag, then Escape", ", ".join(order))
 
 
 ## A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: "other levels wont have any tutorials if
