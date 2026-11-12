@@ -20,7 +20,7 @@ extends Control
 ## Every picture `_draw` knows. `keys` is the plain row of caps; anything unknown draws as that.
 const KINDS := ["keys", "walk", "jump", "hold", "draw_key", "revert", "place", "take_back",
 	"rotate", "resize", "draw", "click", "clock", "ink", "checkpoint", "requirement", "lamp",
-	"become", "quest"]
+	"become", "quest", "drag", "card_hint", "marker", "map"]
 const SIZE := Vector2(440.0, 150.0)
 const CAP_HEIGHT := 50.0
 const CAP_TRAVEL := 5.0
@@ -119,6 +119,14 @@ func _draw() -> void:
 			_draw_become()
 		"quest":
 			_draw_quest()
+		"drag":
+			_draw_drag()
+		"card_hint":
+			_draw_card_hint()
+		"marker":
+			_draw_marker()
+		"map":
+			_draw_map()
 		_:
 			_draw_keys()
 	if waits_for_click:
@@ -543,6 +551,112 @@ func _draw_quest() -> void:
 	_chevron(Vector2(336.0, 112.0 + sin(_t * 5.0) * 4.0), Vector2.DOWN, 1.0, 14.0)
 
 
+## A drawing pulled off its slot in the bag, carried on the pointer as a ghost, and let go in the
+## world, where it is set down; then the slot has it again and it starts over.
+func _draw_drag() -> void:
+	var p := _phase(3.2)
+	for i in 3:
+		_rounded("drag_slot", Rect2(24.0 + i * 60.0, 90.0, 50.0, 46.0), UISkin.PANEL_LIT, 8.0,
+			UISkin.RING_MID, 2.0)
+	var slot := Vector2(49.0, 113.0)
+	var spot := Vector2(338.0, 76.0)
+	draw_line(Vector2(262.0, 104.0), Vector2(414.0, 104.0), DIM_LINE, 2.0, true)
+	var reach := _ease(clampf(p / 0.16, 0.0, 1.0))
+	var pull := _ease(clampf((p - 0.2) / 0.38, 0.0, 1.0))
+	var held := p >= 0.2 and p < 0.6
+	var again := clampf((p - 0.86) / 0.14, 0.0, 1.0)
+	var at := slot.lerp(spot, pull) + Vector2(0.0, -sin(pull * PI) * 44.0)
+	var tip := Vector2(150.0, 30.0).lerp(slot, reach)
+	if p >= 0.6:
+		# Set down solid where it was let go, and the pointer away.
+		_scrap(spot, Vector2(76.0, 50.0), 0.0, 1.0 - again)
+		_scrap(slot, Vector2(38.0, 28.0), 0.0, again)
+		tip = spot.lerp(Vector2(410.0, 24.0), _ease(clampf((p - 0.6) / 0.25, 0.0, 1.0)))
+	else:
+		# Small in its slot; on the end of the pointer, a ghost the size it will be.
+		_scrap(at, Vector2(38.0, 28.0).lerp(Vector2(76.0, 50.0), pull), 0.0, 1.0 if pull <= 0.0 else 0.55)
+		if p >= 0.2:
+			tip = at
+	if held:
+		draw_arc(tip, 12.0, 0.0, TAU, 24, Color(LIT, 0.85), 3.0, true)
+	_cursor(tip)
+
+
+## The bag opened, a card in it not drawn yet, and what it says when it is chosen: a chip of what
+## it can DO. ⚠ The cards stay face down and the chip's words are bars. A picture on one, or a word
+## naming it, would be the answer.
+func _draw_card_hint() -> void:
+	var p := _phase(3.2)
+	var down := _pulse(p, 0.04, 0.14)
+	_cap(Vector2(52.0, 72.0), _cap_label(0, "Tab"), down, 72.0)
+	_arrow(Vector2(98.0, 72.0), Vector2(132.0, 72.0), Color(LIT, 0.7))
+	var chosen := _ease(clampf((p - 0.36) / 0.12, 0.0, 1.0))
+	var font := get_theme_default_font()
+	for i in 3:
+		var picked := chosen if i == 1 else 0.0
+		var card := Rect2(146.0 + i * 50.0, 44.0 - picked * 10.0, 42.0, 60.0)
+		_rounded("hint_card_%d" % i, card, UISkin.WOOD, 7.0, UISkin.GOLD_EDGE.lerp(LIT, picked),
+			2.0 + picked * 2.0)
+		if font != null:
+			draw_string(font, Vector2(card.position.x, card.get_center().y + 9.0), "?",
+				HORIZONTAL_ALIGNMENT_CENTER, card.size.x, 26, Color(UISkin.GOLD_PALE, 0.55 + 0.45 * picked))
+	var show := _ease(clampf((p - 0.5) / 0.14, 0.0, 1.0)) * (1.0 - clampf((p - 0.92) / 0.08, 0.0, 1.0))
+	if show > 0.0:
+		_arrow(Vector2(268.0, 68.0), Vector2(298.0, 68.0), Color(LIT, show))
+		var chip := Rect2(306.0, 46.0, 116.0, 44.0)
+		_rounded("hint_chip", chip, Color(UISkin.PANEL_LIT, show), 12.0, Color(LIT, show), 3.0)
+		for i in 2:
+			_rounded("hint_word", Rect2(chip.position + Vector2(16.0 + i * 46.0, 16.0), Vector2(36.0, 12.0)),
+				Color(UISkin.CREAM_TEXT, show), 6.0)
+	var travel := _ease(clampf((p - 0.18) / 0.16, 0.0, 1.0))
+	_cursor(Vector2(150.0, 146.0).lerp(Vector2(214.0, 82.0), travel))
+
+
+## The arrow over the world: bobbing over the place, the apo walking to it, and gone when she is
+## there -- the HUD's own arrow does exactly that (ObjectiveMarker: nothing drawn once arrived).
+func _draw_marker() -> void:
+	var p := _phase(3.0)
+	var ground := 128.0
+	var spot := Vector2(330.0, ground)
+	draw_line(Vector2(70.0, ground), Vector2(390.0, ground), DIM_LINE, 2.0, true)
+	draw_circle(spot, 5.0, Color(LIT, 0.5))
+	var go := _ease(clampf(p / 0.62, 0.0, 1.0))
+	_figure(Vector2(lerpf(100.0, spot.x - 28.0, go), ground), 1.0, go > 0.0 and go < 1.0)
+	var there := clampf((p - 0.64) / 0.12, 0.0, 1.0)
+	var bob := sin(_t * 4.2) * 5.0
+	_hud_arrow(spot + Vector2(0.0, -64.0 + bob), Vector2.DOWN, 0.8, 1.0 - there)
+
+
+## The map in the corner: the way she has walked lit behind a dot that is her, and the part she
+## has not reached yet under fog. ⚠ Wider than tall and lit as a trail, not cells: a box of
+## little squares would be a picture of one of the fifty.
+func _draw_map() -> void:
+	var p := _phase(3.6)
+	var frame := Rect2(100.0, 14.0, 240.0, 124.0)
+	_rounded("map_frame", frame, UISkin.PANEL, 12.0, UISkin.GOLD_EDGE, 3.0)
+	var inner := frame.grow(-12.0)
+	var walked := _ease(clampf(p / 0.82, 0.0, 1.0))
+	var trail := PackedVector2Array()
+	var lit := PackedVector2Array()
+	var reached := inner.position.x + 12.0 + (inner.size.x - 24.0) * walked
+	for i in 41:
+		var u := float(i) / 40.0
+		var x := lerpf(inner.position.x + 12.0, inner.end.x - 12.0, u)
+		var point := Vector2(x, inner.get_center().y + 18.0 + sin(u * TAU * 1.3) * 16.0)
+		trail.append(point)
+		if x <= reached:
+			lit.append(point)
+	draw_polyline(trail, DIM_LINE, 3.0, true)
+	if lit.size() > 1:
+		draw_polyline(lit, LIT, 4.0, true)
+	if reached < inner.end.x - 4.0:
+		_rounded("map_fog", Rect2(reached + 10.0, inner.position.y, inner.end.x - reached - 10.0,
+			inner.size.y), Color(UISkin.INK, 0.5), 6.0)
+	var her := lit[lit.size() - 1] if not lit.is_empty() else trail[0]
+	draw_circle(her + Vector2(0.0, -9.0), 7.0, UISkin.CREAM_TEXT)
+	draw_arc(her + Vector2(0.0, -9.0), 11.0 + sin(_t * 6.0) * 2.0, 0.0, TAU, 24, Color(LIT, 0.8), 2.0, true)
+
+
 ## A row of caps pressed in turn: one key, or a run of them like the bag's 1 to 6.
 func _draw_keys() -> void:
 	if caps.is_empty():
@@ -737,6 +851,20 @@ func _sparkle(at: Vector2, radius: float, colour: Color) -> void:
 		var r := radius if i % 2 == 0 else radius * 0.35
 		points.append(at + Vector2.UP.rotated(TAU * float(i) / 8.0) * r)
 	_soft_polygon(points, colour)
+
+
+## The HUD's objective arrow, the same shape and colours as ObjectiveMarker draws over the world.
+func _hud_arrow(tip: Vector2, toward: Vector2, size: float, alpha: float) -> void:
+	if alpha <= 0.01:
+		return
+	var outline := PackedVector2Array([Vector2(6, 0), Vector2(-31, 33), Vector2(-31, 14),
+		Vector2(-53, 14), Vector2(-53, -14), Vector2(-31, -14), Vector2(-31, -33)])
+	var body := PackedVector2Array([Vector2.ZERO, Vector2(-27, 24), Vector2(-27, 10),
+		Vector2(-49, 10), Vector2(-49, -10), Vector2(-27, -10), Vector2(-27, -24)])
+	draw_set_transform(tip, toward.angle(), Vector2.ONE * size)
+	_soft_polygon(outline, Color(UISkin.INK, alpha))
+	_soft_polygon(body, Color(UISkin.PENDING, alpha))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _arrow(from: Vector2, to: Vector2, colour: Color, width := 4.0) -> void:

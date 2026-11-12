@@ -375,6 +375,11 @@ func _the_lantern_is_named_where_it_stands() -> void:
 	await _open("level_1", false, true)
 	await _settle()
 	var tutorial = level.get("tutorial")
+	# ⚠ PAYYO PLAYS ITS CARDS AT THE DOOR NOW, so its checkpoint card is never led in at the lantern.
+	# The rule this holds -- a lead is said where its subject stands, not after the letterbox --
+	# is still Dagat's, whose cards have leads. A fresh ledger ends the run and teaches in moments.
+	tutorial.call("load_for", "level_1")
+	await _settle()
 	tutorial.call("mark_taught", ["move", "jump", "draw", "requirement"])
 	var lantern := level.find_child("CP0", true, false) as Node2D
 	var words := "A lantern! She lit these so nobody would lose their way."

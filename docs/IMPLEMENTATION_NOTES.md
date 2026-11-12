@@ -123,12 +123,36 @@ resolved by `_tutorial_target`; an unknown one push_errors, because **an anchor 
 nothing resolves to an empty rect exactly like a hidden one** and a typo would otherwise
 cost the pointing in silence. An unbuildable callout does **not** spend its lesson.
 
-⚠ **A `do` CARD GIVES WAY TO A STORY LINE, AND PAYYO TEACHES JUMP ON THE BANK.** The world runs
-under a `do` card, so the apo could walk into Ang Hagdan with the Jump card up and read the
-stair's opening line through its dim; `TutorialSpotlight` now finishes such a card
-(`talked_over`) the moment a line begins. Jump has no delay, so a player who walks straight on
-is taught it before `B0_HAGDAN`, and Payyo's first visit drops the "press R and draw" greeting
-(`_greets_on_first_visit`) -- the draw lesson says it at the wall. LEVEL_1.md has the order.
+⚠ **A `do` CARD GIVES WAY TO A STORY LINE.** The world runs under a `do` card, so the apo could
+walk into Ang Hagdan with the Jump card up and read the stair's opening line through its dim;
+`TutorialSpotlight` now finishes such a card (`talked_over`) the moment a line begins. Payyo's
+first visit drops the "press R and draw" greeting (`_greets_on_first_visit`): the Draw card says it.
+
+⚠ **PAYYO PLAYS EVERY CARD AT THE DOOR** (Kent: "i want the pop ups to all be done right before
+the player does something in level 1 like the moment the player enters level 1 ... make sure
+nothing is left"). `LevelBase._teaches_everything_at_entry` (Payyo only) has `_play_opening`
+await `TutorialDirector.teach_everything_now` after the level's first words: every unspent card,
+in ledger order, as a `look` card with no lead and no delay, lighting its `entry_anchor`. Then
+nothing is left to wait for its moment. Six things this cost:
+- **A card's pause goes the moment it starts to leave**, so back-to-back cards ran the world for
+  every fade. `TutorialSpotlight.hold` keeps the run paused, and a card presented over one that
+  is leaving takes its place (`_chained`): the dim stays and the hole slides to the next thing.
+- **A moment that comes during the run queues its card a second time** (headless, where the
+  world is not held, `level_start` comes every frame), and `_pump` shows what is queued without
+  asking whether it was shown. `note` is shut for the run.
+- **The HUD is filled in by ticks a held world does not run.** From the first frame, the quest
+  card was empty, the map black and the arrow undrawn; `_fill_in_the_hud` runs once before the
+  run, and the arrow is redrawn for its own card because the camera was still settling.
+- **Most subjects do not exist at the door**: no page, no placed drawing, no form, an empty bag
+  (hidden while empty). `entry_anchor` lights the control that will do it, and
+  `InventoryHUD.show_empty` brings the six slots up for the bag's cards only.
+- **Nobody at the keys, 28 cards at `AUTO_SEC` would hold the hint bar for over a minute** in
+  every suite that opens Payyo. An entry card stays `ENTRY_AUTO_SEC` there: about two seconds in all.
+  ⚠ The run decides once, when it begins (`_entry_auto`): `run_level1_audit` turns auto-dismiss
+  off a second in, and a card asked then became a real one that held the world for good.
+- **A probe that opens Payyo with nobody set to auto-dismiss now meets a held world** until the
+  cards are read. Read them (`_read_the_cards` in `run_new_game_probe`), or turn the tutorial off
+  before anything that needs the world running, as `run_level1_audit`'s arrival check does.
 
 ⚠ **EVERY CARD CARRIES SKIP TUTORIAL** (Kent: "There should be a skip button for tutorials that
 the players can use"). `[Backspace] SKIP TUTORIAL` -- the `skip_tutorial` action, its cap read
@@ -143,8 +167,9 @@ clicking it headless must send the click in window pixels (`root.get_final_trans
 **LEVEL 1 TEACHES THE GAME; A LATER LEVEL ONLY SAYS WHAT IT CHANGES** (Kent: "fix level 1 like
 tutorial part make sure it covers everything and other levels wont have any tutorials if
 necessary"). `run_tutorial_audit` holds both halves. Every control that works in Level 1 has a
-lesson, read off `controls.json`, so a new control fails until it is taught; `pause` stays cut and
-`skip_tutorial` is printed on every card. Outside Level 1 a card must be on `NECESSARY_CARDS`, each
+lesson, read off `controls.json`, so a new control fails until it is taught; `skip_tutorial` is
+printed on every card. `pause` was cut and is taught again: with every card at the door, Escape's
+list of controls is where a player who has forgotten one goes. Outside Level 1 a card must be on `NECESSARY_CARDS`, each
 with the reason Level 1 cannot be where it is taught: Dagat's `new_brush` and `jars`, Dilim's `lamp`
 and `swing`. Piyesta and Mayon teach nothing of their own. Anything else a later level says is a
 `say` line on the hint bar. ⚠ **A line on the bar waits for what is up to be read and Lolo is on it
@@ -156,7 +181,9 @@ to do the thing, and a run can finish it having never become anything. A lesson 
 and still unspent when a level ends goes to `PlayerProfile.lessons_owed` (`LevelBase.mark_finished`)
 and is shown once, the first time its moment comes later, without its `lead`: those are Lolo's and
 he has gone by Dilim. A rule that changes later (`undo`, `ink`) must not carry. SKIP TUTORIAL, a
-replay and a save from before this all owe nothing. `run_tutorial_coverage_probe` plays all of it.
+replay and a save from before this all owe nothing. Since Payyo shows every card at the door, a new
+run owes nothing either; this is for a save made while Level 1 still taught in moments.
+`run_tutorial_coverage_probe` plays all of it.
 
 ⚠ **`CanvasBriefing` IS THE ONE PLACE THE TUTORIAL MAY STOP THE WORLD**, and it does not
 contradict `TutorialDirector`'s rule against dialogue boxes. That rule is about cost, and

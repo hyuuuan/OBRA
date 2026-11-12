@@ -33,6 +33,14 @@ extends Node
 ## spotlight bound -- a probe with no HUD -- every lesson is taught at once through the bar,
 ## one per event, which is what the data audits measure.
 ##
+## OR ALL OF IT AT ONCE, AT THE DOOR. Kent, of Payyo: "i want the pop ups to all be done right
+## before the player does something in level 1 like the moment the player enters level 1 ...
+## make sure nothing is left". A level that asks (LevelBase._teaches_everything_at_entry) calls
+## `teach_everything_now` once its opening has been said, and every card it has not spent plays
+## there, back to back, in ledger order, over a world held still -- each a `look` card, with no
+## lead and no delay, lighting its `entry_anchor` (or its `anchor`) because most of what the
+## lessons are about does not exist yet. After that nothing is left to wait for its moment.
+##
 ## SPENT ONCE PER RUN, IN MEMORY. Not on the profile: a returning player skipping these is a
 ## profile flag and a schema bump, deliberately -- not a side effect of a tutorial. The one thing
 ## that outlives a level is the short list of lessons Level 1 could not reach for this player
@@ -44,6 +52,10 @@ const TUTORIAL_LEVEL := "level_1"
 ## PRELOADED, NOT NAMED. controls_overlay.gd declares no class_name, so the only way to
 ## reach its static key lookup is the script itself.
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
+
+## How long a card in the run at the entry stays up when nobody is at the keys. Every headless
+## suite opens Payyo, and thirty cards at the usual AUTO_SEC held the hint bar for over a minute.
+const ENTRY_AUTO_SEC := 0.05
 
 ## After a card the player answered by doing the thing, and after one they only looked at.
 const GAP_AFTER_DONE := 1.2
@@ -59,6 +71,8 @@ signal lesson_taught(lesson_id: String)
 signal lesson_skipped(lesson_id: String)
 ## Emitted when the player skips the rest of the tutorial, with how many lessons were left.
 signal tutorial_skipped(lessons_left: int)
+## Emitted when the run begun by `teach_everything_now` is over: every card shown, or skipped.
+signal everything_taught
 
 var _lessons: Array[Dictionary] = []
 ## lesson id -> "shown" or "skipped", once spent.
@@ -87,6 +101,16 @@ var _lead_speaker: Callable = Callable()
 var _led: Dictionary = {}
 ## Which level's ledger is loaded, for the record a skip leaves.
 var _level_id := ""
+## The cards still to come in the run at the entry, in order, and whether one is on.
+var _entry: Array[String] = []
+var _entry_running := false
+## ⚠ DECIDED ONCE, AT THE START OF THE RUN: whether anyone is at the keys. Asked per card, a
+## suite that turned auto-dismiss off a second in -- to read one line itself -- got the next card
+## as a real one, which held the world and waited for a key nobody would press.
+var _entry_auto := false
+## What the level does to set the scene for an entry card, given its anchor ("" at the end) --
+## the empty bag shown while a card about the bag is up.
+var _stage := Callable()
 
 
 func _ready() -> void:
@@ -96,6 +120,12 @@ func _ready() -> void:
 
 
 func load_for(level_id: String) -> bool:
+	# A new ledger ends a run on the old one, and the run's card goes with it: left up, a look card
+	# held the world and the new ledger's first lesson waited behind it.
+	if _entry_running:
+		_end_entry()
+		if _spotlight != null and _spotlight.is_open():
+			_spotlight.finish("closed")
 	_level_id = level_id
 	_lessons.clear()
 	_by_event.clear()
@@ -208,6 +238,8 @@ func set_enabled(on: bool) -> void:
 	_enabled = on
 	if not on:
 		_queue.clear()
+		# Before the card goes: its going would otherwise put the next one up.
+		_end_entry()
 		if _spotlight != null and _spotlight.is_open():
 			_spotlight.finish("skipped")
 
@@ -288,7 +320,10 @@ func lesson_ids() -> Array[String]:
 ## Something happened that a lesson might be waiting on. Cheap enough to call from a physics
 ## frame: an event nobody is waiting on is one dictionary miss.
 func note(event: String) -> void:
-	if not _enabled or not _by_event.has(event):
+	# ⚠ NOT DURING THE RUN AT THE ENTRY. A moment that comes during it -- headless, where the world
+	# is not held, `level_start` comes every frame -- queued its card a second time, and _pump
+	# shows what is queued without asking whether it has been shown.
+	if not _enabled or _entry_running or not _by_event.has(event):
 		return
 	for id_value: Variant in _by_event[event]:
 		var id := String(id_value)
@@ -309,7 +344,9 @@ func note(event: String) -> void:
 
 
 func _process(delta: float) -> void:
-	if _enabled and not _queue.is_empty():
+	if _entry_running:
+		_pump_entry()
+	elif _enabled and not _queue.is_empty():
 		_pump(delta)
 	elif _gap > 0.0:
 		_gap = maxf(0.0, _gap - delta)
@@ -319,7 +356,7 @@ func _process(delta: float) -> void:
 ## has come, its card has not -- and that is one of the inputs it teaches, in the context
 ## it teaches it in, spends it unshown.
 func _input(event: InputEvent) -> void:
-	if not _enabled or _queue.is_empty():
+	if not _enabled or _entry_running or _queue.is_empty():
 		return
 	if event is InputEventMouseMotion or event.is_echo() or not event.is_pressed():
 		return
@@ -395,6 +432,94 @@ func _teach_at_once() -> void:
 	lesson_taught.emit(id)
 
 
+## EVERY CARD, NOW, ONE AFTER ANOTHER. Awaitable: it returns when the last card has gone or the
+## rest were skipped. Each card the ledger holds and this run has not spent is shown as a `look`
+## card -- the world held still by the spotlight between them, so the player cannot act until
+## the last one goes -- without its `lead` (each was written for a moment that has not come)
+## and lighting its `entry_anchor`, the control that will do it, when its own subject is not
+## on screen yet. `say` lines are Lolo's and keep their moments. `stage` is called with each
+## card's anchor before it shows, and with "" when the run is over.
+func teach_everything_now(stage: Callable = Callable()) -> void:
+	_entry.clear()
+	if _enabled:
+		for lesson in _lessons:
+			var id := String(lesson.get("id", ""))
+			if not _seen.has(id) and _mode_of(lesson) != "say":
+				_entry.append(id)
+	if _entry.is_empty():
+		return
+	# Queued for a moment that is not coming now -- shown here instead.
+	for id in _entry:
+		_queue.erase(id)
+	_stage = stage
+	_entry_running = true
+	if _spotlight != null:
+		_spotlight.hold(true)
+		# It holds only for somebody at the keys.
+		_entry_auto = not _spotlight.is_holding()
+	_pump_entry()
+	if _entry_running:
+		await everything_taught
+
+
+func is_teaching_everything() -> bool:
+	return _entry_running
+
+
+## Where a lesson points when it is shown at the entry: its own subject if that is already on
+## screen, otherwise the control that will do it.
+func entry_anchor_of(lesson: Dictionary) -> String:
+	return String(lesson.get("entry_anchor", lesson.get("anchor", "")))
+
+
+## The next card of the run, if nothing else is up; the end of it, if none is left.
+func _pump_entry() -> void:
+	if not _entry_running:
+		return
+	if _spotlight == null:
+		# No HUD: nowhere to show them. Spent as shown, which is what the data audits measure.
+		for id in _entry:
+			_seen[id] = "shown"
+			lesson_taught.emit(id)
+		_entry.clear()
+		_end_entry()
+		return
+	if _spotlight.is_showing():
+		return
+	if _entry.is_empty():
+		_end_entry()
+		return
+	var lesson := _find(_entry[0])
+	var quiet := lesson.duplicate()
+	quiet.erase("lead")
+	if not _coast_is_clear(quiet):
+		return
+	var id: String = _entry.pop_front()
+	_seen[id] = "shown"
+	var anchor := entry_anchor_of(lesson)
+	if _stage.is_valid():
+		_stage.call(anchor)
+	var card := _card_for(lesson)
+	card["mode"] = "look"
+	card["auto"] = _entry_auto
+	card["auto_seconds"] = ENTRY_AUTO_SEC
+	_present(card, anchor)
+	lesson_taught.emit(id)
+
+
+func _end_entry() -> void:
+	if not _entry_running:
+		return
+	_entry_running = false
+	_entry.clear()
+	if _stage.is_valid():
+		_stage.call("")
+	_stage = Callable()
+	if _spotlight != null:
+		_spotlight.hold(false)
+	everything_taught.emit()
+
+
 func _show(lesson: Dictionary) -> void:
 	var id := String(lesson["id"])
 	_seen[id] = "shown"
@@ -409,7 +534,11 @@ func _show(lesson: Dictionary) -> void:
 		_gap = GAP_AFTER
 		lesson_taught.emit(id)
 		return
-	var anchor := String(lesson.get("anchor", ""))
+	_present(_card_for(lesson), String(lesson.get("anchor", "")))
+	lesson_taught.emit(id)
+
+
+func _present(card: Dictionary, anchor: String) -> void:
 	var finder := _find_target
 	var target := func() -> Variant:
 		if anchor.is_empty() or not finder.is_valid():
@@ -418,12 +547,15 @@ func _show(lesson: Dictionary) -> void:
 	# The apo, which a card the world runs under has to keep off as she moves.
 	var apo := func() -> Variant:
 		return finder.call("player") if finder.is_valid() else Rect2()
-	_spotlight.present(_card_for(lesson), target, apo)
-	lesson_taught.emit(id)
+	_spotlight.present(card, target, apo)
 
 
 func _on_card_finished(_lesson_id: String, how: String) -> void:
 	_gap = GAP_AFTER_DONE if how == "done" else GAP_AFTER
+	# ⚠ ON THIS FRAME, while the card is still leaving: the next takes its place before the dim
+	# can fade, and the hold has kept the world still in between.
+	if _entry_running:
+		_pump_entry()
 
 
 func _context_holds(lesson: Dictionary) -> bool:

@@ -1400,7 +1400,8 @@ func _refresh_requirements() -> void:
 ## level, which is the only way to catch a name that resolves to an empty rect forever.
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
 	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player",
-	"placement", "placed", "canvas_paper", "transform_button", "lantern", "quest_card"]
+	"placement", "placed", "canvas_paper", "transform_button", "lantern", "quest_card",
+	"move_prompt", "jump_prompt", "minimap", "objective_marker", "key_row"]
 ## Every `context` a lesson may name, answered by _tutorial_context.
 const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "any"]
 ## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
@@ -1459,6 +1460,25 @@ func _tutorial_target(anchor: String) -> Rect2:
 			node = draw_panel.transform_button
 		"draw_button":
 			node = draw_button
+		"move_prompt":
+			# The MOVE and JUMP chips Payyo keeps in R's row (`_shows_movement_keys`).
+			node = _prompt_named(&"MovePrompt")
+		"jump_prompt":
+			node = _prompt_named(&"JumpPrompt")
+		"key_row":
+			# Every key standing in the lower-right corner at once: what the pause lesson lights,
+			# because the full list of them is behind Escape.
+			return _key_row_on_screen()
+		"minimap":
+			node = minimap as Control
+		"objective_marker":
+			# Not a control's box: the marker covers the screen and draws one arrow on it.
+			if objective_marker == null or not objective_marker.is_visible_in_tree():
+				return Rect2()
+			var arrow := objective_marker.arrow_rect()
+			if not arrow.has_area():
+				return Rect2()
+			return Rect2(objective_marker.get_global_rect().position + arrow.position, arrow.size)
 		"pickup_prompt":
 			node = _prompt_named(&"PickupPrompt")
 		"use_prompt":
@@ -1492,6 +1512,19 @@ func _tutorial_target(anchor: String) -> Rect2:
 	if node == null or not node.is_inside_tree() or not node.is_visible_in_tree():
 		return Rect2()
 	return node.get_global_rect()
+
+
+## The keys in the lower-right corner, as one box: R and whichever chips stand beside it.
+func _key_row_on_screen() -> Rect2:
+	var row := Rect2()
+	var parts: Array[Control] = [draw_button, _prompt_named(&"MovePrompt"),
+		_prompt_named(&"JumpPrompt")]
+	for part in parts:
+		if part == null or not part.is_visible_in_tree():
+			continue
+		var box := part.get_global_rect()
+		row = box if not row.has_area() else row.merge(box)
+	return row
 
 
 ## A box in the world, as the screen shows it. Empty in, empty out.
@@ -4878,8 +4911,41 @@ var _advice_held: Dictionary = {}
 func _play_opening() -> void:
 	_opening_running = true
 	await _say_the_opening()
+	# Still the opening: nothing that waits for her first words may start over a card.
+	if _teaches_everything_at_entry() and tutorial != null and tutorial.is_enabled():
+		_fill_in_the_hud()
+		await tutorial.teach_everything_now(_stage_entry_card)
 	_opening_running = false
 	opening_finished.emit()
+
+
+## Whether every lesson card plays the moment the level opens, after its first words, and none
+## waits for its moment (TutorialDirector.teach_everything_now). Off; Payyo turns it on.
+func _teaches_everything_at_entry() -> bool:
+	return false
+
+
+## Set the scene for a card in the run at the entry: the bag is hidden while it is empty, so a
+## card about it brings the six empty slots up to be lit. "" puts it all back.
+func _stage_entry_card(anchor: String) -> void:
+	if inventory_hud != null:
+		inventory_hud.show_empty(anchor == "inventory_bar")
+	# ⚠ Redrawn for its own card, not only at the start. The arrow is drawn through the camera
+	# as it stood then, and the camera was still settling: its card lit the wall beside it.
+	if anchor == "objective_marker" and objective_marker != null:
+		objective_marker.queue_redraw()
+
+
+## ⚠ THE HUD AS IT WILL BE, NOT AS IT WAS ON THE FIRST FRAME. The world is held from the first
+## card, which can be the level's first frame, and the quest card, its arrow and the map are
+## filled in by ticks that a held world does not run: every card lit an empty quest card, the
+## arrow's card a patch of empty wall, and the map's card a black square.
+func _fill_in_the_hud() -> void:
+	refresh_objective()
+	if objective_marker != null:
+		objective_marker.queue_redraw()
+	if minimap != null:
+		minimap.refresh()
 
 
 func _say_the_opening() -> void:

@@ -1213,6 +1213,12 @@ func _audit_arrival_speaks_once() -> void:
 	var packed := load("res://game_level.tscn") as PackedScene
 	var level := packed.instantiate()
 	root.add_child(level)
+	# Payyo opens on its cards, holding the world and everything that speaks until they are read.
+	# They are not this check's: nobody reaches the terrace before them, so put them away first,
+	# and then give her the frames to land that a held world would not.
+	await process_frame
+	await process_frame
+	(level.get("tutorial") as TutorialDirector).set_enabled(false)
 	for _frame in range(60):
 		await physics_frame
 

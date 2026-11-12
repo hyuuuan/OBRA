@@ -10,9 +10,9 @@ const LEDGER := "res://config/tutorial.json"
 const LEVEL_BASE := "res://scripts/level_base.gd"
 const TutorialScript = preload("res://scripts/tutorial_director.gd")
 const CONTROLS := "res://config/controls.json"
-## Controls that have no lesson, deliberately. `pause` was cut by Kent (see below), and
-## `skip_tutorial` is printed on every card, which is the only place it does anything.
-const UNTAUGHT_ON_PURPOSE := ["pause", "skip_tutorial"]
+## Controls that have no lesson, deliberately: `skip_tutorial` is printed on every card, which is
+## the only place it does anything. (`pause` was cut once, and is back: see below.)
+const UNTAUGHT_ON_PURPOSE := ["skip_tutorial"]
 ## A controls row that names the mouse, and the name a lesson's `mouse` list gives it.
 const MOUSE_ROWS := {"Left click": "left", "Right click": "right", "Scroll": "wheel",
 	"Shift + Scroll": "shift_wheel"}
@@ -84,17 +84,20 @@ func _initialize() -> void:
 	director.note("placement_started")
 	_check(director.has_taught("rotate"), "and the third the time after", "rotate")
 
-	# 8. LESS OF IT. Kent: "its just knowledge dumping at this point". The four cut on that
-	#    pass stay cut, and the tutorial level stays under twenty-five things to say. It was
-	#    twenty until he asked for it to cover everything; five of these only appear for a
-	#    player who does the thing they are about, or after the first gate.
-	for cut in ["pause", "sure", "sign"]:
+	# 8. LESS OF IT. Kent: "its just knowledge dumping at this point". Two of the four cut on that
+	#    pass stay cut. `pause` is back: every card now plays at the door, and Escape's list of
+	#    controls is where a player who has forgotten one of them goes. Every card costs every
+	#    new player a card before their first step, so the list stays under thirty -- a new one
+	#    has to raise this on purpose.
+	for cut in ["sure", "sign"]:
 		_check(not ids.has(cut), "'%s' stays cut" % cut, "absent" if not ids.has(cut) else "BACK")
-	_check(lessons.size() < 25, "Level 1 says fewer than twenty-five things", "%d" % lessons.size())
+	_check(ids.has("pause"), "and Escape is taught, for everything else", "pause")
+	_check(lessons.size() < 30, "Level 1 says fewer than thirty things", "%d" % lessons.size())
 	_check(not ledger["levels"]["level_1"].has("canvas_briefing"),
 		"the canvas is taught by cards, not four lines of Lolo", "no briefing")
 
 	_audit_level_1_covers_every_control(lessons, director)
+	_audit_level_1_teaches_at_the_door(lessons)
 	_audit_later_levels_only_say_what_changes(ledger)
 	_audit_what_a_route_can_miss(ledger)
 
@@ -139,6 +142,29 @@ func _audit_level_1_covers_every_control(lessons: Array, director: Node) -> void
 			_check(taught_mouse.has(button), "'%s' has a lesson" % String(row.get("keys", "")),
 				String(row.get("label", "")))
 	_check(rows >= 15, "and the controls screen was really read", "%d rows" % rows)
+
+
+## LEVEL 1 TEACHES IT ALL AT THE DOOR. Kent: "i want all tutorial pop ups to be present from
+## movement to drawing to checking inventory, make sure nothing is left". The cards play in ledger
+## order the moment Payyo opens (run_tutorial_coverage_probe plays them), so the order here is the
+## order he sees, and each card needs something on screen then to light.
+func _audit_level_1_teaches_at_the_door(lessons: Array) -> void:
+	print("  -- Level 1 teaches it all at the door --")
+	var anchors: Array = (load(LEVEL_BASE) as Script).get_script_constant_map()["TUTORIAL_ANCHORS"]
+	var order: Array[String] = []
+	for value: Variant in lessons:
+		var lesson: Dictionary = value
+		if String(lesson.get("mode", "")) == "say":
+			continue
+		var id := String(lesson["id"])
+		order.append(id)
+		var anchor := String(lesson.get("entry_anchor", lesson.get("anchor", "")))
+		_check(anchors.has(anchor), "'%s' lights something at the door" % id, anchor)
+	# Movement, then drawing, then the bag -- the order he named -- and the controls list last.
+	var firsts := [order.find("move"), order.find("draw"), order.find("bag"), order.find("pause")]
+	_check(firsts[0] == 0 and firsts[0] < firsts[1] and firsts[1] < firsts[2]
+		and firsts[3] == order.size() - 1,
+		"walking, then drawing, then the bag, then Escape", ", ".join(order))
 
 
 ## A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: "other levels wont have any tutorials if

@@ -64,7 +64,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
   - The picture comes first (`LessonVisual`); the caption is 8 words or fewer and comes second.
   - One card at a time; the screen dims and the lesson's subject is lit.
   - **Never** draw a picture of one of the 50 classes in a lesson. A ladder, a square or stairs in a picture is a hint the level did not mean to give.
-  - **Level 1 teaches every control.** A later level shows a card only for what Level 1 cannot teach (`NECESSARY_CARDS` in `run_tutorial_audit`); the rest is a `say` line on the hint bar. A Level 1 lesson a route missed is owed and shown once later (`carries` in `tutorial.json`).
+  - **Level 1 teaches every control, all at the door.** Once Payyo's opening has been said, every Level 1 card plays back to back, in `tutorial.json` order, before her first step (`_teaches_everything_at_entry`, `TutorialDirector.teach_everything_now`); after that no card comes in Level 1. A card whose subject is not on screen yet lights its `entry_anchor`. A later level shows a card only for what Level 1 cannot teach (`NECESSARY_CARDS` in `run_tutorial_audit`); the rest is a `say` line on the hint bar. `carries` now only matters for a save from before this: what such a run missed is shown once later.
 - **No dialogue or objective line names a drawable class**, in English or Filipino (*tulay, hagdan, pinto, puno* …). Audits enforce this.
 - **Gates are tags, not classes.** Every gate must resolve to at least 2 classes with held-out recall ≥ 0.70 after exclusions (BR-7, using `model/metrics.json`).
 - **`modulate` multiplies, so it can never make anything lighter.** To add light, draw a lit layer on top or use a shader.

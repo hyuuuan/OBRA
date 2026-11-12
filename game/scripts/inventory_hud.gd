@@ -96,6 +96,9 @@ const RAISE_TIME := 0.13
 const DWELL := 3.2
 
 var _stowed := false
+## Shown though empty, while a lesson about the bag is up: Payyo teaches the bag before there is
+## anything in it, and a lesson lighting a hidden bar lit nothing. See `show_empty`.
+var _shown_empty := false
 ## Whether the player is standing behind the bar right now. See set_see_through.
 var _see_through := false
 ## How much of the HUD the level's letterbox has left showing. See set_curtain_alpha.
@@ -335,6 +338,18 @@ func set_manager(manager: InventoryManager) -> void:
 	_refresh(manager.items())
 
 
+## The six empty slots, up for a lesson about them, or back to drawing nothing while empty.
+func show_empty(on: bool) -> void:
+	if on == _shown_empty:
+		return
+	_shown_empty = on
+	_refresh(_manager.items() if _manager != null else [])
+
+
+func is_shown_empty() -> bool:
+	return _shown_empty
+
+
 ## Mark a slot as the one in hand. -1 clears it.
 func set_selected(slot: int) -> void:
 	_selected = slot
@@ -391,7 +406,7 @@ func _refresh(items: Array) -> void:
 	# frames, so the first gate in the game read as a puddle you could walk through, and
 	# the player walked into it. All six come back the moment anything is held, so the slot
 	# numbers never move.
-	var holding := false
+	var holding := _shown_empty
 	for item_value: Variant in items:
 		if item_value != null:
 			holding = true

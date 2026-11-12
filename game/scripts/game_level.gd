@@ -868,6 +868,14 @@ func _greets_on_first_visit() -> bool:
 	return false
 
 
+## EVERY CARD AT THE DOOR. Kent: "i want the pop ups to all be done right before the player does
+## something in level 1 like the moment the player enters level 1, i want all tutorial pop ups to
+## be present from movement to drawing to checking inventory, make sure nothing is left". So the
+## opening is followed by every lesson card, back to back, and none waits for its moment.
+func _teaches_everything_at_entry() -> bool:
+	return true
+
+
 ## Into the terraces' haze, not Mayon's ash paper.
 func _fade_paper() -> Color:
 	return Color(0.78, 0.88, 0.86)
