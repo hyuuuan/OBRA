@@ -886,6 +886,18 @@ fitting its page, and being given by some level's script.
   `PlacementController.handle_pointer`. A refused drop ends the drag unsuccessfully and is heard
   in `InventoryHUD._notification(NOTIFICATION_DRAG_END)`. `run_bag_drag_probe` checks every level
   against the key; `run_click_ui` drags one with a real mouse.
+- **A drawn card can be had again without drawing it** (Kent: "the users wont have to draw
+  something if drawn already but it should cost ink just like the same"). Dragged out of the Tab
+  bag, or with USE IT AGAIN on its big card (Enter too), a card the player has drawn is made from
+  the page the class was last drawn on: `PlayerProfile.record_class_page` keeps that page, its
+  strokes and the recogniser's confidence beside the card's picture in `drawings/`, and
+  `LevelBase._draw_again` hands them to `_on_drawing_ready`, the door every accepted drawing comes
+  through. ⚠ That is the whole of the ink rule: it costs what drawing it costs, level by level
+  (a creature free in Payyo and a unit in Mayon, a tool its first time, a placeable when set
+  down), and it is refused where the brush refuses. Only the recogniser is skipped: no
+  recognition is logged and no submission counted; the reuse is logged as `drawing_reused`. A
+  class drawn before pages were kept says DRAW IT ONCE MORE FIRST. `run_draw_again_probe`
+  compares drawing and reusing from the same state in Payyo and Mayon.
 - **A face-down card hints, by what it can do** (Kent: "if they click a card that is not yet
   unlocked, the game hints them on what that card is for them to draw it"). Clicked, or reached
   with the arrows, a card not yet drawn says "Draw something that can CLIMB or CARRY" from its
