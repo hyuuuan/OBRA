@@ -1586,11 +1586,13 @@ func _ids_with_role(role: String) -> Array[String]:
 func _refresh_detail() -> void:
 	var kind := String(_chosen.get("kind", ""))
 	# A drawn card's button has it again; one whose page this save never kept says why it can't.
+	# ⚠ SHORT. The button sizes the column it sits in: "DRAW IT ONCE MORE FIRST" widened it and
+	# pushed the tabs off the screen's edge. The canvas above already says to draw it again.
 	var again := kind == "drawn" and may_draw_again
 	_use_button.visible = kind == "bag" or again
 	_use_button.disabled = again and not _can_draw_again(String(_chosen.get("id", "")))
 	_use_button.text = "TAKE IT OUT" if not again \
-		else ("DRAW IT ONCE MORE FIRST" if _use_button.disabled else "USE IT AGAIN")
+		else ("REDRAW FIRST" if _use_button.disabled else "USE IT AGAIN")
 	if kind.is_empty():
 		_style_detail(_palette(""))
 		_detail_number.text = ""

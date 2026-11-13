@@ -88,6 +88,7 @@ func _the_bag_offers_a_drawn_card_again() -> void:
 	screen.open()
 	await _wait(0.3)
 	screen.call("_choose_drawn", "frog")
+	await _wait(0.1)
 	var button := screen.get("_use_button") as Button
 	var carried: Variant = screen.call("_drag_from_roster", Vector2.ZERO, "frog")
 	_check(button.visible and not button.disabled and button.text == "USE IT AGAIN"
@@ -95,10 +96,10 @@ func _the_bag_offers_a_drawn_card_again() -> void:
 		"a drawn card can be dragged out, or used again", "button \"%s\"%s, carries %s" % [
 			button.text, " (off)" if button.disabled else "", str(carried)])
 	screen.call("_choose_drawn", "bird")
+	await _wait(0.1)
 	var nothing: Variant = screen.call("_drag_from_roster", Vector2.ZERO, "bird")
-	_check(button.visible and button.disabled and button.text == "DRAW IT ONCE MORE FIRST"
-			and nothing == null,
-		"one with no page kept says to draw it once more", "button \"%s\"%s, carries %s" % [
+	_check(button.visible and button.disabled and button.text == "REDRAW FIRST" and nothing == null,
+		"one with no page kept says to redraw it first", "button \"%s\"%s, carries %s" % [
 			button.text, " (off)" if button.disabled else "", str(nothing)])
 	drawn.erase("bird")
 	screen.close()
