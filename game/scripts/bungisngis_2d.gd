@@ -90,6 +90,11 @@ func laugh() -> void:
 
 
 ## Whether it still stands in the crossing.
+## Not once it has sat aside: laughing or sat down, no blow touches it, and a bar would say one could.
+func shows_health() -> bool:
+	return is_in_the_way() and super()
+
+
 func is_in_the_way() -> bool:
 	return state != State.DEAD and _laughing <= 0.0 and not _aside
 
