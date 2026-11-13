@@ -417,7 +417,7 @@ func _fall_distance(distance: float) -> float:
 	var supported := false
 	for child in _preview.get_children():
 		var collision := child as CollisionShape2D
-		if collision == null or collision.shape == null:
+		if collision == null or collision.shape == null or collision.is_queued_for_deletion():
 			continue
 		var query := PhysicsShapeQueryParameters2D.new()
 		query.shape = collision.shape
@@ -469,7 +469,12 @@ static func body_bounds(body: Node2D) -> Rect2:
 		return bounds
 	for child in body.get_children():
 		var collision := child as CollisionShape2D
-		if collision == null or collision.shape == null or not collision.shape.has_method("get_rect"):
+		# ⚠ NOR THE SHAPES A RESIZE HAS JUST REPLACED. A rebuilt drawing queue_frees its old
+		# collision, which stays a child until the frame ends -- so in the frame it was resized
+		# the ghost was measured, lifted and settled at the size it used to be, and anything
+		# that resizes and measures again in one frame got the old answer.
+		if collision == null or collision.shape == null or collision.is_queued_for_deletion() \
+				or not collision.shape.has_method("get_rect"):
 			continue
 		var rect: Rect2 = collision.shape.call("get_rect")
 		var basis := collision.global_transform
@@ -686,7 +691,7 @@ func _position_is_clear() -> bool:
 	# other as obstacles, so placement was refused at random, everywhere.
 	for child in _preview.get_children():
 		var collision := child as CollisionShape2D
-		if collision == null or collision.shape == null:
+		if collision == null or collision.shape == null or collision.is_queued_for_deletion():
 			continue
 		var query := PhysicsShapeQueryParameters2D.new()
 		query.shape = collision.shape
