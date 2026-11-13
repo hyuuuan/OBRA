@@ -896,7 +896,7 @@ fitting its page, and being given by some level's script.
   (a creature free in Payyo and a unit in Mayon, a tool its first time, a placeable when set
   down), and it is refused where the brush refuses. Only the recogniser is skipped: no
   recognition is logged and no submission counted; the reuse is logged as `drawing_reused`. A
-  class drawn before pages were kept says DRAW IT ONCE MORE FIRST. `run_draw_again_probe`
+  class drawn before pages were kept says REDRAW FIRST. `run_draw_again_probe`
   compares drawing and reusing from the same state in Payyo and Mayon.
 - **A face-down card hints, by what it can do** (Kent: "if they click a card that is not yet
   unlocked, the game hints them on what that card is for them to draw it"). Clicked, or reached
