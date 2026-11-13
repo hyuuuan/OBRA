@@ -24,6 +24,12 @@ import time
 from collections.abc import Mapping
 
 GAME_PID_ENV = "OBRA_GAME_PID"
+## ⚠ THE SERVE.PY THAT RELAUNCHED THIS ONE, when one did. serve.py runs itself again in a child
+## after setting up .venv -- the first start on a new computer -- and the game holds the pid of
+## the parent, so stopping the recogniser killed only that and the child went on serving. The
+## child watches its launcher too, and goes with it. Found by the checks on GitHub, whose fresh
+## .venv takes that path every run.
+LAUNCHER_PID_ENV = "OBRA_LAUNCHER_PID"
 
 
 def _exists(pid: int) -> bool:
@@ -69,32 +75,40 @@ def _exists_on_windows(pid: int, kernel32=None) -> bool:
         kernel32.CloseHandle(handle)
 
 
+def _pid(environ: Mapping[str, str], name: str) -> int | None:
+    raw = environ.get(name, "").strip()
+    return int(raw) if raw.isdigit() else None
+
+
 def exit_with_the_game(
     environ: Mapping[str, str] = os.environ, every: float = 1.0
 ) -> threading.Thread | None:
-    """Start watching the game named in OBRA_GAME_PID; exit this process when it ends.
+    """Start watching the game named in OBRA_GAME_PID, and the serve.py named in
+    OBRA_LAUNCHER_PID; exit this process when either ends.
 
-    Returns the watcher thread, or None when there is no game to watch.
+    Returns the watcher thread, or None when there is nothing to watch.
     """
-    raw = environ.get(GAME_PID_ENV, "").strip()
-    if not raw.isdigit():
-        return None
     # Windows too, now. It was skipped here because os.kill(pid, 0) is not a probe there, and
     # a server left behind on Windows -- after a crash, or a run stopped from the editor -- held
     # port 8000 for the next launch. _exists asks Windows properly (_exists_on_windows).
-    game_pid = int(raw)
-    # When the game is the direct parent, a change of parent is the surest sign it has gone:
-    # the orphan is re-parented the moment the game exits, before anything reaps it, while a
-    # dead-but-unreaped game still answers os.kill.
-    game_is_parent = os.getppid() == game_pid
+    game_pid = _pid(environ, GAME_PID_ENV)
+    launcher_pid = _pid(environ, LAUNCHER_PID_ENV)
+    if game_pid is None and launcher_pid is None:
+        return None
+    # When the one watched is the direct parent, a change of parent is the surest sign it has
+    # gone: the orphan is re-parented the moment the parent exits, before anything reaps it,
+    # while a dead-but-unreaped parent still answers os.kill.
+    parent = os.getppid()
 
-    def game_is_running() -> bool:
-        if game_is_parent and os.getppid() != game_pid:
+    def running(pid: int | None) -> bool:
+        if pid is None:
+            return True
+        if pid == parent and os.getppid() != parent:
             return False
-        return _exists(game_pid)
+        return _exists(pid)
 
     def watch() -> None:
-        while game_is_running():
+        while running(game_pid) and running(launcher_pid):
             time.sleep(every)
         os._exit(0)
 
