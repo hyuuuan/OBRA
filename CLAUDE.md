@@ -33,11 +33,14 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - **Work on a branch per PR, off `main`.** Never commit to `main` directly.
 - **Commit messages explain *why*, not just what.** The first line is short and plain; the body gives the reason.
 - **This repo's own style, not Conventional Commits.** Subjects are plain-English sentences with no `feat:` or `fix:` prefix (e.g. "A pickup shows its name as she nears it"), and branch names are short kebab-case with no `feat/` or `fix/` prefix (e.g. `dilim-fix-2`, `mayon-polish`). This holds even where a personal or global instruction asks for Conventional Commits.
-- **Open the PR and merge it once its suites pass.** Afterwards, `git pull --ff-only` on main, run the import, and delete the branch (local and remote).
+- **Open the PR and merge it once its checks on GitHub pass.** Afterwards, `git pull --ff-only` on main, run the import, and delete the branch (local and remote).
 
 ### Testing
 - **First, in a fresh checkout or after art changes:** `godot --headless --path game --import`. Without it, no `class_name` resolves.
-- **Run only the suites your change touches:** `tools/run_suites.sh only <suite> <suite> …`. Run the **full** suite (`tools/run_suites.sh`, 25–40 min) only when shipping, or when a change cuts across every level (an autoload, shared `LevelBase` plumbing).
+- **GitHub runs the full suite; run locally only what is necessary.** Every PR into main runs the Python tests and every headless suite on GitHub (`.github/workflows/checks.yml`, about 10 min): read the result on the PR instead of running `tools/run_suites.sh` (25–40 min) at the desk. Run locally only:
+  - the suite of a check you are adding, to mutation-test it (below);
+  - a suite you need an answer from before pushing, such as one you are fixing (`tools/run_suites.sh only <suite> …`);
+  - the four window suites, when a change touches mouse input, the drawing canvas or Mayon's walk. GitHub cannot run them.
 - **Godot runs may overlap, across worktrees too.** Each test run has its own `user://test_runs/<pid>` folder (`user_data.gd`). They still share the CPU, so re-run a timing failure alone before believing it.
 - **A green suite is not a silent one.** Grep the output for `SCRIPT ERROR`, `Parse Error`, `^ERROR` and `Error calling`.
 - **Mutation-test every new check.** Break the line the check guards, run the probe, confirm that the check fails, then restore the line. A check that cannot fail is not a check, so do this for every assertion you add.

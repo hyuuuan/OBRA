@@ -90,7 +90,9 @@ Godot uses the original stroke vectors to animate a morph or create a utility.
 - Consult [implementation notes](docs/IMPLEMENTATION_NOTES.md) by section for
   level history, gameplay and persistence, UI contracts, known traps, commands,
   and [macOS window QA](docs/IMPLEMENTATION_NOTES.md#finding-the-actual-godot-game-window-on-macos).
-  `tools/run_suites.sh` lists the Godot suites.
+  `tools/run_suites.sh` lists the Godot suites. Every PR into main runs them all
+  on GitHub, except the four window suites (`.github/workflows/checks.yml`), so
+  run locally only what a change needs an answer from before it is pushed.
 
 ## Working rules
 
