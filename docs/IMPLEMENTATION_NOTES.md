@@ -875,17 +875,6 @@ fitting its page, and being given by some level's script.
   grid. ⚠ It names a class only when the player has already drawn and had it accepted — the
   rest are unnamed empty frames. Naming the roster would turn every obstacle in the game
   into a lookup, which is the rule `RequirementStrip` exists to hold.
-- **A drawing in the bar is dragged out into the world** (Kent: "make the inventory draggable so
-  that the users wont have to draw the exact same thing"). `InventoryHUD` makes each full slot a
-  Godot drag source; the level answers through `_drag_out_of_slot`, which runs the slot through
-  `_on_inventory_slot_pressed` -- the key's own path -- so a drag costs what the key costs and is
-  refused where the key is refused, in every level (Mayon's ink, Dilim's wear, the paid-once
-  placeable). A placeable's ghost follows the pointer and is set down where it is let go; a tool
-  goes into the hand. ⚠ The world is not a Control: a full-screen `BagDropCatcher` behind the HUD
-  takes the drop only while a drag is on, and hands the wheel and right button it catches to
-  `PlacementController.handle_pointer`. A refused drop ends the drag unsuccessfully and is heard
-  in `InventoryHUD._notification(NOTIFICATION_DRAG_END)`. `run_bag_drag_probe` checks every level
-  against the key; `run_click_ui` drags one with a real mouse.
 - **A drawn card can be had again without drawing it** (Kent: "the users wont have to draw
   something if drawn already but it should cost ink just like the same"). Dragged out of the Tab
   bag, or with USE IT AGAIN on its big card (Enter too), a card the player has drawn is made from
@@ -898,6 +887,17 @@ fitting its page, and being given by some level's script.
   recognition is logged and no submission counted; the reuse is logged as `drawing_reused`. A
   class drawn before pages were kept says REDRAW FIRST. `run_draw_again_probe`
   compares drawing and reusing from the same state in Payyo and Mayon.
+- **A drawing in the bar is dragged out into the world** (Kent: "make the inventory draggable so
+  that the users wont have to draw the exact same thing"). `InventoryHUD` makes each full slot a
+  Godot drag source; the level answers through `_drag_out_of_slot`, which runs the slot through
+  `_on_inventory_slot_pressed` -- the key's own path -- so a drag costs what the key costs and is
+  refused where the key is refused, in every level (Mayon's ink, Dilim's wear, the paid-once
+  placeable). A placeable's ghost follows the pointer and is set down where it is let go; a tool
+  goes into the hand. ⚠ The world is not a Control: a full-screen `BagDropCatcher` behind the HUD
+  takes the drop only while a drag is on, and hands the wheel and right button it catches to
+  `PlacementController.handle_pointer`. A refused drop ends the drag unsuccessfully and is heard
+  in `InventoryHUD._notification(NOTIFICATION_DRAG_END)`. `run_bag_drag_probe` checks every level
+  against the key; `run_click_ui` drags one with a real mouse.
 - **A face-down card hints, by what it can do** (Kent: "if they click a card that is not yet
   unlocked, the game hints them on what that card is for them to draw it"). Clicked, or reached
   with the arrows, a card not yet drawn says "Draw something that can CLIMB or CARRY" from its
