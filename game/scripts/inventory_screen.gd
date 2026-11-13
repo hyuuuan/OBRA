@@ -313,6 +313,22 @@ func _shortcut_input(event: InputEvent) -> void:
 	close()
 
 
+## The first face-down card on show, for the lesson that has the player click one; null if none
+## is on show. The cards are rebuilt as drawings come in, so this is asked each time, not kept.
+func face_down_card() -> Control:
+	for value: Variant in _roster_buttons.values():
+		var button := value as Control
+		if button != null and is_instance_valid(button) and button.has_meta(&"face_down") \
+				and button.is_visible_in_tree():
+			return button
+	return null
+
+
+## What is chosen in the bag: {"kind": ...}. Read by the probes that click a card.
+func chosen() -> Dictionary:
+	return _chosen.duplicate()
+
+
 ## It plays its own entrance (see _on_opened); the base leaves it alone.
 func _animates_itself() -> bool:
 	return true
@@ -1390,6 +1406,7 @@ func _fill_band(role: String, title: String, drawn: Array) -> void:
 		if not owned:
 			# Face down: unnamed and untooltipped. Clicked, it hints at what to draw by what its
 			# class can do, never by its name -- see LOCKED_HINT_NAMES_THE_CLASS.
+			button.set_meta(&"face_down", true)
 			button.pressed.connect(_choose_locked.bind(id))
 			button.add_child(_card_back())
 			continue

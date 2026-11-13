@@ -582,19 +582,17 @@ func _draw_drag() -> void:
 	_cursor(tip)
 
 
-## The bag opened, a card in it not drawn yet, and what it says when it is chosen: a chip of what
-## it can DO. ⚠ The cards stay face down and the chip's words are bars. A picture on one, or a word
-## naming it, would be the answer.
+## A card in the open bag not drawn yet, clicked, and what it says when it is chosen: a chip of
+## what it can DO. Shown over the bag itself, so there is no key to open it in the picture.
+## ⚠ The cards stay face down and the chip's words are bars. A picture on one, or a word naming
+## it, would be the answer.
 func _draw_card_hint() -> void:
 	var p := _phase(3.2)
-	var down := _pulse(p, 0.04, 0.14)
-	_cap(Vector2(52.0, 72.0), _cap_label(0, "Tab"), down, 72.0)
-	_arrow(Vector2(98.0, 72.0), Vector2(132.0, 72.0), Color(LIT, 0.7))
 	var chosen := _ease(clampf((p - 0.36) / 0.12, 0.0, 1.0))
 	var font := get_theme_default_font()
 	for i in 3:
 		var picked := chosen if i == 1 else 0.0
-		var card := Rect2(146.0 + i * 50.0, 44.0 - picked * 10.0, 42.0, 60.0)
+		var card := Rect2(96.0 + i * 54.0, 44.0 - picked * 10.0, 44.0, 62.0)
 		_rounded("hint_card_%d" % i, card, UISkin.WOOD, 7.0, UISkin.GOLD_EDGE.lerp(LIT, picked),
 			2.0 + picked * 2.0)
 		if font != null:
@@ -602,14 +600,18 @@ func _draw_card_hint() -> void:
 				HORIZONTAL_ALIGNMENT_CENTER, card.size.x, 26, Color(UISkin.GOLD_PALE, 0.55 + 0.45 * picked))
 	var show := _ease(clampf((p - 0.5) / 0.14, 0.0, 1.0)) * (1.0 - clampf((p - 0.92) / 0.08, 0.0, 1.0))
 	if show > 0.0:
-		_arrow(Vector2(268.0, 68.0), Vector2(298.0, 68.0), Color(LIT, show))
-		var chip := Rect2(306.0, 46.0, 116.0, 44.0)
+		_arrow(Vector2(266.0, 72.0), Vector2(296.0, 72.0), Color(LIT, show))
+		var chip := Rect2(304.0, 50.0, 116.0, 44.0)
 		_rounded("hint_chip", chip, Color(UISkin.PANEL_LIT, show), 12.0, Color(LIT, show), 3.0)
 		for i in 2:
 			_rounded("hint_word", Rect2(chip.position + Vector2(16.0 + i * 46.0, 16.0), Vector2(36.0, 12.0)),
 				Color(UISkin.CREAM_TEXT, show), 6.0)
 	var travel := _ease(clampf((p - 0.18) / 0.16, 0.0, 1.0))
-	_cursor(Vector2(150.0, 146.0).lerp(Vector2(214.0, 82.0), travel))
+	var press := _pulse(p, 0.34, 0.08)
+	var tip := Vector2(60.0, 146.0).lerp(Vector2(164.0, 84.0), travel)
+	if press > 0.0:
+		draw_arc(tip, 12.0, 0.0, TAU, 24, Color(LIT, 0.85 * press), 3.0, true)
+	_cursor(tip)
 
 
 ## The arrow over the world: bobbing over the place, the apo walking to it, and gone when she is

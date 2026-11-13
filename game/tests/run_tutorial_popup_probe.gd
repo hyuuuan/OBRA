@@ -370,11 +370,16 @@ func _audit_a_look_card_stops_the_world() -> void:
 		"paused %s" % paused)
 	await _wait(TutorialSpotlight.AUTO_SEC + 0.5)
 	_check(spot.lesson_id() == "ink", "and waits for the player, not for a clock", "still up")
+	# ⚠ PAYYO'S CARDS ARE STRICT (tutorial.json `strict`): a key the card does not show leaves it up.
 	_press(&"redraw")
 	await _wait(0.2)
-	_check(not spot.is_open() and not paused, "a key lets it go, and the world back",
+	_check(spot.lesson_id() == "ink" and paused, "a key it does not show leaves it, the world held",
 		"up %s, paused %s" % [spot.is_open(), paused])
 	_check(not panel.is_open(), "and that key is spent on the card", "canvas open %s" % panel.is_open())
+	_press(&"ui_accept")
+	await _wait(0.2)
+	_check(not spot.is_open() and not paused, "Enter lets a card with nothing to press go, and the world back",
+		"up %s, paused %s" % [spot.is_open(), paused])
 	if panel.is_open():
 		panel.close_panel()
 	_auto(true)

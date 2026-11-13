@@ -868,11 +868,11 @@ func _greets_on_first_visit() -> bool:
 	return false
 
 
-## EVERY CARD AT THE DOOR. Kent: "i want the pop ups to all be done right before the player does
-## something in level 1 like the moment the player enters level 1, i want all tutorial pop ups to
-## be present from movement to drawing to checking inventory, make sure nothing is left". So the
-## opening is followed by every lesson card, back to back, and none waits for its moment.
-func _teaches_everything_at_entry() -> bool:
+## WHAT CAN BE TAUGHT AT THE START, AT THE DOOR. Kent: "the tutorial should pop up for when the
+## moment happens but there should be tutorial that is appropriate at the start like the movement,
+## inventory, jump, etc". So the opening is followed by the `door` cards -- walking, jumping, the
+## bag, the quest card, the arrow, the map, Escape -- and every other card waits for its moment.
+func _teaches_at_the_door() -> bool:
 	return true
 
 
