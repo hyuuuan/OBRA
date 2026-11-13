@@ -127,6 +127,8 @@ var _strict := false
 ## What the level does to set the scene for an entry card, given its anchor ("" at the end) --
 ## the empty bag shown while a card about the bag is up.
 var _stage := Callable()
+## What the level opens for real when a door card with `entry_opens` is done -- the bag, on Tab.
+var _opener := Callable()
 
 
 func _ready() -> void:
@@ -454,8 +456,8 @@ func _teach_at_once() -> void:
 ## rest were skipped. Each `door` lesson this run has not spent is shown strict, in ledger order,
 ## without its `lead` and lighting its `entry_anchor`; `entry_live` ones run the world under them,
 ## the rest hold it. `stage` is called with each card's anchor before it shows, and with "" when
-## the run is over.
-func teach_the_door(stage: Callable = Callable()) -> void:
+## the run is over; `opener` with a card's `entry_opens` when she has done it.
+func teach_the_door(stage: Callable = Callable(), opener: Callable = Callable()) -> void:
 	_entry.clear()
 	if _enabled:
 		for lesson in _lessons:
@@ -468,6 +470,7 @@ func teach_the_door(stage: Callable = Callable()) -> void:
 	for id in _entry:
 		_queue.erase(id)
 	_stage = stage
+	_opener = opener
 	_entry_running = true
 	_entry_wait = 0.0
 	if _spotlight != null:
@@ -540,6 +543,7 @@ func _end_entry() -> void:
 	if _stage.is_valid():
 		_stage.call("")
 	_stage = Callable()
+	_opener = Callable()
 	_entry_wait = 0.0
 	if _spotlight != null:
 		_spotlight.set_in_run(false)
@@ -577,8 +581,13 @@ func _present(card: Dictionary, anchor: String) -> void:
 	_spotlight.present(card, target, apo)
 
 
-func _on_card_finished(_lesson_id: String, how: String) -> void:
+func _on_card_finished(lesson_id: String, how: String) -> void:
 	_gap = GAP_AFTER_DONE if how == "done" else GAP_AFTER
+	# DONE FOR REAL: Tab on the bag's card opens the bag, and the next card is about what is in it.
+	if _entry_running and how == "done" and _opener.is_valid():
+		var opens := String(_find(lesson_id).get("entry_opens", ""))
+		if not opens.is_empty():
+			_opener.call(opens)
 	# ⚠ WHILE THE CARD IS STILL LEAVING: the next takes its place before the dim can fade, and
 	# the hold keeps the world still in between. A card she did is given the moment its tick needs.
 	if _entry_running:

@@ -4921,7 +4921,7 @@ func _play_opening() -> void:
 	# Still the opening: nothing that waits for her first words may start over a card.
 	if _teaches_at_the_door() and tutorial != null and tutorial.is_enabled():
 		_fill_in_the_hud()
-		await tutorial.teach_the_door(_stage_entry_card)
+		await tutorial.teach_the_door(_stage_entry_card, _open_for_a_card)
 	_opening_running = false
 	opening_finished.emit()
 
@@ -4942,6 +4942,14 @@ func _stage_entry_card(anchor: String) -> void:
 	# as it stood then, and the camera was still settling: its card lit the wall beside it.
 	if anchor == "objective_marker" and objective_marker != null:
 		objective_marker.queue_redraw()
+
+
+## What a door card done opens for real (`entry_opens`), so the player is in it, not told of it.
+## "bag": Tab on the bag's card opens the bag itself -- the world is held under the card, so the
+## level's own Tab handler is not running to do it.
+func _open_for_a_card(what: String) -> void:
+	if what == "bag" and inventory_screen != null and not inventory_screen.is_open():
+		_toggle_inventory_screen()
 
 
 ## ⚠ THE HUD AS IT WILL BE, NOT AS IT WAS ON THE FIRST FRAME. The world is held from the first

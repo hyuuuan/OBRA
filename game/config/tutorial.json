@@ -24,7 +24,7 @@
     "",
     "`carries` IS WHAT A ROUTE CAN MISS. Most of Level 1's lessons wait for the player to do the thing, and a run can finish it having never become anything. A `carries` lesson still unspent when the level ends is owed (PlayerProfile.lessons_owed) and is shown once, the first time its moment comes in a later level, without its `lead`: Lolo is not in every level, and nobody there was building up to it. A press on SKIP TUTORIAL owes nothing. A lesson that is not true everywhere (`undo`, `ink`: the ink rules change) does not carry.",
     "",
-    "WHAT CAN BE TAUGHT AT THE START IS, AT THE DOOR; THE REST IN ITS MOMENT. Kent: 'the tutorial should pop up for when the moment happens but there should be tutorial that is appropriate at the start like the movement, inventory, jump, etc'. Once level_1's opening has been said, its `door` lessons -- about what is already there: walking, jumping, the bag and its face-down cards, the quest card, the arrow, the map, Escape -- play back to back, in the order they are listed here, with no `lead` and no `delay`, lighting their `entry_anchor` (TutorialDirector.teach_the_door, LevelBase._teaches_at_the_door). `entry_live` ones (walking, jumping) are done for real with the world running; the rest hold the world. Every other lesson waits for its moment, as before. (For a day all of them played at the door, and taught a canvas, a placed drawing and a creature that were not there.) A block with `strict` (level_1's) has every card WAIT FOR THE PLAYER TO DO IT -- Kent: 'when the tutorial says press R, when i press another key, it just proceeds to the next one, it does not let me experience the tutorial'. A strict card goes only on its own key or click (a `look` card with nothing to press, on a click or Enter), with a tick, or when what it lights goes: no timeout, no other key."
+    "WHAT CAN BE TAUGHT AT THE START IS, AT THE DOOR; THE REST IN ITS MOMENT. Kent: 'the tutorial should pop up for when the moment happens but there should be tutorial that is appropriate at the start like the movement, inventory, jump, etc'. Once level_1's opening has been said, its `door` lessons -- about what is already there: walking, jumping, the bag and its face-down cards, the quest card, the arrow, the map, Escape -- play back to back, in the order they are listed here, with no `lead` and no `delay`, lighting their `entry_anchor` (TutorialDirector.teach_the_door, LevelBase._teaches_at_the_door). `entry_live` ones are done for real: walking and jumping with the world running, and the click on a face-down card in the bag; the rest hold the world. A card with `entry_opens` opens it for real when done: Tab on the bag's card opens the bag, and the next card is shown over it (`context: bag`), lighting a face-down card to click (`click_on_it`). Every other lesson waits for its moment, as before. (For a day all of them played at the door, and taught a canvas, a placed drawing and a creature that were not there.) A block with `strict` (level_1's) has every card WAIT FOR THE PLAYER TO DO IT -- Kent: 'when the tutorial says press R, when i press another key, it just proceeds to the next one, it does not let me experience the tutorial'. A strict card goes only on its own key or click (a `look` card with nothing to press, on a click or Enter), with a tick, or when what it lights goes: no timeout, no other key."
   ],
   "version": 2,
   "levels": {
@@ -349,6 +349,7 @@
         {
           "id": "bag_open",
           "door": true,
+          "entry_opens": "bag",
           "carries": true,
           "at": "item_stored",
           "after": "bag",
@@ -364,15 +365,19 @@
         {
           "id": "bag_hints",
           "door": true,
+          "entry_live": true,
           "at": "item_stored",
           "after": "bag_drag",
           "mode": "look",
           "visual": "card_hint",
-          "context": "world",
-          "anchor": "inventory_bar",
-          "action": "inventory_open",
-          "caption": "Face-down cards give a hint",
-          "text": "{keys} opens your bag. A card you have not drawn yet hints at what to draw."
+          "context": "bag",
+          "anchor": "face_down_card",
+          "mouse": [
+            "left"
+          ],
+          "click_on_it": true,
+          "caption": "Click a face-down card for a hint",
+          "text": "A card you have not drawn yet hints at what to draw. Click one, apo."
         },
         {
           "id": "checkpoint",
