@@ -189,7 +189,7 @@ func _read_the_lines() -> void:
 		await process_frame
 
 
-## PAYYO OPENS ON ITS CARDS, holding the world until each is read -- on purpose. Read them as a
+## PAYYO OPENS ON ITS CARDS, holding the world until each is done -- on purpose. Do them as a
 ## player does, so "nothing is left paused" asks about what is left after them.
 func _read_the_cards() -> void:
 	var tutorial = current_scene.get("tutorial") if current_scene != null else null
@@ -197,13 +197,14 @@ func _read_the_cards() -> void:
 	if tutorial == null or spot == null:
 		return
 	var since := Time.get_ticks_msec()
-	while bool(tutorial.call("is_teaching_everything")) and Time.get_ticks_msec() - since < 60000:
+	while bool(tutorial.call("is_teaching_the_door")) and Time.get_ticks_msec() - since < 60000:
 		await process_frame
-		if bool(spot.call("is_showing")) and float(spot.get("_age")) > TutorialSpotlight.LOOK_MIN_SEC + 0.05:
-			for down in [true, false]:
-				var event := InputEventAction.new()
-				event.action = &"ui_accept"
-				event.pressed = down
-				Input.parse_input_event(event)
+		if bool(spot.call("is_showing")) and float(spot.get("_age")) > TutorialSpotlight.STRICT_MIN_SEC + 0.05:
+			# Each with what it shows: a card at the door goes on nothing else.
+			var up := String(spot.call("lesson_id"))
+			preload("res://tests/tutorial_door.gd").press_for(spot.get("_lesson") as Dictionary, root)
+			while bool(spot.call("is_showing")) and String(spot.call("lesson_id")) == up \
+					and Time.get_ticks_msec() - since < 60000:
+				await process_frame
 	for _i in range(5):
 		await process_frame
