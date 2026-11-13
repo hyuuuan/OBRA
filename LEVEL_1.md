@@ -619,44 +619,51 @@ on the wall — it moved", is how she got it — and the house comes after, when
 home. So the first thing a new player sees is this level's opening, and its order now is:
 
 1. the intro conversation;
-2. **every lesson card, at the door** (2026-11-12). Kent: "i want the pop ups to all be done
-   right before the player does something in level 1 like the moment the player enters level 1,
-   i want all tutorial pop ups to be present from movement to drawing to checking inventory,
-   make sure nothing is left". The opening is followed by all 28 cards, back to back, in
-   `tutorial.json` order, each a `look` card over a world held still: walking, jumping and
-   climbing; drawing, the canvas, Paint, placing, resizing, turning, taking back and ink;
-   becoming, the clock, changing back, flying and swimming; E and F; the bag's keys, dragging out,
-   Tab and its face-down cards; the checkpoint, the quest card, the requirement, the arrow, the
-   map; and Escape. No lead and no delay: each lead was written for a moment that has not come.
-   A card whose subject does not exist yet lights its `entry_anchor` instead — the MOVE and JUMP
-   chips, R for the canvas and Paint, the apo for placing and every form, the ink gauge for taking
-   back, the quest card for the requirement — and the empty bag comes up for the bag's four.
-   Backspace ends them all, as it ends any card;
-3. `B0_HAGDAN.enter`, at the wall.
+2. **the door's cards** (2026-11-13). Kent: "the tutorial should pop up for when the moment
+   happens but there should be tutorial that is appropriate at the start like the movement,
+   inventory, jump, etc". Eight cards about what is already there play back to back, in
+   `tutorial.json` order, with no lead and no delay: Walk and Jump, done for real with the world
+   running and lighting their MOVE and JUMP chips; then the bag — Tab, its six empty slots brought
+   up to be lit, and Tab opens the real bag (`entry_opens`); over it, a card lights a face-down card
+   and waits for her to click it, which shows its hint (`context: bag`, `click_on_it`); when she
+   closes the bag, the quest card, the arrow, the map, and Escape last, lighting the keys in the
+   corner. Backspace ends them all, as it ends any card;
+3. `B0_HAGDAN.enter`, then **Draw** at the wall, led in by Lolo — and every other card in its
+   moment, as below.
 
-After the last card **nothing is left**: no lesson card comes in Level 1 again, whatever she
-does. Lolo's `life` line on the hint bar is his, not a card, and keeps its moment.
-`run_tutorial_coverage_probe` plays the run with somebody at the keys and holds all of it;
-`run_opening_probe` plays it after the real intro.
+**Every Payyo card waits for the player to do what it shows** (`strict` on the level's block).
+Kent, of cards any key moved on: "it does not let me experience the tutorial". A card goes only on
+its own key or click, with a tick; a `look` card with nothing to press goes on a click or Enter;
+a `do` card with nothing to press (Paint) goes when what it lights goes. No other key ends a
+card, and nothing times one out. Under a `do` card the world keeps working and its press does its
+job (R opens the canvas); under a `look` card the world is held and the press is spent on it.
+
+For a day (2026-11-12) every card played at the door, and taught a canvas, a placed drawing and a
+creature that were not there yet. `run_tutorial_coverage_probe` plays the door and the moments with
+somebody at the keys; `run_opening_probe` plays them after the real intro.
 
 ⚠ **Nothing goes before the first of these.** A key already held as the level appeared counted
 as the first step, so Jump's lead was said before the apo woke up and Walk was spent unshown.
-Lessons wait for the opening now (`_tutorial_context`), and the run at the door is part of it.
+Lessons wait for the opening now (`_tutorial_context`), and the door's cards are part of it.
 
 **At the gorge the order is `L1_N1.enter`, its three ways (`kind: lore`, in the box), then the
 question.** The fork's box and the arrival's box both begin at x 2950. They used to open on one
 frame, and the key turning Lolo's pages answered the question.
 
-Before 2026-11-12 each lesson waited for its moment instead: Walk after the opening, Jump on the
-bank, Draw at the wall, the checkpoint at Ang Hagdan's lantern, Quest and Become after the first
-gate, E the next time its prompt was up. The `at`, `after`, `anchor` and `lead` that said so are
-still in `tutorial.json`, because they are how a lesson owed by an older save shows in a later
-level.
+After the door each lesson waits for its moment (`at`, `after`, `delay`, `lead` in
+`tutorial.json`), and most only come if the player does the thing: Draw at the wall, the canvas and
+Paint on the canvas, placing on a placement, the checkpoint at Ang Hagdan's lantern; Become six
+seconds past the checkpoint, before the lake, the first place it can matter (spent unshown if she
+has already become something); E the next time its prompt is up, past the checkpoint — ⚠ a `look`
+card, because E is first offered beside the first drawing she set down, and a `do` card there would
+have her press E and pocket what she was about to climb. Fly and Swim come only to a form that can
+do them, Swim only once it is in the water. A lesson a route never reached is owed to the next
+level: AGENTS.md has the rule.
 
 ⚠ **The greeting is not said on a first visit** (`_greets_on_first_visit`). It came straight
 after the intro, at the spawn — "press R and draw", the first instruction in the game, with
-nothing in front of her to draw for — and the Draw card has just said it. Return visits still
-hear it.
+nothing in front of her to draw for — and the `draw` lesson's lead says the same thing at the
+wall. Return visits still hear it.
 
 **The keys stay on screen.** Payyo turns on `_shows_movement_keys`, so MOVE (A D) and JUMP
 (Space) stand in R's row, read off the InputMap, for the player who forgot — see HUD_SKIN.md.

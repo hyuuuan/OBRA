@@ -18,6 +18,8 @@ extends SceneTree
 ## The profile it writes is the test run's own (user_data.gd), so it starts from nothing and
 ## leaves nobody's save behind.
 
+const TutorialDoor = preload("res://tests/tutorial_door.gd")
+
 var failures := 0
 
 
@@ -399,7 +401,7 @@ func _press(action: StringName) -> void:
 		return
 
 
-## PAYYO OPENS ON ITS CARDS, holding the world until each is read -- on purpose. Read them as a
+## PAYYO OPENS ON ITS CARDS, holding the world until each is done -- on purpose. Do them as a
 ## player does, so "nothing is left paused" asks about what is left after them.
 func _read_the_cards() -> void:
 	var tutorial = current_scene.get("tutorial") if current_scene != null else null
@@ -407,13 +409,14 @@ func _read_the_cards() -> void:
 	if tutorial == null or spot == null:
 		return
 	var since := Time.get_ticks_msec()
-	while bool(tutorial.call("is_teaching_everything")) and Time.get_ticks_msec() - since < 60000:
+	while bool(tutorial.call("is_teaching_the_door")) and Time.get_ticks_msec() - since < 60000:
 		await process_frame
-		if bool(spot.call("is_showing")) and float(spot.get("_age")) > TutorialSpotlight.LOOK_MIN_SEC + 0.05:
-			for down in [true, false]:
-				var event := InputEventAction.new()
-				event.action = &"ui_accept"
-				event.pressed = down
-				Input.parse_input_event(event)
+		# Each with what it shows -- a card at the door goes on nothing else -- and the bag Tab
+		# opened put away once its card is done.
+		TutorialDoor.close_the_bag(current_scene, spot as TutorialSpotlight)
+		var up := TutorialDoor.do_the_card(spot as TutorialSpotlight, root)
+		while not up.is_empty() and bool(spot.call("is_showing")) and String(spot.call("lesson_id")) == up \
+				and Time.get_ticks_msec() - since < 60000:
+			await process_frame
 	for _i in range(5):
 		await process_frame

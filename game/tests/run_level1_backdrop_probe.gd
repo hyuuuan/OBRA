@@ -37,6 +37,11 @@ func _run() -> void:
 	root.add_child(level)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await create_timer(0.6).timeout
+	# ⚠ THE BACKDROP'S CHECKS, NOT THE TUTORIAL'S. A lesson's lead line takes the camera to Lolo and
+	# gives it back to the apo when it ends: at the lantern, "A lantern!" cut the lantern's framing
+	# short, and whether the stops at x 1380 and 1500 were measured under that framing or under the
+	# apo depended on how long the earlier lessons had kept the lead waiting.
+	(level.get("tutorial") as TutorialDirector).set_enabled(false)
 	var env := level.get_node("EnvironmentBaseplate") as Node2D
 	var plate := env.get_node("NearSceneryLayer/NearA") as Sprite2D
 	var camera := level.call("_world_camera") as Camera2D

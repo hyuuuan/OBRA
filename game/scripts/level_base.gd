@@ -1401,9 +1401,9 @@ func _refresh_requirements() -> void:
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
 	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player",
 	"placement", "placed", "canvas_paper", "transform_button", "lantern", "quest_card",
-	"move_prompt", "jump_prompt", "minimap", "objective_marker", "key_row"]
+	"move_prompt", "jump_prompt", "minimap", "objective_marker", "key_row", "face_down_card"]
 ## Every `context` a lesson may name, answered by _tutorial_context.
-const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "any"]
+const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "bag", "any"]
 ## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
 ## standing on them. A drawn body's anchor is its middle, so it gets a box round that instead.
 const PLAYER_BOX := Rect2(-28.0, -92.0, 56.0, 92.0)
@@ -1471,6 +1471,11 @@ func _tutorial_target(anchor: String) -> Rect2:
 			return _key_row_on_screen()
 		"minimap":
 			node = minimap as Control
+		"face_down_card":
+			# A card in the open bag not drawn yet: only while the bag is up.
+			if inventory_screen == null or not inventory_screen.is_open():
+				return Rect2()
+			node = inventory_screen.face_down_card()
 		"objective_marker":
 			# Not a control's box: the marker covers the screen and draws one arrow on it.
 			if objective_marker == null or not objective_marker.is_visible_in_tree():
@@ -1544,6 +1549,8 @@ func _tutorial_context(context: String) -> bool:
 	match context:
 		"canvas":
 			return canvas_open
+		"bag":
+			return inventory_screen != null and inventory_screen.is_open()
 		"any":
 			return true
 	if canvas_open or _level_completed or player == null or not is_instance_valid(player):
@@ -4912,16 +4919,17 @@ func _play_opening() -> void:
 	_opening_running = true
 	await _say_the_opening()
 	# Still the opening: nothing that waits for her first words may start over a card.
-	if _teaches_everything_at_entry() and tutorial != null and tutorial.is_enabled():
+	if _teaches_at_the_door() and tutorial != null and tutorial.is_enabled():
 		_fill_in_the_hud()
-		await tutorial.teach_everything_now(_stage_entry_card)
+		await tutorial.teach_the_door(_stage_entry_card, _open_for_a_card)
 	_opening_running = false
 	opening_finished.emit()
 
 
-## Whether every lesson card plays the moment the level opens, after its first words, and none
-## waits for its moment (TutorialDirector.teach_everything_now). Off; Payyo turns it on.
-func _teaches_everything_at_entry() -> bool:
+## Whether the level's `door` lessons -- the ones about what is already there -- play the moment
+## it opens, after its first words (TutorialDirector.teach_the_door). The rest still wait for
+## their moments. Off; Payyo turns it on.
+func _teaches_at_the_door() -> bool:
 	return false
 
 
@@ -4934,6 +4942,14 @@ func _stage_entry_card(anchor: String) -> void:
 	# as it stood then, and the camera was still settling: its card lit the wall beside it.
 	if anchor == "objective_marker" and objective_marker != null:
 		objective_marker.queue_redraw()
+
+
+## What a door card done opens for real (`entry_opens`), so the player is in it, not told of it.
+## "bag": Tab on the bag's card opens the bag itself -- the world is held under the card, so the
+## level's own Tab handler is not running to do it.
+func _open_for_a_card(what: String) -> void:
+	if what == "bag" and inventory_screen != null and not inventory_screen.is_open():
+		_toggle_inventory_screen()
 
 
 ## ⚠ THE HUD AS IT WILL BE, NOT AS IT WAS ON THE FIRST FRAME. The world is held from the first

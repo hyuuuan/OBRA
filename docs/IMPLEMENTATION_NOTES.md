@@ -128,12 +128,13 @@ walk into Ang Hagdan with the Jump card up and read the stair's opening line thr
 `TutorialSpotlight` now finishes such a card (`talked_over`) the moment a line begins. Payyo's
 first visit drops the "press R and draw" greeting (`_greets_on_first_visit`): the Draw card says it.
 
-⚠ **PAYYO PLAYS EVERY CARD AT THE DOOR** (Kent: "i want the pop ups to all be done right before
-the player does something in level 1 like the moment the player enters level 1 ... make sure
-nothing is left"). `LevelBase._teaches_everything_at_entry` (Payyo only) has `_play_opening`
-await `TutorialDirector.teach_everything_now` after the level's first words: every unspent card,
-in ledger order, as a `look` card with no lead and no delay, lighting its `entry_anchor`. Then
-nothing is left to wait for its moment. Six things this cost:
+⚠ **PAYYO TEACHES WHAT IS THERE AT THE DOOR, THE REST IN ITS MOMENT** (Kent: "the tutorial should
+pop up for when the moment happens but there should be tutorial that is appropriate at the start like
+the movement, inventory, jump, etc"). `LevelBase._teaches_at_the_door` (Payyo only) has
+`_play_opening` await `TutorialDirector.teach_the_door` after the level's first words: the `door`
+lessons, in ledger order, with no lead and no delay, lighting their `entry_anchor`. Every other
+lesson keeps its moment. For a day all 28 played at the door (#208) and taught a canvas, a placed
+drawing and a creature that were not there yet. What the run at the door cost:
 - **A card's pause goes the moment it starts to leave**, so back-to-back cards ran the world for
   every fade. `TutorialSpotlight.hold` keeps the run paused, and a card presented over one that
   is leaving takes its place (`_chained`): the dim stays and the hole slides to the next thing.
@@ -143,16 +144,40 @@ nothing is left to wait for its moment. Six things this cost:
 - **The HUD is filled in by ticks a held world does not run.** From the first frame, the quest
   card was empty, the map black and the arrow undrawn; `_fill_in_the_hud` runs once before the
   run, and the arrow is redrawn for its own card because the camera was still settling.
-- **Most subjects do not exist at the door**: no page, no placed drawing, no form, an empty bag
-  (hidden while empty). `entry_anchor` lights the control that will do it, and
-  `InventoryHUD.show_empty` brings the six slots up for the bag's cards only.
-- **Nobody at the keys, 28 cards at `AUTO_SEC` would hold the hint bar for over a minute** in
-  every suite that opens Payyo. An entry card stays `ENTRY_AUTO_SEC` there: about two seconds in all.
-  ⚠ The run decides once, when it begins (`_entry_auto`): `run_level1_audit` turns auto-dismiss
-  off a second in, and a card asked then became a real one that held the world for good.
-- **A probe that opens Payyo with nobody set to auto-dismiss now meets a held world** until the
-  cards are read. Read them (`_read_the_cards` in `run_new_game_probe`), or turn the tutorial off
-  before anything that needs the world running, as `run_level1_audit`'s arrival check does.
+- **The bag is hidden while empty.** `InventoryHUD.show_empty` brings the six slots up for the
+  bag's cards only.
+- **Tab under a held card opens nothing**: the level's Tab handler is paused with the world. A door
+  card with `entry_opens` has the level open it when done (`_open_for_a_card`), and the next card
+  (`context: bag`) is shown over the open bag -- ⚠ the bag is a modal at layer 56, so that card's
+  spotlight is raised to `BAG_LAYER` (57), and `_coast_is_clear` lets it past the bag as it lets a
+  canvas card past the canvas. It lights `InventoryScreen.face_down_card()` and counts a click only
+  there (`click_on_it`). The door's next card waits for her to close the bag.
+- **Nobody at the keys, cards at `AUTO_SEC` hold the hint bar for seconds each** in every suite
+  that opens Payyo. A door card stays `ENTRY_AUTO_SEC` there. ⚠ The run decides once, when it
+  begins (`_entry_auto`): `run_level1_audit` turns auto-dismiss off a second in, and a card asked
+  then became a real one that held the world for good.
+- **A probe that opens Payyo with nobody set to auto-dismiss meets a held world** until the door's
+  cards are done. Do them (`tests/tutorial_door.gd`: `do_the_card`, `close_the_bag`), or turn the
+  tutorial off before anything that needs the world running, as `run_level1_audit`'s arrival
+  check does.
+- ⚠ **A lead line moves the camera.** It goes to Lolo and comes back to the apo when the line ends,
+  so "A lantern!", said at the lantern now that nothing earlier keeps it waiting, cuts the
+  lantern's framing short. `run_level1_backdrop_probe` had measured x 1380 and 1500 under that
+  framing by luck of timing; it now turns the tutorial off. Under the apo, a jump there shows the
+  near plate's cut (x 1360, 1394): an art gap, left for its own change.
+
+⚠ **PAYYO'S CARDS WAIT FOR THE PLAYER TO DO THEM** (Kent, of cards any key moved on: "when the
+tutorial says press R, when i press another key, it just proceeds to the next one, it does not let
+me experience the tutorial"). `strict` on a level's block makes every card it shows strict
+(`TutorialSpotlight._strict_input`): it goes only on its own key or click, with a tick; a `look`
+card with nothing to press goes on a click or Enter; a `do` card with nothing to press (Paint) goes
+when what it lights goes, since a click there is how she draws. No other key, no timeout, no grace.
+Under a `look` card the press is spent on the card; under a `do` card in its moment the world goes
+on working and the press does its job (R opens the canvas). At the door, Walk and Jump are
+`entry_live` -- done for real, the world running -- and a stray key under them is spent, so R
+cannot open the canvas mid-run. The next door card waits `ENTRY_TICK_SEC` so the tick is seen, and
+the dim stays up through it (`set_in_run`). Only Payyo is strict; carried lessons in later levels
+are not.
 
 ⚠ **EVERY CARD CARRIES SKIP TUTORIAL** (Kent: "There should be a skip button for tutorials that
 the players can use"). `[Backspace] SKIP TUTORIAL` -- the `skip_tutorial` action, its cap read
@@ -168,8 +193,8 @@ clicking it headless must send the click in window pixels (`root.get_final_trans
 tutorial part make sure it covers everything and other levels wont have any tutorials if
 necessary"). `run_tutorial_audit` holds both halves. Every control that works in Level 1 has a
 lesson, read off `controls.json`, so a new control fails until it is taught; `skip_tutorial` is
-printed on every card. `pause` was cut and is taught again: with every card at the door, Escape's
-list of controls is where a player who has forgotten one goes. Outside Level 1 a card must be on `NECESSARY_CARDS`, each
+printed on every card. `pause` was cut and is taught again, at the door: Escape's list of controls
+is where a player who has forgotten a card goes. Outside Level 1 a card must be on `NECESSARY_CARDS`, each
 with the reason Level 1 cannot be where it is taught: Dagat's `new_brush` and `jars`, Dilim's `lamp`
 and `swing`. Piyesta and Mayon teach nothing of their own. Anything else a later level says is a
 `say` line on the hint bar. ⚠ **A line on the bar waits for what is up to be read and Lolo is on it
@@ -181,9 +206,7 @@ to do the thing, and a run can finish it having never become anything. A lesson 
 and still unspent when a level ends goes to `PlayerProfile.lessons_owed` (`LevelBase.mark_finished`)
 and is shown once, the first time its moment comes later, without its `lead`: those are Lolo's and
 he has gone by Dilim. A rule that changes later (`undo`, `ink`) must not carry. SKIP TUTORIAL, a
-replay and a save from before this all owe nothing. Since Payyo shows every card at the door, a new
-run owes nothing either; this is for a save made while Level 1 still taught in moments.
-`run_tutorial_coverage_probe` plays all of it.
+replay and a save from before this all owe nothing. `run_tutorial_coverage_probe` plays all of it.
 
 ⚠ **`CanvasBriefing` IS THE ONE PLACE THE TUTORIAL MAY STOP THE WORLD**, and it does not
 contradict `TutorialDirector`'s rule against dialogue boxes. That rule is about cost, and

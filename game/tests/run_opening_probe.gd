@@ -14,6 +14,7 @@ extends SceneTree
 
 ## Every check this probe makes, so a crash part-way cannot print OK.
 const CHECKS := 24
+const TutorialDoor = preload("res://tests/tutorial_door.gd")
 
 var failures := 0
 var checked := 0
@@ -29,6 +30,8 @@ var _gap_level: Node2D
 var _x_at_the_end := INF
 var _cards_on_the_way := 0
 var _the_level: Node2D
+## How each card at the door went, by lesson id.
+var _hows := {}
 
 
 func _initialize() -> void:
@@ -94,29 +97,33 @@ func _every_card_then_the_stair(level: Node2D) -> void:
 	var box := level.get("dialogue_box") as Node
 	var script_lines = level.get("script_lines")
 	var player := level.get("player") as Node2D
-	var start_x := player.global_position.x
 	_the_level = level
 	_x_at_the_end = INF
-	tutorial.connect("everything_taught", _note_where_she_stands)
-	_hold(&"move_right", true)
+	tutorial.connect("door_taught", _note_where_she_stands)
+	_hows.clear()
+	spot.finished.connect(_note_how)
+	# Each card is done as a player must: with what it shows. Nothing else moves one on.
 	var since := Time.get_ticks_msec()
-	while bool(tutorial.call("is_teaching_everything")) and Time.get_ticks_msec() - since < 60000:
+	while bool(tutorial.call("is_teaching_the_door")) and Time.get_ticks_msec() - since < 60000:
 		await process_frame
-		if spot.is_showing() and float(spot.get("_age")) > TutorialSpotlight.LOOK_MIN_SEC + 0.05:
-			_hold(&"ui_accept", true)
-			_hold(&"ui_accept", false)
+		TutorialDoor.close_the_bag(level, spot)
+		var up := TutorialDoor.do_the_card(spot, root)
+		while not up.is_empty() and spot.is_showing() and spot.lesson_id() == up \
+				and Time.get_ticks_msec() - since < 60000:
+			await process_frame
+	spot.finished.disconnect(_note_how)
 	var cards := 0
-	var shown := 0
+	var done := 0
 	for id: String in tutorial.call("lesson_ids"):
-		if String((tutorial.call("_find", id) as Dictionary).get("mode", "")) == "say":
+		if not bool((tutorial.call("_find", id) as Dictionary).get("door", false)):
 			continue
 		cards += 1
-		if bool(tutorial.call("was_shown", id)):
-			shown += 1
-	_check(not bool(tutorial.call("is_teaching_everything")) and shown == cards and cards > 0
-		and absf(_x_at_the_end - start_x) < 0.5,
-		"every card plays before she has taken a step",
-		"%d of %d cards shown, x %.1f -> %.1f" % [shown, cards, start_x, _x_at_the_end])
+		if bool(tutorial.call("was_shown", id)) and String(_hows.get(id, "")) == "done":
+			done += 1
+	_check(not bool(tutorial.call("is_teaching_the_door")) and done == cards and cards > 0,
+		"every door card plays, and each goes when she does what it shows",
+		"%d of %d door cards done" % [done, cards])
+	_hold(&"move_right", true)
 	var stair := level.find_child("B0_HAGDAN", true, false) as Node2D
 	_cards_on_the_way = 0
 	tutorial.connect("lesson_taught", _count_a_card)
@@ -127,18 +134,24 @@ func _every_card_then_the_stair(level: Node2D) -> void:
 		await _wait(0.05)
 		waited += 0.05
 	_hold(&"move_right", false)
-	# And at the wall, through the stair's own lines, for as long as a card in its moment took.
+	var on_the_way := _cards_on_the_way
+	# And at the wall, through the stair's own lines: the Draw card comes in its moment, led in.
 	var at_the_wall := 0.0
-	while at_the_wall < 6.0:
+	while at_the_wall < 8.0 and not bool(tutorial.call("was_shown", "draw")):
 		if box.call("is_open"):
 			box.call("skip_all")
 		await _wait(0.05)
 		at_the_wall += 0.05
 	tutorial.disconnect("lesson_taught", _count_a_card)
-	_check(bool(script_lines.call("has_heard", "B0_HAGDAN.enter")) and _cards_on_the_way == 0
-		and not spot.is_busy(),
-		"walking on to Ang Hagdan, no card comes up", "%d cards on the way and at the wall, at x %d of %d" %
-			[_cards_on_the_way, int(player.global_position.x), int(stair.global_position.x)])
+	_check(bool(script_lines.call("has_heard", "B0_HAGDAN.enter")) and on_the_way == 0
+		and bool(tutorial.call("was_shown", "draw")) and spot.lesson_id() == "draw",
+		"no card on the way to Ang Hagdan, and at the wall the Draw card comes",
+		"%d cards on the way, at x %d of %d; Draw %s" % [on_the_way, int(player.global_position.x),
+			int(stair.global_position.x), "up" if spot.lesson_id() == "draw" else "NOT UP"])
+
+
+func _note_how(id: String, how: String) -> void:
+	_hows[id] = how
 
 
 func _note_where_she_stands() -> void:
