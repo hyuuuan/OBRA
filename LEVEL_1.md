@@ -222,6 +222,17 @@ It says "the key, up there" and nothing about how to get up there, which is stil
 > floor and the room reads as a dead end. `_on_placement_confirmed` passes them — a fixture
 > that forgets to is testing the default, not the game.
 
+> ⚠ **And a drawing taller than the room is fitted to it, not put on its roof** (Kent: "when i
+> place something, it disappears"). The heap has about 312 of headroom under the thatch and
+> Ang Bale about 202, against a ladder drawn 244 tall and made bigger to reach the nail. The
+> placement climbs a ghost up out of whatever it overlaps, and with no air inside the room it
+> climbed through the thatch and set the drawing down on top of it, outside the box the camera
+> is held in. `PlacementController` now stops the climb at the top of the room and makes the
+> ghost a resize step smaller until it stands inside (`_fit_the_room`); the status line says
+> "Made smaller to fit this room". ⚠ A resize queue_frees the old collision, which counts until
+> the frame ends; the placement's shape checks skip it, or the fit shrank to half size.
+> `run_room_probe` sets a full-size ladder down in both rooms.
+
 **The chain is heap → key → house → painting.** The room used to hold the hub's painting of
 Pista *and* a key that opened nothing ("finding a key that does not fit is the point"), which
 made the heap the place you collect the next level and the house the place you collect

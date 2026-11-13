@@ -130,9 +130,24 @@ func _travel_and_morph(level: Node2D, map: LevelMinimap, origin: Vector2) -> voi
 	player.global_position = Vector2(room.call("entry_point"))
 	level.call("_refresh_room_framing", true)
 	map.refresh()
-	_check(map.world_rect().get_center().distance_to(player.global_position) < 2.0
+	var inside := Rect2(level.call("_minimap_region"))
+	_check(inside.has_area() and inside.has_point(map.world_rect().get_center())
+		and map.marked().distance_to(player.global_position) < 2.0
 		and map.world_rect().size.x < LevelMinimap.WORLD_SPAN,
 		"entering a room moves and scales the minimap")
+	# ⚠ AND IT SHOWS THE ROOM, NOT WHERE THE ROOM IS PARKED. Kent: "i can clearly see that
+	# this is just above level 1". Payyo's terraces under the floor and the sky over the
+	# thatch are both in the map's square; neither may be drawn.
+	var below := Vector2(player.global_position.x, inside.end.y + 120.0)
+	var above := Vector2(player.global_position.x, inside.position.y - 120.0)
+	_check(map.shows(player.global_position) and map.world_rect().has_point(below)
+		and map.world_rect().has_point(above) and not map.shows(below) and not map.shows(above),
+		"inside a room the minimap shows only the room")
+	# All of what is in view of it, not a patch of fog cleared round her: the far edge of the
+	# view is further from where she lands than the outdoor reveal reaches.
+	var far := Vector2(minf(map.world_rect().end.x, inside.end.x) - 30.0, inside.get_center().y)
+	_check(far.distance_to(player.global_position) > map.world_rect().size.x * 0.38
+		and map.shows(far), "and the room is on it whole")
 	var image := Image.create(400, 400, false, Image.FORMAT_RGBA8)
 	image.fill(Color.WHITE)
 	var made := bool(level.call("_spawn_or_replace", "frog", "Frog", image,
@@ -141,7 +156,7 @@ func _travel_and_morph(level: Node2D, map: LevelMinimap, origin: Vector2) -> voi
 	await create_timer(0.15, true).timeout
 	map.refresh()
 	var anchor: Vector2 = level.call("_player_anchor_position")
-	_check(made and map.world_rect().get_center().distance_to(anchor) < 2.0,
+	_check(made and map.marked().distance_to(anchor) < 2.0,
 		"minimap follows the active morph's physics anchor")
 	var card := level.get("morph_card") as Control
 	_check(card.is_visible_in_tree() and card.get_global_rect().position.x > map.get_global_rect().end.x,

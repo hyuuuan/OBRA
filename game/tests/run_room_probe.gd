@@ -70,6 +70,8 @@ func _run() -> void:
 	await _audit_the_chest_can_be_read()
 	await _audit_placement(&"straw_rooms", Vector2(-120.0, 220.0))
 	await _audit_placement(&"bale_interiors", Vector2(330.0, 210.0))
+	await _audit_a_tall_drawing_stays_inside(&"straw_rooms")
+	await _audit_a_tall_drawing_stays_inside(&"bale_interiors")
 	await _audit_a_morph_gets_into_the_heap()
 	await _audit_a_morph_stays_in_the_room(&"straw_rooms")
 	await _audit_a_morph_stays_in_the_room(&"bale_interiors")
@@ -605,6 +607,82 @@ func _audit_placement(group: StringName, aim: Vector2) -> void:
 	if is_instance_valid(preview):
 		preview.queue_free()
 	await process_frame
+
+
+## A DRAWING TALLER THAN THE ROOM IS SET DOWN IN IT, NOT ON ITS ROOF.
+##
+## Kent: "when i place something [in the haybale], it disappears". A ladder made big enough to
+## reach the nail has no headroom in the heap, and Ang Bale has less than a ladder's height at
+## its drawn size -- so the placement climbed the ghost up out of everything it overlapped, through
+## the thatch, and set it down on top of the room, where the camera held inside cannot see. The
+## whole box has to end up inside the room, standing on its floor.
+func _audit_a_tall_drawing_stays_inside(group: StringName) -> void:
+	var player := level.get("player") as Node2D
+	var room := level.get_tree().get_first_node_in_group(group) as Node2D
+	if player == null or room == null:
+		_check(false, "%s keeps a tall drawing" % group, "no player or no room")
+		return
+	player.global_position = Vector2(room.call("entry_point"))
+	if player is CharacterBody2D:
+		(player as CharacterBody2D).velocity = Vector2.ZERO
+	for _frame in range(30):
+		await physics_frame
+	var registry: Node = level.get("registry")
+	var placement := level.get_node("PlacementController") as PlacementController
+	var item := DrawnItemData.new()
+	item.entity_id = "ladder"
+	item.display_name = "Ladder"
+	item.ink_committed = true
+	item.entity_metadata = registry.call("get_entity", "ladder")
+	item.strokes = [{"points": PackedVector2Array([Vector2(0, 0), Vector2(0, 180),
+		Vector2(40, 180), Vector2(40, 0)]), "width": 6.0, "color": Color.BLACK}]
+	if not placement.begin_placement(item, player, -1):
+		_check(false, "%s keeps a tall drawing" % group, "placement would not start")
+		return
+	# Made as big as it goes, the way a player makes a ladder to reach the nail.
+	placement.resize_preview(PhysicsShapeObject.SIZE_SCALE_MAX)
+	var aim := player.global_position + Vector2(120.0, -60.0)
+	placement.update_target(aim)
+	await physics_frame
+	placement.update_target(aim)
+	var preview := placement.get("_preview") as PhysicsShapeObject
+	var fitted := placement.is_fitted_to_room()
+	if not placement.confirm_placement():
+		_check(false, "%s keeps a tall drawing" % group, "refused: the room had no place for it")
+		if is_instance_valid(preview):
+			placement.cancel_placement()
+		return
+	for _frame in range(150):
+		await physics_frame
+	var bounds := Rect2(room.call("bounds"))
+	var box := PlacementController.body_bounds(preview) if is_instance_valid(preview) else Rect2()
+	_check(is_instance_valid(preview) and bounds.encloses(box) and fitted,
+		"%s keeps a tall drawing" % group,
+		"made smaller=%s, box %s in room %s" % [fitted, box, bounds])
+	# And only as much smaller as the room needs: within two resize steps of the headroom. The
+	# old collision a resize replaces lingers until the frame ends, and measured with it the
+	# ghost shrank, still "did not fit", and shrank again, down to half size.
+	var headroom := _headroom(room)
+	_check(headroom > 0.0 and box.size.y >= headroom / pow(PlacementController.RESIZE_STEP, 2.0),
+		"%s only shrinks it to fit" % group,
+		"%.0f tall under %.0f of headroom" % [box.size.y, headroom])
+	if is_instance_valid(preview):
+		preview.queue_free()
+	await process_frame
+
+
+## Floor to the underside of the thatch: how tall a thing can stand in the room. Both of
+## Payyo's interiors build a `Roof` body over a floor at their own origin.
+func _headroom(room: Node2D) -> float:
+	var roof := room.get_node_or_null(^"Roof")
+	var shape: CollisionShape2D = null
+	for child in roof.get_children() if roof != null else []:
+		if child is CollisionShape2D:
+			shape = child
+	if shape == null or not (shape.shape is RectangleShape2D):
+		return 0.0
+	var size := (shape.shape as RectangleShape2D).size
+	return room.global_position.y - (shape.global_position.y + size.y * 0.5)
 
 
 ## ⚠ A ROOM PAINTS A SOLID GROUND BEHIND ITSELF, AND LEFT ON IT PAINTS THE LEVEL.
