@@ -22,6 +22,8 @@ var centre := false
 var _strips: Dictionary = {}
 var _anim := ""
 var _clock := 0.0
+## The highest painted pixel over every strip, in this node's px (see ink_top).
+var _ink_top := 0.0
 
 
 func load_kind(folder: String, kind: String, anims: Array) -> void:
@@ -35,6 +37,32 @@ func load_kind(folder: String, kind: String, anims: Array) -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	centered = false
 	visible = has_art()
+	_ink_top = _measure_ink_top()
+
+
+## Where its head is: the highest painted pixel of it standing at rest (its idle strip, or every
+## strip where it has none), in this node's px, so it does not move as the animation changes.
+## ⚠ NOT THE FRAME'S EDGE, AND NOT EVERY STRIP. The frames are square and carry clear air over a
+## short creature, and the bungisngis' club goes up far over its head in its strike: hung on
+## either, its bar floated a head above it.
+func ink_top() -> float:
+	return _ink_top
+
+
+func _measure_ink_top() -> float:
+	var top := INF
+	var resting: Array = [_strips["idle"]] if _strips.has("idle") else _strips.values()
+	for sheet: Texture2D in resting:
+		var tall := float(sheet.get_height())
+		var frame_top := -tall * 0.5 if centre else -tall
+		var image := sheet.get_image()
+		var painted := 0.0
+		if image != null and not image.is_empty():
+			if image.is_compressed():
+				image.decompress()
+			painted = float(image.get_used_rect().position.y)
+		top = minf(top, frame_top + painted)
+	return 0.0 if top == INF else top
 
 
 func has_art() -> bool:
