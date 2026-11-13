@@ -3152,6 +3152,10 @@ func _on_placement_changed(active: bool, valid: bool) -> void:
 		return
 	if not valid:
 		status_label.text = "No room there — aim at a clearer spot"
+	elif placement_controller.is_fitted_to_room():
+		# Before the wall's line: a ghost that came out smaller than it was asked for is the
+		# surprise, and the one the player is owed a reason for.
+		status_label.text = "Made smaller to fit this room — click to set it down here"
 	elif placement_controller.is_held_by_room():
 		# Said differently from the reach limit on purpose. Inside a room the wall is much
 		# nearer than arm's length, and "at arm's reach" sends the player looking for a
