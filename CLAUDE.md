@@ -168,5 +168,6 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 | One probe | `godot --headless --path game --script res://tests/<probe>.gd` |
 | Live progress bar for a background run | `python3 tools/suite_watch.py <log>` (run with `OBRA_SUITE_LOG=<log>`) |
 | Physics regression (more than 10 min) | `godot --headless --path game --script res://tests/run_tests.gd` |
+| Checks on GitHub | Every PR into main, and main after a merge: `.github/workflows/checks.yml` runs the Python tests and every headless suite in 11 side-by-side slices (`tools/run_suites.sh shard I N`). The four window suites stay a desk run. |
 | Python tests | `.venv/bin/python -m unittest -v tests.test_manifest_contract` |
 | Art checks | `.venv/bin/python tools/build_mayon.py --check` (some `build_*.py --check` scripts rewrite files; snapshot `git status` first) |
