@@ -91,6 +91,14 @@ var _excluded_rids: Array[RID] = []
 ##
 ## The room hands its own box in on the way through the door and takes it back on the way out.
 var _allowed: Rect2 = Rect2()
+## The size the PLAYER asked for, which a room may have made the ghost smaller than. See
+## `_fit_the_room`: kept apart so leaving the room, or resizing, starts from their choice again.
+var _asked_scale := 1.0
+## Set by the climb when it reached the top of the room without finding air -- the drawing is
+## taller than the room has headroom for, rather than aimed into something solid.
+var _hit_the_roof := false
+## Last reported `is_fitted_to_room`, so the status line hears when it changes.
+var _fitted_to_room := false
 ## Where the player last aimed, before the reach and the room held it in. Kept so a resize
 ## can place the ghost again from the same aim rather than from wherever the mouse is.
 var _aim: Vector2 = Vector2.ZERO
@@ -139,6 +147,11 @@ func source_slot() -> int:
 
 func is_held_by_room() -> bool:
 	return _held_by_room
+
+
+## Whether the room has made the ghost smaller than the player asked, so that it stands inside.
+func is_fitted_to_room() -> bool:
+	return is_placing() and _preview.size_scale < _asked_scale - 0.001
 
 
 ## Where placement is allowed from now on. An empty rect lifts the restriction.
@@ -192,6 +205,7 @@ func begin_placement(item: DrawnItemData, actor: Node2D, source_slot: int = -1) 
 	world_item_root.add_child(_preview)
 	_preview.apply_item_data(item)
 	_preview.set_preview(true)
+	_asked_scale = _preview.size_scale
 	_preview.global_rotation = item.placement_transform.get_rotation()
 	update_target(get_global_mouse_position())
 	placement_changed.emit(true, _valid)
@@ -300,11 +314,15 @@ func update_target(world_position: Vector2) -> void:
 	var beyond_reach := offset.length() > maximum_distance
 	if beyond_reach:
 		world_position = origin + offset.normalized() * maximum_distance
+	# Out of a room, the size the player chose; see `_fit_the_room`.
+	if _allowed.size.x <= 1.0 and not is_equal_approx(_preview.size_scale, _asked_scale):
+		_preview.set_size_scale(_asked_scale)
 	# AND INSIDE THE ROOM, if there is one. Held rather than refused: pinning the preview to
 	# the wall is the same answer the reach circle gives, and a spot the player can see the
 	# ghost sitting in is a better answer than a click that does nothing.
-	var pulled_in := _held_inside(world_position)
-	var held_by_room := not pulled_in.is_equal_approx(world_position)
+	var reached := world_position
+	var pulled_in := _held_inside(reached)
+	var held_by_room := not pulled_in.is_equal_approx(reached)
 	world_position = pulled_in
 	_preview.global_position = world_position
 	_refresh_preview_exclusions()
@@ -314,17 +332,26 @@ func update_target(world_position: Vector2) -> void:
 	# refused it forever -- the object looked like it had been dropped at random and
 	# every click was swallowed with "blocked or out of range".
 	var placeable := _lift_clear_of_obstacles()
+	# Too tall for the room: smaller until it stands in it, and aimed again at that size.
+	while not placeable and _fit_the_room():
+		world_position = _held_inside(reached)
+		held_by_room = not world_position.is_equal_approx(reached)
+		_preview.global_position = world_position
+		_refresh_preview_exclusions()
+		placeable = _lift_clear_of_obstacles()
 	if placeable:
 		_settle_onto_support()
 		placeable = _clear_of_the_actor(world_position)
 	else:
 		_resting = false
 	_refresh_fall_line(placeable)
+	var fitted := is_fitted_to_room()
 	if placeable != _valid or beyond_reach != _at_reach_limit \
-			or held_by_room != _held_by_room:
+			or held_by_room != _held_by_room or fitted != _fitted_to_room:
 		_valid = placeable
 		_at_reach_limit = beyond_reach
 		_held_by_room = held_by_room
+		_fitted_to_room = fitted
 		placement_changed.emit(true, _valid)
 	_preview.set_preview_valid(_valid)
 	if guides != null:
@@ -348,6 +375,7 @@ func resize_preview(factor: float) -> void:
 		next = 1.0
 	_preview.set_size_scale(next)
 	if not is_equal_approx(_preview.size_scale, was):
+		_asked_scale = _preview.size_scale
 		update_target(_aim)
 		placement_changed.emit(true, _valid)
 
@@ -359,17 +387,43 @@ func resize_preview(factor: float) -> void:
 ## in mid-air out of arm's reach of the character. Everything placeable is a rigid
 ## body that would settle onto the surface anyway, so an overlap was never a reason to
 ## say no; it only ever meant "spawned inside something", which the lift resolves.
+##
+## ⚠ NEVER UP OUT OF A ROOM. Kent: "when i place something [in the haybale], it disappears".
+## A room is a floor and a roof a few hundred units apart, parked in the sky -- the heap has
+## about 310 of headroom and Ang Bale about 200, against a ladder that is drawn 244 tall and
+## made bigger to reach the nail. Nothing that tall fits standing up in there, so the climb went
+## on up through the thatch and found air ABOVE it: the drawing was set down on the roof, out of
+## the room the camera is held inside. Reaching the top of the room is a reason to stop.
 func _lift_clear_of_obstacles() -> bool:
+	_hit_the_roof = false
 	var base := _preview.global_position
 	var limit := _climb_budget()
 	var lifted := 0.0
 	while lifted <= limit:
 		_preview.global_position = base - Vector2(0.0, lifted)
+		if _allowed.size.y > 1.0 and _preview_rect().position.y < _allowed.position.y:
+			_hit_the_roof = true
+			break
 		if _position_is_clear():
 			return true
 		lifted += _LIFT_STEP
 	_preview.global_position = base
 	return false
+
+
+## A ghost the room has no headroom for is made a step smaller, the way an aim past its wall
+## is held at the wall: a drawing that fits is a better answer than a red ghost nobody can
+## explain. False when there is nothing left to do -- no room, a refusal for some other reason,
+## or already as small as a drawing goes. The size it is set down at is the size it keeps.
+## ⚠ It is measured again in the same frame, which is only true because the shape checks skip
+## the collision a resize has just queued for freeing (see `body_bounds`); counting that, the
+## ghost still "did not fit" and was shrunk again, down to half size.
+func _fit_the_room() -> bool:
+	if not _hit_the_roof or _allowed.size.y <= 1.0 \
+			or _preview.size_scale <= PhysicsShapeObject.SIZE_SCALE_MIN + 0.001:
+		return false
+	_preview.set_size_scale(_preview.size_scale / RESIZE_STEP)
+	return true
 
 
 ## How far the preview may travel vertically, up out of solid ground or back down onto it.
@@ -713,6 +767,8 @@ func _clear_transaction() -> void:
 	_valid = false
 	_at_reach_limit = false
 	_held_by_room = false
+	_fitted_to_room = false
+	_hit_the_roof = false
 	_resting = false
 	_will_fall = false
 	if guides != null:
