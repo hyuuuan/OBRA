@@ -26,7 +26,11 @@ The lantern artwork dims to 80%, 60% and 40% brightness as health drops; its fla
 shortens and its glow fades. Restoring health restores its brightness.
 The map renders the existing world
 at low resolution, follows the active player's physics anchor, reveals nearby terrain and
-keeps explored cells for the current run. Interiors use their own map scale. The morph card
+keeps explored cells for the current run. Interiors use their own map scale and show **only
+the room**: every interior is parked in the sky over its level, so the map holds its view
+inside the room's camera box, reveals the room whole, and inks over everything outside it
+(Kent, in the heap: "i can clearly see that this is just above level 1"). The pin marks her,
+not the middle of the view (`LevelMinimap.marked`, `shows`). The morph card
 stays at the top right. The brush has no description row; action feedback goes to
 `HudNotice` at the right and clears after five seconds. A ready backend produces no idle text.
 `run_minimap_probe` checks every level; run it with a window to save screenshots and verify
