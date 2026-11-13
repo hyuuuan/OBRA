@@ -160,6 +160,7 @@ const FILIPINO := ["tulay", "hagdan", "hagdanan", "pinto", "puno", "susi", "ulap
 ## look is logged as assistance.
 func _a_face_down_card_hints() -> void:
 	var roster: Dictionary = screen.get("_roster_buttons")
+	_every_scramble_and_line_names_nothing(roster.keys())
 	var tags := root.get_node_or_null("AbilityTags")
 	var pick := ""
 	for id: String in roster:
@@ -223,6 +224,32 @@ func _a_face_down_card_hints() -> void:
 			face_down += 1
 	_check(face_down == 50 - profile_drawn().size(), "and the arrows can reach every face-down card",
 		"%d of %d" % [face_down, 50 - profile_drawn().size()])
+
+
+## Every class's scramble and line, not just the one clicked: each line is there, short, names none
+## of the fifty and says nothing of ink; each scramble is its own letters, is not its own name, and
+## spells no class.
+func _every_scramble_and_line_names_nothing(ids: Array) -> void:
+	var registry := screen.get("registry") as Node
+	var bad_lines: Array[String] = []
+	var bad_scrambles: Array[String] = []
+	for id_value: Variant in ids:
+		var id := String(id_value)
+		var line := InventoryScreen.locked_hint(id)
+		if line.is_empty() or line.split(" ", false).size() > 7 or not _names_in(line.to_lower()).is_empty() \
+				or line.to_lower().contains("ink"):
+			bad_lines.append("%s: \"%s\"" % [id, line])
+		var real := String(registry.call("get_entity", id).get("display_name", ""))
+		var scrambled := InventoryScreen.scrambled_name(real)
+		if scrambled == real.to_upper() or _letters(scrambled) != _letters(real) \
+				or scrambled != InventoryScreen.scrambled_name(real) \
+				or not _names_in(scrambled.to_lower()).is_empty():
+			bad_scrambles.append("%s: %s" % [id, scrambled])
+	_check(ids.size() == 50 and bad_lines.is_empty(),
+		"every card's line is short and names nothing", "%d cards; %s" % [ids.size(),
+		"all fine" if bad_lines.is_empty() else "BAD " + "; ".join(bad_lines)])
+	_check(bad_scrambles.is_empty(), "every scramble is its own letters, and spells no class",
+		"all fine" if bad_scrambles.is_empty() else "BAD " + "; ".join(bad_scrambles))
 
 
 ## A name's letters, sorted, without its spaces: two names with the same are anagrams.
