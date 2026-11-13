@@ -623,9 +623,11 @@ home. So the first thing a new player sees is this level's opening, and its orde
    happens but there should be tutorial that is appropriate at the start like the movement,
    inventory, jump, etc". Eight cards about what is already there play back to back, in
    `tutorial.json` order, with no lead and no delay: Walk and Jump, done for real with the world
-   running and lighting their MOVE and JUMP chips; then, over a held world, the bag (Tab, its six
-   empty slots brought up to be lit), its face-down cards, the quest card, the arrow, the map, and
-   Escape last, lighting the keys in the corner. Backspace ends them all, as it ends any card;
+   running and lighting their MOVE and JUMP chips; then the bag — Tab, its six empty slots brought
+   up to be lit, and Tab opens the real bag (`entry_opens`); over it, a card lights a face-down card
+   and waits for her to click it, which shows its hint (`context: bag`, `click_on_it`); when she
+   closes the bag, the quest card, the arrow, the map, and Escape last, lighting the keys in the
+   corner. Backspace ends them all, as it ends any card;
 3. `B0_HAGDAN.enter`, then **Draw** at the wall, led in by Lolo — and every other card in its
    moment, as below.
 

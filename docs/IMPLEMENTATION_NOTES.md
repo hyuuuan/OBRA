@@ -146,14 +146,25 @@ drawing and a creature that were not there yet. What the run at the door cost:
   run, and the arrow is redrawn for its own card because the camera was still settling.
 - **The bag is hidden while empty.** `InventoryHUD.show_empty` brings the six slots up for the
   bag's cards only.
+- **Tab under a held card opens nothing**: the level's Tab handler is paused with the world. A door
+  card with `entry_opens` has the level open it when done (`_open_for_a_card`), and the next card
+  (`context: bag`) is shown over the open bag -- ⚠ the bag is a modal at layer 56, so that card's
+  spotlight is raised to `BAG_LAYER` (57), and `_coast_is_clear` lets it past the bag as it lets a
+  canvas card past the canvas. It lights `InventoryScreen.face_down_card()` and counts a click only
+  there (`click_on_it`). The door's next card waits for her to close the bag.
 - **Nobody at the keys, cards at `AUTO_SEC` hold the hint bar for seconds each** in every suite
   that opens Payyo. A door card stays `ENTRY_AUTO_SEC` there. ⚠ The run decides once, when it
   begins (`_entry_auto`): `run_level1_audit` turns auto-dismiss off a second in, and a card asked
   then became a real one that held the world for good.
 - **A probe that opens Payyo with nobody set to auto-dismiss meets a held world** until the door's
-  cards are done. Do them (`tests/tutorial_door.gd` sends each the press it waits for), or turn
-  the tutorial off before anything that needs the world running, as `run_level1_audit`'s arrival
+  cards are done. Do them (`tests/tutorial_door.gd`: `do_the_card`, `close_the_bag`), or turn the
+  tutorial off before anything that needs the world running, as `run_level1_audit`'s arrival
   check does.
+- ⚠ **A lead line moves the camera.** It goes to Lolo and comes back to the apo when the line ends,
+  so "A lantern!", said at the lantern now that nothing earlier keeps it waiting, cuts the
+  lantern's framing short. `run_level1_backdrop_probe` had measured x 1380 and 1500 under that
+  framing by luck of timing; it now turns the tutorial off. Under the apo, a jump there shows the
+  near plate's cut (x 1360, 1394): an art gap, left for its own change.
 
 ⚠ **PAYYO'S CARDS WAIT FOR THE PLAYER TO DO THEM** (Kent, of cards any key moved on: "when the
 tutorial says press R, when i press another key, it just proceeds to the next one, it does not let
