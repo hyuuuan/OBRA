@@ -3520,10 +3520,12 @@ func _wear_one(item: DrawnItemData, used: UtilityObject) -> void:
 		return
 	spend_tool(item.entity_id)
 	# Spent out of the hand (a dropped anvil, on the ground): it goes once it has landed.
+	# ⚠ CONNECTED TO THE NODE, NOT A LAMBDA HOLDING IT. One spent IN the hand (a cannon's last shot)
+	# was already freed by spend_tool's stow when the timer fired, and Godot logged "Lambda capture
+	# at index 0 was freed" every time -- the check inside the lambda runs too late to stop it. A
+	# connection to the node itself is dropped when the node goes.
 	if is_instance_valid(used) and used.is_inside_tree():
-		get_tree().create_timer(1.0).timeout.connect(func() -> void:
-			if is_instance_valid(used):
-				used.queue_free())
+		get_tree().create_timer(1.0).timeout.connect(used.queue_free)
 	if hint_bar != null:
 		var noun := item.display_name.to_lower()
 		hint_bar.show_hint("The %s %s worn out. Draw another." % [noun, "are" if noun.ends_with("s")

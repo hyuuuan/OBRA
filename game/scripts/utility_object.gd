@@ -953,21 +953,8 @@ func _is_in_front(target: Node, origin: Vector2, facing: float, arc: float = 180
 ## Blast: a heavy shot that carries its own damage to whatever it lands on. Spawned
 ## rather than raycast so the player can see where the force went.
 func _fire_cannon(actor: Node2D) -> String:
-	var shot := RigidBody2D.new()
-	shot.mass = 4.0
-	shot.gravity_scale = 0.85
-	shot.continuous_cd = RigidBody2D.CCD_MODE_CAST_SHAPE
-	shot.contact_monitor = true
-	shot.max_contacts_reported = 4
-	var ball := CollisionShape2D.new()
-	var circle := CircleShape2D.new()
-	circle.radius = 11.0
-	ball.shape = circle
-	shot.add_child(ball)
-	var ink := Polygon2D.new()
-	ink.polygon = _circle_points(11.0)
-	ink.color = Color(0.1, 0.1, 0.12)
-	shot.add_child(ink)
+	# Seen in every level: a pale ball with a trail, a flash and a burst -- see CannonShot2D.
+	var shot := CannonShot2D.new()
 	var facing := _facing_of(actor)
 	var world := _world_root()
 	if world == null:
@@ -980,6 +967,7 @@ func _fire_cannon(actor: Node2D) -> String:
 	shot.position = world.to_local(muzzle) if world is Node2D else muzzle
 	world.add_child(shot)
 	shot.global_position = muzzle
+	CannonShot2D.burst(world, muzzle, CannonShot2D.Burst.MUZZLE)
 	shot.linear_velocity = Vector2(facing * 980.0, -190.0)
 	if _aimed_from(shot.global_position) != Vector2.ZERO:
 		# At what was clicked, and a little over it by what the shot falls on the way, so it goes
@@ -1034,8 +1022,13 @@ func _on_shot_landed(shot: RigidBody2D, hit: Node, actor: Node2D) -> void:
 		return
 	shot.set_meta(&"landed", true)
 	var target := _tool_target(hit)
+	var struck := false
 	if target != null and target.has_method("apply_tool_hit"):
-		target.call("apply_tool_hit", "cannon", 900.0, actor)
+		var answered: Variant = target.call("apply_tool_hit", "cannon", 900.0, actor)
+		struck = answered is bool and answered
+	# Where it landed, and whether it did anything there: a hit and a miss must not look alike.
+	CannonShot2D.burst(shot.get_parent(), shot.global_position,
+		CannonShot2D.Burst.STRUCK if struck else CannonShot2D.Burst.LANDED)
 	shot.queue_free()
 
 
