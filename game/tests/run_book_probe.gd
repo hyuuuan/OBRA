@@ -153,52 +153,41 @@ const FILIPINO := ["tulay", "hagdan", "hagdanan", "pinto", "puno", "susi", "ulap
 	"siga", "pamaypay", "submarino", "parasyut", "palihan", "bilog", "parisukat", "tatsulok"]
 
 
-## ⚠ A FACE-DOWN CARD HINTS, AND STILL NAMES NOTHING. Kent: "if they click a card that is not yet
-## unlocked, the game hints them on what that card is for them to draw it". Clicked -- or reached
-## with the arrows -- a card not yet drawn says what its class can do, by the tags the player has
-## been taught, and nothing on the screen names it; and the look is logged as assistance.
+## ⚠ A FACE-DOWN CARD HINTS BY ITS NAME SCRAMBLED, AND A SHORT LINE. Kent: "it should be the name
+## now but in scrambled letters and its very short description. like for example a DOG = ODG".
+## Clicked -- or reached with the arrows -- a card not yet drawn shows its own name with the letters
+## shuffled and one line about it; nothing on the screen spells the class or any other; and the
+## look is logged as assistance.
 func _a_face_down_card_hints() -> void:
-	var tags := root.get_node_or_null("AbilityTags")
 	var roster: Dictionary = screen.get("_roster_buttons")
-	# A fresh profile has been taught nothing; teach one ability a face-down card has, the way a
-	# level teaches it at its first gate.
-	for id: String in roster:
-		var its: Array = tags.call("tags_for_class", id)
-		if not profile_drawn().has(id) and not its.is_empty():
-			tags.call("unlock", String(its[0]))
-			break
-	# A face-down card whose class can do something this player has been taught.
+	var tags := root.get_node_or_null("AbilityTags")
 	var pick := ""
-	var taught: Array[String] = []
 	for id: String in roster:
-		if (profile_drawn()).has(id):
-			continue
-		var can: Array[String] = []
-		for tag: Variant in tags.call("tags_for_class", id):
-			if bool(tags.call("is_unlocked", String(tag))):
-				can.append(String(tags.call("can_phrase", String(tag))))
-		if not can.is_empty():
+		if not profile_drawn().has(id) and not (tags.call("tags_for_class", id) as Array).is_empty():
 			pick = id
-			taught = can
 			break
 	if pick.is_empty():
-		_check(false, "a face-down card with a taught ability exists to try", "none found")
+		_check(false, "a face-down card exists to try", "none found")
 		return
+	# Taught one thing it does, the way a level teaches it at its first gate: the skills the card
+	# used to list would show now, so the check that they are gone can fail.
+	tags.call("unlock", String((tags.call("tags_for_class", pick) as Array)[0]))
 	var log_before := _telemetry_lines()
 	(roster[pick] as Button).pressed.emit()
 	await _wait(0.2)
 	var chosen: Dictionary = screen.get("_chosen")
 	var title := (screen.get("_detail_title") as Label).text
 	var hint := (screen.get("_ability_text") as Label).text
-	_check(String(chosen.get("kind", "")) == "locked" and title == "Not drawn yet",
-		"a face-down card can be picked, and says it is not drawn yet",
+	var real := String((screen.get("registry") as Node).call("get_entity", pick).get("display_name", ""))
+	_check(String(chosen.get("kind", "")) == "locked" and title == InventoryScreen.scrambled_name(real)
+		and title != real.to_upper() and _letters(title) == _letters(real),
+		"a face-down card can be picked, and shows its name scrambled",
 		"chosen %s, title \"%s\"" % [str(chosen), title])
-	var missing: Array[String] = []
-	for phrase in taught:
-		if not hint.contains(phrase):
-			missing.append(phrase)
-	_check(missing.is_empty() and hint.begins_with("Draw something that can"),
-		"and hints at it by what it can do", "\"%s\"" % hint)
+	_check(not hint.is_empty() and hint == InventoryScreen.locked_hint(pick),
+		"and says its one short line", "\"%s\"" % hint)
+	var chips := (screen.get("_skills_flow") as Node).find_children("*", "Label", true, false)
+	var shown_chips := chips.filter(func(chip: Node) -> bool: return (chip as Label).is_visible_in_tree())
+	_check(shown_chips.is_empty(), "and no longer lists its skills", "%d chips" % shown_chips.size())
 	# Every word the hint puts up -- the big card and its plaques, its skill chips -- and on the
 	# face-down card itself. (Drawn cards elsewhere on the screen are named, as they should be.)
 	var said: Array[String] = []
@@ -234,6 +223,13 @@ func _a_face_down_card_hints() -> void:
 			face_down += 1
 	_check(face_down == 50 - profile_drawn().size(), "and the arrows can reach every face-down card",
 		"%d of %d" % [face_down, 50 - profile_drawn().size()])
+
+
+## A name's letters, sorted, without its spaces: two names with the same are anagrams.
+func _letters(text: String) -> String:
+	var letters := Array(text.to_upper().replace(" ", "").split(""))
+	letters.sort()
+	return "".join(PackedStringArray(letters))
 
 
 func profile_drawn() -> Array:

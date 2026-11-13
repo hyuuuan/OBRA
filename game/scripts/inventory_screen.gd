@@ -145,13 +145,15 @@ const STACKS := {
 ## The count, as a card writes it at the head of a sentence.
 const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
 
-## ⚠ THE ONE PLACE A FACE-DOWN CARD'S HINT IS DECIDED. Kent: "if they click a card that is not
-## yet unlocked, the game hints them on what that card is for them to draw it". The thesis's rule
-## is that a T1 or T2 hint never names a class (LevelDirector), so by default the card says what
-## its class can DO -- its ability tags, which the requirement strip already names -- and names
-## nothing. Set true and it names its own class instead. Either way, opening it is logged as
-## assistance (`locked_card_hint`), so a later drawing of it is not counted as unaided.
-const LOCKED_HINT_NAMES_THE_CLASS := false
+## ⚠ WHAT A FACE-DOWN CARD SAYS: ITS NAME, SCRAMBLED, AND A LINE ABOUT IT. Kent, 2026-11-13: "it
+## should be the name now but in scrambled letters and its very short description. like for example
+## a DOG = ODG". It said what the class could DO before (its taught ability tags), because the
+## thesis's T1 and T2 hints never name a class; a scramble still spells nothing a player can read
+## off, but it is a stronger hint than any tier, so opening one stays logged as assistance
+## (`locked_card_hint`) and a later drawing of it is not counted as unaided. The lines are data,
+## one per class, in config/card_hints.json.
+const CARD_HINTS_PATH := "res://config/card_hints.json"
+static var _card_hints: Dictionary = {}
 
 ## How a creature gets about, as the card prints it.
 const MOVES := {
@@ -1404,8 +1406,8 @@ func _fill_band(role: String, title: String, drawn: Array) -> void:
 		_roster_buttons[id] = button
 		_paint(button, owned, chosen, true)
 		if not owned:
-			# Face down: unnamed and untooltipped. Clicked, it hints at what to draw by what its
-			# class can do, never by its name -- see LOCKED_HINT_NAMES_THE_CLASS.
+			# Face down: unnamed and untooltipped. Clicked, the big card hints at it by its name
+			# scrambled and a short line -- see CARD_HINTS_PATH.
 			button.set_meta(&"face_down", true)
 			button.pressed.connect(_choose_locked.bind(id))
 			button.add_child(_card_back())
@@ -1623,41 +1625,60 @@ func _fill_class_card(class_id: String, art: Texture2D) -> void:
 
 
 
-## A card still face down: its kind and number, what its class can do, and nothing that names it.
-## Opening it is help, and is logged as help.
+## A card still face down: its kind and number, its name with the letters scrambled, and one short
+## line about it. Opening it is help, and is logged as help.
 func _fill_locked_card(class_id: String) -> void:
 	var entry: Dictionary = registry.get_entity(class_id) if registry != null else {}
 	var palette := _palette(String(entry.get("runtime_role", "")))
 	_style_detail(palette)
 	_detail_number.text = "No. %02d" % _roster_number(class_id)
-	_detail_title.text = "Not drawn yet"
+	_detail_title.text = scrambled_name(_display_name(class_id))
 	_detail_kind.text = String(palette["kind"])
 	_set_art(null, "Still face down. Draw it to turn it over.")
 	_set_ability("Hint", locked_hint(class_id))
-	_set_skills(_skills_of(class_id))
+	# Its skills were the old hint; the scramble and the line replace them, not join them.
+	_set_skills([])
 	_set_rows("", _role_of(class_id))
 	_log_locked_hint(class_id)
 
 
-## What a face-down card says about the class under it. See LOCKED_HINT_NAMES_THE_CLASS: by
-## default its abilities as the requirement strip words them ("something that can CLIMB or
-## CARRY"), only those this player has been taught, and never its name.
-func locked_hint(class_id: String) -> String:
-	if LOCKED_HINT_NAMES_THE_CLASS:
-		return "Try drawing a %s." % _display_name(class_id).to_lower()
-	var tags := get_node_or_null(^"/root/AbilityTags")
-	var can: Array[String] = []
-	if tags != null:
-		for tag_value: Variant in tags.call("tags_for_class", class_id):
-			var tag := String(tag_value)
-			if bool(tags.call("is_unlocked", tag)):
-				can.append(String(tags.call("can_phrase", tag)))
-	if can.is_empty():
-		# Nothing it does has been taught yet, so there is nothing to say of it but its kind.
-		return "What this one does has not been shown to you yet. Keep going, and come back."
-	var listed := can[0] if can.size() == 1 \
-		else "%s or %s" % [", ".join(PackedStringArray(can.slice(0, can.size() - 1))), can.back()]
-	return "Draw something that can %s." % listed
+## The short line a face-down card gives about its class (config/card_hints.json).
+static func locked_hint(class_id: String) -> String:
+	if _card_hints.is_empty():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CARD_HINTS_PATH))
+		if parsed is Dictionary:
+			_card_hints = (parsed as Dictionary).get("hints", {})
+	return String(_card_hints.get(class_id, ""))
+
+
+## `display` with each word's letters shuffled: "Dog" is "ODG". The same shuffle every time for the
+## same name, so a card does not read differently each time it is opened, and never the word
+## itself -- a shuffle that lands back where it started is turned by one letter.
+static func scrambled_name(display: String) -> String:
+	var words := PackedStringArray()
+	for word in display.to_upper().split(" ", false):
+		words.append(_scrambled_word(word))
+	return " ".join(words)
+
+
+static func _scrambled_word(word: String) -> String:
+	var letters: Array[String] = []
+	var state := 7
+	for i in word.length():
+		letters.append(word[i])
+		state = (state * 31 + word.unicode_at(i)) % 2147483647
+	# Fisher-Yates on a fixed little generator, not the engine's: hash() and RandomNumberGenerator
+	# make no promise to give the same sequence on every version and machine.
+	for i in range(letters.size() - 1, 0, -1):
+		state = (state * 1103515245 + 12345) % 2147483648
+		var j := state % (i + 1)
+		var held := letters[i]
+		letters[i] = letters[j]
+		letters[j] = held
+	var shuffled := "".join(letters)
+	if shuffled == word and word.length() > 1:
+		shuffled = word.substr(1) + word.substr(0, 1)
+	return shuffled
 
 
 func _log_locked_hint(class_id: String) -> void:
@@ -1671,7 +1692,7 @@ func _log_locked_hint(class_id: String) -> void:
 	telemetry.call("record_event", "locked_card_hint", {
 		"level_id": String(levels.get("current_level_id")) if levels != null else "",
 		"entity_id": class_id,
-		"names_the_class": LOCKED_HINT_NAMES_THE_CLASS,
+		"shows": "scrambled_name",
 		"assisted": true,
 	})
 
