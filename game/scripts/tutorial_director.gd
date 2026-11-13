@@ -42,10 +42,10 @@ extends Node
 ## `anchor`). Every other lesson waits for its moment, as it always did. (For a day all of them
 ## played at the door; it taught a canvas, a placed drawing and a creature that were not there.)
 ##
-## ⚠ EACH DOOR CARD WAITS FOR THE PLAYER TO DO IT. Kent: "when the tutorial says press R, when i
-## press another key, it just proceeds to the next one, it does not let me experience the tutorial".
-## A strict card (TutorialSpotlight) goes only on its own key or click, with a tick -- no timeout,
-## no other key -- or when what it lights goes. At the door,
+## ⚠ EACH WAITS FOR THE PLAYER TO DO IT, in a level whose block says `strict` (Payyo's). Kent: "when
+## the tutorial says press R, when i press another key, it just proceeds to the next one, it does
+## not let me experience the tutorial". A strict card (TutorialSpotlight) goes only on its own key
+## or click, with a tick -- no timeout, no other key -- or when what it lights goes. At the door,
 ## walking and jumping (`entry_live`) are done for real with the world running; the rest hold the
 ## world, so a stray key cannot open the canvas mid-run.
 ##
@@ -121,6 +121,8 @@ var _entry_running := false
 var _entry_auto := false
 ## Seconds before the next card of the run, while the tick on the last one is seen.
 var _entry_wait := 0.0
+## The loaded level's cards wait for the player to do what they show (`strict` on its block).
+var _strict := false
 ## What the level does to set the scene for an entry card, given its anchor ("" at the end) --
 ## the empty bag shown while a card about the bag is up.
 var _stage := Callable()
@@ -155,6 +157,7 @@ func load_for(level_id: String) -> bool:
 	var levels: Dictionary = (parsed as Dictionary).get("levels", {})
 	# A level with nothing to teach is not an error: most of them have no block at all.
 	var block: Dictionary = levels.get(level_id, {})
+	_strict = bool(block.get("strict", false))
 	for value: Variant in block.get("lessons", []):
 		_add_lesson(value as Dictionary)
 	_take_on_what_is_owed(levels)
@@ -654,6 +657,7 @@ func _card_for(lesson: Dictionary) -> Dictionary:
 		"seconds": float(lesson.get("seconds", 10.0)),
 		"actions": actions_for(lesson),
 		"mouse": lesson.get("mouse", []),
+		"strict": _strict,
 	}
 
 
