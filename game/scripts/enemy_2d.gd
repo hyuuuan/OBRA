@@ -38,6 +38,8 @@ const KNOCK_BASE := 220.0
 const KNOCK_PER_DAMAGE := 80.0
 const DEATH_FADE := 0.4
 const HITBOX_PADDING := Vector2(20.0, 8.0)
+## Clear air between the top of its art and its health bar, px.
+const HEALTH_BAR_GAP := 6.0
 ## PLACEHOLDER BODY until there is art for it: a shape darker than the dark, and its eyes.
 const SHADE := Color(0.055, 0.047, 0.067)
 const EYE := Color(1.0, 0.62, 0.22)
@@ -288,6 +290,25 @@ func reset_home() -> void:
 
 func is_dead() -> bool:
 	return state == State.DEAD
+
+
+## Whether its health is up over it (FoeHealthBars): once it is after her, or has been hurt -- never
+## while it waits, unseen and unbothered, and never once it is dead. A creature whose ambush is its
+## disguise, or that a blow cannot touch, says no in its own script.
+func shows_health() -> bool:
+	if state == State.DEAD or not is_visible_in_tree() or modulate.a < 0.1:
+		return false
+	return hp < max_hp or state in [State.CHASE, State.WINDUP, State.ATTACK, State.RECOVER, State.STUN]
+
+
+## Where its health bar hangs, in world px: just over its painted head, or the top of its body where
+## it has no art. ⚠ THE ART, NOT THE HIGHER OF THE TWO. The bungisngis' body is a 180 px wall across
+## the path, far taller than the giant drawn in it, and a bar on the body floated over empty air.
+func health_bar_anchor() -> Vector2:
+	var top := -body_size.y * 0.5
+	if art != null and art.has_art():
+		top = art.position.y + art.ink_top()
+	return global_position + Vector2(0.0, top - HEALTH_BAR_GAP)
 
 
 func state_name() -> String:
