@@ -684,6 +684,8 @@ func _on_entity_prediction(
 	if _profile:
 		_profile.record_class_drawn(entity)
 		_profile.record_class_drawing(entity, drawing)
+		# The whole page too, for the bag to make it again from (InventoryScreen.drawn_again).
+		_profile.record_class_page(entity, drawing, _pending_strokes, confidence)
 		_profile.note_submission(true)
 	var ink_cost: float = float(canvas.get_current_cost())
 	var submitted_strokes := _pending_strokes.duplicate(true)
