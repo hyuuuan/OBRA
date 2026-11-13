@@ -9,6 +9,7 @@ extends SceneTree
 ##
 ##   the door's cards play the moment Payyo opens, in their order, one at a time
 ##   each waits for her to do what it shows -- another key does nothing -- and ticks when she has
+##   Tab opens the real bag, and the next card, over it, has her click a face-down card
 ##   she walks and jumps for real under those two; the others hold the world, dim up
 ##   each lights something real, and the last gone, she walks on
 ##   the rest wait for their moments: R at the wall waits for R and opens the canvas; the lantern
@@ -17,7 +18,7 @@ extends SceneTree
 ##   a later level shows what is owed once, without Lolo, and nothing else from Level 1
 ##   SKIP TUTORIAL, a replay and an old save all owe nothing
 
-const CHECKS := 43
+const CHECKS := 45
 const TutorialDoor = preload("res://tests/tutorial_door.gd")
 
 var level: Node2D
@@ -42,6 +43,9 @@ var _last_live := false
 ## the next one takes its place.
 var _gone_at := {}
 var _came_at: Array[float] = []
+## The bag, as the card about its face-down cards found it: open, with the card over it.
+var _bag_open_under_hints := false
+var _hint_shown := false
 
 
 func _initialize() -> void:
@@ -154,6 +158,9 @@ func _on_taught(id: String) -> void:
 	var lesson: Dictionary = tutorial.call("_find", id)
 	var anchor := tutorial.entry_anchor_of(lesson)
 	_last_live = bool(lesson.get("entry_live", false))
+	if id == "bag_hints":
+		var bag := level.get("inventory_screen") as InventoryScreen
+		_bag_open_under_hints = bag.is_open() and spot.layer > bag.layer
 	_came_at.append(Time.get_ticks_msec() / 1000.0)
 	_shown.append({"id": id, "mode": spot.lesson_mode(), "anchor": anchor, "live": _last_live,
 		"target": level.call("_tutorial_target", anchor),
@@ -181,7 +188,11 @@ func _watch_the_run() -> void:
 	if not paused and not _last_live:
 		_unpaused_in_run += 1
 	var spot := _spot()
-	if _shown.size() > 1 or (spot.is_showing() and float(spot.get("_age")) > TutorialSpotlight.FADE_SEC):
+	# From one card to the next -- not while she reads the bag Tab opened, when no card is up, nor
+	# while the card after it fades in.
+	var bag := level.get("inventory_screen") as InventoryScreen
+	if spot.is_busy() and not bag.is_open() \
+			and (bool(spot.get("_chained")) or float(spot.get("_age")) > TutorialSpotlight.FADE_SEC):
 		_dim_low = minf(_dim_low, float(spot.get("_fade")))
 
 
@@ -190,9 +201,13 @@ func _watch_the_run() -> void:
 ## no card came.
 func _do_the_card(where: Array, wrong_for := {}) -> bool:
 	var spot := _spot()
+	var bag := level.get("inventory_screen") as InventoryScreen
 	var since := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - since < 4000 \
 			and not (spot.is_showing() and float(spot.get("_age")) > TutorialSpotlight.IRIS_SEC + 0.1):
+		# The bag a door card opened, read and put away: the next card waits for that.
+		if TutorialDoor.close_the_bag(level, spot):
+			since = Time.get_ticks_msec()
 		await process_frame
 	if not spot.is_showing():
 		return false
@@ -204,17 +219,26 @@ func _do_the_card(where: Array, wrong_for := {}) -> bool:
 	var entry := {"lit": target.has_area() and hole.encloses(target)
 		and hole.size.x <= target.size.x + TutorialSpotlight.HOLE_PAD * 2.0 + 2.0,
 		"clear": not spot.card_rect().intersects(target)}
-	if not String(wrong).is_empty():
+	if wrong == &"click_beside":
+		# A click off what it lights -- above the face-down card -- must not count, nor reach the bag.
+		var chosen_before := bag.chosen()
+		TutorialDoor.click(MOUSE_BUTTON_LEFT, root, Vector2(hole.get_center().x, hole.position.y - 60.0))
+		await _wait(0.3)
+		entry["stayed"] = spot.is_showing() and spot.lesson_id() == id and bag.chosen() == chosen_before
+	elif not String(wrong).is_empty():
 		TutorialDoor.press(wrong)
 		await _wait(0.3)
 		var panel := level.get("draw_panel") as DrawPanel
 		entry["stayed"] = spot.is_showing() and spot.lesson_id() == id and not panel.is_open() \
-			and not bool(level.get("inventory_screen").call("is_open"))
+			and not bag.is_open()
 	where.append(entry)
-	TutorialDoor.press_for(spot.get("_lesson") as Dictionary, root)
+	TutorialDoor.do_the_card(spot, root)
 	since = Time.get_ticks_msec()
 	while spot.is_showing() and spot.lesson_id() == id and Time.get_ticks_msec() - since < 2000:
 		await process_frame
+	if id == "bag_hints":
+		await _wait(0.2)
+		_hint_shown = String(bag.chosen().get("kind", "")) == "locked"
 	return true
 
 
@@ -241,7 +265,8 @@ func _every_card_plays_at_the_door() -> void:
 		guard += 1
 		# A key the card does not show, first: R under Walk, where the world runs and R would open
 		# the canvas; Space under the bag's card, where the world is held.
-		if not await _do_the_card(where, {"move": &"redraw", "bag_open": &"jump"}):
+		if not await _do_the_card(where, {"move": &"redraw", "bag_open": &"jump",
+				"bag_hints": &"click_beside"}):
 			break
 	var ids: Array[String] = []
 	for card in _shown:
@@ -253,9 +278,10 @@ func _every_card_plays_at_the_door() -> void:
 	var bag_ok := true
 	for i in _shown.size():
 		var card: Dictionary = _shown[i]
-		# Live: done for real, the world running. Otherwise held, the press spent on the card.
-		var right := String(card["mode"]) == "do" and not bool(card["paused"]) if bool(card["live"]) \
-			else String(card["mode"]) == "look" and bool(card["paused"])
+		# Live: done for real -- the world running, or for the face-down card, the open bag holding
+		# it. Otherwise held, the press spent on the card.
+		var right: bool = String(card["mode"]) == "do" and (not bool(card["paused"]) or String(card["id"]) == "bag_hints") \
+			if bool(card["live"]) else String(card["mode"]) == "look" and bool(card["paused"])
 		if not right:
 			wrong_kind.append(card["id"])
 		if not (card["target"] as Rect2).has_area() or (i < where.size() and not bool(where[i]["lit"])):
@@ -263,15 +289,19 @@ func _every_card_plays_at_the_door() -> void:
 		bag_ok = bag_ok and bool(card["bag"]) == (String(card["anchor"]) == "inventory_bar")
 	var lives := _shown.filter(func(c: Dictionary) -> bool: return bool(c["live"])).map(
 		func(c: Dictionary) -> String: return String(c["id"]))
-	_check(wrong_kind.is_empty() and lives == ["move", "jump"],
-		"walking and jumping are done for real; every other card holds the world",
+	_check(wrong_kind.is_empty() and lives == ["move", "jump", "bag_hints"],
+		"walking, jumping and the face-down card are done for real; the rest hold the world",
 		"wrong: %s" % ", ".join(wrong_kind) if not wrong_kind.is_empty() else "live: %s" % ", ".join(lives))
 	var wrong_press := where.filter(func(w: Dictionary) -> bool: return w.has("stayed"))
 	var stayed := wrong_press.filter(func(w: Dictionary) -> bool: return bool(w["stayed"]))
-	_check(wrong_press.size() == 2 and stayed.size() == 2,
-		"another key does nothing: R under Walk, Space under the bag's card",
-		"both cards stayed, nothing opened" if stayed.size() == 2
+	_check(wrong_press.size() == 3 and stayed.size() == 3,
+		"nothing else moves a card on: R under Walk, Space under the bag's, a click beside the face-down card",
+		"all three stayed, nothing opened" if stayed.size() == 3
 			else "%d of %d stayed -- A CARD MOVED ON OR SOMETHING OPENED" % [stayed.size(), wrong_press.size()])
+	_check(_bag_open_under_hints, "Tab on the bag's card opens the real bag, the next card over it",
+		"open, card above it" if _bag_open_under_hints else "BAG SHUT, OR THE CARD UNDER IT")
+	_check(_hint_shown, "and a click on the face-down card it lights shows that card's hint",
+		"hint shown" if _hint_shown else "NO HINT")
 	var not_done: Array[String] = []
 	var shortest := INF
 	for i in ids.size():
