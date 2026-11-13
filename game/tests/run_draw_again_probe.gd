@@ -15,7 +15,7 @@ extends SceneTree
 ## a placeable when it is set down) and they may change; what must not is the two agreeing.
 
 const DRAWN := preload("res://tests/drawn_like_people_fixtures.gd")
-const CHECKS := 13
+const CHECKS := 14
 
 var level: Node
 var failures := 0
@@ -90,6 +90,7 @@ func _the_bag_offers_a_drawn_card_again() -> void:
 	screen.call("_choose_drawn", "frog")
 	await _wait(0.1)
 	var button := screen.get("_use_button") as Button
+	var width := button.size.x
 	var carried: Variant = screen.call("_drag_from_roster", Vector2.ZERO, "frog")
 	_check(button.visible and not button.disabled and button.text == "USE IT AGAIN"
 			and carried is Dictionary and String((carried as Dictionary).get("drawn_class", "")) == "frog",
@@ -101,6 +102,9 @@ func _the_bag_offers_a_drawn_card_again() -> void:
 	_check(button.visible and button.disabled and button.text == "REDRAW FIRST" and nothing == null,
 		"one with no page kept says to redraw it first", "button \"%s\"%s, carries %s" % [
 			button.text, " (off)" if button.disabled else "", str(nothing)])
+	# ⚠ The button sizes its column: a longer word on it pushed the tabs off the screen's edge.
+	_check(is_equal_approx(button.size.x, width), "and the button keeps its width, so the bag does too",
+		"%.0f then %.0f px" % [width, button.size.x])
 	drawn.erase("bird")
 	screen.close()
 	await _settle()
