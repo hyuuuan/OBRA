@@ -236,6 +236,11 @@ func is_revealed() -> bool:
 	return _revealed
 
 
+## Not while it is still a crying child: a bar over the bundle would give the ambush away.
+func shows_health() -> bool:
+	return _revealed and super()
+
+
 func reset_for_restore() -> void:
 	_cry_clock = 0.0
 	_stir = 0.0

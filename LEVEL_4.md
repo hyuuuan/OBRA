@@ -142,7 +142,7 @@ alongside this file; the numbers below are its starting points.
 | The level | `game/level_4.tscn` · `game/scripts/level_4.gd` (every Dilim behaviour, as LevelBase hooks) · `game/levels/level_4/level_4_environment.tscn` (ground, branches, the encounters placed) |
 | Data | `config/level_04.json` (beats, routes, `"tally": "majority"`) · `config/dialogue_l4.json` (every line hers) · `config/enemies.json` · `config/weapons.json` (Dilim's rows) · `config/satchel.json` |
 | The dark | `LightField` (what is lit, the gameplay truth) · `DarknessLayer` + `darkness.gdshader` · `HeldLantern2D` (the lantern is her health) · `LanternHud` · `EdgeRipple` (sounds shown) |
-| Combat | `PlayerHealth` · `PlayerHurtbox2D` · `Telegraph2D` (every windup ≥ 0.4 s) · `WeaponTable` · `Enemy2D` → `GroundEnemy2D` / `FlyingEnemy2D` (group `dilim_encounters` for restores, `dilim_foes` for ash and salt) |
+| Combat | `PlayerHealth` · `PlayerHurtbox2D` · `Telegraph2D` (every windup ≥ 0.4 s) · `WeaponTable` · `Enemy2D` → `GroundEnemy2D` / `FlyingEnemy2D` (group `dilim_encounters` for restores, `dilim_foes` for ash and salt) · `FoeHealthBars` (a pip a blow over each foe, `Enemy2D.shows_health`) |
 | Segment 1 | `Santelmo2D` · `NunoMound2D` |
 | Segment 2 | `Sigbin2D` · `Tikbalang2D` · `Kapre2D` · `InkJar2D` |
 | Segment 3 | `Tiyanak2D` · `Bungisngis2D` · `ManananggalUpper2D` / `ManananggalLower2D` |

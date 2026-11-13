@@ -67,6 +67,12 @@ func _has_player_health() -> bool:
 	return false
 
 
+## Whether the creatures that fight her show their health over them (FoeHealthBars). Off everywhere
+## but a level that fights; with it off, the bars are never built.
+func _shows_foe_health() -> bool:
+	return false
+
+
 ## Whether every tool drawn costs a unit of ink, not only the first of its kind. Off everywhere but
 ## a level that fights: elsewhere a tool is paid for once and kept (FR-7), and a weapon that wears
 ## out and is drawn again would otherwise be free forever.
@@ -549,6 +555,7 @@ var lantern_hud: LanternHud = null
 var player_hurtbox: PlayerHurtbox2D = null
 ## The dark and the lantern she carries through it, where _darkness() is above 0; else null.
 var darkness_layer: DarknessLayer = null
+var foe_health_bars: FoeHealthBars = null
 var held_lantern: HeldLantern2D = null
 var lolo: Lolo
 ## Lolo's lines for this level, from config/dialogue.json.
@@ -673,6 +680,7 @@ func _ready() -> void:
 	_build_obstacle_layer()
 	_arm_player_health()
 	_arm_darkness()
+	_arm_foe_health()
 	_gather_the_fading()
 	var world_camera := _world_camera()
 	if world_camera != null:
@@ -4718,6 +4726,15 @@ func _arm_player_health() -> void:
 ## level says she comes in with it burned down.
 func _lantern_at_start() -> int:
 	return PlayerHealth.FULL
+
+
+## The bars over the creatures that fight her, built once, where the level asks.
+func _arm_foe_health() -> void:
+	if not _shows_foe_health():
+		return
+	foe_health_bars = FoeHealthBars.new()
+	foe_health_bars.name = "FoeHealthBars"
+	add_child(foe_health_bars)
 
 
 ## The dark and her lantern, built once, after the lantern-as-health (which the light reads) and

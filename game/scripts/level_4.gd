@@ -40,6 +40,11 @@ func _has_player_health() -> bool:
 	return true
 
 
+## Kent: "show the like hp/life of the creatures in Dilim level".
+func _shows_foe_health() -> bool:
+	return true
+
+
 ## Every weapon or light drawn costs a unit of ink, not only the first of its kind (Kent): a sword
 ## that wears out and is drawn again is paid for again, and the clearings are where ink comes back.
 func _every_drawing_costs_ink() -> bool:

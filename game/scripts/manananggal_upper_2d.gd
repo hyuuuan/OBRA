@@ -81,6 +81,11 @@ func is_gone() -> bool:
 	return _leaving or state == State.DEAD
 
 
+## Not as it goes: driven off is the end of it here, not a body still to be fought.
+func shows_health() -> bool:
+	return not _leaving and super()
+
+
 ## A last blow drives it off and reports the weapon defeat to the level.
 func _die() -> void:
 	leave()

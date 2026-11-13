@@ -521,6 +521,13 @@ Traps it has sprung, kept so they are not sprung again:
   the finale takes its own foes out of it. `Enemy2D.FOES` (`dilim_foes`) is every enemy, never
   left -- it is what ash and salt look up. Looking up GROUP for "every enemy" missed the whole
   night once.
+- **A creature in a fight shows its health** (Kent: "show the like hp/life of the creatures in
+  Dilim level"). `FoeHealthBars` (`LevelBase._shows_foe_health`, on in Dilim only) draws a pip a
+  blow over each foe's head, on layer 4: ⚠ over the dark (3), since a bar drawn in the world was
+  as dark as its creature. `Enemy2D.shows_health` decides when: once it is after her or hurt,
+  never while it waits or once dead; the tiyanak not while it is a child, the bungisngis not once
+  aside, the manananggal not once driven off, and never over its lower half, which no blow
+  touches. Pips just lost light up for a moment. `run_foe_health_probe`.
 - **JSON numbers are floats.** `Array.has(1)` does not find `1.0`; compare with `int()`.
 - **`Enemy2D.state_name()` is upper case** (`"WINDUP"`, `"STUN"`). A probe comparing lower case
   passes or fails for the wrong reason.

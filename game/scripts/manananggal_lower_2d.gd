@@ -40,6 +40,11 @@ func apply_tool_hit(_tool: String, _impulse: float, _actor: Node2D) -> bool:
 	return false
 
 
+## Never: only salt or light ends it, and a bar no blow could move would say the weapons were broken.
+func shows_health() -> bool:
+	return false
+
+
 ## Salt on it, however much: it is done.
 func apply_burn(_ticks: int, _seconds: float) -> void:
 	if _salted or state == State.DEAD:
