@@ -40,6 +40,7 @@ func _run() -> void:
 	await _a_blade_never_shoves_its_holder()
 	await _a_boomerang_strikes_once_per_throw()
 	await _a_cannon_lands_on_an_area_once()
+	await _a_cannon_shot_can_be_followed()
 	await _an_anvil_crushes_once_and_leaves_the_hand()
 	await _dilim_blades_follow_their_rows()
 
@@ -155,6 +156,63 @@ func _a_cannon_lands_on_an_area_once() -> void:
 	_check(creature.get("hits") == 1, "a cannon shot lands on a creature hurt through an area",
 		"%d blows" % creature.get("hits"))
 	await _clear([cannon, creature])
+
+
+## ⚠ A SHOT YOU CAN FOLLOW, IN EVERY LEVEL. Kent: "lets fix how shots are fired in using cannon
+## since its not that visible and it seems to not work ... make this shots for all like in all
+## levels". It was a ball of near-black ink: unseen in the dark, and a hit looked like a miss. Now a
+## flash as it leaves, a trail behind it, a hole in the dark around it (seen, not light), and a
+## burst where it lands -- gilt on what it hurt, plain where it hurt nothing -- gone in a moment.
+func _a_cannon_shot_can_be_followed() -> void:
+	var cannon := await _in_hand("cannon")
+	var creature := _target("Area2D", _anchor() + Vector2(420.0, -60.0), 48.0)
+	await _frames(2)
+	var from := _anchor()
+	cannon.describe_use(apo)
+	var seen := await _bursts_and_shot(1.2)
+	var reveal: Dictionary = seen["reveal"]
+	_check(seen["kinds"].has(CannonShot2D.Burst.MUZZLE) and float(reveal.get("radius", 0.0)) > 0.0
+			and bool(seen["revealed"]),
+		"a cannon shot flashes as it leaves, and the dark parts round it",
+		"bursts %s, reveal radius %.0f" % [str(seen["kinds"]), float(reveal.get("radius", 0.0))])
+	var trail: Array = seen["trail"]
+	_check(trail.size() >= 3 and (trail.back() as Vector2).x > (trail.front() as Vector2).x
+			and (trail.front() as Vector2).x > from.x,
+		"and leaves a trail of smoke behind it", "%d puffs, %s" % [trail.size(), str(trail)])
+	_check(seen["kinds"].has(CannonShot2D.Burst.STRUCK) and not seen["kinds"].has(CannonShot2D.Burst.LANDED),
+		"where it hurts something, it bursts gilt", "bursts %s" % str(seen["kinds"]))
+	await _clear([creature])
+	# Fired at nothing: it comes down on the floor, and that burst is the plain one.
+	await create_timer(0.3).timeout
+	cannon.describe_use(apo)
+	seen = await _bursts_and_shot(2.0)
+	_check(seen["kinds"].has(CannonShot2D.Burst.LANDED) and not seen["kinds"].has(CannonShot2D.Burst.STRUCK),
+		"and where it hurts nothing, the burst is plain", "bursts %s" % str(seen["kinds"]))
+	await create_timer(0.5).timeout
+	_check(get_nodes_in_group(&"cannon_bursts").is_empty(), "and every burst is gone a moment later",
+		"%d left" % get_nodes_in_group(&"cannon_bursts").size())
+	await _clear([cannon])
+
+
+## Watches `seconds` of a shot: the kinds of burst that appeared, whether the shot parts the dark,
+## longest trail it laid.
+func _bursts_and_shot(seconds: float) -> Dictionary:
+	var kinds: Array[StringName] = []
+	var out := {"kinds": kinds, "revealed": false, "reveal": {}, "trail": []}
+	for _frame in range(int(seconds * 60.0)):
+		await physics_frame
+		for node in get_nodes_in_group(&"cannon_bursts"):
+			var kind: StringName = node.get("kind")
+			if not kinds.has(kind):
+				kinds.append(kind)
+		for node in world.get_children():
+			if node is CannonShot2D and is_instance_valid(node):
+				out["revealed"] = (node as Node).is_in_group(DarknessLayer.REVEAL_GROUP)
+				out["reveal"] = (node as CannonShot2D).dark_reveal()
+				var trail := (node as CannonShot2D).trail()
+				if trail.size() >= (out["trail"] as Array).size():
+					out["trail"] = trail
+	return out
 
 
 func _an_anvil_crushes_once_and_leaves_the_hand() -> void:
