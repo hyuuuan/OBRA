@@ -2824,6 +2824,45 @@ func _on_inventory_slot_pressed(slot: int) -> void:
 	status_label.text = "Placing %s — click to set it down, right-click to put it back" % item.display_name
 
 
+## ⚠ HAD AGAIN FROM THE BAG, NOT DRAWN (InventoryScreen.drawn_again). Kent: "the users wont have
+## to draw something if drawn already but it should cost ink just like the same". The page the
+## class was last drawn on goes through _on_drawing_ready, the one door every accepted drawing comes
+## through, so it costs what drawing it costs and is refused where a drawing is refused -- a
+## placeable at each setting-down, a tool once, Mayon's every drawing, a level's own refusals --
+## with nothing here to keep in step with them. Only the recogniser is left out: no recognition is
+## logged and no submission counted, and the reuse is logged as itself (`drawing_reused`) so the
+## thesis can tell it from a drawing.
+func _draw_again(class_id: String) -> void:
+	if placement_controller.is_placing():
+		return
+	# Where the brush makes nothing, the bag makes nothing either: a page from it would walk round
+	# the level's own beat. Refused as quietly as the page refuses.
+	if _brush_refuses_here():
+		return
+	var entry := registry.get_entity(class_id)
+	var page: Dictionary = PlayerProfile.class_page(class_id)
+	if entry.is_empty() or page.is_empty():
+		status_label.text = "Draw it once more to carry it again"
+		return
+	Telemetry.record_event("drawing_reused", {
+		"level_id": LevelManager.current_level_id,
+		"entity_id": class_id,
+		"ink_remaining": ink_manager.remaining(),
+	})
+	_on_drawing_ready(class_id, String(entry.get("display_name", class_id.capitalize())),
+		page["image"], {"confidence": page["confidence"], "reused": true}, page["strokes"], 0.0)
+	# Then taken out, as a pocket dragged out of the bag is: a thing to set down onto the pointer,
+	# a tool into her hand. A creature is already her, and a tool that answers here already in hand.
+	var role := String(entry.get("runtime_role", ""))
+	if role != "utility" and role != "physics_morph":
+		return
+	var held := _equipped_utility != null and is_instance_valid(_equipped_utility) \
+		and _equipped_utility.item_data != null and _equipped_utility.item_data.entity_id == class_id
+	var slot := _slot_holding(class_id)
+	if slot >= 0 and not held:
+		_on_inventory_slot_pressed(slot)
+
+
 ## ⚠ DRAGGED OFF THE BAR, OUT THE WAY ITS KEY TAKES IT (see InventoryHUD). One answer to "what
 ## does this slot do" -- the key's -- so a drag costs what the key costs and is refused where the
 ## key is refused: the placeable paid for once, Mayon's ink, Dilim's wear. "place": its ghost is
@@ -4800,6 +4839,8 @@ func _build_inventory_screen() -> void:
 	add_child(inventory_screen)
 	inventory_screen.wire(inventory_manager, registry)
 	inventory_screen.slot_activated.connect(_on_inventory_slot_pressed)
+	inventory_screen.drawn_again.connect(_draw_again)
+	inventory_screen.may_draw_again = true
 	var router := get_node_or_null(^"UIRouter")
 	if router == null:
 		return
