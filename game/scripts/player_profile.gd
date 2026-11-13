@@ -207,6 +207,78 @@ func _drawing_path(entity_id: String) -> String:
 	return profile_path.get_base_dir().path_join("drawings").path_join("%s.png" % entity_id)
 
 
+## Keep the whole page a class was last drawn on -- the canvas as the recogniser saw it, the
+## strokes its body or shape is built from, and how sure the recogniser was -- so the bag can make
+## it again without a redraw (Kent: "the users wont have to draw something if drawn already").
+##
+## ⚠ NOT THE CARD'S PICTURE. That one is cropped to the ink with the paper knocked out, and a rig
+## built from it would be a different drawing: a creature takes its limbs from the strokes, and a
+## placeable its outline. Beside it in drawings/, overwritten the same way, wiped by New Game.
+func record_class_page(entity_id: String, page: Image, strokes: Array, confidence: float) -> void:
+	if entity_id.is_empty() or page == null or page.is_empty() or strokes.is_empty():
+		return
+	var encoded: Array = []
+	for value: Variant in strokes:
+		if not (value is Dictionary):
+			continue
+		var stroke: Dictionary = value
+		var flat: Array = []
+		for point: Vector2 in PackedVector2Array(stroke.get("points", PackedVector2Array())):
+			flat.append(point.x)
+			flat.append(point.y)
+		encoded.append({"points": flat, "width": float(stroke.get("width", 1.0)),
+			"color": Color(stroke.get("color", Color.BLACK)).to_html(true)})
+	if encoded.is_empty():
+		return
+	var base := _drawing_path(entity_id).get_basename()
+	DirAccess.make_dir_recursive_absolute(base.get_base_dir())
+	if page.save_png(base + ".page.png") != OK:
+		return
+	var file := FileAccess.open(base + ".strokes.json", FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(JSON.stringify({"version": 1, "confidence": confidence, "strokes": encoded}))
+
+
+## The page kept for a class: {image, strokes, confidence}, or {} when this save has none -- a class
+## it never drew, or one drawn before pages were kept. Read as data and checked as it is read, so a
+## damaged file gives nothing rather than a broken rig.
+func class_page(entity_id: String) -> Dictionary:
+	if not (_data["classes_drawn_accepted"] as Array).has(entity_id):
+		return {}
+	var base := _drawing_path(entity_id).get_basename()
+	if not FileAccess.file_exists(base + ".page.png") or not FileAccess.file_exists(base + ".strokes.json"):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(base + ".strokes.json"))
+	if not (parsed is Dictionary) or not ((parsed as Dictionary).get("strokes") is Array):
+		return {}
+	var strokes: Array = []
+	for value: Variant in (parsed as Dictionary)["strokes"]:
+		if not (value is Dictionary) or not ((value as Dictionary).get("points") is Array):
+			continue
+		var flat: Array = (value as Dictionary)["points"]
+		var points := PackedVector2Array()
+		for i in range(0, flat.size() - 1, 2):
+			points.append(Vector2(float(flat[i]), float(flat[i + 1])))
+		if points.is_empty():
+			continue
+		strokes.append({"points": points, "width": float((value as Dictionary).get("width", 1.0)),
+			"color": Color.from_string(String((value as Dictionary).get("color", "")), Color.BLACK)})
+	var image := Image.load_from_file(ProjectSettings.globalize_path(base + ".page.png"))
+	if strokes.is_empty() or image == null or image.is_empty():
+		return {}
+	return {"image": image, "strokes": strokes,
+		"confidence": float((parsed as Dictionary).get("confidence", 0.0))}
+
+
+## Whether a page is kept for the class, without reading it: the bag asks this of every card it
+## shows, and loading fifty pages to answer would stall the screen as it opens.
+func has_class_page(entity_id: String) -> bool:
+	var base := _drawing_path(entity_id).get_basename()
+	return (_data["classes_drawn_accepted"] as Array).has(entity_id) \
+		and FileAccess.file_exists(base + ".page.png") and FileAccess.file_exists(base + ".strokes.json")
+
+
 ## The ending keeps each submitted page, even when the same class was drawn again.
 func record_gallery_drawing(strokes: Array) -> bool:
 	if not strokes.any(func(stroke: Dictionary) -> bool: return stroke["points"].size() > 1):
