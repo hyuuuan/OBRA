@@ -62,6 +62,7 @@ func _run() -> void:
 	await _a_click_places_it_and_right_click_takes_it_back()
 	await _the_bag_screen_answers_the_mouse()
 	await _the_bar_drags_into_the_world()
+	await _a_drawn_card_comes_out_of_the_bag_with_a_mouse()
 	await _dialogue_choices_answer_a_click()
 	await _a_page_turn_does_not_answer_the_question()
 	await _escape_during_a_question_is_not_a_pause_menu()
@@ -765,6 +766,76 @@ func _the_bar_drags_into_the_world() -> void:
 	for slot in range(bag.capacity):
 		while bag.take_item(slot) != null:
 			pass
+
+
+## ⚠ A DRAWN CARD COMES OUT OF THE BAG, WITH A MOUSE. Kent: "the users wont have to draw something
+## if drawn already but it should cost ink just like the same". run_draw_again_probe holds the
+## costs; this holds that a real pointer does it: a card dragged off the bag is had again (a
+## ladder, onto the cursor), and USE IT AGAIN answers a click (a frog, which she becomes).
+func _a_drawn_card_comes_out_of_the_bag_with_a_mouse() -> void:
+	var placement := level.get("placement_controller") as PlacementController
+	var bag := level.get("inventory_manager") as InventoryManager
+	var profile := root.get_node_or_null("PlayerProfile")
+	var screen := level.get("inventory_screen") as InventoryScreen
+	if placement == null or bag == null or profile == null or screen == null:
+		_fail("a drawn card comes out of the bag", "the level did not build what this needs")
+		return
+	if placement.is_placing():
+		placement.cancel_placement()
+	for slot in range(bag.capacity):
+		while bag.take_item(slot) != null:
+			pass
+	var ink = level.get("ink_manager")
+	ink.set("committed", 0.0)
+	ink.call("release_attempt")
+	# Two drawings this save has made, their pages kept as the panel keeps them.
+	var page := Image.create(512, 512, false, Image.FORMAT_RGBA8)
+	page.fill(Color(0.96, 0.94, 0.88))
+	var rails: Array = []
+	for line: Array in [[Vector2(200, 120), Vector2(200, 400)], [Vector2(300, 120), Vector2(300, 400)],
+			[Vector2(200, 200), Vector2(300, 200)], [Vector2(200, 320), Vector2(300, 320)]]:
+		rails.append({"points": PackedVector2Array(line), "width": 6.0, "color": Color.BLACK})
+	for id: String in ["ladder", "frog"]:
+		profile.call("record_class_drawn", id)
+		profile.call("record_class_page", id, page, rails, 0.9)
+	screen.open()
+	screen.call("_choose_drawn", "ladder")
+	for _frame in range(120):
+		await process_frame
+		if screen.is_settled():
+			break
+	await _wait(0.3)
+	var card := (screen.get("_roster_buttons") as Dictionary).get("ladder") as Control
+	if card == null or not card.is_visible_in_tree():
+		_fail("a drawn card dragged off the bag", "the ladder's card is not on screen")
+		screen.close()
+		return
+	await _drag(card.get_global_rect().get_center(), Vector2(root.get_visible_rect().size.x * 0.5, 40.0))
+	var on_pointer: DrawnItemData = placement.get("_item")
+	_check(not screen.is_open() and placement.is_placing() and on_pointer != null
+			and on_pointer.entity_id == "ladder",
+		"a drawn card dragged off the bag is had again", "placing %s, bag %s" % [
+			on_pointer.entity_id if on_pointer != null else "nothing", "open" if screen.is_open() else "shut"])
+	if placement.is_placing():
+		placement.cancel_placement()
+	await _wait(0.2)
+	screen.open()
+	screen.call("_choose_drawn", "frog")
+	for _frame in range(120):
+		await process_frame
+		if screen.is_settled():
+			break
+	await _wait(0.3)
+	var again := screen.get("_use_button") as Button
+	await _click(again)
+	await _wait(0.3)
+	_check(not screen.is_open() and String(level.get("_current_form_id")) == "frog",
+		"and USE IT AGAIN answers a click", "form \"%s\", bag %s" % [level.get("_current_form_id"),
+			"open" if screen.is_open() else "shut"])
+	if screen.is_open():
+		screen.close()
+	level.call("_revert_to_base_form")
+	await _wait(0.3)
 
 
 func _bar_item() -> DrawnItemData:
