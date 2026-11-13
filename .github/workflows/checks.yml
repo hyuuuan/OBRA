@@ -1,9 +1,8 @@
 # The checks every pull request into main runs, and main itself after each merge.
 #
-# Kent, 2026-11-13: "can we implement like a auto checker in github". These are the suites
-# tools/run_suites.sh runs at a desk -- the same list, read from the same file -- split into
-# slices that run side by side, so the whole run takes about as long as its slowest slice
-# rather than the 25-40 minutes it takes in one go. Plus the Python tests.
+# These are the suites tools/run_suites.sh runs at a desk -- the same list, read from the same
+# file -- split into slices that run side by side, so the whole run takes about as long as its
+# slowest slice rather than the 25-40 minutes it takes in one go. Plus the Python tests.
 #
 # Not here: the four window suites (run_click_ui, run_hud_watch_level1, run_real_drawing_probe,
 # run_level5_finish_walk). They need a real display and a GPU these machines do not have, so
