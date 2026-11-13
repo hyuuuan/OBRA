@@ -106,11 +106,11 @@ func _every_card_then_the_stair(level: Node2D) -> void:
 	var since := Time.get_ticks_msec()
 	while bool(tutorial.call("is_teaching_the_door")) and Time.get_ticks_msec() - since < 60000:
 		await process_frame
-		if spot.is_showing() and float(spot.get("_age")) > TutorialSpotlight.STRICT_MIN_SEC + 0.05:
-			var up := spot.lesson_id()
-			TutorialDoor.press_for(spot.get("_lesson") as Dictionary, root)
-			while spot.is_showing() and spot.lesson_id() == up and Time.get_ticks_msec() - since < 60000:
-				await process_frame
+		TutorialDoor.close_the_bag(level, spot)
+		var up := TutorialDoor.do_the_card(spot, root)
+		while not up.is_empty() and spot.is_showing() and spot.lesson_id() == up \
+				and Time.get_ticks_msec() - since < 60000:
+			await process_frame
 	spot.finished.disconnect(_note_how)
 	var cards := 0
 	var done := 0
