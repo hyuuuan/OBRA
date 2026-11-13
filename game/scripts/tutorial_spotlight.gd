@@ -53,6 +53,9 @@ const SHADER := preload("res://shaders/tutorial_spotlight.gdshader")
 ## Above the HUD (5), Lolo's box (8) and the drawing panel (10) -- a lesson about the canvas
 ## has to dim the canvas -- and below the pause menu (50), which must still open over it.
 const LAYER := 45
+## Over the bag (InventoryScreen, 56), for a card about what is in it: the bag is a modal, and a
+## card at 45 stood under it, dimming nothing it could be seen through.
+const BAG_LAYER := 57
 const DIM := 0.74
 ## From the top of the screen to the card: clear of the quest card, which sits there -- at 72
 ## the card's top edge sat on the objective's frame. Measured off the quest card's own bottom.
@@ -261,6 +264,7 @@ func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable())
 	_first_frame = true
 	_closing = -1.0
 	_lost_for = 0.0
+	layer = BAG_LAYER if String(lesson.get("context", "")) == "bag" else LAYER
 	# A run of cards says for itself, decided once when it began (TutorialDirector._entry_auto).
 	_auto = bool(lesson["auto"]) if lesson.has("auto") else _nobody_at_the_keys()
 	var look := _mode() == "look"
@@ -333,6 +337,11 @@ func _has_input() -> bool:
 ## What a strict card goes on: its own input, or for a card with none, a click or Enter.
 func _does_what_it_shows(event: InputEvent) -> bool:
 	if _has_input():
+		var click_at := event as InputEventMouseButton
+		# `click_on_it`: the click counts on what is lit -- the face-down card -- and nowhere else.
+		if click_at != null and bool(_lesson.get("click_on_it", false)) \
+				and not _target_rect().has_point(click_at.position):
+			return false
 		return TutorialSpotlight.matches(_lesson, event)
 	var click := event as InputEventMouseButton
 	if click != null:

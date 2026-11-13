@@ -1401,9 +1401,9 @@ func _refresh_requirements() -> void:
 const TUTORIAL_ANCHORS := ["draw_button", "pickup_prompt", "use_prompt", "revert_prompt",
 	"climb_prompt", "inventory_bar", "ink_gauge", "requirement_strip", "morph_card", "player",
 	"placement", "placed", "canvas_paper", "transform_button", "lantern", "quest_card",
-	"move_prompt", "jump_prompt", "minimap", "objective_marker", "key_row"]
+	"move_prompt", "jump_prompt", "minimap", "objective_marker", "key_row", "face_down_card"]
 ## Every `context` a lesson may name, answered by _tutorial_context.
-const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "any"]
+const TUTORIAL_CONTEXTS := ["world", "placing", "creature", "canvas", "bag", "any"]
 ## The apo, on screen, as `player` answers it: her feet are the anchor, and this is the box
 ## standing on them. A drawn body's anchor is its middle, so it gets a box round that instead.
 const PLAYER_BOX := Rect2(-28.0, -92.0, 56.0, 92.0)
@@ -1471,6 +1471,11 @@ func _tutorial_target(anchor: String) -> Rect2:
 			return _key_row_on_screen()
 		"minimap":
 			node = minimap as Control
+		"face_down_card":
+			# A card in the open bag not drawn yet: only while the bag is up.
+			if inventory_screen == null or not inventory_screen.is_open():
+				return Rect2()
+			node = inventory_screen.face_down_card()
 		"objective_marker":
 			# Not a control's box: the marker covers the screen and draws one arrow on it.
 			if objective_marker == null or not objective_marker.is_visible_in_tree():
@@ -1544,6 +1549,8 @@ func _tutorial_context(context: String) -> bool:
 	match context:
 		"canvas":
 			return canvas_open
+		"bag":
+			return inventory_screen != null and inventory_screen.is_open()
 		"any":
 			return true
 	if canvas_open or _level_completed or player == null or not is_instance_valid(player):

@@ -17,7 +17,8 @@ extends Node
 ##   after the conversation it landed in.
 ##
 ##   NOTHING OVER ANYONE TALKING. A conversation, the pause menu, any modal: the lesson waits
-##   behind it. A lesson about the canvas is the one exception, because the canvas IS a modal.
+##   behind it. A lesson about the canvas, or about what is in the open bag, is the exception,
+##   because each IS a modal.
 ##
 ##   NOT WHAT THEY ALREADY DID. A lesson can wait a `delay` before it shows, and if in that
 ##   time the player presses what it would have taught, it is spent without ever appearing.
@@ -603,10 +604,14 @@ func _anchor_ready(lesson: Dictionary) -> bool:
 ## the drawing panel, for a lesson that is about the drawing panel.
 func _coast_is_clear(lesson: Dictionary) -> bool:
 	var on_canvas := String(lesson.get("context", "world")) == "canvas"
+	var in_bag := String(lesson.get("context", "world")) == "bag"
 	for node in get_tree().get_nodes_in_group(ModalOverlay.GROUP):
 		if node == _spotlight or not node.has_method(&"is_open"):
 			continue
 		if on_canvas and node is DrawPanel:
+			continue
+		# A lesson about what is in the open bag is shown over it, as the canvas's are over it.
+		if in_bag and node is InventoryScreen:
 			continue
 		if bool(node.call(&"is_open")):
 			return false
@@ -658,6 +663,9 @@ func _card_for(lesson: Dictionary) -> Dictionary:
 		"actions": actions_for(lesson),
 		"mouse": lesson.get("mouse", []),
 		"strict": _strict,
+		"context": String(lesson.get("context", "world")),
+		# A click that counts only on what the card lights: the face-down card, not anywhere.
+		"click_on_it": bool(lesson.get("click_on_it", false)),
 	}
 
 
