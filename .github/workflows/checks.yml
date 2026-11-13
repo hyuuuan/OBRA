@@ -1,0 +1,120 @@
+# The checks every pull request into main runs, and main itself after each merge.
+#
+# Kent, 2026-11-13: "can we implement like a auto checker in github". These are the suites
+# tools/run_suites.sh runs at a desk -- the same list, read from the same file -- split into
+# slices that run side by side, so the whole run takes about as long as its slowest slice
+# rather than the 25-40 minutes it takes in one go. Plus the Python tests.
+#
+# Not here: the four window suites (run_click_ui, run_hud_watch_level1, run_real_drawing_probe,
+# run_level5_finish_walk). They need a real display and a GPU these machines do not have, so
+# they stay a desk run before shipping.
+
+name: Checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same pull request makes the older run moot.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.7-stable"
+  # ⚠ PINNED. GitHub's own digest for godotengine/godot's Godot_v4.7-stable_linux.x86_64.zip; a
+  # download that does not match is refused rather than run. Change both together.
+  GODOT_SHA256: "0b1a6c54c2c619c12e169fe9241edda4b81080b519451cec2984bf0d2c6cb73c"
+  # How many slices the suites after run_tests are cut into. Matches the matrix below.
+  SLICES: "10"
+
+jobs:
+  python:
+    name: Python tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install
+        # The recogniser's own requirements, and the two the tests reach for beyond it (onnx to
+        # read the model's contract, scipy for the art builders). PyTorch is training-only and
+        # its tests skip without it.
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq zsh > /dev/null
+          python -m venv .venv
+          .venv/bin/pip install -q -r backend/requirements.txt onnx scipy
+      - name: Python tests
+        run: tools/run_suites.sh only python
+      - name: What failed
+        if: failure()
+        run: tail -n 200 /tmp/obra_suites.log
+
+  godot:
+    name: Godot suites, slice ${{ matrix.slice }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      # Every slice reports, so one run says everything that is broken.
+      fail-fast: false
+      matrix:
+        # 0 is run_tests alone (the physics regression); 1-10 are every tenth of the rest.
+        slice: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install zsh and the recogniser's Python
+        # Some suites start the recogniser the way the game does, from .venv at the repo root.
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq zsh > /dev/null
+          python -m venv .venv
+          .venv/bin/pip install -q -r backend/requirements.txt
+      - name: Godot, cached by version
+        id: godot-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_SHA256 }}
+      - name: Download Godot and check it
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -fsSL -o ~/godot/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          echo "${GODOT_SHA256}  $HOME/godot/godot.zip" | sha256sum --check --strict
+          unzip -q ~/godot/godot.zip -d ~/godot
+          rm ~/godot/godot.zip
+      - name: Put Godot on the path
+        run: |
+          chmod +x ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64
+          sudo ln -sf ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 /usr/local/bin/godot
+          godot --version
+      - name: Import cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: game/.godot
+          key: import-${{ env.GODOT_VERSION }}-${{ hashFiles('game/**/*.import', 'game/project.godot') }}
+          restore-keys: import-${{ env.GODOT_VERSION }}-
+      - name: Import
+        # Without it no class_name resolves (CLAUDE.md, Testing).
+        run: godot --headless --path game --import
+      - name: Suites
+        run: tools/run_suites.sh shard ${{ matrix.slice }} ${{ env.SLICES }}
+      - name: What failed
+        if: failure()
+        run: |
+          grep -E "^##########|FAIL|SCRIPT ERROR|Parse Error|Error calling|^\[exit [1-9]" /tmp/obra_suites.log | head -n 300
