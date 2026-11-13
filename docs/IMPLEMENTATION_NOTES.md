@@ -875,6 +875,18 @@ fitting its page, and being given by some level's script.
   grid. ⚠ It names a class only when the player has already drawn and had it accepted — the
   rest are unnamed empty frames. Naming the roster would turn every obstacle in the game
   into a lookup, which is the rule `RequirementStrip` exists to hold.
+- **A drawn card can be had again without drawing it** (Kent: "the users wont have to draw
+  something if drawn already but it should cost ink just like the same"). Dragged out of the Tab
+  bag, or with USE IT AGAIN on its big card (Enter too), a card the player has drawn is made from
+  the page the class was last drawn on: `PlayerProfile.record_class_page` keeps that page, its
+  strokes and the recogniser's confidence beside the card's picture in `drawings/`, and
+  `LevelBase._draw_again` hands them to `_on_drawing_ready`, the door every accepted drawing comes
+  through. ⚠ That is the whole of the ink rule: it costs what drawing it costs, level by level
+  (a creature free in Payyo and a unit in Mayon, a tool its first time, a placeable when set
+  down), and it is refused where the brush refuses. Only the recogniser is skipped: no
+  recognition is logged and no submission counted; the reuse is logged as `drawing_reused`. A
+  class drawn before pages were kept says REDRAW FIRST. `run_draw_again_probe`
+  compares drawing and reusing from the same state in Payyo and Mayon.
 - **A drawing in the bar is dragged out into the world** (Kent: "make the inventory draggable so
   that the users wont have to draw the exact same thing"). `InventoryHUD` makes each full slot a
   Godot drag source; the level answers through `_drag_out_of_slot`, which runs the slot through
