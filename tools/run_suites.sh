@@ -74,6 +74,23 @@ if [ "${1:-}" = "quick" ]; then
   HEADLESS=("${(@)HEADLESS:#run_tests}")
 fi
 WITH_PYTHON=1
+# ON GITHUB: one slice of the headless suites, so a pull request's checks run side by side
+# (.github/workflows/checks.yml). Slice 0 is run_tests alone -- over ten minutes, a quarter of
+# the whole run -- and slices 1..N take every Nth of the rest. The window suites need a display
+# and a GPU the runners do not have, and the Python tests are their own job.
+if [ "${1:-}" = "shard" ]; then
+  index=$2
+  count=$3
+  rest=("${(@)HEADLESS:#run_tests}")
+  HEADLESS=()
+  if (( index == 0 )); then
+    HEADLESS=(run_tests)
+  else
+    for (( i = index; i <= ${#rest}; i += count )); do HEADLESS+=(${rest[i]}); done
+  fi
+  WINDOW=()
+  WITH_PYTHON=0
+fi
 if [ "${1:-}" = "only" ]; then
   shift
   want=("$@")
@@ -94,7 +111,9 @@ PLAN=($HEADLESS $WINDOW)
 print "plan ${PLAN[*]}" >> "$LOG"
 
 # Each suite's own output, to look for a script error in once it is done.
-OUT=$(mktemp -t obra_suite)
+# ⚠ A TEMPLATE WITH ITS X'S. `mktemp -t obra_suite` is a prefix to a Mac and an error to Linux's
+# mktemp ("too few X's"), and the checks on GitHub run on Linux.
+OUT=$(mktemp "${TMPDIR:-/tmp}/obra_suite.XXXXXX")
 WATCHER=""
 trap '[ -n "$WATCHER" ] && kill $WATCHER 2>/dev/null; rm -f "$OUT"' EXIT
 
