@@ -72,6 +72,9 @@ const GRACE_SEC := 2.0
 const PULSE_SEC := 1.3
 ## How long a card stays up when nobody is there to press anything.
 const AUTO_SEC := 2.5
+## How long a STRICT card is up before it takes a press: the press that finished the card before
+## it must not be able to finish this one too.
+const STRICT_MIN_SEC := 0.3
 const CAPTION_FONT := 26
 ## The least time between two moves of the card, so something going up and down across the
 ## line between its two places does not make it flicker from one to the other.
@@ -126,6 +129,9 @@ var _first_frame := false
 ## it starts to leave, so the world ran for the length of every fade. While held, this counts as
 ## open -- the tree stays paused and the hint bar waits -- whether or not a card is up.
 var _held := false
+## In a run of cards (TutorialDirector.teach_the_door): a card that goes leaves the dim
+## up, so the tick on a card done can be seen without the screen flashing back between cards.
+var _in_run := false
 ## The card took over from one still up or leaving, so the dim stays where it is and the hole
 ## travels from where it was rather than closing in from past the screen.
 var _chained := false
@@ -259,8 +265,11 @@ func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable())
 	_auto = bool(lesson["auto"]) if lesson.has("auto") else _nobody_at_the_keys()
 	var look := _mode() == "look"
 	pauses_game = look and not _auto
+	# The little blinking mouse says "click to go on". On a strict card that is only true of one
+	# with nothing of its own to press; on the rest the picture already shows what to press.
+	var click_goes_on := look and not _auto and not (_strict() and _has_input())
 	_visual.show_kind(String(lesson.get("visual", "keys")),
-		PackedStringArray(lesson.get("caps", PackedStringArray())), look and not _auto)
+		PackedStringArray(lesson.get("caps", PackedStringArray())), click_goes_on)
 	var caption := String(lesson.get("caption", ""))
 	_caption.text = caption
 	_caption.visible = not caption.is_empty()
@@ -300,6 +309,35 @@ func hold(on: bool) -> void:
 
 func is_holding() -> bool:
 	return _held
+
+
+## A run of cards is on: a card that goes leaves the dim up for the next.
+func set_in_run(on: bool) -> void:
+	_in_run = on
+
+
+## STRICT: Kent, of Payyo's cards: "when the tutorial says press R, when i press another key, it
+## just proceeds to the next one, it does not let me experience the tutorial". A strict card goes
+## only when the player does what it shows -- its key, its click, its wheel -- or, for a `look` card
+## about something to look at, a click or Enter; or when what it lights goes. Nothing times it
+## out, no other key ends it, and SKIP TUTORIAL and Escape still work.
+func _strict() -> bool:
+	return bool(_lesson.get("strict", false))
+
+
+func _has_input() -> bool:
+	return not (_lesson.get("actions", []) as Array).is_empty() \
+		or not (_lesson.get("mouse", []) as Array).is_empty()
+
+
+## What a strict card goes on: its own input, or for a card with none, a click or Enter.
+func _does_what_it_shows(event: InputEvent) -> bool:
+	if _has_input():
+		return TutorialSpotlight.matches(_lesson, event)
+	var click := event as InputEventMouseButton
+	if click != null:
+		return click.pressed and click.button_index == MOUSE_BUTTON_LEFT
+	return event.is_action_pressed(&"ui_accept")
 
 
 ## Up at all, fading included -- what the director waits on before the next one.
@@ -387,7 +425,11 @@ func _process(delta: float) -> void:
 	if _closing >= 0.0:
 		_closing += delta
 		var gone := _ease(clampf(_closing / _close_length, 0.0, 1.0))
-		_set_fade(1.0 - gone)
+		if _in_run:
+			# Only the card goes; the dim waits for the next one.
+			_holder.modulate.a = 1.0 - gone
+		else:
+			_set_fade(1.0 - gone)
 		_holder.scale = Vector2.ONE * lerpf(1.0, SINK_TO, gone)
 		_pointer.queue_redraw()
 		if _closing >= _close_length:
@@ -419,7 +461,7 @@ func _process(delta: float) -> void:
 	_refresh(rect, delta)
 	if _auto and _age >= float(_lesson.get("auto_seconds", AUTO_SEC)):
 		finish("auto")
-	elif _mode() == "do" and _age >= float(_lesson.get("seconds", 10.0)):
+	elif _mode() == "do" and not _strict() and _age >= float(_lesson.get("seconds", 10.0)):
 		finish("timeout")
 
 
@@ -434,6 +476,9 @@ func _input(event: InputEvent) -> void:
 	if _is_skip(event):
 		get_viewport().set_input_as_handled()
 		_ask_to_skip()
+		return
+	if _strict() and not _auto:
+		_strict_input(event)
 		return
 	# Escape is the router's. The pause menu opens over a card, and the card is still there
 	# when it closes.
@@ -455,6 +500,30 @@ func _input(event: InputEvent) -> void:
 		MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
 	if _age >= LOOK_MIN_SEC and not wheel:
 		finish("seen")
+
+
+## A strict card's press. The one it shows finishes it with a tick; anything else does not.
+func _strict_input(event: InputEvent) -> void:
+	var shows := _does_what_it_shows(event)
+	# A `do` card with nothing to press -- Paint -- goes when what it lights goes (`gone`): a click
+	# is how she draws, and must not end "Done? Press Paint" before she has.
+	if _mode() == "do" and not _has_input():
+		shows = false
+	var done := _age >= STRICT_MIN_SEC and shows
+	# Escape stays the router's: on the card that teaches it, it also opens the real pause menu,
+	# which is the list of controls the card is about.
+	if event.is_action_pressed(&"pause"):
+		if done:
+			finish("done")
+		return
+	# Under a `look` card the world is held, and every press is spent on the card. A `do` card's
+	# own press goes on to do its job -- D walks, R opens the canvas. In the run at the door the
+	# other presses are spent too, so nothing opens behind a card about something else; in its
+	# moment the world goes on working under a `do` card, which only waits.
+	if _mode() == "look" or (_in_run and not done):
+		get_viewport().set_input_as_handled()
+	if done:
+		finish("done")
 
 
 ## Whether `event` is one of the inputs `lesson` teaches. Static so the director can ask the
@@ -681,6 +750,9 @@ func _set_fade(amount: float) -> void:
 
 func _teardown() -> void:
 	_open = false
+	if _in_run:
+		# The run's dim was left up for a card that did not come: put it away now.
+		_set_fade(0.0)
 	_chained = false
 	_holder.modulate.a = 1.0
 	visible = false
