@@ -40,6 +40,16 @@ extends ModalOverlay
 ## of "what does this slot do", which depends on whether the drawing is a tool or a prop.
 signal slot_activated(slot: int)
 
+## Fires when the player takes a card they have drawn out of the bag to have it again, without
+## drawing it (Kent: "the users wont have to draw something if drawn already but it should cost
+## ink just like the same"). The level closes the screen and makes it from the page the class
+## was last drawn on, down the same path a fresh drawing takes -- see LevelBase._draw_again.
+signal drawn_again(class_id: String)
+
+## Whether a drawn card can be taken out to have again. Only where a level listens: the house has
+## this screen too, and nothing there could make it.
+var may_draw_again := false
+
 ## Named the way GameLevel names it: the key legend is read out of the LIVE InputMap, so a
 ## rebinding cannot leave this screen telling the player something untrue.
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
@@ -408,7 +418,7 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"ui_left", true) or event.is_action_pressed(&"ui_up", true):
 		_advance(-1)
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed(&"ui_accept") and String(_chosen.get("kind", "")) == "bag":
+	elif event.is_action_pressed(&"ui_accept") and String(_chosen.get("kind", "")) in ["bag", "drawn"]:
 		get_viewport().set_input_as_handled()
 		_use_chosen()
 
@@ -496,14 +506,46 @@ func _drop_on_bag(_at: Vector2, data: Variant, index: int) -> void:
 	_show_choice()
 
 
+## A card the player has drawn, carried out of the bag to have again. The same picture the card
+## shows, on the pointer.
+func _drag_from_roster(_at: Vector2, id: String) -> Variant:
+	if not _can_draw_again(id):
+		return null
+	_chosen = {"kind": "drawn", "id": id}
+	refresh()
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var art := TextureRect.new()
+	art.texture = _class_drawing(id)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.size = BAG_SLOT
+	art.position = -BAG_SLOT * 0.5
+	art.modulate = Color(1.0, 1.0, 1.0, 0.85)
+	holder.add_child(art)
+	# Only a drag the GUI started can carry a picture; asked outside one (run_draw_again_probe), the
+	# engine refuses the picture with an error, and the answer is all that was wanted.
+	if get_viewport().gui_is_dragging():
+		(_roster_buttons[id] as Control).set_drag_preview(holder)
+	else:
+		holder.free()
+	return {"drawn_class": id}
+
+
 func _can_drop_outside(_at: Vector2, data: Variant) -> bool:
-	return data is Dictionary and (data as Dictionary).has("bag_slot")
+	return data is Dictionary and ((data as Dictionary).has("bag_slot") \
+		or (data as Dictionary).has("drawn_class"))
 
 
 ## Out of the bag -- the same thing TAKE IT OUT does, so a tool goes into the hand and a thing
-## to set down goes onto the cursor, right where it was let go.
+## to set down goes onto the cursor, right where it was let go. A drawn card is had again.
 func _drop_outside(_at: Vector2, data: Variant) -> void:
-	_chosen = {"kind": "bag", "index": int((data as Dictionary)["bag_slot"])}
+	var carried := data as Dictionary
+	if carried.has("drawn_class"):
+		_chosen = {"kind": "drawn", "id": String(carried["drawn_class"])}
+	else:
+		_chosen = {"kind": "bag", "index": int(carried["bag_slot"])}
 	_use_chosen()
 
 
@@ -1412,6 +1454,8 @@ func _fill_band(role: String, title: String, drawn: Array) -> void:
 			continue
 		button.tooltip_text = _display_name(id)
 		button.pressed.connect(_choose_drawn.bind(id))
+		if _can_draw_again(id):
+			button.set_drag_forwarding(_drag_from_roster.bind(id), Callable(), Callable())
 		button.add_child(_card_face_art(id, role))
 		# ⚠ THE NAME IS THE CARD'S ONLY DIRECT LABEL. run_book_probe reads every Label directly
 		# under a card as a name on show, and an empty book must show none.
@@ -1541,7 +1585,12 @@ func _ids_with_role(role: String) -> Array[String]:
 
 func _refresh_detail() -> void:
 	var kind := String(_chosen.get("kind", ""))
-	_use_button.visible = kind == "bag"
+	# A drawn card's button has it again; one whose page this save never kept says why it can't.
+	var again := kind == "drawn" and may_draw_again
+	_use_button.visible = kind == "bag" or again
+	_use_button.disabled = again and not _can_draw_again(String(_chosen.get("id", "")))
+	_use_button.text = "TAKE IT OUT" if not again \
+		else ("DRAW IT ONCE MORE FIRST" if _use_button.disabled else "USE IT AGAIN")
 	if kind.is_empty():
 		_style_detail(_palette(""))
 		_detail_number.text = ""
@@ -1778,11 +1827,27 @@ func _follow_choice_to_tab() -> void:
 ## Hand the slot back to the level, which decides what a slot DOES -- a tool goes into the
 ## hand and a prop goes into a placement, and that judgement already exists in one place.
 func _use_chosen() -> void:
-	if String(_chosen.get("kind", "")) != "bag":
+	var kind := String(_chosen.get("kind", ""))
+	if kind == "drawn":
+		var id := String(_chosen.get("id", ""))
+		if not _can_draw_again(id):
+			return
+		close()
+		drawn_again.emit(id)
+		return
+	if kind != "bag":
 		return
 	var slot := int(_chosen.get("index", -1))
 	close()
 	slot_activated.emit(slot)
+
+
+## Whether a drawn card can be had again here: a level is listening, and this save kept the page
+## it was drawn on -- one drawn before pages were kept has to be drawn once more first.
+func _can_draw_again(id: String) -> bool:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	return may_draw_again and profile != null and profile.has_method("has_class_page") \
+		and bool(profile.call("has_class_page", id))
 
 
 # --- Reading -------------------------------------------------------------------------
