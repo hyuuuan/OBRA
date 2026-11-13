@@ -168,10 +168,11 @@ func _audit_level_1_teaches_at_the_door(lessons: Array) -> void:
 		_check(anchors.has(anchor), "'%s' lights something at the door" % id, anchor)
 	_check(door == ["move", "jump", "bag_open", "bag_hints", "quest", "marker", "map", "pause"],
 		"the door teaches walking, jumping, the bag, the HUD, then Escape", ", ".join(door))
-	# Done for real at the door, with the world running: walking and jumping, and nothing else. A
-	# card that let the world run under it would let a stray R open the canvas mid-run.
-	_check(live == ["move", "jump"], "at the door, only walking and jumping run the world",
-		", ".join(live))
+	# Done for real at the door: walking and jumping with the world running, and the click on a
+	# face-down card in the open bag. A card that let the world run under it otherwise would let a
+	# stray R open the canvas mid-run.
+	_check(live == ["move", "jump", "bag_hints"],
+		"at the door, only walking, jumping and the face-down card are done for real", ", ".join(live))
 	var ledger: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(LEDGER))
 	var strict: Array[String] = []
 	for level_id: String in ledger["levels"]:
