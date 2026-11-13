@@ -144,27 +144,41 @@ func _audit_level_1_covers_every_control(lessons: Array, director: Node) -> void
 	_check(rows >= 15, "and the controls screen was really read", "%d rows" % rows)
 
 
-## LEVEL 1 TEACHES IT ALL AT THE DOOR. Kent: "i want all tutorial pop ups to be present from
-## movement to drawing to checking inventory, make sure nothing is left". The cards play in ledger
-## order the moment Payyo opens (run_tutorial_coverage_probe plays them), so the order here is the
-## order he sees, and each card needs something on screen then to light.
+## WHAT CAN BE TAUGHT AT THE START, AT THE DOOR; THE REST IN ITS MOMENT. Kent: "the tutorial should
+## pop up for when the moment happens but there should be tutorial that is appropriate at the start
+## like the movement, inventory, jump, etc". The door's cards are named here one by one, so a card
+## about something not there at the start (a canvas, a placed drawing, a creature) cannot slip back
+## onto it; each needs something on screen then to light. And Payyo's cards wait for the player.
 func _audit_level_1_teaches_at_the_door(lessons: Array) -> void:
-	print("  -- Level 1 teaches it all at the door --")
+	print("  -- Level 1: the door, and the moments --")
 	var anchors: Array = (load(LEVEL_BASE) as Script).get_script_constant_map()["TUTORIAL_ANCHORS"]
-	var order: Array[String] = []
+	var door: Array[String] = []
+	var live: Array[String] = []
 	for value: Variant in lessons:
 		var lesson: Dictionary = value
-		if String(lesson.get("mode", "")) == "say":
-			continue
 		var id := String(lesson["id"])
-		order.append(id)
+		if bool(lesson.get("entry_live", false)):
+			live.append(id)
+		if not bool(lesson.get("door", false)):
+			_check(not lesson.has("entry_anchor"), "'%s', in its moment, has no door anchor" % id,
+				"lights its own subject" if not lesson.has("entry_anchor") else "STALE entry_anchor")
+			continue
+		door.append(id)
 		var anchor := String(lesson.get("entry_anchor", lesson.get("anchor", "")))
 		_check(anchors.has(anchor), "'%s' lights something at the door" % id, anchor)
-	# Movement, then drawing, then the bag -- the order he named -- and the controls list last.
-	var firsts := [order.find("move"), order.find("draw"), order.find("bag"), order.find("pause")]
-	_check(firsts[0] == 0 and firsts[0] < firsts[1] and firsts[1] < firsts[2]
-		and firsts[3] == order.size() - 1,
-		"walking, then drawing, then the bag, then Escape", ", ".join(order))
+	_check(door == ["move", "jump", "bag_open", "bag_hints", "quest", "marker", "map", "pause"],
+		"the door teaches walking, jumping, the bag, the HUD, then Escape", ", ".join(door))
+	# Done for real at the door, with the world running: walking and jumping, and nothing else. A
+	# card that let the world run under it would let a stray R open the canvas mid-run.
+	_check(live == ["move", "jump"], "at the door, only walking and jumping run the world",
+		", ".join(live))
+	var ledger: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(LEDGER))
+	var strict: Array[String] = []
+	for level_id: String in ledger["levels"]:
+		if bool((ledger["levels"][level_id] as Dictionary).get("strict", false)):
+			strict.append(level_id)
+	_check(strict == ["level_1"], "Payyo's cards wait for the player to do them; other levels' do not change",
+		", ".join(strict))
 
 
 ## A LATER LEVEL ONLY SAYS WHAT IT CHANGES. Kent: "other levels wont have any tutorials if
