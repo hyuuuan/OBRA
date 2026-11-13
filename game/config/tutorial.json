@@ -16,7 +16,7 @@
     "",
     "NO LESSON MAY NAME A DRAWABLE CLASS, in its text or its caption. Same rule as the dialogue: `key`, `door`, `wheel` are all classes and all answers somewhere. The pictures follow it too: 'your drawing' is drawn as a scrap of paper with a scribble on it, never a shape.",
     "",
-    "`at` is the event that offers a lesson; `after` holds it back until another has been spent, so the order survives a player who does things out of sequence. Cut on this pass because they were the dumping: `pause` (Escape is the one key everybody already knows; taught again since every card plays at the door, because its list of controls is where a player who forgets one goes), `sure` (the confidence number is shown on the card; explaining it at the second second of a ten-second life was a third card in a row), `sign` (the E READ prompt already says it), and the canvas briefing, four lines of Lolo inside the panel -- the canvas is now taught by two cards that only appear if the player hesitates.",
+    "`at` is the event that offers a lesson; `after` holds it back until another has been spent, so the order survives a player who does things out of sequence. Cut on this pass because they were the dumping: `pause` (Escape is the one key everybody already knows; taught again, at the door, because its list of controls is where a player who forgets a card goes), `sure` (the confidence number is shown on the card; explaining it at the second second of a ten-second life was a third card in a row), `sign` (the E READ prompt already says it), and the canvas briefing, four lines of Lolo inside the panel -- the canvas is now taught by two cards that only appear if the player hesitates.",
     "",
     "`lead` is what Lolo says in the story box BEFORE a card shows, so the card answers something he asked: 'Come, apo, walk with me' and then the keys. Said once, through TutorialDirector.bind_lead. Not used on `say` lessons (they are Lolo already) or on the canvas, whose story box is hidden under the drawing panel -- the `draw` lesson leads into it. Cards do not play at all on a return visit.",
     "",
@@ -24,7 +24,7 @@
     "",
     "`carries` IS WHAT A ROUTE CAN MISS. Most of Level 1's lessons wait for the player to do the thing, and a run can finish it having never become anything. A `carries` lesson still unspent when the level ends is owed (PlayerProfile.lessons_owed) and is shown once, the first time its moment comes in a later level, without its `lead`: Lolo is not in every level, and nobody there was building up to it. A press on SKIP TUTORIAL owes nothing. A lesson that is not true everywhere (`undo`, `ink`: the ink rules change) does not carry.",
     "",
-    "PAYYO PLAYS EVERY CARD AT THE DOOR. Kent: 'i want the pop ups to all be done right before the player does something in level 1 like the moment the player enters level 1, i want all tutorial pop ups to be present from movement to drawing to checking inventory, make sure nothing is left'. So level_1's cards are not waited for: once its opening has been said, every one of them plays, back to back, in the order they are listed here, as `look` cards over a world held still (TutorialDirector.teach_everything_now, LevelBase._teaches_everything_at_entry). No `lead` and no `delay` there -- each lead was written for a moment that has not come. Most of what the lessons are about does not exist yet at the door (no page, no placed drawing, no creature, an empty bag), so `entry_anchor` names what such a card lights instead: the control that will do it, or the apo. `at`, `after`, `anchor` and `lead` still say how a lesson is taught in its moment, which is how a later level shows one that is owed. Lolo's `say` lines are his, and keep their moments."
+    "WHAT CAN BE TAUGHT AT THE START IS, AT THE DOOR; THE REST IN ITS MOMENT. Kent: 'the tutorial should pop up for when the moment happens but there should be tutorial that is appropriate at the start like the movement, inventory, jump, etc'. Once level_1's opening has been said, its `door` lessons -- about what is already there: walking, jumping, the bag and its face-down cards, the quest card, the arrow, the map, Escape -- play back to back, in the order they are listed here, with no `lead` and no `delay`, lighting their `entry_anchor` (TutorialDirector.teach_the_door, LevelBase._teaches_at_the_door). `entry_live` ones (walking, jumping) are done for real with the world running; the rest hold the world. Every other lesson waits for its moment, as before. (For a day all of them played at the door, and taught a canvas, a placed drawing and a creature that were not there.)"
   ],
   "version": 2,
   "levels": {
@@ -33,12 +33,14 @@
       "lessons": [
         {
           "id": "move",
+          "door": true,
           "at": "level_start",
           "mode": "do",
           "visual": "walk",
           "context": "world",
           "anchor": "player",
           "entry_anchor": "move_prompt",
+          "entry_live": true,
           "action": "move_left",
           "through": "move_right",
           "join": " and ",
@@ -50,6 +52,7 @@
         },
         {
           "id": "jump",
+          "door": true,
           "at": "moved",
           "after": "move",
           "mode": "do",
@@ -57,6 +60,7 @@
           "context": "world",
           "anchor": "player",
           "entry_anchor": "jump_prompt",
+          "entry_live": true,
           "action": "jump",
           "delay": 0.0,
           "seconds": 10.0,
@@ -103,7 +107,6 @@
           "visual": "draw",
           "context": "canvas",
           "anchor": "canvas_paper",
-          "entry_anchor": "draw_button",
           "mouse": [
             "left"
           ],
@@ -119,7 +122,6 @@
           "visual": "click",
           "context": "canvas",
           "anchor": "transform_button",
-          "entry_anchor": "draw_button",
           "delay": 3.0,
           "seconds": 10.0,
           "patience": 120.0,
@@ -134,7 +136,6 @@
           "visual": "place",
           "context": "placing",
           "anchor": "placement",
-          "entry_anchor": "player",
           "mouse": [
             "left"
           ],
@@ -153,7 +154,6 @@
           "visual": "resize",
           "context": "placing",
           "anchor": "placement",
-          "entry_anchor": "player",
           "action": "shrink_placement",
           "through": "grow_placement",
           "join": " and ",
@@ -175,7 +175,6 @@
           "visual": "rotate",
           "context": "placing",
           "anchor": "placement",
-          "entry_anchor": "player",
           "action": "rotate_left",
           "through": "rotate_right",
           "mouse": [
@@ -194,7 +193,6 @@
           "visual": "take_back",
           "context": "world",
           "anchor": "placed",
-          "entry_anchor": "ink_gauge",
           "mouse": [
             "right"
           ],
@@ -218,7 +216,7 @@
         {
           "id": "become",
           "at": "moved",
-          "after": "quest",
+          "after": "checkpoint",
           "mode": "look",
           "visual": "become",
           "context": "world",
@@ -237,7 +235,6 @@
           "visual": "clock",
           "context": "creature",
           "anchor": "morph_card",
-          "entry_anchor": "player",
           "caption": "It runs out",
           "text": "That bar is the drawing's life, apo. It runs out.",
           "lead": "Watch that bar, apo. Something you become does not last forever."
@@ -250,7 +247,6 @@
           "visual": "revert",
           "context": "creature",
           "anchor": "revert_prompt",
-          "entry_anchor": "player",
           "action": "revert_form",
           "delay": 0.6,
           "caption": "Change back to yourself",
@@ -299,7 +295,6 @@
           "visual": "keys",
           "context": "world",
           "anchor": "pickup_prompt",
-          "entry_anchor": "player",
           "action": "interact",
           "delay": 0.4,
           "caption": "Pick up or use what is near",
@@ -314,7 +309,6 @@
           "visual": "keys",
           "context": "world",
           "anchor": "use_prompt",
-          "entry_anchor": "player",
           "action": "use_utility",
           "delay": 0.6,
           "caption": "Use what you hold",
@@ -345,11 +339,15 @@
           "visual": "drag",
           "context": "world",
           "anchor": "inventory_bar",
+          "mouse": [
+            "left"
+          ],
           "caption": "Drag a drawing out of your bag",
           "text": "Pull a drawing off its slot, apo, and let go where you want it."
         },
         {
           "id": "bag_open",
+          "door": true,
           "carries": true,
           "at": "item_stored",
           "after": "bag",
@@ -364,6 +362,7 @@
         },
         {
           "id": "bag_hints",
+          "door": true,
           "at": "item_stored",
           "after": "bag_drag",
           "mode": "look",
@@ -387,6 +386,7 @@
         },
         {
           "id": "quest",
+          "door": true,
           "at": "moved",
           "after": "checkpoint",
           "mode": "look",
@@ -407,13 +407,13 @@
           "visual": "requirement",
           "context": "world",
           "anchor": "requirement_strip",
-          "entry_anchor": "quest_card",
           "caption": "What it needs DONE, not drawn",
           "text": "That word is what it needs DONE, not what to draw.",
           "lead": "See that word? It tells you what must be DONE here — not what to draw."
         },
         {
           "id": "marker",
+          "door": true,
           "at": "moved",
           "after": "quest",
           "mode": "look",
@@ -425,6 +425,7 @@
         },
         {
           "id": "map",
+          "door": true,
           "at": "moved",
           "after": "marker",
           "mode": "look",
@@ -436,6 +437,7 @@
         },
         {
           "id": "pause",
+          "door": true,
           "at": "moved",
           "after": "map",
           "mode": "look",

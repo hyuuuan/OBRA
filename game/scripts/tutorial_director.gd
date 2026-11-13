@@ -33,13 +33,21 @@ extends Node
 ## spotlight bound -- a probe with no HUD -- every lesson is taught at once through the bar,
 ## one per event, which is what the data audits measure.
 ##
-## OR ALL OF IT AT ONCE, AT THE DOOR. Kent, of Payyo: "i want the pop ups to all be done right
-## before the player does something in level 1 like the moment the player enters level 1 ...
-## make sure nothing is left". A level that asks (LevelBase._teaches_everything_at_entry) calls
-## `teach_everything_now` once its opening has been said, and every card it has not spent plays
-## there, back to back, in ledger order, over a world held still -- each a `look` card, with no
-## lead and no delay, lighting its `entry_anchor` (or its `anchor`) because most of what the
-## lessons are about does not exist yet. After that nothing is left to wait for its moment.
+## WHAT CAN BE TAUGHT AT THE START IS, AT THE DOOR. Kent, of Payyo: "the tutorial should pop up for
+## when the moment happens but there should be tutorial that is appropriate at the start like the
+## movement, inventory, jump, etc". A level that asks (LevelBase._teaches_at_the_door) calls
+## `teach_the_door` once its opening has been said, and the lessons marked `door` -- the ones about
+## something already there: walking, jumping, the bag, the quest card, the arrow, the map, Escape --
+## play back to back, in ledger order, with no lead and no delay, lighting their `entry_anchor` (or
+## `anchor`). Every other lesson waits for its moment, as it always did. (For a day all of them
+## played at the door; it taught a canvas, a placed drawing and a creature that were not there.)
+##
+## ⚠ EACH DOOR CARD WAITS FOR THE PLAYER TO DO IT. Kent: "when the tutorial says press R, when i
+## press another key, it just proceeds to the next one, it does not let me experience the tutorial".
+## A strict card (TutorialSpotlight) goes only on its own key or click, with a tick -- no timeout,
+## no other key -- or when what it lights goes. At the door,
+## walking and jumping (`entry_live`) are done for real with the world running; the rest hold the
+## world, so a stray key cannot open the canvas mid-run.
 ##
 ## SPENT ONCE PER RUN, IN MEMORY. Not on the profile: a returning player skipping these is a
 ## profile flag and a schema bump, deliberately -- not a side effect of a tutorial. The one thing
@@ -56,6 +64,9 @@ const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 ## How long a card in the run at the entry stays up when nobody is at the keys. Every headless
 ## suite opens Payyo, and thirty cards at the usual AUTO_SEC held the hint bar for over a minute.
 const ENTRY_AUTO_SEC := 0.05
+## How long the tick on a card done at the door is seen before the next card takes its place.
+## Under TutorialSpotlight.DONE_SEC, so the next card still takes over from a leaving one.
+const ENTRY_TICK_SEC := 0.45
 
 ## After a card the player answered by doing the thing, and after one they only looked at.
 const GAP_AFTER_DONE := 1.2
@@ -71,8 +82,8 @@ signal lesson_taught(lesson_id: String)
 signal lesson_skipped(lesson_id: String)
 ## Emitted when the player skips the rest of the tutorial, with how many lessons were left.
 signal tutorial_skipped(lessons_left: int)
-## Emitted when the run begun by `teach_everything_now` is over: every card shown, or skipped.
-signal everything_taught
+## Emitted when the run begun by `teach_the_door` is over: every door card shown, or skipped.
+signal door_taught
 
 var _lessons: Array[Dictionary] = []
 ## lesson id -> "shown" or "skipped", once spent.
@@ -108,6 +119,8 @@ var _entry_running := false
 ## suite that turned auto-dismiss off a second in -- to read one line itself -- got the next card
 ## as a real one, which held the world and waited for a key nobody would press.
 var _entry_auto := false
+## Seconds before the next card of the run, while the tick on the last one is seen.
+var _entry_wait := 0.0
 ## What the level does to set the scene for an entry card, given its anchor ("" at the end) --
 ## the empty bag shown while a card about the bag is up.
 var _stage := Callable()
@@ -345,6 +358,7 @@ func note(event: String) -> void:
 
 func _process(delta: float) -> void:
 	if _entry_running:
+		_entry_wait = maxf(0.0, _entry_wait - delta)
 		_pump_entry()
 	elif _enabled and not _queue.is_empty():
 		_pump(delta)
@@ -432,19 +446,17 @@ func _teach_at_once() -> void:
 	lesson_taught.emit(id)
 
 
-## EVERY CARD, NOW, ONE AFTER ANOTHER. Awaitable: it returns when the last card has gone or the
-## rest were skipped. Each card the ledger holds and this run has not spent is shown as a `look`
-## card -- the world held still by the spotlight between them, so the player cannot act until
-## the last one goes -- without its `lead` (each was written for a moment that has not come)
-## and lighting its `entry_anchor`, the control that will do it, when its own subject is not
-## on screen yet. `say` lines are Lolo's and keep their moments. `stage` is called with each
-## card's anchor before it shows, and with "" when the run is over.
-func teach_everything_now(stage: Callable = Callable()) -> void:
+## THE DOOR'S CARDS, NOW, ONE AFTER ANOTHER. Awaitable: it returns when the last has gone or the
+## rest were skipped. Each `door` lesson this run has not spent is shown strict, in ledger order,
+## without its `lead` and lighting its `entry_anchor`; `entry_live` ones run the world under them,
+## the rest hold it. `stage` is called with each card's anchor before it shows, and with "" when
+## the run is over.
+func teach_the_door(stage: Callable = Callable()) -> void:
 	_entry.clear()
 	if _enabled:
 		for lesson in _lessons:
 			var id := String(lesson.get("id", ""))
-			if not _seen.has(id) and _mode_of(lesson) != "say":
+			if not _seen.has(id) and bool(lesson.get("door", false)) and _mode_of(lesson) != "say":
 				_entry.append(id)
 	if _entry.is_empty():
 		return
@@ -453,16 +465,18 @@ func teach_everything_now(stage: Callable = Callable()) -> void:
 		_queue.erase(id)
 	_stage = stage
 	_entry_running = true
+	_entry_wait = 0.0
 	if _spotlight != null:
 		_spotlight.hold(true)
 		# It holds only for somebody at the keys.
 		_entry_auto = not _spotlight.is_holding()
+		_spotlight.set_in_run(true)
 	_pump_entry()
 	if _entry_running:
-		await everything_taught
+		await door_taught
 
 
-func is_teaching_everything() -> bool:
+func is_teaching_the_door() -> bool:
 	return _entry_running
 
 
@@ -489,6 +503,8 @@ func _pump_entry() -> void:
 	if _entry.is_empty():
 		_end_entry()
 		return
+	if _entry_wait > 0.0:
+		return
 	var lesson := _find(_entry[0])
 	var quiet := lesson.duplicate()
 	quiet.erase("lead")
@@ -500,9 +516,14 @@ func _pump_entry() -> void:
 	if _stage.is_valid():
 		_stage.call(anchor)
 	var card := _card_for(lesson)
-	card["mode"] = "look"
+	# Done for real with the world running, or held still with the press spent on the card.
+	var live := bool(lesson.get("entry_live", false))
+	card["mode"] = "do" if live else "look"
+	card["strict"] = true
 	card["auto"] = _entry_auto
 	card["auto_seconds"] = ENTRY_AUTO_SEC
+	# Decided with the rest of the run's auto: a suite that sits down part-way must not be held.
+	_spotlight.hold(not live and not _entry_auto)
 	_present(card, anchor)
 	lesson_taught.emit(id)
 
@@ -515,9 +536,11 @@ func _end_entry() -> void:
 	if _stage.is_valid():
 		_stage.call("")
 	_stage = Callable()
+	_entry_wait = 0.0
 	if _spotlight != null:
+		_spotlight.set_in_run(false)
 		_spotlight.hold(false)
-	everything_taught.emit()
+	door_taught.emit()
 
 
 func _show(lesson: Dictionary) -> void:
@@ -552,9 +575,10 @@ func _present(card: Dictionary, anchor: String) -> void:
 
 func _on_card_finished(_lesson_id: String, how: String) -> void:
 	_gap = GAP_AFTER_DONE if how == "done" else GAP_AFTER
-	# ⚠ ON THIS FRAME, while the card is still leaving: the next takes its place before the dim
-	# can fade, and the hold has kept the world still in between.
+	# ⚠ WHILE THE CARD IS STILL LEAVING: the next takes its place before the dim can fade, and
+	# the hold keeps the world still in between. A card she did is given the moment its tick needs.
 	if _entry_running:
+		_entry_wait = ENTRY_TICK_SEC if how == "done" else 0.0
 		_pump_entry()
 
 

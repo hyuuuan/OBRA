@@ -4912,16 +4912,17 @@ func _play_opening() -> void:
 	_opening_running = true
 	await _say_the_opening()
 	# Still the opening: nothing that waits for her first words may start over a card.
-	if _teaches_everything_at_entry() and tutorial != null and tutorial.is_enabled():
+	if _teaches_at_the_door() and tutorial != null and tutorial.is_enabled():
 		_fill_in_the_hud()
-		await tutorial.teach_everything_now(_stage_entry_card)
+		await tutorial.teach_the_door(_stage_entry_card)
 	_opening_running = false
 	opening_finished.emit()
 
 
-## Whether every lesson card plays the moment the level opens, after its first words, and none
-## waits for its moment (TutorialDirector.teach_everything_now). Off; Payyo turns it on.
-func _teaches_everything_at_entry() -> bool:
+## Whether the level's `door` lessons -- the ones about what is already there -- play the moment
+## it opens, after its first words (TutorialDirector.teach_the_door). The rest still wait for
+## their moments. Off; Payyo turns it on.
+func _teaches_at_the_door() -> bool:
 	return false
 
 
