@@ -465,6 +465,17 @@ func _set_colliding(on: bool) -> void:
 func _flash() -> void:
 	modulate = Color(1.6, 0.55, 0.45)
 	create_tween().tween_property(self, "modulate", Color.WHITE, 0.18)
+	# Every blow that flashes it is heard, but the last: that one is heard as its fall (_die).
+	if hp > 0:
+		_sound(&"foe_hit")
+
+
+## ⚠ LOOKED UP, NOT NAMED. A probe run with --script compiles this class before the autoloads
+## exist, and the identifier AudioDirector would fail to compile it -- and every probe with it.
+func _sound(id: StringName) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id)
 
 
 func _area(area_name: String, layer: int, mask: int, size: Vector2) -> Area2D:
