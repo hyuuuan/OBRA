@@ -6,7 +6,10 @@
     "",
     "The files are rendered from FamiTracker modules by tools/build_music.py (audio/README.md):",
     "audio/sfx/<id>.txt, audio/music/<id>.txt and audio/ambience/<id>.txt. Music and ambience loop;",
-    "sfx do not. A missing file warns once at load, not once per play."
+    "sfx do not. A missing file warns once at load, not once per play.",
+    "",
+    "spacing: id -> the least seconds between two plays of that sound effect, for the ones made",
+    "constantly (a footstep), so they cannot take every voice from the sounds that carry information."
   ],
   "sfx": {
     "ui_click": "res://assets/audio/sfx/ui_click.wav",
@@ -51,5 +54,6 @@
     "level_1": "",
     "mayon_ending": ""
   },
-  "ambience": {}
+  "ambience": {},
+  "spacing": {}
 }

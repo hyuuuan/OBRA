@@ -7,7 +7,9 @@ extends Node
 ##
 ## Music, and the ambience bed under it, each loop on a PAIR of players, so a change of track is a
 ## crossfade rather than a cut: the outgoing fades out on one while the incoming fades in on the
-## other.
+## other. One-shots share SFX_VOICES players, and an id may be spaced (audio.json `spacing`) so a
+## sound made constantly -- a footstep -- cannot take every voice from the ones that carry
+## information.
 ##
 ## Volumes are held LINEAR (0..1) because that is what a slider shows and what the
 ## profile stores. dB is derived here and never persisted -- linear_to_db(0.0) is
@@ -54,6 +56,10 @@ class _Loop:
 
 
 var _sfx_paths: Dictionary = {}
+## id -> the least time, in seconds, between two plays of it.
+var _sfx_spacing: Dictionary = {}
+## id -> Time.get_ticks_msec() of its last play.
+var _sfx_last_ms: Dictionary = {}
 var _sfx_players: Array[AudioStreamPlayer] = []
 var _next_voice: int = 0
 var _music := _Loop.new()
@@ -132,18 +138,25 @@ func bus_linear(bus: StringName) -> float:
 ## louder -- the tik-tik's call, louder the further off it is). An id with no file behind it is
 ## silence, not an error -- that is what lets the call sites exist before the sounds do -- but
 ## the request is still announced (`sfx_requested`), so a probe can hear what would have played.
-## Nothing at or under zero is played: linear_to_db(0) is -inf.
-func play_sfx(id: StringName, loudness: float = 1.0) -> void:
+## Nothing at or under zero is played: linear_to_db(0) is -inf. Returns whether it sounded: an id
+## asked for again inside its `spacing` is announced and not played.
+func play_sfx(id: StringName, loudness: float = 1.0) -> bool:
 	var level := clampf(loudness, 0.0, 1.0)
 	sfx_requested.emit(id, level)
 	var stream := _stream_for(_sfx_paths, id)
 	if stream == null or _sfx_players.is_empty() or level <= 0.0:
-		return
+		return false
+	var now := Time.get_ticks_msec()
+	var key := String(id)
+	if _sfx_last_ms.has(key) and now - int(_sfx_last_ms[key]) < float(_sfx_spacing.get(key, 0.0)) * 1000.0:
+		return false
+	_sfx_last_ms[key] = now
 	var player := _sfx_players[_next_voice]
 	_next_voice = (_next_voice + 1) % _sfx_players.size()
 	player.stream = stream
 	player.volume_db = linear_to_db(level)
 	player.play()
+	return true
 
 
 ## Start a music track, crossfading from whatever played before. A request for the track already
@@ -275,6 +288,12 @@ func _load_catalog() -> void:
 	_sfx_paths = _resolved_section(document.get("sfx", {}))
 	_music.paths = _resolved_section(document.get("music", {}))
 	_ambience.paths = _resolved_section(document.get("ambience", {}))
+	var spacing: Variant = document.get("spacing", {})
+	if spacing is Dictionary:
+		for key: Variant in (spacing as Dictionary).keys():
+			var seconds: Variant = (spacing as Dictionary)[key]
+			if (seconds is float or seconds is int) and float(seconds) > 0.0:
+				_sfx_spacing[String(key)] = float(seconds)
 
 
 ## Drop paths that do not exist, once, at load. An id whose file is missing behaves

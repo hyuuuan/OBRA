@@ -1,8 +1,8 @@
 extends SceneTree
 ## The audio files, headless: each id with a file resolves, music and ambience loop where Godot
 ## plays them, no sound effect loops, and every file has something that plays it. And the plumbing
-## that plays them: a change of track crossfades, the ambience is its own channel, and the Music
-## slider moves the Music bus.
+## that plays them: a change of track crossfades, the ambience is its own channel, a spaced sound
+## effect is not repeated inside its spacing, and the Music slider moves the Music bus.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -32,10 +32,12 @@ const CODE_FOLDERS := ["res://scripts", "res://ui", "res://levels", "res://objec
 
 ## A fade's length and then some: how long a probe waits for one to finish.
 const FADE_WAIT_S := 2.0
+## A spacing set for the probe's own id, long enough that two plays a frame apart fall inside it.
+const PROBE_SPACING_S := 0.4
 
 var failures := 0
 var checked := 0
-const CHECKS := 13
+const CHECKS := 14
 var director: Node
 
 
@@ -65,6 +67,7 @@ func _run() -> void:
 	await _the_menu_plays_its_music()
 	await _a_new_track_crossfades(music)
 	await _the_ambience_is_its_own_channel(music)
+	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
 	_the_music_slider_moves_the_music_bus()
 	if checked != CHECKS:
 		failures += 1
@@ -214,6 +217,32 @@ func _the_ambience_is_its_own_channel(music: Dictionary) -> void:
 		"together %s, faded %s, music still on %s" % [together, gone, music_on])
 	director.call(&"stop_music", 0.0)
 	(director.get(&"_ambience").get(&"paths") as Dictionary).erase("_probe_bed")
+
+
+## Asked for again inside its spacing, a sound is announced but not played; after it, it plays.
+func _a_spaced_sound_is_not_repeated_inside_its_spacing(music: Dictionary) -> void:
+	var paths := director.get(&"_sfx_paths") as Dictionary
+	var spacing := director.get(&"_sfx_spacing") as Dictionary
+	paths["_probe_tick"] = music.get("menu", "")
+	spacing["_probe_tick"] = PROBE_SPACING_S
+	var announced := [0]
+	var count := func(id: StringName, _loudness: float) -> void:
+		if id == &"_probe_tick":
+			announced[0] += 1
+	director.connect(&"sfx_requested", count)
+	var first := bool(director.call(&"play_sfx", &"_probe_tick"))
+	var again := bool(director.call(&"play_sfx", &"_probe_tick"))
+	(director.get(&"_sfx_last_ms") as Dictionary)["_probe_tick"] = Time.get_ticks_msec() - int(PROBE_SPACING_S * 1000.0) - 1
+	var later := bool(director.call(&"play_sfx", &"_probe_tick"))
+	director.disconnect(&"sfx_requested", count)
+	for voice in director.get_children():
+		if voice is AudioStreamPlayer and String(voice.name).begins_with("SfxVoice"):
+			(voice as AudioStreamPlayer).stop()
+	paths.erase("_probe_tick")
+	spacing.erase("_probe_tick")
+	_check(first and not again and later and announced[0] == 3,
+		"a spaced sound effect is not repeated inside its spacing, but is still announced",
+		"first %s, again %s, after the spacing %s, announced %d" % [first, again, later, announced[0]])
 
 
 ## Dragged, the Music slider is heard at once: the Music bus follows it live.
