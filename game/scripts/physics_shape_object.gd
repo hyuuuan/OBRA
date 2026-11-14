@@ -204,6 +204,7 @@ func confirm_placement() -> void:
 	# switched off -- so a placed axe never found anything to chop and a placed key
 	# never found a lock. Routing through the setter makes that impossible to forget.
 	set_preview(false)
+	_unfrozen_where_it_stands()
 	sleeping = false
 	linear_velocity = Vector2.ZERO
 	angular_velocity = 0.0
@@ -227,6 +228,22 @@ func confirm_placement() -> void:
 	controllable = false
 	if item_data != null:
 		item_data.placement_transform = global_transform
+
+
+## ⚠ A BODY UNFROZEN HAS TO BE TOLD IT DID NOT TRAVEL HERE. Kent: "if you place it at the very
+## bottom of the platform [in the haybale], it places it at the door". A frozen body is a static
+## one, and the physics server moves a static body without updating the transform it measures
+## the next step's motion from -- so that stayed where the ghost ENTERED THE TREE, which is the
+## world's origin (WorldItemRoot is at 0,0). On the first step after confirming, the solver swept
+## the drawing along that stale motion (CCD_MODE_CAST_SHAPE) from the origin to the spot it was
+## set down, and anything solid on that line pushed it off it. Every room is parked up and to
+## the right of the origin, so in a room the line always runs down and left through its own
+## floor, and the floor pushed the drawing up and left -- across the boards toward the doorway,
+## onto the apo, or into the doorway itself (run_room_placement_probe). Setting the transform
+## once the body is rigid makes the server take it as where the body already was: no motion,
+## no sweep.
+func _unfrozen_where_it_stands() -> void:
+	PhysicsServer2D.body_set_state(get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM, global_transform)
 
 
 ## What E does when the player is stood next to this. The base answer is the one every
