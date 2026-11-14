@@ -3187,6 +3187,8 @@ func _on_placement_confirmed(
 	if placed.has_method("set_world_bounds"):
 		placed.call("set_world_bounds", Rect2(environment.get("world_bounds")))
 	status_label.text = "%s placed — E or right-click to take it back" % item.display_name
+	# Once it is paid for and down: the race above hands it back to the bag unheard.
+	_sound(&"place")
 	# R8 in GATES.md is only true if the player KNOWS it is true. A player who believes a
 	# placement is permanent plays the rest of the level as though it were.
 	if tutorial != null:
