@@ -100,6 +100,18 @@ information, so it needs none.
 | `sfx.revert` | `sfx/revert.txt` | Back to herself: the glide turned round from A5, shorter and softer, settling on the chorus's D. 0.47 s. |
 | `sfx.place` | `sfx/place.txt` | A drawing set down: a wooden tok of noise, a low VRC7 bass thunk on D3, and a tick as it settles. 0.33 s. |
 | `sfx.ink_low` | `sfx/ink_low.txt` | The ink nearly gone: a soft high ti-tu (E6, B5), twice, the second fainter. 0.39 s. |
+| `sfx.tiktik_call` | `sfx/tiktik_call.txt` | The tik-tik: two dry, high ticks (short-mode noise and a 12.5% pulse on E7), tik... tik. Played at its call's strength, so it starts loud. 0.22 s. |
+| `sfx.tiyanak_cry` | `sfx/tiyanak_cry.txt` | The tiyanak: a thin 25% pulse wail on A5 that rises and sags, wavering, over a fainter one a tritone down. 0.51 s. |
+| `sfx.lantern_hit` | `sfx/lantern_hit.txt` | Her lantern struck: a glassy clang on a tritone (E6 and A#5) and a flicker of short-mode noise. 0.17 s. |
+| `sfx.dawn` | `sfx/dawn.txt` | The night ends: the VRC7 chorus swelling on D, the bamboo flute rising A5 to D6, and a kulintang glint. 1.77 s. |
+| `sfx.door` | `sfx/door.txt` | A door or a lid: a short wooden creak of noise and a soft knock as it comes to rest. 0.33 s. |
+| `sfx.candle` | `sfx/candle.txt` | A kandila on its rack: a small breath of flame and one soft high bell on D6. 0.45 s. |
+| `sfx.scatter` | `sfx/scatter.txt` | The dancers run: a scurry of quick noise feet falling away and a little pulse trill tumbling down. 0.5 s. |
+| `sfx.dance_cue` | `sfx/dance_cue.txt` | A cue danced: one bright kulintang strike on A5 and a babendil tick; played at 1.0 for perfect, 0.6 for early or late. 0.39 s. |
+| `sfx.cast` | `sfx/cast.txt` | The line goes in: a splash of noise falling away and a small plip. 0.18 s. |
+| `sfx.reel` | `sfx/reel.txt` | The line comes home: a ratchet of short-mode clicks and a small rising glide. 0.32 s. |
+| `sfx.gift` | `sfx/gift.txt` | The bakunawa's gift: a low, watery chorus swell on D and A, and a vibraphone climbing D F# A. 1.26 s. |
+| `sfx.painting` | `sfx/painting.txt` | A painting or the brush lifting: a soft rising breath and the bamboo flute up a fifth, D to A, over the chorus. 0.92 s. |
 | `sfx.swing` | `sfx/swing.txt` | A blade or club through the air: a short-mode glint, then a fast falling noise swish. 0.2 s. |
 | `sfx.cannon` | `sfx/cannon.txt` | The drawn cannon: a boom of low noise, a 50% pulse dropping from A2, and the VRC7 bass on D2 for its body. 0.38 s. |
 | `sfx.throw` | `sfx/throw.txt` | Something light thrown: a quick noise arc and a 25% pulse flick falling from E6. The boomerang, a stone, Dilim's salt and ash. 0.13 s. |

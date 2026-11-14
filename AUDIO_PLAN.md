@@ -65,7 +65,7 @@ Riskiest first: the shared plumbing, then the music, then the sounds.
 | 12 | `sfx-drawing` | **Built (provisional until Kent has listened).** Drawing, recognition, morphing and placing (table B): nine new ids, each with its call site and file. `run_sfx_drawing_probe` checks each is asked for beside its visual, and that the brush's refusal is silent. | python, run_audio_probe, run_sfx_drawing_probe, run_brush_refusal_probe, run_morph_gate_probe, run_placement_probe, run_revert_probe, run_ink_economy_probe, run_draw_again_probe, run_level3_play_probe |
 | 13 | `sfx-moves` | The apo's body, footsteps included (table C). | python, run_audio_probe, run_locomotion_probe, run_water_audit, run_swim_reach_probe, run_ladder_angle_probe |
 | 14 | `sfx-combat` | **Built (provisional until Kent has listened).** Weapons and foes (table D): six new ids, each with its call sites and file. `run_sfx_combat_probe` checks each is asked for beside its visual. | python, run_audio_probe, run_sfx_combat_probe, run_weapon_probe, run_combat_probe, run_enemy_probe, run_bakunawa_probe, run_level4_sound_probe, run_level4_whip_probe, run_satchel_probe, run_level2_alley_probe, run_level3_sea_probe, run_foe_health_probe, run_level4_tiktik_probe |
-| 15 | `sfx-places` | Dilim's four (files only; already called) and each level's props (table E). | python, run_audio_probe, each level's own probes |
+| 15 | `sfx-places` | **Built (provisional until Kent has listened).** Dilim's four get files (already called), and each level's props get ids, call sites and files (table E); Mayon's `mayon_brush` is left to `music-mayon`. `run_sfx_places_probe` checks each is asked for beside its visual. | python, run_audio_probe, run_sfx_places_probe, run_level4_sound_probe, run_level2_audit, run_dance_probe, run_level2_scene_probe, run_level2_chain_probe, run_level2_finish_probe, run_play_level2, run_level3_audit, run_bakunawa_probe, run_level3_finish_probe, run_level3_play_probe, run_key_probe, run_hub_audit, run_painting_entry_probe, run_level1_finish_probe |
 
 **Every PR** also runs these, and greps the output for `SCRIPT ERROR`, `Parse Error`,
 `^ERROR` and `Error calling`. Godot's exit-time "resources still in use" lines are the baseline
@@ -154,20 +154,20 @@ Every row names its trigger and its visual twin. Each sound is one module in
 | `whip` | `level_4.gd _lash_the_whip` | the lash |
 | `foe_hit` / `foe_down` | `Enemy2D._flash` (a blade, the whip, a weight, a salt burn) unless the blow is its last / `Enemy2D._die` and `ManananggalUpper2D._die`; the sea creatures' `apply_tool_hit` / `_die`; `Bakunawa2D.apply_tool_hit` (every blow a hit: it is subdued, never felled) | the hit flash, the red, the knock back / the fall, the flight away |
 
-**E. Places** (Dilim's ids exist and are called; the rest are new)
+**E. Places** (built in `sfx-places`; `run_sfx_places_probe`. Dilim's four were already called, and `run_level4_sound_probe` checks them with their ripples)
 
 | Id | Trigger | Visual twin |
 |---|---|---|
 | `tiktik_call`, `tiyanak_cry` | `level_4.gd`, at the strength passed | the edge ripples (`EdgeRipple.cue`) |
 | `lantern_hit`, `dawn` | `level_4.gd` | the lantern's flicker; the dawn |
-| `mayon_brush` | `level_5.gd` (already called) | the brush stroke |
-| `door` / `unlock` | `PiyestaDoor2D`, `Lockable2D.unlocked`, `WardLock2D.opened`, `Baul2D.opened` | the door or lid opening |
-| `candle` | `ChurchInterior2D.kandila_placed` | the flame |
-| `scatter` | `DancerGroup2D.scattered` | the dancers running |
-| `dance_cue` | `DanceMinigame.cue_judged` (by verdict) | the cue's judgement |
-| `cast` / `reel` | `FishingLine2D.splashed` / `reeled_in` | the line |
-| `gift` | `Bakunawa2D.gift_offered` | the gift |
-| `painting` | `NextPainting2D.taken` / `BrushStand2D.taken` | the painting lifting |
+| `mayon_brush` | `level_5.gd` (already called) | the brush stroke. ⚠ Not built here: Mayon's sounds are `music-mayon`'s (PR 9). |
+| `door` / `unlock` | `door`: `level_2.gd`, where Piyesta's church and lit-house doors are SEEN to open (not `PiyestaDoor2D.set_open`, which a checkpoint restore also calls), and Payyo's chest lid (`game_level._level_uses_the_tool`). `unlock`: a drawn key in a `Lockable2D`. Not `WardLock2D.opened`: Payyo's key turn already plays `unlock` (`game_level._turn_the_key`). | the door or lid opening |
+| `candle` | `ChurchInterior2D.place_the_kandila` | the flame on the rack |
+| `scatter` | `DancerGroup2D.scatter`, as they start to run (not `scattered`, which is when the last is gone) | the dancers running |
+| `dance_cue` | `DanceOverlay._hit_cue`, at the verdict's loudness: 1.0 perfect, 0.6 early or late. A stroke is only judged against a cue within the hit window, so it is never a miss; a cue let pass is judged unheard. | the verdict's flash |
+| `cast` / `reel` | `FishingLine2D`, as the hook goes in the water / comes home | the line |
+| `gift` | `level_3._on_gift_offered`, as the treasure is uncovered | the treasure and its sparkle |
+| `painting` | `NextPainting2D.take` / `BrushStand2D.take` | the painting or brush lifting |
 
 ## Traps to plan around
 
