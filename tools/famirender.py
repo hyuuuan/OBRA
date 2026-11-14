@@ -72,7 +72,9 @@ NOISE_GAIN = 0.00494
 # emu2413's int16 mix against the 2A03's: a full-volume FM note sits a little under a
 # full-volume pulse (RMS 0.03-0.08 against 0.09, by patch), as the VRC7 does beside the 2A03.
 FM_GAIN = 1.0 / 26000.0
-MASTER_GAIN = 1.6
+# Game music sits near -18 dBFS RMS; at 4.0 the menu's full arrangement peaks at -2.6 dBFS.
+# A denser mix that would pass 0 dBFS is refused (wav_bytes), never limited.
+MASTER_GAIN = 4.0
 HIGHPASS_HZ = 30.0            # FamiTracker's default bass filter: DC out, the bass kept
 
 PULSE_DUTY = (
