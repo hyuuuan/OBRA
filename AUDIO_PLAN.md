@@ -14,7 +14,7 @@ what to build with it, and in what order.
   - `run_audio_probe`, `tests/test_famirender.py` and `tests/test_build_music.py`, every check
     mutation-tested.
 - **Not yet done on it:**
-  - Kent has not listened to `music.menu`.
+  - Kent has not yet heard revision 2 of `music.menu`.
   - The branch has no PR. Ask Kent before pushing.
 - **Helper:** `music/menu.txt` was written with a throwaway helper (grid / put / line /
   transpose, about 150 lines). A copy is in the side-session notes folder as
@@ -39,7 +39,7 @@ what to build with it, and in what order.
 
 Each question has a default. Build from the default if Kent has no preference.
 
-1. **The menu track: keep, adjust, or redo?** He has the render, but has not heard it yet.
+1. **The menu track, revision 2.** Kent heard the first ("nice, but it lacks the cultural, painting, adventure-game vibe in the Philippines"); the revision adds kulintang, agung, babendil, dabakan, rondalla tremolo and a bamboo flute over an adventure march. Keep, or adjust again?
 2. **Mayon's summit.** The design has it "quiet: no ash, no tremor, no sound" while Lola
    paints. Default: **keep the summit silent**. The ascent and the heart have music, it stops as
    the summit begins, and `mayon_ending` plays from the ending on.

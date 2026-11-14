@@ -82,4 +82,4 @@ information, so it needs none.
 
 | Id | Module | Notes |
 |---|---|---|
-| `music.menu` | `music/menu.txt` | The title card. E minor, 112 BPM, an 8 s intro, then a 34 s loop. VRC7 flute lead, chorus pads, bass and soft bell; 2A03 arpeggio with an echo, triangle kick, noise drums. **Provisional until Kent has listened.** |
+| `music.menu` | `music/menu.txt` | The title card, revised at Kent's word (2026-11-14: "nice, but it lacks the cultural, painting, adventure-game vibe in the Philippines"). D major pentatonic, ~129 BPM, a 7.5 s intro (agung, then kulintang, then a bamboo-flute call) and a 30 s loop: an adventure march under a bamboo-flute theme (VRC7 flute), a kulintang ostinato (VRC7 xylophone), agung gongs (VRC7 soft bell, low), rondalla tremolo in thirds (VRC7 guitar), a babendil tick and dabakan drum (short and long noise), an agung thump (triangle), and the painting's sparkle (pulse arpeggio and echo). The B section turns from B minor to D major, as a kundiman does. **Provisional until Kent has listened.** |
