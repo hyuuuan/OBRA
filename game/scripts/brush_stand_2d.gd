@@ -137,6 +137,10 @@ func take() -> void:
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	opening.tween_property(self, "_fade", 0.0, 0.5).set_delay(0.14)
 	taken.emit()
+	# With the lift. Looked up, not named (see next_painting_2d.gd).
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"painting")
 	queue_redraw()
 
 

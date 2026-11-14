@@ -43,7 +43,8 @@
     "dance_cue": "res://assets/audio/sfx/dance_cue.wav",
     "cast": "res://assets/audio/sfx/cast.wav",
     "reel": "res://assets/audio/sfx/reel.wav",
-    "gift": "res://assets/audio/sfx/gift.wav"
+    "gift": "res://assets/audio/sfx/gift.wav",
+    "painting": "res://assets/audio/sfx/painting.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",

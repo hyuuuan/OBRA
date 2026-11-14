@@ -108,6 +108,11 @@ func take() -> void:
 		.set_ease(Tween.EASE_OUT)
 	lift.tween_property(self, "self_modulate:a", 0.0, 0.5).set_delay(0.15)
 	taken.emit()
+	# With the lift. Looked up, not named: a class a --script probe compiles cannot name an
+	# autoload.
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"painting")
 
 
 ## The rig's segments are what enter an area, and `player_character` is on the body's root.
