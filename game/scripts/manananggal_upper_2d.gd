@@ -90,6 +90,8 @@ func shows_health() -> bool:
 func _die() -> void:
 	leave()
 	died.emit(self)
+	# Its own end (it flies off rather than falling), so Enemy2D._die's sound is said here too.
+	_sound(&"foe_down")
 
 
 func reset_for_restore() -> void:

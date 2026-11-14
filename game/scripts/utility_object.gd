@@ -925,11 +925,21 @@ func _swing_blade(actor: Node2D) -> String:
 	var swing := create_tween()
 	swing.tween_property(self, "rotation", deg_to_rad(72.0 * facing), 0.11).set_trans(Tween.TRANS_QUAD)
 	swing.tween_property(self, "rotation", 0.0, 0.16).set_trans(Tween.TRANS_BACK)
+	# With the arc, hit or miss: what it struck is heard from the target (foe_hit).
+	_sound(&"swing")
 	if struck > 0:
 		return "%s cut through %d" % [_display_name(), struck]
 	if shoved > 0:
 		return "%s knocked %d loose" % [_display_name(), shoved]
 	return "%s swings — nothing in reach" % _display_name()
+
+
+## ⚠ LOOKED UP, NOT NAMED. A probe run with --script compiles this class before the autoloads
+## exist, and the identifier AudioDirector would fail to compile it -- and every probe with it.
+func _sound(id: StringName) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id)
 
 
 ## Whether a swing facing `facing` from `origin` reaches `target`: the half of the world
@@ -970,6 +980,7 @@ func _fire_cannon(actor: Node2D) -> String:
 	world.add_child(shot)
 	shot.global_position = muzzle
 	CannonShot2D.burst(world, muzzle, CannonShot2D.Burst.MUZZLE)
+	_sound(&"cannon")
 	shot.linear_velocity = Vector2(facing * 980.0, -190.0)
 	if _aimed_from(shot.global_position) != Vector2.ZERO:
 		# At what was clicked, and a little over it by what the shot falls on the way, so it goes
@@ -1069,6 +1080,7 @@ func _throw_boomerang(actor: Node2D) -> String:
 		0.0, 1.0, 1.1
 	)
 	flight.tween_callback(func() -> void: _catch_boomerang(actor))
+	_sound(&"throw")
 	return "Boomerang thrown"
 
 

@@ -220,6 +220,8 @@ func apply_tool_hit(tool: String, _impulse: float, actor: Node2D) -> bool:
 	struck.emit(self)
 	if _hp <= 0:
 		_die()
+	else:
+		_sound(&"foe_hit")
 	return true
 
 
@@ -229,6 +231,7 @@ func _die() -> void:
 	_hook = null
 	_hurtbox.collision_layer = 0
 	died.emit(self)
+	_sound(&"foe_down")
 	if _anims.has("death"):
 		_play("death")
 		var hold := create_tween()
@@ -244,6 +247,14 @@ func _die() -> void:
 		sink.parallel().tween_property(self, "global_position:y", global_position.y + 90.0, 1.6)
 		sink.parallel().tween_property(self, "modulate:a", 0.0, 1.6)
 		sink.tween_callback(queue_free)
+
+
+## ⚠ LOOKED UP, NOT NAMED. A probe run with --script compiles this class before the autoloads
+## exist, and the identifier AudioDirector would fail to compile it -- and every probe with it.
+func _sound(id: StringName) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id)
 
 
 # --- Per frame ---------------------------------------------------------------------------------

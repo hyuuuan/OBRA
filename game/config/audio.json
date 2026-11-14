@@ -30,7 +30,13 @@
     "place": "res://assets/audio/sfx/place.wav",
     "place_refused": "res://assets/audio/sfx/place_refused.wav",
     "ink_low": "res://assets/audio/sfx/ink_low.wav",
-    "ink_empty": "res://assets/audio/sfx/ink_empty.wav"
+    "ink_empty": "res://assets/audio/sfx/ink_empty.wav",
+    "swing": "res://assets/audio/sfx/swing.wav",
+    "cannon": "res://assets/audio/sfx/cannon.wav",
+    "throw": "res://assets/audio/sfx/throw.wav",
+    "whip": "res://assets/audio/sfx/whip.wav",
+    "foe_hit": "res://assets/audio/sfx/foe_hit.wav",
+    "foe_down": "res://assets/audio/sfx/foe_down.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",

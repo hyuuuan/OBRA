@@ -230,6 +230,9 @@ func throw() -> bool:
 	if kind == Kind.STONE:
 		_stone_in_hand = false
 	thrown.emit(kind)
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"throw")
 	queue_redraw()
 	return true
 

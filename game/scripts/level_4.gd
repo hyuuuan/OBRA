@@ -1563,6 +1563,7 @@ func _throw_salt(item: Dictionary) -> bool:
 	throw.direction = signf(float(facing)) if facing != null and float(facing) != 0.0 else 1.0
 	throw.position = PlayerHurtbox2D.middle_of(player)
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(throw)
+	_sound(&"throw")
 	return true
 
 
@@ -1577,6 +1578,7 @@ func _throw_ash(item: Dictionary) -> bool:
 	dust.position = player.global_position
 	dust.reached_nothing.connect(_on_ash_reached_nothing)
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
+	_sound(&"throw")
 	return true
 
 
@@ -1616,6 +1618,9 @@ func _lash_the_whip() -> bool:
 	lash.arc_degrees = WeaponTable.arc_degrees(WHIP)
 	lash.position = origin
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(lash)
+	# Short, like every blow here: the tik-tik's call and the tiyanak's cry are the level's
+	# information, and nothing of a fight may sit on them for long.
+	_sound(&"whip")
 	_whip_uses -= 1
 	_lashed = true
 	return _whip_uses <= 0

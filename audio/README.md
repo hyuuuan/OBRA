@@ -100,6 +100,12 @@ information, so it needs none.
 | `sfx.revert` | `sfx/revert.txt` | Back to herself: the glide turned round from A5, shorter and softer, settling on the chorus's D. 0.47 s. |
 | `sfx.place` | `sfx/place.txt` | A drawing set down: a wooden tok of noise, a low VRC7 bass thunk on D3, and a tick as it settles. 0.33 s. |
 | `sfx.ink_low` | `sfx/ink_low.txt` | The ink nearly gone: a soft high ti-tu (E6, B5), twice, the second fainter. 0.39 s. |
+| `sfx.swing` | `sfx/swing.txt` | A blade or club through the air: a short-mode glint, then a fast falling noise swish. 0.2 s. |
+| `sfx.cannon` | `sfx/cannon.txt` | The drawn cannon: a boom of low noise, a 50% pulse dropping from A2, and the VRC7 bass on D2 for its body. 0.38 s. |
+| `sfx.throw` | `sfx/throw.txt` | Something light thrown: a quick noise arc and a 25% pulse flick falling from E6. The boomerang, a stone, Dilim's salt and ash. 0.13 s. |
+| `sfx.whip` | `sfx/whip.txt` | Lola's buntot pagi: a short rising swish, the crack (the noise at its highest), and a thin ring. 0.16 s. |
+| `sfx.foe_hit` | `sfx/foe_hit.txt` | A blow landing: a punch of noise and a 25% pulse knocked down from E4. 0.1 s. |
+| `sfx.foe_down` | `sfx/foe_down.txt` | A foe falling: a long 12.5% slide down from E5 with its echo, the noise giving out under it, and a last low thud. 0.51 s. |
 | `sfx.ink_empty` | `sfx/ink_empty.txt` | The ink gone: a hollow 50% pulse falling A4 F#4 D4, the last note sagging, over a breath that fades. 0.56 s. |
 
 **The sound effects keep one rule between them:** the interface speaks in the 2A03 (soft pulses,
@@ -108,7 +114,9 @@ agung and bamboo flute, the title theme's band. Every one sits under the music's
 every one is **provisional until Kent has listened** (rendered 2026-11-14). The drawing's own
 moments, the answer and the change, are the painting's (VRC7); the page, the bag and the gauge
 are the interface's (2A03). `declined`, `place_refused` and Mayon's brush refusal never sound
-alike: a wavering question, a flat bump, and silence.
+alike: a wavering question, a flat bump, and silence. Combat is bodies and blows, all 2A03
+and short (the cannon's body is the one VRC7 voice): in Dilim they share the air with the
+tik-tik's call and the tiyanak's cry, which are gameplay and must never be masked.
 
 ⚠ **No triangle in a sound effect, for now.** A triangle silenced mid-wave freezes on a step, and
 the renderer's resampler rings on that step at the very end of a one-shot, so the file keeps two

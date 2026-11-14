@@ -562,6 +562,10 @@ func apply_tool_hit(tool: String, _impulse: float, _actor: Node2D) -> bool:
 		_meter.queue_redraw()
 	_sync_beams()
 	hit_taken.emit(int(_hits), HITS_TO_SUBDUE)
+	# Every hit, the last one too: it is subdued and swims off, never felled, so it has no fall.
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"foe_hit")
 	if _hits >= float(HITS_TO_SUBDUE):
 		_subdue()
 	return true

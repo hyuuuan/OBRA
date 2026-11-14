@@ -64,7 +64,7 @@ Riskiest first: the shared plumbing, then the music, then the sounds.
 | 11 | `sfx-core` | **Built (provisional until Kent has listened).** The one-shot path end to end: table A's eight ids have modules and files, `item_acquired` and `level_complete` have call sites, and `unlock` (already called) is in `audio.json`. `run_sfx_core_probe` checks each is asked for beside its visual. | python, run_audio_probe, run_sfx_core_probe, run_button_feedback_probe, run_diary_probe, run_key_probe, run_level1_finish_probe |
 | 12 | `sfx-drawing` | **Built (provisional until Kent has listened).** Drawing, recognition, morphing and placing (table B): nine new ids, each with its call site and file. `run_sfx_drawing_probe` checks each is asked for beside its visual, and that the brush's refusal is silent. | python, run_audio_probe, run_sfx_drawing_probe, run_brush_refusal_probe, run_morph_gate_probe, run_placement_probe, run_revert_probe, run_ink_economy_probe, run_draw_again_probe, run_level3_play_probe |
 | 13 | `sfx-moves` | The apo's body, footsteps included (table C). | python, run_audio_probe, run_locomotion_probe, run_water_audit, run_swim_reach_probe, run_ladder_angle_probe |
-| 14 | `sfx-combat` | Weapons and foes (table D). | python, run_audio_probe, run_weapon_probe, run_combat_probe, run_enemy_probe |
+| 14 | `sfx-combat` | **Built (provisional until Kent has listened).** Weapons and foes (table D): six new ids, each with its call sites and file. `run_sfx_combat_probe` checks each is asked for beside its visual. | python, run_audio_probe, run_sfx_combat_probe, run_weapon_probe, run_combat_probe, run_enemy_probe, run_bakunawa_probe, run_level4_sound_probe, run_level4_whip_probe, run_satchel_probe, run_level2_alley_probe, run_level3_sea_probe, run_foe_health_probe, run_level4_tiktik_probe |
 | 15 | `sfx-places` | Dilim's four (files only; already called) and each level's props (table E). | python, run_audio_probe, each level's own probes |
 
 **Every PR** also runs these, and greps the output for `SCRIPT ERROR`, `Parse Error`,
@@ -144,15 +144,15 @@ Every row names its trigger and its visual twin. Each sound is one module in
 | `ladder` | each rung climbed (`begin_ladder` and stepping) | the climb |
 | `hurt` | `PlayerHealth.hit_taken` | the hit flash, the hearts |
 
-**D. Combat** (new ids)
+**D. Combat** (built in `sfx-combat`; `run_sfx_combat_probe`)
 
 | Id | Trigger | Visual twin |
 |---|---|---|
-| `swing` | `utility_object.gd _swing_blade`, `wanderer.show_swing` | the swing arc |
-| `cannon` | `utility_object.gd _fire_cannon` | the shot |
-| `throw` | `_throw_boomerang`, `StoneThrow2D.thrown`, Dilim's salt and ash throws | the thrown thing |
+| `swing` | `UtilityObject._swing_blade`, hit or miss (`show_swing` is only called from there) | the swing arc, the apo's pose |
+| `cannon` | `UtilityObject._fire_cannon` | the shot and the muzzle burst |
+| `throw` | `UtilityObject._throw_boomerang`, `StoneThrow2D.throw`, `level_4._throw_salt` / `_throw_ash` | the thrown thing |
 | `whip` | `level_4.gd _lash_the_whip` | the lash |
-| `foe_hit` / `foe_down` | `Enemy2D` damaged / `died`; `Bakunawa2D.hit_taken`; `SeaCreature2D.struck` | the hit flash / the fall |
+| `foe_hit` / `foe_down` | `Enemy2D._flash` (a blade, the whip, a weight, a salt burn) unless the blow is its last / `Enemy2D._die` and `ManananggalUpper2D._die`; the sea creatures' `apply_tool_hit` / `_die`; `Bakunawa2D.apply_tool_hit` (every blow a hit: it is subdued, never felled) | the hit flash, the red, the knock back / the fall, the flight away |
 
 **E. Places** (Dilim's ids exist and are called; the rest are new)
 
@@ -192,6 +192,11 @@ Every row names its trigger and its visual twin. Each sound is one module in
 - **No sound reuses another's meaning.** `declined`, `place_refused` and Mayon's refusals each
   sound distinct.
 - **Look before saying done.** Headless cannot listen. Send Kent each render.
+- **No autoload name in a class a probe compiles.** A `--script` probe compiles every class it
+  names before the autoloads exist, so `AudioDirector.play_sfx` in `Enemy2D` or `UtilityObject`
+  failed to compile them, and every probe that uses them. Those classes look the director up
+  (`get_node_or_null(^"/root/AudioDirector")`), as LevelBase does. A level script loaded at run
+  time (`level_4.gd`) may name it.
 - **No triangle in a one-shot, for now.** A triangle silenced mid-wave freezes on a step (the
   hardware does this), and `famirender` resamples the 2A03 with the file's end padded with
   silence, so the frozen step rings at the very end. `_trim_tail` then keeps the whole two-second
