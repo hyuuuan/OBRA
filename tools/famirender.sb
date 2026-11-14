@@ -1,0 +1,39 @@
+;; The macOS sandbox tools/build_music.py renders music inside (sandbox-exec -f this-file).
+;;
+;; Rendering compiles and runs native code (emu2413), so it is fenced the way Kent asked for
+;; (2026-11-14): it may not touch the network at all, it may not read the credential stores,
+;; and it may write only its own outputs -- the rendered audio, the audio catalogue, its build
+;; folder and the system temp folder the compiler needs. Everything else on the machine is
+;; read-only to it.
+;;
+;; Parameters (all absolute paths, passed with -D by build_music.py):
+;;   HOME       the user's home, to name the credential stores
+;;   AUDIO_OUT  game/assets/audio
+;;   CATALOG    game/config/audio.json
+;;   BUILD      build/famirender
+;;   TMP        the compiler's temp folder (TMPDIR)
+;;   SCRATCH    an extra writable folder for a render elsewhere (tests, --out); may equal TMP
+
+(version 1)
+(allow default)
+
+(deny network*)
+
+(deny file-read* file-write*
+  (subpath (string-append (param "HOME") "/.ssh"))
+  (subpath (string-append (param "HOME") "/.aws"))
+  (subpath (string-append (param "HOME") "/.config/gh"))
+  (subpath (string-append (param "HOME") "/.gnupg"))
+  (subpath (string-append (param "HOME") "/Library/Keychains")))
+
+(deny file-write*)
+(allow file-write*
+  (subpath (param "AUDIO_OUT"))
+  (literal (param "CATALOG"))
+  (subpath (param "BUILD"))
+  (subpath (param "TMP"))
+  (subpath (param "SCRATCH"))
+  (literal "/dev/null")
+  (literal "/dev/stdout")
+  (literal "/dev/stderr")
+  (regex #"^/dev/tty"))
