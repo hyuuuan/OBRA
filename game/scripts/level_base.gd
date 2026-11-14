@@ -4210,6 +4210,7 @@ func _on_life_changed(remaining: float, capacity: float) -> void:
 		# player turns the page, and running low is exactly the moment they are mid-jump
 		# over something -- see AGENTS.md on the two channels.
 		hint_bar.show_hint("The %s is fading" % _current_form_name.to_lower())
+		_sound(&"ink_low")
 		# AFTER the warning, not instead of it: the warning says WHAT is happening and the
 		# lesson says what it means. The bar queues them; it does not stack them.
 		if tutorial != null:

@@ -1453,6 +1453,7 @@ func _on_low_ink(_remaining: float, _capacity: float) -> void:
 	if tutorial != null:
 		tutorial.note("ink_low")
 	_say_why("It is nearly gone, apo.")
+	_sound(&"ink_low")
 
 
 func _tutorial_context(context: String) -> bool:
