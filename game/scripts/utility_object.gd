@@ -980,6 +980,7 @@ func _fire_cannon(actor: Node2D) -> String:
 	world.add_child(shot)
 	shot.global_position = muzzle
 	CannonShot2D.burst(world, muzzle, CannonShot2D.Burst.MUZZLE)
+	_sound(&"cannon")
 	shot.linear_velocity = Vector2(facing * 980.0, -190.0)
 	if _aimed_from(shot.global_position) != Vector2.ZERO:
 		# At what was clicked, and a little over it by what the shot falls on the way, so it goes
