@@ -23,6 +23,7 @@
     "mayon_brush": "",
     "page_turn": "res://assets/audio/sfx/page_turn.wav",
     "draw_submit": "res://assets/audio/sfx/draw_submit.wav",
+    "recognised": "res://assets/audio/sfx/recognised.wav",
     "declined": "res://assets/audio/sfx/declined.wav"
   },
   "music": {

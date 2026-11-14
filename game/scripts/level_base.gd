@@ -1034,6 +1034,14 @@ func _say_checkpoint() -> void:
 		audio.call("play_sfx", &"checkpoint")
 
 
+## A sound, beside something the screen is already showing (Dilim's rule: every sound has a
+## visual twin, so a player who cannot hear plays the same game).
+func _sound(id: StringName) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id)
+
+
 func _on_obstacle_entered(obstacle_id: String) -> void:
 	_name_the_beat(obstacle_id)
 	if tutorial != null:
@@ -2810,6 +2818,9 @@ func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> b
 	# card, which dimmed the level and took the mouse while it was up -- see InventoryHUD.arrive.
 	inventory_hud.arrive(slot, DrawingSkin2D.thumbnail(item.image),
 		"%s — %s" % [item.display_name, next_step])
+	# With the flight, not at the answer: a creature's answer is the morph's sound instead, so
+	# an accepted drawing is heard once, as whatever it became.
+	_sound(&"recognised")
 	return true
 
 
