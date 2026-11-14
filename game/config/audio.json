@@ -13,7 +13,7 @@
     "ui_open": "res://assets/audio/sfx/ui_open.wav",
     "ui_close": "res://assets/audio/sfx/ui_close.wav",
     "level_complete": "",
-    "checkpoint": "",
+    "checkpoint": "res://assets/audio/sfx/checkpoint.wav",
     "item_acquired": "",
     "tiktik_call": "",
     "tiyanak_cry": "",
