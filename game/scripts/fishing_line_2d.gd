@@ -73,6 +73,13 @@ func _ready() -> void:
 
 
 ## Out from `from`, toward `toward`, rising a little first the way a cast does; `power` 0..1.
+## ⚠ Looked up, not named: a class a --script probe compiles cannot name an autoload.
+func _sound(id: StringName) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id)
+
+
 func cast(from: Vector2, toward: Vector2, power: float = 0.6) -> void:
 	power = clampf(power, 0.0, 1.0)
 	hook.global_position = from
@@ -162,6 +169,7 @@ func _physics_process(delta: float) -> void:
 			_in_water = true
 			_velocity = Vector2(_velocity.x * 0.25, 0.0)
 			splashed.emit(at)
+			_sound(&"cast")
 	else:
 		# Sinks to the depth the cast allowed; up and down work it from there.
 		var work := Input.get_axis(&"move_up", &"move_down")
