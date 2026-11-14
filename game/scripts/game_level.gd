@@ -725,6 +725,10 @@ func _go_home_with_the_canvas() -> void:
 	})
 	Telemetry.end_level(level_id, "completed")
 	status_label.text = "Level complete!"
+	# Payyo's ending has no panel, so its jingle goes with the bars and the name, as the others'.
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"level_complete")
 	if cinematic != null:
 		cinematic.close(String(LevelManager.get_level(level_id).get("title", "")).to_upper())
 		await get_tree().create_timer(1.1, true, false, true).timeout

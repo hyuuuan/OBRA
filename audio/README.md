@@ -83,3 +83,20 @@ information, so it needs none.
 | Id | Module | Notes |
 |---|---|---|
 | `music.menu` | `music/menu.txt` | The title card, revised at Kent's word (2026-11-14: "nice, but it lacks the cultural, painting, adventure-game vibe in the Philippines"). D major pentatonic, ~129 BPM, a 7.5 s intro (agung, then kulintang, then a bamboo-flute call) and a 30 s loop: an adventure march under a bamboo-flute theme (VRC7 flute), a kulintang ostinato (VRC7 xylophone), agung gongs (VRC7 soft bell, low), rondalla tremolo in thirds (VRC7 guitar), a babendil tick and dabakan drum (short and long noise), an agung thump (triangle), and the painting's sparkle (pulse arpeggio and echo). The B section turns from B minor to D major, as a kundiman does. **Provisional until Kent has listened.** |
+| `sfx.ui_click` | `sfx/ui_click.txt` | Every button. A soft babendil tick: a 25% pulse on B5 that falls a hair, and a glint of short-mode noise. 0.08 s, about −26 dBFS RMS. |
+| `sfx.ui_open` | `sfx/ui_open.txt` | An overlay coming up: two soft 50% pulses, D5 then A5, with a quieter echo three ticks behind. 0.26 s. |
+| `sfx.ui_close` | `sfx/ui_close.txt` | And going: the same two notes down, A5 to D5, a shade softer. 0.25 s. |
+| `sfx.page_turn` | `sfx/page_turn.txt` | Her diary's page: a long-mode noise swish that rises and falls, and the page landing. 0.38 s. |
+| `sfx.checkpoint` | `sfx/checkpoint.txt` | A lantern catching: a breath of noise (the flame), the agung low on D3 (VRC7 soft bell), kulintang A5 then D6 (VRC7 xylophone), and a 12.5% pulse glow arpeggiating the D chord. 0.94 s. |
+| `sfx.item_acquired` | `sfx/item_acquired.txt` | A found thing's card: a kulintang pickup (F#5 A5 B5) into a struck bell chord on D with the agung under it, a babendil tick on each end, and a pulse shimmer with its echo while the card holds. 1.0 s. |
+| `sfx.unlock` | `sfx/unlock.txt` | A lock giving: the key's metal click (short-mode noise), the bolt's thud (noise and a falling pulse), then two small kulintang notes, F#5 to B5. 0.72 s. |
+| `sfx.level_complete` | `sfx/level_complete.txt` | The level-complete jingle, I–IV–V–I in D: a bamboo-flute phrase (A D F# A, B, A C#, D) over a swung kulintang run, rondalla tremolo in thirds (VRC7 guitar), an FM bass, the agung opening and landing it, babendil on every eighth and the dabakan on the changes, and the painting's sparkle up the D chord at the arrival. 2.3 s. |
+
+**The sound effects keep one rule between them:** the interface speaks in the 2A03 (soft pulses,
+a tick of noise) and the painting, what the world hands her, speaks in the VRC7's kulintang,
+agung and bamboo flute, the title theme's band. Every one sits under the music's loudness, and
+all eight are **provisional until Kent has listened** (rendered 2026-11-14).
+
+⚠ **No triangle in a sound effect, for now.** A triangle silenced mid-wave freezes on a step, and
+the renderer's resampler rings on that step at the very end of a one-shot, so the file keeps two
+seconds of silence. The thuds are noise or a falling pulse instead (AUDIO_PLAN.md, traps).

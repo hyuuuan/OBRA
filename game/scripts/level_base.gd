@@ -5444,6 +5444,11 @@ func _complete_level() -> void:
 		_play_own_ending()
 		return
 	status_label.text = "Level complete!"
+	# The jingle starts with the bars and the level's name in them, and the panel arrives into it.
+	# After the own-ending return: Mayon ends in its own scene, with its own sound.
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"level_complete")
 	# STAGED BEFORE THE PANEL. The level used to end by putting a screen over an unchanged
 	# view -- the last thing the player did and the acknowledgement of it happened at the same
 	# size as walking around. The bars come in on the terrace she is standing on, hold for a

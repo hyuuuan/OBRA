@@ -62,6 +62,12 @@ func _on_opened() -> void:
 	_continue_button.grab_focus()
 
 
+## Silent as it arrives: the level's jingle (`level_complete`) began with the bars a second ago and
+## is still ringing, and `ui_open` over it would be a second announcement of the same thing.
+func _open_sound() -> StringName:
+	return &""
+
+
 func _on_continue() -> void:
 	close()
 	continue_pressed.emit()
