@@ -1,23 +1,53 @@
 extends ModalOverlay
-## Display and motion settings, shared by the main menu and the pause menu. "Reduce motion" keeps
-## every slide, pop and shake in the game still, a short fade in their place (motion.gd).
+## Volume, display and motion settings, shared by the main menu and the pause menu. "Reduce
+## motion" keeps every slide, pop and shake in the game still, a short fade in their place
+## (motion.gd).
 ##
-## ⚠ NO VOLUME SLIDERS (Kent, 2026-10-20: "remove the sound/music in settings since its not
-## implemented yet"). The game has no sound yet -- every id in config/audio.json is empty -- so the
-## Master, Music and Sound effects sliders moved nothing anyone could hear. The profile still keeps
-## the three volumes and AudioDirector still applies them at boot, so when sound arrives the rows go
-## back into ui/settings_overlay.tscn and their slider code back in here (git has both).
+## THE VOLUME SLIDERS ARE BACK (2026-11-14). They were taken out on 2026-10-20 while nothing could
+## be heard (Kent: "remove the sound/music in settings since its not implemented yet"); the game
+## has music now. The Music slider also carries the ambience, which is background like it.
+##
+## Applying and persisting are deliberately separate. A dragged slider emits value_changed once
+## per pixel and PlayerProfile.set_setting writes the whole profile atomically, so the slider
+## applies live through AudioDirector -- which the player hears immediately -- and only commits
+## when the drag ends or the screen closes. Dragging a slider across its track is one disk write,
+## not two hundred.
 
+const SETTING_FOR_BUS := {
+	"master_volume": AudioDirector.BUS_MASTER,
+	"music_volume": AudioDirector.BUS_MUSIC,
+	"sfx_volume": AudioDirector.BUS_SFX,
+}
+
+@onready var _sliders: Dictionary = {
+	"master_volume": $Root/Center/Panel/VBox/MasterRow/Slider,
+	"music_volume": $Root/Center/Panel/VBox/MusicRow/Slider,
+	"sfx_volume": $Root/Center/Panel/VBox/SfxRow/Slider,
+}
+@onready var _readouts: Dictionary = {
+	"master_volume": $Root/Center/Panel/VBox/MasterRow/Value,
+	"music_volume": $Root/Center/Panel/VBox/MusicRow/Value,
+	"sfx_volume": $Root/Center/Panel/VBox/SfxRow/Value,
+}
 @onready var _fullscreen: CheckButton = $Root/Center/Panel/VBox/FullscreenToggle
 @onready var _reduce_motion: CheckButton = $Root/Center/Panel/VBox/ReduceMotionToggle
 @onready var _back_button: Button = $Root/Center/Panel/VBox/BackButton
 
 var _profile: Node = null
+var _director: Node = null
 
 
 func _ready() -> void:
 	super()
 	_profile = get_node_or_null(^"/root/PlayerProfile")
+	_director = get_node_or_null(^"/root/AudioDirector")
+	for key: Variant in _sliders.keys():
+		var slider: HSlider = _sliders[key]
+		slider.min_value = 0.0
+		slider.max_value = 1.0
+		slider.step = 0.01
+		slider.value_changed.connect(_on_slider_changed.bind(String(key)))
+		slider.drag_ended.connect(_on_drag_ended.bind(String(key)))
 	_skin_controls()
 	_fullscreen.toggled.connect(_on_fullscreen_toggled)
 	_reduce_motion.toggled.connect(func(pressed: bool) -> void: _persist("reduce_motion", pressed))
@@ -26,11 +56,18 @@ func _ready() -> void:
 	_apply_fullscreen(bool(_setting("fullscreen", false)))
 
 
-## The one control on this screen that Godot draws from a TEXTURE rather than a StyleBox: a
-## CheckButton's two states. Built here at load instead of living in the theme, because an
-## ImageTexture saved into a .tres keeps its header and loses its pixels -- the file would load
-## with an invisible switch and nothing to say why.
+## The two controls on this screen that Godot draws from a TEXTURE rather than a StyleBox: a
+## slider's handle and a CheckButton's two states. Built here at load instead of living in the
+## theme, because an ImageTexture saved into a .tres keeps its header and loses its pixels -- the
+## file would load with an invisible handle and nothing to say why.
 func _skin_controls() -> void:
+	var grabber := UISkin.disc_texture(20, UISkin.CREAM_FILL, UISkin.RING_MID)
+	var grabber_lit := UISkin.disc_texture(20, UISkin.CREAM_LIT, UISkin.GOLD)
+	for key: Variant in _sliders.keys():
+		var slider: HSlider = _sliders[key]
+		slider.add_theme_icon_override(&"grabber", grabber)
+		slider.add_theme_icon_override(&"grabber_highlight", grabber_lit)
+		slider.add_theme_icon_override(&"grabber_disabled", grabber)
 	for toggle: CheckButton in [_fullscreen, _reduce_motion]:
 		toggle.add_theme_icon_override(&"checked", UISkin.switch_texture(true))
 		toggle.add_theme_icon_override(&"unchecked", UISkin.switch_texture(false))
@@ -45,8 +82,23 @@ func _on_opened() -> void:
 
 
 func _on_closed() -> void:
+	# Commit whatever the sliders ended on, in case the screen was closed mid-drag.
+	for key: Variant in _sliders.keys():
+		_persist(String(key), float((_sliders[key] as HSlider).value))
 	_persist("fullscreen", _fullscreen.button_pressed)
 	_persist("reduce_motion", _reduce_motion.button_pressed)
+
+
+## Live only. The player hears this immediately; the disk write waits for drag_ended.
+func _on_slider_changed(value: float, key: String) -> void:
+	_readouts[key].text = "%d%%" % int(round(value * 100.0))
+	if _director != null and SETTING_FOR_BUS.has(key):
+		_director.set_bus_linear(SETTING_FOR_BUS[key], value)
+
+
+func _on_drag_ended(changed: bool, key: String) -> void:
+	if changed:
+		_persist(key, float((_sliders[key] as HSlider).value))
 
 
 func _on_fullscreen_toggled(pressed: bool) -> void:
@@ -67,6 +119,13 @@ func _apply_fullscreen(enabled: bool) -> void:
 
 
 func _pull_from_profile() -> void:
+	for key: Variant in _sliders.keys():
+		var value := float(_setting(String(key), 1.0))
+		var slider: HSlider = _sliders[key]
+		# set_value_no_signal, or seeding the UI would re-apply and re-persist a value
+		# that came from the profile in the first place.
+		slider.set_value_no_signal(value)
+		_readouts[key].text = "%d%%" % int(round(value * 100.0))
 	_fullscreen.set_pressed_no_signal(bool(_setting("fullscreen", false)))
 	_reduce_motion.set_pressed_no_signal(bool(_setting("reduce_motion", false)))
 

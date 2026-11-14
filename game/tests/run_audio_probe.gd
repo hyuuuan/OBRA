@@ -1,6 +1,7 @@
 extends SceneTree
 ## The audio files, headless: each id with a file resolves, music loops where Godot plays it,
-## no sound effect loops, and every file has something that plays it.
+## no sound effect loops, every file has something that plays it, and the Music slider moves the
+## Music bus.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -30,7 +31,7 @@ const CODE_FOLDERS := ["res://scripts", "res://ui", "res://levels", "res://objec
 
 var failures := 0
 var checked := 0
-const CHECKS := 10
+const CHECKS := 11
 var director: Node
 
 
@@ -51,6 +52,7 @@ func _run() -> void:
 	_no_sound_effect_loops(sfx)
 	_every_voiced_id_has_a_caller(music, sfx)
 	await _the_menu_plays_its_music()
+	_the_music_slider_moves_the_music_bus()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -156,6 +158,22 @@ func _the_menu_plays_its_music() -> void:
 	playing = director.call(&"current_music") as StringName
 	_check(playing == &"" and not player.playing, "leaving the menu stops its music",
 		"playing '%s', player %s" % [playing, player.playing])
+
+
+## Dragged, the Music slider is heard at once: the Music bus follows it live.
+func _the_music_slider_moves_the_music_bus() -> void:
+	var settings := (load("res://ui/settings_overlay.tscn") as PackedScene).instantiate()
+	root.add_child(settings)
+	var bus := AudioServer.get_bus_index(&"Music")
+	var before := AudioServer.get_bus_volume_db(bus)
+	var slider := settings.get_node(^"Root/Center/Panel/VBox/MusicRow/Slider") as HSlider
+	slider.value = 0.5
+	var heard := AudioServer.get_bus_volume_db(bus)
+	var readout := (settings.get_node(^"Root/Center/Panel/VBox/MusicRow/Value") as Label).text
+	director.call(&"set_bus_linear", &"Music", db_to_linear(before))
+	settings.free()
+	_check(absf(heard - linear_to_db(0.5)) < 0.1 and readout == "50%",
+		"the Music slider moves the Music bus as it is dragged", "%.1f dB, reads %s" % [heard, readout])
 
 
 # --- helpers ---------------------------------------------------------------------------------
