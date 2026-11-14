@@ -1471,6 +1471,7 @@ func _on_drain_emptied() -> void:
 	if tutorial != null:
 		tutorial.note("ink_emptied")
 	_say_why("Out of ink, apo. Hold on to me.")
+	_sound(&"ink_empty")
 	_revert_to_base_form()
 	# On the sand -- a helper dragging the bangka down, say -- changing back is all there is to
 	# it. In the sea, the apo swims for it with the ink handed back.

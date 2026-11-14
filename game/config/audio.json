@@ -29,7 +29,8 @@
     "revert": "res://assets/audio/sfx/revert.wav",
     "place": "res://assets/audio/sfx/place.wav",
     "place_refused": "res://assets/audio/sfx/place_refused.wav",
-    "ink_low": "res://assets/audio/sfx/ink_low.wav"
+    "ink_low": "res://assets/audio/sfx/ink_low.wav",
+    "ink_empty": "res://assets/audio/sfx/ink_empty.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
