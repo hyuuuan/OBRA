@@ -554,7 +554,8 @@ class Voice:
                 seq_vol = max(0, min(15, value))
             elif kind == "arpeggio":
                 if player.macro.setting == 1:
-                    fixed_note = value
+                    # ⚠ A fixed arpeggio counts from the tracker's C-0, which is MIDI 12.
+                    fixed_note = value + 12
                 elif player.macro.setting == 2:
                     self.arp_acc += value
                     seq_arp = self.arp_acc

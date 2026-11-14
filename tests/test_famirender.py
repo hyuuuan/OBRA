@@ -107,6 +107,14 @@ class PitchTest(unittest.TestCase):
             self.assertAlmostEqual(hz, expected, delta=expected * 0.03)
 
 
+    def test_a_fixed_arpeggio_counts_from_c0(self) -> None:
+        # Value 57 is A-4 in the tracker (4 * 12 + 9), whatever note the row asks for.
+        text = module({0: {0: "C-2 04 F ..."}}).replace(
+            '"sine"', '"sine"\nMACRO 1 9 0 -1 1 : 57\nINST2A03 4 -1 9 -1 -1 -1 "fixed"')
+        result = render(text)
+        self.assertAlmostEqual(pitch(steady(result), result.rate), 440.0, delta=1.5)
+
+
 class TimingTest(unittest.TestCase):
     def test_a_row_at_speed_6_tempo_150_is_six_ticks(self) -> None:
         result = render(module({0: {0: "A-4 00 F ..."}, 15: {0: "... .. . B00"}}))
