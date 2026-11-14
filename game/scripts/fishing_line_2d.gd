@@ -155,6 +155,7 @@ func _physics_process(delta: float) -> void:
 			hook.global_position = tip
 			_winding_home = false
 			reeled_in.emit()
+			_sound(&"reel")
 			set_physics_process(false)
 			queue_redraw()
 			return

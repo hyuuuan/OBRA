@@ -41,7 +41,8 @@
     "candle": "res://assets/audio/sfx/candle.wav",
     "scatter": "res://assets/audio/sfx/scatter.wav",
     "dance_cue": "res://assets/audio/sfx/dance_cue.wav",
-    "cast": "res://assets/audio/sfx/cast.wav"
+    "cast": "res://assets/audio/sfx/cast.wav",
+    "reel": "res://assets/audio/sfx/reel.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
