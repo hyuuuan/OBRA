@@ -2,7 +2,8 @@ extends SceneTree
 ## The audio files, headless: each id with a file resolves, music and ambience loop where Godot
 ## plays them, no sound effect loops, and every file has something that plays it. And the plumbing
 ## that plays them: a change of track crossfades, the ambience is its own channel, a spaced sound
-## effect is not repeated inside its spacing, and the Music slider moves the Music bus.
+## effect is not repeated inside its spacing, the Music slider moves the Music bus, and a level that
+## has not opted in (LevelBase._level_music) leaves the music as it found it.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -37,7 +38,7 @@ const PROBE_SPACING_S := 0.4
 
 var failures := 0
 var checked := 0
-const CHECKS := 14
+const CHECKS := 15
 var director: Node
 
 
@@ -46,7 +47,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	create_timer(120.0).timeout.connect(func() -> void:
+	create_timer(240.0).timeout.connect(func() -> void:
 		print("OBRA_AUDIO_FAILED=watchdog")
 		quit(2))
 	director = root.get_node(^"AudioDirector")
@@ -69,6 +70,7 @@ func _run() -> void:
 	await _the_ambience_is_its_own_channel(music)
 	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
 	_the_music_slider_moves_the_music_bus()
+	await _a_level_that_has_not_opted_in_leaves_the_music_alone()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -259,6 +261,26 @@ func _the_music_slider_moves_the_music_bus() -> void:
 	settings.free()
 	_check(absf(heard - linear_to_db(0.5)) < 0.1 and readout == "50%",
 		"the Music slider moves the Music bus as it is dragged", "%.1f dB, reads %s" % [heard, readout])
+
+
+## Levels opt in to music (LevelBase._level_music, off by default): one that has not, opened and
+## closed, leaves the music that was playing as it was.
+func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := (load("res://game_level.tscn") as PackedScene).instantiate()
+	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(scene)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(20)
+	var during := director.call(&"current_music") as StringName
+	scene.queue_free()
+	await _frames(5)
+	var after := director.call(&"current_music") as StringName
+	var player := director.call(&"music_player") as AudioStreamPlayer
+	_check(during == &"menu" and after == &"menu" and player.playing,
+		"a level that has not opted in leaves the music alone, in and out",
+		"in it '%s', after it '%s', sounding %s" % [during, after, player.playing])
+	director.call(&"stop_music", 0.0)
 
 
 # --- helpers ---------------------------------------------------------------------------------
