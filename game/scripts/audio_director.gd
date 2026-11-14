@@ -141,6 +141,11 @@ func play_music(id: StringName) -> void:
 	_music_player.play()
 
 
+## The id of the track playing, or &"" when none is.
+func current_music() -> StringName:
+	return _music_id
+
+
 func stop_music() -> void:
 	if _music_player == null:
 		return
