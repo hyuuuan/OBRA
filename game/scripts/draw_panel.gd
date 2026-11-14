@@ -634,6 +634,9 @@ func _on_transform_pressed() -> void:
 		return
 	_set_submitting(true)
 	status.text = "Recognizing..."
+	# The page going to be read, beside "Recognizing...". After the refusal above, which sends
+	# nothing and so says nothing: the brush's refusal reuses no feedback of the decline's.
+	_sound(&"draw_submit")
 	_submit_started_usec = Time.get_ticks_usec()
 	_submit_started_frame = Engine.get_frames_drawn()
 	# Capture the stroke vectors alongside the rasterized image so the rig can
@@ -730,6 +733,7 @@ func _on_entity_declined(
 	# looked like nothing. Neither line names what the drawing was taken for.
 	status.text = "close — the brush wants a surer line" if reason == "brush" \
 		else "not sure what that is — try drawing it more clearly!"
+	_sound(&"declined")
 	recognition_declined.emit(entity, confidence, margin, reason)
 
 
@@ -820,6 +824,12 @@ func handle_cancel() -> bool:
 	canvas.clear_canvas()
 	close_panel(true, true)
 	return true
+
+
+func _sound(id: StringName) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id)
 
 
 ## The lines fade to the bare page, and the page closes. Nothing is sent and nothing is said.

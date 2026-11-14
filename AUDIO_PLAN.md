@@ -62,7 +62,7 @@ Riskiest first: the shared plumbing, then the music, then the sounds.
 | 9 | `music-mayon` | **Reverses the 1 Nov decision**, at Kent's word (2026-11-14). `music.level_5` for the ascent and the heart; the summit silent (question 2); `mayon_ending` is already called by `level_5.gd` on the ending, and `mayon_brush` by the brush. Replace `level_5.gd`'s `stop_music()` on entry with the hook. Change `run_level5_audit._audit_mayon_is_silent` to assert the new rule (music in the ascent, none at the summit). Update `LEVEL_5.md`, `CLAUDE.md` §4 and `LEVEL5_Mayon/authored/README.md`. | python, run_audio_probe, run_level5_audit, run_level5_summit_probe, run_level5_frame_probe, run_walk_level5 |
 | 10 | `music-ending` | The ending screen's music (`music.ending`, or `mayon_ending` carried on if it flows straight in). The **level-complete jingle** itself was built and wired in `sfx-core` (row 11); this PR makes it **duck the level's loop** for its length. | python, run_audio_probe, run_level5_endings_probe, the level finish probes |
 | 11 | `sfx-core` | **Built (provisional until Kent has listened).** The one-shot path end to end: table A's eight ids have modules and files, `item_acquired` and `level_complete` have call sites, and `unlock` (already called) is in `audio.json`. `run_sfx_core_probe` checks each is asked for beside its visual. | python, run_audio_probe, run_sfx_core_probe, run_button_feedback_probe, run_diary_probe, run_key_probe, run_level1_finish_probe |
-| 12 | `sfx-drawing` | Drawing, recognition, morphing and placing (table B). | python, run_audio_probe, run_morph_gate_probe, run_placement_probe, run_revert_probe, run_ink_economy_probe |
+| 12 | `sfx-drawing` | **Built (provisional until Kent has listened).** Drawing, recognition, morphing and placing (table B): nine new ids, each with its call site and file. `run_sfx_drawing_probe` checks each is asked for beside its visual, and that the brush's refusal is silent. | python, run_audio_probe, run_sfx_drawing_probe, run_brush_refusal_probe, run_morph_gate_probe, run_placement_probe, run_revert_probe, run_ink_economy_probe, run_draw_again_probe, run_level3_play_probe |
 | 13 | `sfx-moves` | The apo's body, footsteps included (table C). | python, run_audio_probe, run_locomotion_probe, run_water_audit, run_swim_reach_probe, run_ladder_angle_probe |
 | 14 | `sfx-combat` | Weapons and foes (table D). | python, run_audio_probe, run_weapon_probe, run_combat_probe, run_enemy_probe |
 | 15 | `sfx-places` | Dilim's four (files only; already called) and each level's props (table E). | python, run_audio_probe, each level's own probes |
@@ -120,17 +120,17 @@ Every row names its trigger and its visual twin. Each sound is one module in
 | `unlock` | `game_level.gd`: the brass key turning in Ang Bale's door, and a tool opening the chest | the door's glint (`PickupFlourish2D`), the chest opening |
 | `level_complete` | `LevelBase._complete_level` and Payyo's `_go_home_with_the_canvas`, with "Level complete!" and the bars (not Mayon, which ends in its own scene). The panel then arrives without `ui_open`. A jingle, 2.3 s. | the bars with the level's name |
 
-**B. Drawing and morphing** (new ids)
+**B. Drawing and morphing** (built in `sfx-drawing`; `run_sfx_drawing_probe`)
 
 | Id | Trigger | Visual twin |
 |---|---|---|
-| `draw_submit` | `DrawPanel.drawing_ready` | the canvas closing |
-| `recognised` | `SketchClient.prediction_received`, accepted | the morph card |
-| `declined` | `DrawPanel.recognition_declined` / `SketchClient.entity_declined` | the decline feedback. ⚠ Not Mayon's brush refusal, which must reuse no decline feedback. |
-| `morph` | `MorphLife.form_changed` into a drawn form | `morph_flash.gd` |
-| `revert` | `ActionPromptHud.revert_requested` | the flash back |
-| `place` / `place_refused` | `PlacementController.placement_confirmed` / `placement_rejected` | the utility settling / the ghost's refusal tint |
-| `ink_low` / `ink_empty` | `InkDrain.low_ink` / `ink_emptied`; `DrawingCanvas.ink_blocked` | the gauge |
+| `draw_submit` | `DrawPanel._on_transform_pressed`, as the page goes to the recogniser. Never on the brush's quiet refusal, which sends nothing. | "Recognizing..." |
+| `recognised` | `LevelBase._begin_new_utility`, as an accepted drawing flies into the bag. A creature's acceptance is heard as `morph` instead, so an answer is heard once, as what it became. | the drawing flying into its slot (`InventoryHud.arrive`) |
+| `declined` | `DrawPanel._on_entity_declined` | the page's "not sure what that is" / "the brush wants a surer line". ⚠ Mayon's brush refusal reuses none of it: it is silent, and the probe checks so. |
+| `morph` | `LevelBase._adopt_player` with the flash, into a drawn form | `MorphFlash` |
+| `revert` | `LevelBase._adopt_player` with the flash, back to the apo: Q, a life run out, or a level's zero case. Not when she is already herself. | the flash back |
+| `place` / `place_refused` | `LevelBase._on_placement_confirmed` (once it is paid for) / `_on_placement_rejected` | "placed" and the drawing in the world / "Can't build that into solid ground" and the ghost's refusal tint |
+| `ink_low` / `ink_empty` | `ink_low`: a drawn form's "is fading" (`LevelBase._on_life_changed`) and Dagat's "nearly gone" (`level_3._on_low_ink`). `ink_empty`: the out-of-ink screen opening (`OutOfInkOverlay._open_sound`) and Dagat's "Out of ink". ⚠ Not `DrawingCanvas.ink_blocked`: that is the PAGE being full ("Page full. Paint, undo, or clear."), not the ink. Dilim's and Mayon's drains end in the flash back, heard as `revert`. | the line, the card's bar, the screen |
 
 **C. The apo's body** (new ids; throttled)
 

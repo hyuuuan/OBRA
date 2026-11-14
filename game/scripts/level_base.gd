@@ -1034,6 +1034,14 @@ func _say_checkpoint() -> void:
 		audio.call("play_sfx", &"checkpoint")
 
 
+## A sound, beside something the screen is already showing (Dilim's rule: every sound has a
+## visual twin, so a player who cannot hear plays the same game).
+func _sound(id: StringName) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id)
+
+
 func _on_obstacle_entered(obstacle_id: String) -> void:
 	_name_the_beat(obstacle_id)
 	if tutorial != null:
@@ -2810,6 +2818,9 @@ func _begin_new_utility(item: DrawnItemData, going_into_hand: bool = false) -> b
 	# card, which dimmed the level and took the mouse while it was up -- see InventoryHUD.arrive.
 	inventory_hud.arrive(slot, DrawingSkin2D.thumbnail(item.image),
 		"%s — %s" % [item.display_name, next_step])
+	# With the flight, not at the answer: a creature's answer is the morph's sound instead, so
+	# an accepted drawing is heard once, as whatever it became.
+	_sound(&"recognised")
 	return true
 
 
@@ -3176,6 +3187,8 @@ func _on_placement_confirmed(
 	if placed.has_method("set_world_bounds"):
 		placed.call("set_world_bounds", Rect2(environment.get("world_bounds")))
 	status_label.text = "%s placed — E or right-click to take it back" % item.display_name
+	# Once it is paid for and down: the race above hands it back to the bag unheard.
+	_sound(&"place")
 	# R8 in GATES.md is only true if the player KNOWS it is true. A player who believes a
 	# placement is permanent plays the rest of the level as though it were.
 	if tutorial != null:
@@ -3241,6 +3254,7 @@ func _on_placement_changed(active: bool, valid: bool) -> void:
 
 func _on_placement_rejected() -> void:
 	status_label.text = "Can't build that into solid ground — move the cursor out first"
+	_sound(&"place_refused")
 
 
 ## TYPED TO THE BASE, and the reason is the same one written on begin_placement and on
@@ -4196,6 +4210,7 @@ func _on_life_changed(remaining: float, capacity: float) -> void:
 		# player turns the page, and running low is exactly the moment they are mid-jump
 		# over something -- see AGENTS.md on the two channels.
 		hint_bar.show_hint("The %s is fading" % _current_form_name.to_lower())
+		_sound(&"ink_low")
 		# AFTER the warning, not instead of it: the warning says WHAT is happening and the
 		# lesson says what it means. The bar queues them; it does not stack them.
 		if tutorial != null:
@@ -4687,6 +4702,9 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 	# which reads as a glitch rather than as the transformation the game is about.
 	if flash:
 		MorphFlash.play(entity_root, new_player.global_position, new_player)
+		# The flash is both ways, and so is the sound: into a drawing, or back to the apo --
+		# whether by Q, a life run out, or a level's own zero case.
+		_sound(&"revert" if new_player is Wanderer else &"morph")
 
 	var camera_target := new_player
 	if new_player.has_method("get_camera_target"):
