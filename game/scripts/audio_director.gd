@@ -1,11 +1,12 @@
 extends Node
 ## The single owner of audio: bus volumes, and playing a sound by id.
 ##
-## There are no sound files in the project yet, and this is built so that stays a
-## content gap rather than a code one. Ids live in config/audio.json with empty
-## paths; play_sfx and play_music resolve an id to nothing and return. Every call
-## site can therefore be written now, and dropping an .ogg in beside its id makes it
-## audible with no code change anywhere.
+## Ids live in config/audio.json. An id whose path is empty resolves to nothing and returns, so a
+## call site can be written before its sound exists; the files are rendered from FamiTracker
+## modules (audio/README.md) and named beside their ids, with no code change anywhere.
+##
+## Music loops on a PAIR of players, so a change of track is a crossfade rather than a cut: the
+## outgoing fades out on one while the incoming fades in on the other.
 ##
 ## Volumes are held LINEAR (0..1) because that is what a slider shows and what the
 ## profile stores. dB is derived here and never persisted -- linear_to_db(0.0) is
@@ -34,12 +35,27 @@ const SILENCE_LINEAR := 0.001
 ## clicks can never grow the node count without bound.
 const SFX_VOICES := 8
 
+## How long a change of music or ambience takes, out and in at once.
+const LOOP_FADE_S := 0.6
+## A fade's floor. linear_to_db(0) is -inf, which must never reach a player.
+const FADE_FLOOR := 0.001
+
+
+## A looping channel on a pair of players.
+class _Loop:
+	var players: Array[AudioStreamPlayer] = []
+	## Which of the pair carries the current track.
+	var active: int = 0
+	var id: StringName = &""
+	var paths: Dictionary = {}
+	## player -> the Tween fading it, so a new fade replaces an old one instead of fighting it.
+	var fades: Dictionary = {}
+
+
 var _sfx_paths: Dictionary = {}
-var _music_paths: Dictionary = {}
 var _sfx_players: Array[AudioStreamPlayer] = []
-var _music_player: AudioStreamPlayer = null
 var _next_voice: int = 0
-var _music_id: StringName = &""
+var _music := _Loop.new()
 
 
 func _ready() -> void:
@@ -128,32 +144,82 @@ func play_sfx(id: StringName, loudness: float = 1.0) -> void:
 	player.play()
 
 
-## Start a music track, ignoring a request for whatever is already playing so a
-## scene rebuild does not restart the score.
-func play_music(id: StringName) -> void:
-	if _music_player == null or id == _music_id:
-		return
-	var stream := _stream_for(_music_paths, id)
-	if stream == null:
-		return
-	_music_id = id
-	_music_player.stream = stream
-	_music_player.play()
+## Start a music track, crossfading from whatever played before. A request for the track already
+## playing is ignored, so a scene rebuild does not restart the score.
+func play_music(id: StringName, fade: float = LOOP_FADE_S) -> void:
+	_loop_play(_music, id, fade)
 
 
 ## The id of the track playing, or &"" when none is.
 func current_music() -> StringName:
-	return _music_id
+	return _music.id
 
 
-func stop_music() -> void:
-	if _music_player == null:
-		return
-	_music_id = &""
-	_music_player.stop()
+## Fade the music out. current_music() is &"" at once; the player stops when the fade ends.
+func stop_music(fade: float = LOOP_FADE_S) -> void:
+	_loop_stop(_music, fade)
+
+
+## The player carrying the current (or last) music track. For probes.
+func music_player() -> AudioStreamPlayer:
+	return _music.players[_music.active] if not _music.players.is_empty() else null
 
 
 # --- internals ---------------------------------------------------------------
+
+func _loop_play(loop: _Loop, id: StringName, fade: float) -> void:
+	if loop.players.is_empty() or id == loop.id:
+		return
+	var stream := _stream_for(loop.paths, id)
+	if stream == null:
+		return
+	loop.id = id
+	_fade(loop, loop.players[loop.active], 0.0, fade)
+	loop.active = 1 - loop.active
+	var incoming := loop.players[loop.active]
+	_kill_fade(loop, incoming)
+	incoming.stream = stream
+	incoming.volume_db = linear_to_db(FADE_FLOOR) if fade > 0.0 else 0.0
+	incoming.play()
+	_fade(loop, incoming, 1.0, fade)
+
+
+func _loop_stop(loop: _Loop, fade: float) -> void:
+	loop.id = &""
+	for player in loop.players:
+		_fade(loop, player, 0.0, fade)
+
+
+## Take `player` to `level` (linear) over `seconds`, and stop it there if that is silence.
+## ⚠ PAUSE_PROCESS: the menus that pause the tree are where a fade most often happens, and a
+## tween that pauses with the tree would hold the old track at half volume under them.
+func _fade(loop: _Loop, player: AudioStreamPlayer, level: float, seconds: float) -> void:
+	_kill_fade(loop, player)
+	if not player.playing:
+		return
+	if seconds <= 0.0:
+		if level <= 0.0:
+			player.stop()
+		else:
+			player.volume_db = linear_to_db(level)
+		return
+	var tween := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	loop.fades[player] = tween
+	tween.tween_method(_set_level.bind(player), db_to_linear(player.volume_db), maxf(level, FADE_FLOOR), seconds)
+	if level <= 0.0:
+		tween.tween_callback(player.stop)
+
+
+func _kill_fade(loop: _Loop, player: AudioStreamPlayer) -> void:
+	var running: Tween = loop.fades.get(player)
+	if running != null and running.is_valid():
+		running.kill()
+	loop.fades.erase(player)
+
+
+func _set_level(level: float, player: AudioStreamPlayer) -> void:
+	player.volume_db = linear_to_db(maxf(level, FADE_FLOOR))
+
 
 func _on_setting_changed(key: String, value: Variant) -> void:
 	if BUS_FOR_SETTING.has(key):
@@ -188,7 +254,7 @@ func _load_catalog() -> void:
 		return
 	var document := parsed as Dictionary
 	_sfx_paths = _resolved_section(document.get("sfx", {}))
-	_music_paths = _resolved_section(document.get("music", {}))
+	_music.paths = _resolved_section(document.get("music", {}))
 
 
 ## Drop paths that do not exist, once, at load. An id whose file is missing behaves
@@ -214,8 +280,10 @@ func _build_players() -> void:
 		player.process_mode = Node.PROCESS_MODE_ALWAYS
 		add_child(player)
 		_sfx_players.append(player)
-	_music_player = AudioStreamPlayer.new()
-	_music_player.name = "MusicPlayer"
-	_music_player.bus = BUS_MUSIC
-	_music_player.process_mode = Node.PROCESS_MODE_ALWAYS
-	add_child(_music_player)
+	for side in ["A", "B"]:
+		var player := AudioStreamPlayer.new()
+		player.name = "Music%s" % side
+		player.bus = BUS_MUSIC
+		player.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(player)
+		_music.players.append(player)

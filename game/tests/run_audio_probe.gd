@@ -1,7 +1,7 @@
 extends SceneTree
-## The audio files, headless: each id with a file resolves, music loops where Godot plays it,
-## no sound effect loops, every file has something that plays it, and the Music slider moves the
-## Music bus.
+## The audio files, headless: each id with a file resolves, music loops where Godot plays it, no
+## sound effect loops, and every file has something that plays it. And the plumbing that plays
+## them: a change of track crossfades, and the Music slider moves the Music bus.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -29,9 +29,12 @@ const RESAMPLER_REACH := 8
 const CODE_FOLDERS := ["res://scripts", "res://ui", "res://levels", "res://objects",
 	"res://creatures", "res://environment"]
 
+## A fade's length and then some: how long a probe waits for one to finish.
+const FADE_WAIT_S := 2.0
+
 var failures := 0
 var checked := 0
-const CHECKS := 11
+const CHECKS := 12
 var director: Node
 
 
@@ -47,11 +50,15 @@ func _run() -> void:
 	var catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(CATALOG))
 	var music: Dictionary = _voiced(catalog.get("music", {}))
 	var sfx: Dictionary = _voiced(catalog.get("sfx", {}))
-	_every_voiced_id_resolves(music, sfx)
-	_music_loops(music)
+	var loops := {}
+	for id: String in music:
+		loops["music." + id] = music[id]
+	_every_voiced_id_resolves(loops, sfx)
+	_music_loops(loops)
 	_no_sound_effect_loops(sfx)
 	_every_voiced_id_has_a_caller(music, sfx)
 	await _the_menu_plays_its_music()
+	await _a_new_track_crossfades(music)
 	_the_music_slider_moves_the_music_bus()
 	if checked != CHECKS:
 		failures += 1
@@ -73,11 +80,12 @@ func _voiced(section: Dictionary) -> Dictionary:
 	return out
 
 
-func _every_voiced_id_resolves(music: Dictionary, sfx: Dictionary) -> void:
+func _every_voiced_id_resolves(loops: Dictionary, sfx: Dictionary) -> void:
 	# ⚠ Without this the rest passes on an empty catalogue: nothing voiced, nothing wrong.
-	_check(music.size() + sfx.size() > 0, "at least one id has a file", "%d music, %d sfx" % [music.size(), sfx.size()])
+	_check(loops.size() + sfx.size() > 0, "at least one id has a file",
+		"%d music or ambience, %d sfx" % [loops.size(), sfx.size()])
 	var broken: Array[String] = []
-	for section: Dictionary in [music, sfx]:
+	for section: Dictionary in [loops, sfx]:
 		for id: String in section:
 			if not (ResourceLoader.exists(section[id]) and load(section[id]) is AudioStream):
 				broken.append("%s -> %s" % [id, section[id]])
@@ -147,7 +155,7 @@ func _the_menu_plays_its_music() -> void:
 	var menu := (load("res://ui/main_menu.tscn") as PackedScene).instantiate()
 	root.add_child(menu)
 	await _frames(10)
-	var player := director.get_node(^"MusicPlayer") as AudioStreamPlayer
+	var player := director.call(&"music_player") as AudioStreamPlayer
 	var playing := director.call(&"current_music") as StringName
 	_check(playing == &"menu", "the main menu plays music.menu", "playing '%s'" % playing)
 	var path := player.stream.resource_path if player.stream != null else ""
@@ -156,8 +164,30 @@ func _the_menu_plays_its_music() -> void:
 	menu.queue_free()
 	await _frames(3)
 	playing = director.call(&"current_music") as StringName
-	_check(playing == &"" and not player.playing, "leaving the menu stops its music",
-		"playing '%s', player %s" % [playing, player.playing])
+	var faded := await _until(func() -> bool: return not player.playing, FADE_WAIT_S)
+	_check(playing == &"" and faded, "leaving the menu fades its music out and stops it",
+		"playing '%s', player stopped %s" % [playing, faded])
+
+
+## Two tracks overlap for the fade, the old falling and the new rising, and then only the new one
+## plays, at full. The second track is the menu's own file under a probe id: what is checked is the
+## crossfade, not a second piece of music.
+func _a_new_track_crossfades(music: Dictionary) -> void:
+	_music_paths()["_probe_second"] = music.get("menu", "")
+	director.call(&"play_music", &"menu", 0.0)
+	var first := director.call(&"music_player") as AudioStreamPlayer
+	director.call(&"play_music", &"_probe_second")
+	var second := director.call(&"music_player") as AudioStreamPlayer
+	await create_timer(0.25).timeout
+	var both := first != second and first.playing and second.playing
+	var crossing := first.volume_db < -0.5 and second.volume_db < -0.5 and second.volume_db > -60.0
+	var mid := "old %.1f dB, new %.1f dB" % [first.volume_db, second.volume_db]
+	var done := await _until(func() -> bool: return not first.playing, FADE_WAIT_S)
+	_check(both and crossing and done and second.playing and absf(second.volume_db) < 0.1,
+		"a new track crossfades: both sound for the fade, then the new one alone at full",
+		"%s; then old stopped %s, new %.1f dB" % [mid, done, second.volume_db])
+	director.call(&"stop_music", 0.0)
+	_music_paths().erase("_probe_second")
 
 
 ## Dragged, the Music slider is heard at once: the Music bus follows it live.
@@ -224,6 +254,20 @@ func _read_scripts(folder: String) -> String:
 	for sub in dir.get_directories():
 		text += _read_scripts(folder.path_join(sub))
 	return text
+
+
+func _music_paths() -> Dictionary:
+	return director.get(&"_music").get(&"paths") as Dictionary
+
+
+## Poll `condition` each frame for up to `seconds`; whether it came true.
+func _until(condition: Callable, seconds: float) -> bool:
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if condition.call():
+			return true
+		await process_frame
+	return bool(condition.call())
 
 
 func _frames(count: int) -> void:
