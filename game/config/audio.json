@@ -14,7 +14,7 @@
     "ui_close": "res://assets/audio/sfx/ui_close.wav",
     "level_complete": "",
     "checkpoint": "res://assets/audio/sfx/checkpoint.wav",
-    "item_acquired": "",
+    "item_acquired": "res://assets/audio/sfx/item_acquired.wav",
     "tiktik_call": "",
     "tiyanak_cry": "",
     "lantern_hit": "",
