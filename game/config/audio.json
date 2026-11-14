@@ -35,7 +35,8 @@
     "cannon": "res://assets/audio/sfx/cannon.wav",
     "throw": "res://assets/audio/sfx/throw.wav",
     "whip": "res://assets/audio/sfx/whip.wav",
-    "foe_hit": "res://assets/audio/sfx/foe_hit.wav"
+    "foe_hit": "res://assets/audio/sfx/foe_hit.wav",
+    "foe_down": "res://assets/audio/sfx/foe_down.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",

@@ -231,6 +231,7 @@ func _die() -> void:
 	_hook = null
 	_hurtbox.collision_layer = 0
 	died.emit(self)
+	_sound(&"foe_down")
 	if _anims.has("death"):
 		_play("death")
 		var hold := create_tween()

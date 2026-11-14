@@ -447,6 +447,7 @@ func _die() -> void:
 	velocity = Vector2.ZERO
 	_set_colliding(false)
 	died.emit(self)
+	_sound(&"foe_down")
 	_fade = create_tween()
 	_fade.tween_property(self, "modulate:a", 0.0, DEATH_FADE)
 	_fade.tween_callback(func() -> void: visible = false)
