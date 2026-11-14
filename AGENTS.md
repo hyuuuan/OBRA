@@ -87,6 +87,9 @@ Godot uses the original stroke vectors to animate a morph or create a utility.
 - Author an id in `game/config/audio.json` with the code that plays it before its module.
   The builder refuses a module for an unknown id, and `run_audio_probe` fails a file nothing
   plays, a music file that does not loop seamlessly in Godot, and a sound effect that loops.
+- A level opts into its music and ambience with LevelBase `_level_music()` /
+  `_level_ambience()` (off by default). `AudioDirector` crossfades between tracks. A sound made
+  constantly gets an `audio.json` → `spacing` entry, so it cannot crowd out the rest.
 - Every sound cue has a visual equivalent (Dilim's rule). Mayon stays silent, which
   `run_level5_audit` asserts.
 - Rendering compiles and runs `tools/vendor/emu2413`, so `build_music.py` runs only inside

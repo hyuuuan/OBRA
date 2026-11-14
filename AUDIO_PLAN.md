@@ -13,9 +13,15 @@ what to build with it, and in what order.
   - `music.menu`, which the main menu plays and stops;
   - `run_audio_probe`, `tests/test_famirender.py` and `tests/test_build_music.py`, every check
     mutation-tested.
-- **Not yet done on it:**
-  - Kent has not yet heard revision 2 of `music.menu`.
-  - The branch has no PR. Ask Kent before pushing.
+- **PR #217 is merged**, with revision 2 of `music.menu`. Kent heard it and asked for an MP3 to
+  share.
+- **PR 2 (`audio-plumbing`) is built**: the sliders, the crossfade, the ambience channel,
+  sfx spacing, and the LevelBase hooks. The hooks' opt-in path is first exercised when Payyo opts
+  in (PR 4); that PR's probe asserts it.
+- **Two sessions (Kent, 2026-11-14).** This one does the plumbing and the music (PRs 2–10).
+  The "audio-sfx" session does the sound effects (PRs 11, 12, 14 and 15), and PR 13
+  (`sfx-moves`) once PR 2 is merged, since constant sounds need its `spacing`. Neither touches
+  the other's files.
 - **Helper:** `music/menu.txt` was written with a throwaway helper (grid / put / line /
   transpose, about 150 lines). A copy is in the side-session notes folder as
   `compose_menu.py`. PR 3 turns it into `tools/famitext.py`, so every module is written the
@@ -52,7 +58,7 @@ Riskiest first: the shared plumbing, then the music, then the sounds.
 | # | Branch | What | Suites |
 |---|---|---|---|
 | 1 | `famitracker-audio` | Kent listens to `music.menu`; adjust; push and open the PR on his OK. | done (see the end) |
-| 2 | `audio-plumbing` | **Volume sliders** back in `ui/settings_overlay.tscn` (taken out while nothing could be heard; the profile and buses already work). **LevelBase hook `_level_music() -> StringName`**, default `&""` (off); a level that returns an id plays it on entry. **`_level_ambience()`** likewise, played by a new `AudioDirector.play_ambience` on a second looping player (`audio.json` → `ambience`, `audio/ambience/<id>.txt`, `build_music.py` learns the section). **Crossfade in `play_music`** (~0.6 s, `Tween.TWEEN_PAUSE_PROCESS`), so a boss loop or a new place does not cut. **Per-id minimum interval in `play_sfx`** (see traps). | **full** (an autoload and shared LevelBase plumbing) |
+| 2 | `audio-plumbing` (built) | **Volume sliders** back in `ui/settings_overlay.tscn` (taken out while nothing could be heard; the profile and buses already work). **LevelBase hook `_level_music() -> StringName`**, default `&""` (off); a level that returns an id plays it on entry. **`_level_ambience()`** likewise, played by a new `AudioDirector.play_ambience` on a second looping player (`audio.json` → `ambience`, `audio/ambience/<id>.txt`, `build_music.py` learns the section). **Crossfade in `play_music`** (~0.6 s, `Tween.TWEEN_PAUSE_PROCESS`), so a boss loop or a new place does not cut. **Per-id minimum interval in `play_sfx`** (see traps). | **full** (an autoload and shared LevelBase plumbing) |
 | 3 | `music-house` | Turn the helper into `tools/famitext.py`. Write `music.house`; `hub.gd` opts in. **Loading screen**: the menu's loop starts on the boot loading screen (the same title card) and carries into the menu; a level load keeps the outgoing music until the next place's begins. | python, run_audio_probe, run_hub_audit, run_new_game_probe, run_journey_probe |
 | 4 | `music-payyo` | `music.level_1` and `ambience.level_1` (wind); `game_level.gd` opts in. | python, run_audio_probe, run_level1_audit, run_walk_level1, run_level_ready |
 | 5 | `music-piyesta` | `music.level_2` and `ambience.level_2` (a crowd's murmur in noise); `level_2.gd` opts in. ⚠ The dance minigame (`dance_minigame.gd`, `cue_judged`) keeps its own beat: check that the loop does not fight it, and pause the loop for the dance if it does. | python, run_audio_probe, run_level2_audit, run_dance_probe, run_play_level2 |
