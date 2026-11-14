@@ -733,6 +733,7 @@ func _on_entity_declined(
 	# looked like nothing. Neither line names what the drawing was taken for.
 	status.text = "close — the brush wants a surer line" if reason == "brush" \
 		else "not sure what that is — try drawing it more clearly!"
+	_sound(&"declined")
 	recognition_declined.emit(entity, confidence, margin, reason)
 
 

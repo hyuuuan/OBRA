@@ -22,7 +22,8 @@
     "dawn": "",
     "mayon_brush": "",
     "page_turn": "res://assets/audio/sfx/page_turn.wav",
-    "draw_submit": "res://assets/audio/sfx/draw_submit.wav"
+    "draw_submit": "res://assets/audio/sfx/draw_submit.wav",
+    "declined": "res://assets/audio/sfx/declined.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
