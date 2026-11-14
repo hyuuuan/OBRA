@@ -39,7 +39,8 @@
     "foe_down": "res://assets/audio/sfx/foe_down.wav",
     "door": "res://assets/audio/sfx/door.wav",
     "candle": "res://assets/audio/sfx/candle.wav",
-    "scatter": "res://assets/audio/sfx/scatter.wav"
+    "scatter": "res://assets/audio/sfx/scatter.wav",
+    "dance_cue": "res://assets/audio/sfx/dance_cue.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
