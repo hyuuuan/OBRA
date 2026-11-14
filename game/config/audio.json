@@ -12,7 +12,7 @@
     "ui_click": "res://assets/audio/sfx/ui_click.wav",
     "ui_open": "res://assets/audio/sfx/ui_open.wav",
     "ui_close": "res://assets/audio/sfx/ui_close.wav",
-    "level_complete": "",
+    "level_complete": "res://assets/audio/sfx/level_complete.wav",
     "checkpoint": "res://assets/audio/sfx/checkpoint.wav",
     "item_acquired": "res://assets/audio/sfx/item_acquired.wav",
     "unlock": "res://assets/audio/sfx/unlock.wav",
