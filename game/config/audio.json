@@ -15,6 +15,7 @@
     "level_complete": "",
     "checkpoint": "res://assets/audio/sfx/checkpoint.wav",
     "item_acquired": "res://assets/audio/sfx/item_acquired.wav",
+    "unlock": "res://assets/audio/sfx/unlock.wav",
     "tiktik_call": "",
     "tiyanak_cry": "",
     "lantern_hit": "",
