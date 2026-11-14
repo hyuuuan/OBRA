@@ -152,6 +152,10 @@ func place_the_kandila() -> bool:
 	kandila_on_rack = true
 	queue_redraw()
 	kandila_placed.emit()
+	# With its flame, drawn from this frame on. Looked up, not named (see lockable_2d.gd).
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"candle")
 	return true
 
 

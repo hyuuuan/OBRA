@@ -37,7 +37,8 @@
     "whip": "res://assets/audio/sfx/whip.wav",
     "foe_hit": "res://assets/audio/sfx/foe_hit.wav",
     "foe_down": "res://assets/audio/sfx/foe_down.wav",
-    "door": "res://assets/audio/sfx/door.wav"
+    "door": "res://assets/audio/sfx/door.wav",
+    "candle": "res://assets/audio/sfx/candle.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
