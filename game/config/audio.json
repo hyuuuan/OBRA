@@ -21,7 +21,8 @@
     "lantern_hit": "",
     "dawn": "",
     "mayon_brush": "",
-    "page_turn": "res://assets/audio/sfx/page_turn.wav"
+    "page_turn": "res://assets/audio/sfx/page_turn.wav",
+    "draw_submit": "res://assets/audio/sfx/draw_submit.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
