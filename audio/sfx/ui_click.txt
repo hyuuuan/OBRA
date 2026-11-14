@@ -1,0 +1,39 @@
+# FamiTracker text export (written for O.B.R.A.; import with File > Import Text)
+
+TITLE           "O.B.R.A. - ui_click"
+AUTHOR          "O.B.R.A. team"
+COPYRIGHT       "2026"
+
+COMMENT "A soft babendil tick: a short pulse with a metallic glint."
+COMMENT "Plays on every button press."
+
+MACHINE         0
+FRAMERATE       0
+EXPANSION       0
+VIBRATO         1
+SPLIT           32
+
+MACRO 0 0 -1 -1 0 : 6 4 2 1 0
+MACRO 2 0 -1 -1 0 : 0 3 3 3 3
+MACRO 4 0 -1 -1 0 : 1
+MACRO 0 1 -1 -1 0 : 3 1 0
+MACRO 4 1 -1 -1 0 : 1
+
+INST2A03 0 0 -1 0 -1 0 "tick"
+INST2A03 1 1 -1 -1 -1 1 "glint"
+
+TRACK   8   1 150 "ui_click"
+COLUMNS : 1 1 1 1 1
+
+ORDER 00 : 00 00 00 00 00
+
+PATTERN 00
+ROW 00 : B-5 00 F ... : ... .. . ... : ... .. . ... : E-# 01 F ... : ... .. . ...
+ROW 01 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 02 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 03 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 04 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 05 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 06 : ... .. . C00 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 07 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+

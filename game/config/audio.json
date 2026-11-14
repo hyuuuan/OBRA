@@ -9,9 +9,9 @@
     "not once per play."
   ],
   "sfx": {
-    "ui_click": "",
-    "ui_open": "",
-    "ui_close": "",
+    "ui_click": "res://assets/audio/sfx/ui_click.wav",
+    "ui_open": "res://assets/audio/sfx/ui_open.wav",
+    "ui_close": "res://assets/audio/sfx/ui_close.wav",
     "level_complete": "",
     "checkpoint": "",
     "item_acquired": "",
@@ -20,7 +20,7 @@
     "lantern_hit": "",
     "dawn": "",
     "mayon_brush": "",
-    "page_turn": ""
+    "page_turn": "res://assets/audio/sfx/page_turn.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
