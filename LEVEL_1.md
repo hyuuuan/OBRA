@@ -232,6 +232,22 @@ It says "the key, up there" and nothing about how to get up there, which is stil
 > "Made smaller to fit this room". ⚠ A resize queue_frees the old collision, which counts until
 > the frame ends; the placement's shape checks skip it, or the fit shrank to half size.
 > `run_room_probe` sets a full-size ladder down in both rooms.
+>
+> ⚠ **A drawing stands where its ghost stood, and never in the doorway** (Kent: "if you place it
+> at the very bottom of the platform, it places it at the door at the bottom"). A ghost is a
+> frozen body, and the physics server moves a frozen body without updating where it measures the
+> next step's motion from, so a confirmed drawing was swept from the world's origin to its spot
+> and pushed off anything on that line. Every room is parked up and right of the origin, so the
+> line crossed the room's own floor and threw the drawing up and toward the doorway.
+> `PhysicsShapeObject._unfrozen_where_it_stands` re-seats it once it is rigid (a dropped tool too).
+> And the box a placement is held in now ends at the doorway's far jamb
+> (`LevelBase._placement_rect_for`), in every interior. `run_room_placement_probe` aims low and at
+> the doorway in the heap, Ang Bale and Piyesta's church, clicking through the input queue.
+>
+> **The heap's way out is a hole worn through it**, the mouth on the terrace seen from inside: a
+> ragged pointed arch with straw hanging across the daylight, drawn in the old doorway's footprint
+> and nowhere else. The room around it is Kent's painting (`hay_interior.png`) and is not painted
+> over.
 
 **The chain is heap → key → house → painting.** The room used to hold the hub's painting of
 Pista *and* a key that opened nothing ("finding a key that does not fit is the point"), which
