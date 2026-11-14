@@ -60,8 +60,8 @@ Riskiest first: the shared plumbing, then the music, then the sounds.
 | 7 | `music-dilim` | `music.level_4` and `ambience.level_4` (night insects); `level_4.gd` opts in. Sparse and low, so the tik-tik's call and the tiyanak's cry (gameplay information) read over it. It stops at the dawn. | python, run_audio_probe, run_level4_sound_probe, run_darkness_probe, run_makiling_probe |
 | 8 | `music-bosses` | `music.bakunawa` (Dagat) and `music.dilim_finale`, crossfaded in by the level when the fight or finale opens and back out when it ends. | python, run_audio_probe, run_bakunawa_probe, run_level3_finish_probe, run_level4_sound_probe |
 | 9 | `music-mayon` | **Reverses the 1 Nov decision**, at Kent's word (2026-11-14). `music.level_5` for the ascent and the heart; the summit silent (question 2); `mayon_ending` is already called by `level_5.gd` on the ending, and `mayon_brush` by the brush. Replace `level_5.gd`'s `stop_music()` on entry with the hook. Change `run_level5_audit._audit_mayon_is_silent` to assert the new rule (music in the ascent, none at the summit). Update `LEVEL_5.md`, `CLAUDE.md` §4 and `LEVEL5_Mayon/authored/README.md`. | python, run_audio_probe, run_level5_audit, run_level5_summit_probe, run_level5_frame_probe, run_walk_level5 |
-| 10 | `music-ending` | The ending screen's music (`music.ending`, or `mayon_ending` carried on if it flows straight in), and the **level-complete jingle** (`sfx.level_complete`, beside the overlay). The jingle ducks the level's loop for its length. | python, run_audio_probe, run_level5_endings_probe, the level finish probes |
-| 11 | `sfx-core` | The one-shot path end to end. The existing ids get files, and the ones not yet called get call sites (table A). | python, run_audio_probe, run_button_feedback_probe, run_diary_probe, the checkpoint and inventory probes |
+| 10 | `music-ending` | The ending screen's music (`music.ending`, or `mayon_ending` carried on if it flows straight in). The **level-complete jingle** itself was built and wired in `sfx-core` (row 11); this PR makes it **duck the level's loop** for its length. | python, run_audio_probe, run_level5_endings_probe, the level finish probes |
+| 11 | `sfx-core` | **Built (provisional until Kent has listened).** The one-shot path end to end: table A's eight ids have modules and files, `item_acquired` and `level_complete` have call sites, and `unlock` (already called) is in `audio.json`. `run_sfx_core_probe` checks each is asked for beside its visual. | python, run_audio_probe, run_sfx_core_probe, run_button_feedback_probe, run_diary_probe, run_key_probe, run_level1_finish_probe |
 | 12 | `sfx-drawing` | Drawing, recognition, morphing and placing (table B). | python, run_audio_probe, run_morph_gate_probe, run_placement_probe, run_revert_probe, run_ink_economy_probe |
 | 13 | `sfx-moves` | The apo's body, footsteps included (table C). | python, run_audio_probe, run_locomotion_probe, run_water_audit, run_swim_reach_probe, run_ladder_angle_probe |
 | 14 | `sfx-combat` | Weapons and foes (table D). | python, run_audio_probe, run_weapon_probe, run_combat_probe, run_enemy_probe |
@@ -108,16 +108,17 @@ Every row names its trigger and its visual twin. Each sound is one module in
 `audio/sfx/<id>.txt`, ending with `Cxx`, about 0.1–1.5 s long. **New ids** are added to
 `audio.json` together with their call site, in the same PR.
 
-**A. Core** (ids exist)
+**A. Core** (built in `sfx-core`; `run_sfx_core_probe`)
 
 | Id | Trigger | Visual twin |
 |---|---|---|
 | `ui_click` | every `BaseButton.pressed` (`AudioDirector._on_node_added`) | the button's press animation |
-| `ui_open` / `ui_close` | `modal_overlay.gd` open / close | the overlay's fade |
+| `ui_open` / `ui_close` | `ModalOverlay.open` / `close`, through `_open_sound()` / `_close_sound()`, which an overlay with a sound of its own overrides (the found-thing card and the level-complete panel) | the overlay's fade |
 | `page_turn` | `DiaryBook.turn` | the page-turn animation |
-| `checkpoint` | `CheckpointManager.checkpoint_written` (not on Mayon's silent saves) | the lantern lighting, the letterbox |
-| `item_acquired` | `InventoryManager.item_added` | the item flying into its slot |
-| `level_complete` | the level-complete overlay opening (PR 10) | the overlay |
+| `checkpoint` | `LevelBase._say_checkpoint` (not on Mayon's silent saves) | the "Checkpoint" line, the lantern lighting, the letterbox |
+| `item_acquired` | `AcquiredOverlay._play`, once per card as it rises. ⚠ Not `InventoryManager.item_added`: that also fires when a cancelled placement puts a drawing back. | the found-thing card |
+| `unlock` | `game_level.gd`: the brass key turning in Ang Bale's door, and a tool opening the chest | the door's glint (`PickupFlourish2D`), the chest opening |
+| `level_complete` | `LevelBase._complete_level` and Payyo's `_go_home_with_the_canvas`, with "Level complete!" and the bars (not Mayon, which ends in its own scene). The panel then arrives without `ui_open`. A jingle, 2.3 s. | the bars with the level's name |
 
 **B. Drawing and morphing** (new ids)
 
@@ -191,6 +192,12 @@ Every row names its trigger and its visual twin. Each sound is one module in
 - **No sound reuses another's meaning.** `declined`, `place_refused` and Mayon's refusals each
   sound distinct.
 - **Look before saying done.** Headless cannot listen. Send Kent each render.
+- **No triangle in a one-shot, for now.** A triangle silenced mid-wave freezes on a step (the
+  hardware does this), and `famirender` resamples the 2A03 with the file's end padded with
+  silence, so the frozen step rings at the very end. `_trim_tail` then keeps the whole two-second
+  tail, and the file holds a voice for two seconds of nothing (seen in `unlock`, 2026-11-14:
+  0.7 s of sound in a 2.5 s file). Loops are not affected. Until the renderer holds the last
+  sample instead of padding with zeros, a sound effect's thuds are noise or a falling pulse.
 
 ## Slice 1 verification (2026-11-14)
 
