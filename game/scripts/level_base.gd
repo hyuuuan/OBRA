@@ -3254,6 +3254,7 @@ func _on_placement_changed(active: bool, valid: bool) -> void:
 
 func _on_placement_rejected() -> void:
 	status_label.text = "Can't build that into solid ground — move the cursor out first"
+	_sound(&"place_refused")
 
 
 ## TYPED TO THE BASE, and the reason is the same one written on begin_placement and on

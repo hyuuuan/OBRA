@@ -25,7 +25,8 @@
     "draw_submit": "res://assets/audio/sfx/draw_submit.wav",
     "recognised": "res://assets/audio/sfx/recognised.wav",
     "declined": "res://assets/audio/sfx/declined.wav",
-    "place": "res://assets/audio/sfx/place.wav"
+    "place": "res://assets/audio/sfx/place.wav",
+    "place_refused": "res://assets/audio/sfx/place_refused.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
