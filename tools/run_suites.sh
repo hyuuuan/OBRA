@@ -57,7 +57,7 @@ HEADLESS=(
   run_level2_audit run_level2_scene_probe run_level2_chain_probe run_level2_finish_probe
   run_level2_systems_probe run_level2_alley_probe run_nodraw_level2 run_water_audit run_hub_audit
   run_assembly_probe run_dance_probe run_objective_probe run_tool_routes_probe run_fan_probe
-  run_playtest_telemetry_probe run_audio_probe run_sfx_core_probe
+  run_playtest_telemetry_probe run_audio_probe run_sfx_core_probe run_sfx_drawing_probe
   run_dialogue_pool_probe
   run_play_level2 run_hud_layout_probe run_minimap_probe run_screens_fit_probe run_journey_probe run_new_game_probe run_backend_ownership_probe
   run_request_timeout_probe
