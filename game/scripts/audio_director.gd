@@ -5,8 +5,9 @@ extends Node
 ## call site can be written before its sound exists; the files are rendered from FamiTracker
 ## modules (audio/README.md) and named beside their ids, with no code change anywhere.
 ##
-## Music loops on a PAIR of players, so a change of track is a crossfade rather than a cut: the
-## outgoing fades out on one while the incoming fades in on the other.
+## Music, and the ambience bed under it, each loop on a PAIR of players, so a change of track is a
+## crossfade rather than a cut: the outgoing fades out on one while the incoming fades in on the
+## other.
 ##
 ## Volumes are held LINEAR (0..1) because that is what a slider shows and what the
 ## profile stores. dB is derived here and never persisted -- linear_to_db(0.0) is
@@ -41,7 +42,7 @@ const LOOP_FADE_S := 0.6
 const FADE_FLOOR := 0.001
 
 
-## A looping channel on a pair of players.
+## A looping channel -- the music, or the ambience under it -- on a pair of players.
 class _Loop:
 	var players: Array[AudioStreamPlayer] = []
 	## Which of the pair carries the current track.
@@ -56,6 +57,7 @@ var _sfx_paths: Dictionary = {}
 var _sfx_players: Array[AudioStreamPlayer] = []
 var _next_voice: int = 0
 var _music := _Loop.new()
+var _ambience := _Loop.new()
 
 
 func _ready() -> void:
@@ -165,6 +167,23 @@ func music_player() -> AudioStreamPlayer:
 	return _music.players[_music.active] if not _music.players.is_empty() else null
 
 
+## The ambience bed under the music (audio.json `ambience`): the same crossfade, its own pair.
+func play_ambience(id: StringName, fade: float = LOOP_FADE_S) -> void:
+	_loop_play(_ambience, id, fade)
+
+
+func current_ambience() -> StringName:
+	return _ambience.id
+
+
+func stop_ambience(fade: float = LOOP_FADE_S) -> void:
+	_loop_stop(_ambience, fade)
+
+
+func ambience_player() -> AudioStreamPlayer:
+	return _ambience.players[_ambience.active] if not _ambience.players.is_empty() else null
+
+
 # --- internals ---------------------------------------------------------------
 
 func _loop_play(loop: _Loop, id: StringName, fade: float) -> void:
@@ -255,6 +274,7 @@ func _load_catalog() -> void:
 	var document := parsed as Dictionary
 	_sfx_paths = _resolved_section(document.get("sfx", {}))
 	_music.paths = _resolved_section(document.get("music", {}))
+	_ambience.paths = _resolved_section(document.get("ambience", {}))
 
 
 ## Drop paths that do not exist, once, at load. An id whose file is missing behaves
@@ -280,10 +300,14 @@ func _build_players() -> void:
 		player.process_mode = Node.PROCESS_MODE_ALWAYS
 		add_child(player)
 		_sfx_players.append(player)
-	for side in ["A", "B"]:
-		var player := AudioStreamPlayer.new()
-		player.name = "Music%s" % side
-		player.bus = BUS_MUSIC
-		player.process_mode = Node.PROCESS_MODE_ALWAYS
-		add_child(player)
-		_music.players.append(player)
+	# The ambience is background, like the music, and carries nothing a player must hear, so it
+	# follows the Music slider rather than the Sound effects one.
+	for pair: Array in [[_music, "Music"], [_ambience, "Ambience"]]:
+		var loop: _Loop = pair[0]
+		for side in ["A", "B"]:
+			var player := AudioStreamPlayer.new()
+			player.name = "%s%s" % [pair[1], side]
+			player.bus = BUS_MUSIC
+			player.process_mode = Node.PROCESS_MODE_ALWAYS
+			add_child(player)
+			loop.players.append(player)

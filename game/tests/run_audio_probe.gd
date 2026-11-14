@@ -1,7 +1,8 @@
 extends SceneTree
-## The audio files, headless: each id with a file resolves, music loops where Godot plays it, no
-## sound effect loops, and every file has something that plays it. And the plumbing that plays
-## them: a change of track crossfades, and the Music slider moves the Music bus.
+## The audio files, headless: each id with a file resolves, music and ambience loop where Godot
+## plays them, no sound effect loops, and every file has something that plays it. And the plumbing
+## that plays them: a change of track crossfades, the ambience is its own channel, and the Music
+## slider moves the Music bus.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -34,7 +35,7 @@ const FADE_WAIT_S := 2.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 12
+const CHECKS := 13
 var director: Node
 
 
@@ -49,16 +50,21 @@ func _run() -> void:
 	director = root.get_node(^"AudioDirector")
 	var catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(CATALOG))
 	var music: Dictionary = _voiced(catalog.get("music", {}))
+	var ambience: Dictionary = _voiced(catalog.get("ambience", {}))
 	var sfx: Dictionary = _voiced(catalog.get("sfx", {}))
+	# Music and ambience loop alike; labelled by section, since an id may be in both.
 	var loops := {}
 	for id: String in music:
 		loops["music." + id] = music[id]
+	for id: String in ambience:
+		loops["ambience." + id] = ambience[id]
 	_every_voiced_id_resolves(loops, sfx)
 	_music_loops(loops)
 	_no_sound_effect_loops(sfx)
-	_every_voiced_id_has_a_caller(music, sfx)
+	_every_voiced_id_has_a_caller(music, ambience, sfx)
 	await _the_menu_plays_its_music()
 	await _a_new_track_crossfades(music)
+	await _the_ambience_is_its_own_channel(music)
 	_the_music_slider_moves_the_music_bus()
 	if checked != CHECKS:
 		failures += 1
@@ -137,12 +143,12 @@ func _no_sound_effect_loops(sfx: Dictionary) -> void:
 
 
 ## A file nothing asks for is a sound nobody hears. The literal &"<id>" must be in the code.
-func _every_voiced_id_has_a_caller(music: Dictionary, sfx: Dictionary) -> void:
+func _every_voiced_id_has_a_caller(music: Dictionary, ambience: Dictionary, sfx: Dictionary) -> void:
 	var code := ""
 	for folder: String in CODE_FOLDERS:
 		code += _read_scripts(folder)
 	var orphans: Array[String] = []
-	for section: Dictionary in [music, sfx]:
+	for section: Dictionary in [music, ambience, sfx]:
 		for id: String in section:
 			if not code.contains("&\"%s\"" % id):
 				orphans.append(id)
@@ -188,6 +194,26 @@ func _a_new_track_crossfades(music: Dictionary) -> void:
 		"%s; then old stopped %s, new %.1f dB" % [mid, done, second.volume_db])
 	director.call(&"stop_music", 0.0)
 	_music_paths().erase("_probe_second")
+
+
+## The ambience plays on players of its own, so starting and stopping it leaves the music as it
+## was. Its file here is the menu's, under a probe id.
+func _the_ambience_is_its_own_channel(music: Dictionary) -> void:
+	(director.get(&"_ambience").get(&"paths") as Dictionary)["_probe_bed"] = music.get("menu", "")
+	director.call(&"play_music", &"menu", 0.0)
+	director.call(&"play_ambience", &"_probe_bed")
+	var bed := director.call(&"ambience_player") as AudioStreamPlayer
+	var track := director.call(&"music_player") as AudioStreamPlayer
+	await _frames(3)
+	var together := bed != null and bed.playing and track.playing and bed != track
+	director.call(&"stop_ambience")
+	var gone := await _until(func() -> bool: return not bed.playing, FADE_WAIT_S)
+	var music_on: bool = track.playing and director.call(&"current_music") == &"menu"
+	_check(together and gone and music_on and director.call(&"current_ambience") == &"",
+		"the ambience is its own channel: it starts and stops under the music without touching it",
+		"together %s, faded %s, music still on %s" % [together, gone, music_on])
+	director.call(&"stop_music", 0.0)
+	(director.get(&"_ambience").get(&"paths") as Dictionary).erase("_probe_bed")
 
 
 ## Dragged, the Music slider is heard at once: the Music bus follows it live.

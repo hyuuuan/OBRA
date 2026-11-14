@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Render the game's FamiTracker modules into the WAVs AudioDirector plays.
 
-    audio/music/<id>.txt  ->  game/assets/audio/music/<id>.wav   loops    audio.json music.<id>
-    audio/sfx/<id>.txt    ->  game/assets/audio/sfx/<id>.wav     one-shot audio.json sfx.<id>
+    audio/music/<id>.txt     ->  game/assets/audio/music/<id>.wav     loops    audio.json music.<id>
+    audio/ambience/<id>.txt  ->  game/assets/audio/ambience/<id>.wav  loops    audio.json ambience.<id>
+    audio/sfx/<id>.txt       ->  game/assets/audio/sfx/<id>.wav       one-shot audio.json sfx.<id>
 
 A module is a FamiTracker text module (2A03 + VRC7; see audio/README.md); its first TRACK is
 rendered by tools/famirender.py. The id must already be in game/config/audio.json: ids are
@@ -37,7 +38,7 @@ BUILD = ROOT / "build" / "famirender"
 PROFILE = ROOT / "tools" / "famirender.sb"
 SANDBOX_EXEC = "/usr/bin/sandbox-exec"
 SANDBOXED_ENV = "OBRA_FAMIRENDER_SANDBOXED"
-SECTIONS = {"music": True, "sfx": False}  # section -> loops
+SECTIONS = {"music": True, "ambience": True, "sfx": False}  # section -> loops
 
 
 def _enter_sandbox(argv: list[str]) -> None:
