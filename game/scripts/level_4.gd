@@ -1618,6 +1618,9 @@ func _lash_the_whip() -> bool:
 	lash.arc_degrees = WeaponTable.arc_degrees(WHIP)
 	lash.position = origin
 	get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(lash)
+	# Short, like every blow here: the tik-tik's call and the tiyanak's cry are the level's
+	# information, and nothing of a fight may sit on them for long.
+	_sound(&"whip")
 	_whip_uses -= 1
 	_lashed = true
 	return _whip_uses <= 0
