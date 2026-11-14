@@ -66,9 +66,7 @@ func open() -> void:
 	UIRouter.refresh_pause(get_tree())
 	_on_opened()
 	opened.emit()
-	var director := get_node_or_null(^"/root/AudioDirector")
-	if director != null:
-		director.play_sfx(&"ui_open")
+	_sound(_open_sound())
 
 
 func close() -> void:
@@ -80,9 +78,7 @@ func close() -> void:
 	UIRouter.refresh_pause(get_tree())
 	_on_closed()
 	closed.emit()
-	var director := get_node_or_null(^"/root/AudioDirector")
-	if director != null:
-		director.play_sfx(&"ui_close")
+	_sound(_close_sound())
 
 
 ## True when this overlay consumed the cancel key. UIRouter walks an authored chain
@@ -95,6 +91,26 @@ func handle_cancel() -> bool:
 		close()
 	# Consumed either way: a modal that is up must not let the key reach past it.
 	return true
+
+
+## The sound of this overlay arriving, or &"" for none. An overlay that carries a sound of its own
+## says so here rather than having `ui_open` play under it: the found-thing card has its chime, and
+## the level-complete screen arrives while the level's jingle is still ringing.
+func _open_sound() -> StringName:
+	return &"ui_open"
+
+
+## The sound of it going, or &"" for none.
+func _close_sound() -> StringName:
+	return &"ui_close"
+
+
+func _sound(id: StringName) -> void:
+	if id.is_empty():
+		return
+	var director := get_node_or_null(^"/root/AudioDirector")
+	if director != null:
+		director.play_sfx(id)
 
 
 ## True for an overlay that plays its own entrance and exit (the inventory, the found-thing card):
