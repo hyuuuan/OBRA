@@ -23,7 +23,7 @@
     "page_turn": ""
   },
   "music": {
-    "menu": "",
+    "menu": "res://assets/audio/music/menu.wav",
     "level_1": "",
     "mayon_ending": ""
   }
