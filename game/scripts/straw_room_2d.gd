@@ -106,12 +106,22 @@ const PEBBLE := Color(0.463, 0.424, 0.369, 1.0)     # 766C5E
 ## Daylight in the opening back out. Warm and washed out, because it is the terrace out
 ## there and the eye in here is used to the dark.
 const DAYLIGHT := Color(0.980, 0.941, 0.792, 1.0)     # FAF0CA
-const DAYLIGHT_DIM := Color(0.847, 0.784, 0.588, 1.0) # D8C896
-## The valley through the doorway, in the three bands anybody can see through a hole the
-## width of a person: sky, the terrace behind, and the one she is standing on.
+## The valley through the way out: sky, the terrace behind, and the one she is standing on.
 const OUTSIDE_SKY := Color(0.643, 0.831, 0.933, 1.0)   # A4D4EE
 const OUTSIDE_GREEN := Color(0.478, 0.667, 0.353, 1.0) # 7AAA5A
 const OUTSIDE_EARTH := Color(0.749, 0.647, 0.443, 1.0) # BFA571
+## The far ridge between the sky and the terrace, a little blue with distance.
+const OUTSIDE_RIDGE := Color(0.420, 0.580, 0.545, 1.0) # 6B948B
+## How much daylight is mixed into what she sees through the hole: the eye in here is used to
+## the dark, so the outside is pale. The sky gets more of it toward the top.
+const OUTSIDE_GLARE := 0.3
+## Where each band of the outside ends, as a fraction of the hole's height (_outside_band).
+const OUTSIDE_BANDS: Array[float] = [0.16, 0.32, 0.50, 0.66, 0.86]
+## How wide the collar of straw round the hole is: the old doorway's frame, so the door takes the
+## same room on the wall as it did.
+const DOOR_COLLAR := 8.0
+## How far down the hole's pointed top comes before its sides stand straight.
+const ARCH_DROP := 50.0
 ## The catch of light on the brass as it is taken: the flourish. The key itself is
 ## UIIcons.BRASS_KEY.
 const BRASS_LIT := Color(0.949, 0.851, 0.427, 1.0)  # F2D96D
@@ -189,6 +199,7 @@ func _ready() -> void:
 	add_to_group(&"interiors")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_build_floor()
+	_build_way_out()
 	_build_key_area()
 	_build_glint()
 	_build_nail_notice()
@@ -614,7 +625,6 @@ func _hash(value: int) -> int:
 func _draw() -> void:
 	_draw_dark()
 	_draw_backdrop()
-	_draw_way_out()
 	# THE PLANK AND THE NAIL STAY. They are part of the wall, and an empty nail on its board is
 	# the room telling a player who comes back that they already took what was hanging on it --
 	# which the old code, which stopped drawing both together, could not say.
@@ -779,50 +789,235 @@ func _draw_roof() -> void:
 	draw_rect(Rect2(-half, eaves - 5.0, room_length, 1.0), STRAW_LIT)
 
 
-## The way back out: a doorway cut through the bales, with a straw lintel over it and the
-## terrace's daylight behind. It is the only bright thing in the room, which is what makes it
-## read as the way out without a label -- and it is built like the doorways in the house,
-## with something holding the wall up over it, because a hole with nothing over it reads as
-## damage rather than as a door.
-func _draw_way_out() -> void:
+## THE WAY OUT IS A HOLE WORN THROUGH THE HEAP: the hole she crawled in by, seen from inside.
+## Kent: "redesign the door inside the haybale".
+##
+## It was a doorway BUILT -- a dark frame, a cream border, a sill and a pole lintel -- and in a heap
+## that read as a picture hung on the bales, with three flat bands of colour for the outside. The
+## mouth on the terrace is a ragged pointed arch with straw hanging into it (haybale.png), so this
+## is that hole the other way round: a pointed arch the width of the old doorway in a collar of
+## straw, the straw over it hanging across the daylight dark (it is lit from behind), its cut
+## ends catching the light, and the terrace through it -- sky, the far ridge, two terrace lips
+## and the earth she steps out onto, pale because the eye in here is used to the dark.
+##
+## ⚠ THE DOOR AND NOTHING ELSE. It stays inside the old doorway's footprint, its frame's width
+## round the opening; the painted room and its floor are Kent's and are not painted over. A first
+## cut darkened the whole end of the room and laid copied boards under the hole, and he said no.
+## Nothing she touches moved either: exit_rect, entry_point and the collision are as they were.
+##
+## Painted once, into a picture of its own, when the room is built: one texture for the renderer
+## rather than a few thousand one-pixel strands, and not repainted when the key's flourish
+## redraws the room.
+func _build_way_out() -> void:
+	var sprite := Sprite2D.new()
+	sprite.name = "WayOut"
+	sprite.centered = false
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.position = _way_out_rect().position
+	sprite.texture = ImageTexture.create_from_image(_paint_way_out())
+	add_child(sprite)
+
+
+## Where the way out is painted, in the room's space: the opening and its collar, down to the
+## walk line and no further.
+func _way_out_rect() -> Rect2:
 	var opening := exit_rect()
-	var jamb := 8.0
-	draw_rect(opening.grow(jamb), STRAW_DARK)
-	draw_rect(opening.grow(jamb), DEEP, false, 2.0)
-	# The lintel: a pole across the head of it, carrying the wall over the opening. A hole
-	# with nothing over it reads as damage rather than as a door.
-	_draw_binding(opening.position.x - jamb - 10.0, opening.end.x + jamb + 10.0,
-		opening.position.y - jamb - 9.0)
-	# WHAT IS OUT THERE, as three bands rather than a picture: sky, the green of the terrace
-	# behind it and the earth of the one she is standing on. A flat slab of cream reads as a
-	# hole cut in the drawing; three bands read as outside, and at the width of a person
-	# that is as much of the valley as anybody can see through it anyway.
-	draw_rect(opening, DAYLIGHT_DIM)
-	var inner := opening.grow(-5.0)
-	draw_rect(inner, OUTSIDE_SKY)
-	draw_rect(Rect2(inner.position.x, inner.position.y + inner.size.y * 0.52,
-		inner.size.x, inner.size.y * 0.30), OUTSIDE_GREEN)
-	draw_rect(Rect2(inner.position.x, inner.position.y + inner.size.y * 0.82,
-		inner.size.x, inner.size.y * 0.18), OUTSIDE_EARTH)
-	# The glare round the edge of it, because the eye in here is used to the dark.
-	draw_rect(Rect2(inner.position, Vector2(inner.size.x, 4.0)), DAYLIGHT)
-	draw_rect(Rect2(inner.position, Vector2(4.0, inner.size.y)), DAYLIGHT)
-	# Straw hanging across it, so it is a hole worn in a heap and not a fitted door.
-	var x := opening.position.x
-	while x < opening.end.x:
-		var noise := _hash(int(x) * 29 + 4409)
-		draw_rect(Rect2(x, opening.position.y, 1.0, 4.0 + float(noise % 26)),
-			STRAW_DARK if noise % 3 == 0 else STRAW_SHADE)
-		x += 2.0 + float(noise % 3)
-	# And the light it throws on the floor in front of it, the same spill the doorways in
-	# the house cast on the boards.
-	var spill := 0
-	while spill < int(floor_depth):
-		var reach := float(spill) / floor_depth
-		var wide := opening.size.x * (0.5 + reach * 0.55)
-		draw_rect(Rect2(opening.get_center().x - wide, float(spill), wide * 2.0, 4.0),
-			Color(0.980, 0.941, 0.792, 0.13 * (1.0 - reach)))
-		spill += 4
+	var reach := DOOR_COLLAR + 4.0
+	return Rect2(opening.position - Vector2(reach, reach),
+		Vector2(opening.size.x + reach * 2.0, opening.size.y + reach))
+
+
+func _paint_way_out() -> Image:
+	var area := _way_out_rect()
+	var image := Image.create_empty(int(area.size.x), int(area.size.y), false, Image.FORMAT_RGBA8)
+	var opening := exit_rect()
+	_paint_the_collar(image, area.position, opening)
+	_paint_the_outside(image, area.position, opening)
+	_paint_the_hole_edge(image, area.position, opening)
+	return image
+
+
+## One rectangle of it, given in the room's own units; `at` is where the picture's corner is.
+static func _fill(image: Image, at: Vector2, x: float, y: float, w: float, h: float,
+		colour: Color) -> void:
+	if w <= 0.0 or h <= 0.0:
+		return
+	image.fill_rect(Rect2i(int(x - at.x), int(y - at.y), int(w), int(h)), colour)
+
+
+## Where the hole is across row `y` of the room, as (left, right), or an empty span outside it.
+## Ragged, in steps of three rows and differently on each side: worn through straw, not cut.
+## Pointed at the top like the mouth outside, and a little wider at the foot, like it.
+func _hole_span(opening: Rect2, y: float) -> Vector2:
+	var into := y - opening.position.y
+	if into < 0.0 or y >= opening.end.y:
+		return Vector2(1.0, 0.0)
+	var wide := opening.size.x * 0.5
+	if into < ARCH_DROP:
+		wide *= pow(sin(into / ARCH_DROP * PI * 0.5), 0.8)
+	wide += maxf(0.0, into - (opening.size.y - 40.0)) * 0.1
+	var step := int(into / 3.0)
+	var left := floorf(wide + float(_hash(step * 31 + 7) % 4) - 1.5)
+	var right := floorf(wide + float(_hash(step * 57 + 3) % 4) - 1.5)
+	var centre := opening.get_center().x
+	return Vector2(centre - maxf(left, 0.0), centre + maxf(right, 0.0))
+
+
+## The row the hole starts at in column `x`, or INF if the column misses it.
+func _hole_top(opening: Rect2, x: float) -> float:
+	var y := opening.position.y
+	while y < opening.end.y:
+		var span := _hole_span(opening, y)
+		if x >= span.x and x < span.y:
+			return y
+		y += 1.0
+	return INF
+
+
+## The straw the hole is worn through, a collar of it round the opening and no wider than the old
+## doorway's frame: short strands in handfuls, darker away from the light, the outer edge ragged
+## so it sits on the painted straw behind it rather than outlining a shape on it.
+func _paint_the_collar(image: Image, at: Vector2, opening: Rect2) -> void:
+	var ramp: Array[Color] = [DEEP, STRAW_DARK, STRAW_SHADE, STRAW, STRAW_LIT]
+	var y := opening.position.y - DOOR_COLLAR
+	while y < opening.end.y:
+		# The hole widened by the collar: every row within reach of this one, taken in by how far
+		# away it is, so the collar follows the point of the arch as well as its sides.
+		var left := INF
+		var right := -INF
+		for dy in range(-int(DOOR_COLLAR), int(DOOR_COLLAR) + 1):
+			var span := _hole_span(opening, y + float(dy))
+			if span.y <= span.x:
+				continue
+			var out := DOOR_COLLAR - absf(float(dy))
+			left = minf(left, span.x - out)
+			right = maxf(right, span.y + out)
+		if left < right:
+			var rag := _hash(int(y / 3.0) * 113 + 29)
+			left -= float(rag % 3)
+			right += float((rag >> 3) % 3)
+			var x := left
+			while x < right:
+				var lay := _hash(int(x) * 37 + int(y / 6.0) * 131)
+				var tone := 1 + lay % 3 - (1 if lay % 7 == 0 else 0)
+				_fill(image, at, x, y, 1.0, 1.0, ramp[clampi(tone, 0, ramp.size() - 1)])
+				x += 1.0
+		y += 1.0
+
+
+func _paint_the_outside(image: Image, at: Vector2, opening: Rect2) -> void:
+	var tall := opening.size.y
+	var y := opening.position.y
+	while y < opening.end.y:
+		var span := _hole_span(opening, y)
+		if span.y > span.x:
+			var t := (y - opening.position.y) / tall
+			var band := _outside_band(t)
+			var colour := _outside_colour(band)
+			_fill(image, at, span.x, y, span.y - span.x, 1.0, colour)
+			# Where two bands meet, a row of each other's pixels: the joins are dithered.
+			var above := _outside_band((y - 2.0 - opening.position.y) / tall)
+			if above != band and above >= 0:
+				var x := span.x + float(int(y) % 2)
+				while x < span.y:
+					_fill(image, at, x, y, 1.0, 1.0, _outside_colour(above))
+					x += 2.0
+			# The glare down the side and over the top of it.
+			var glare := colour.lerp(DAYLIGHT, 0.5)
+			_fill(image, at, span.x, y, 2.0, 1.0, glare)
+			if y - opening.position.y < 3.0:
+				_fill(image, at, span.x, y, span.y - span.x, 1.0, glare)
+		y += 1.0
+	# The far ridge across the bottom of the sky, a little blue with distance.
+	var ridge := OUTSIDE_RIDGE.lerp(DAYLIGHT, OUTSIDE_GLARE)
+	var land := opening.position.y + tall * OUTSIDE_BANDS[3]
+	var x := opening.position.x - 8.0
+	while x < opening.end.x + 8.0:
+		var crest := floorf(opening.position.y + tall * 0.52 + 4.0 * sin(x * 0.21)
+			+ 3.0 * sin(x * 0.07 + 1.3))
+		var row := crest
+		while row < land:
+			var span := _hole_span(opening, row)
+			if x >= span.x + 2.0 and x < span.y:
+				_fill(image, at, x, row, 1.0, 1.0, ridge)
+			row += 1.0
+		x += 1.0
+	# Two terrace lips, lit along the top and shadowed under, and the grass on them.
+	var grass := _outside_colour(4)
+	for lip: float in [0.72, 0.80]:
+		var lip_y := floorf(opening.position.y + tall * lip)
+		var span := _hole_span(opening, lip_y)
+		_fill(image, at, span.x + 2.0, lip_y, span.y - span.x - 2.0, 1.0, grass.lerp(DAYLIGHT, 0.4))
+		_fill(image, at, span.x + 2.0, lip_y + 1.0, span.y - span.x - 2.0, 1.0, grass.darkened(0.25))
+	var tuft := 0
+	while tuft < 26:
+		var noise := _hash(tuft * 197 + 31)
+		var tuft_y := floorf(opening.position.y + tall * (0.67 + float(noise % 17) / 100.0))
+		var span := _hole_span(opening, tuft_y)
+		var wide := maxi(1, int(span.y - span.x) - 4)
+		_fill(image, at, span.x + 2.0 + float((noise >> 6) % wide), tuft_y, 1.0, 2.0,
+			grass.darkened(0.2))
+		tuft += 1
+
+
+## Which band of the outside row `t` of the hole is in, top to bottom: three of sky getting
+## less glaring, the sky behind the ridge, the terrace, and the earth she steps out onto.
+func _outside_band(t: float) -> int:
+	if t < 0.0:
+		return -1
+	for band in range(OUTSIDE_BANDS.size()):
+		if t < OUTSIDE_BANDS[band]:
+			return band
+	return OUTSIDE_BANDS.size()
+
+
+func _outside_colour(band: int) -> Color:
+	match band:
+		0:
+			return OUTSIDE_SKY.lerp(DAYLIGHT, 0.6)
+		1:
+			return OUTSIDE_SKY.lerp(DAYLIGHT, 0.45)
+		2, 3:
+			return OUTSIDE_SKY.lerp(DAYLIGHT, OUTSIDE_GLARE)
+		4:
+			return OUTSIDE_GREEN.lerp(DAYLIGHT, 0.25)
+	return OUTSIDE_EARTH.lerp(DAYLIGHT, 0.1)
+
+
+func _paint_the_hole_edge(image: Image, at: Vector2, opening: Rect2) -> void:
+	var lit: Array[Color] = [STRAW_LIT, STRAW_HI, STRAW_LIT, STRAW_PALE, STRAW]
+	# The cut ends of the straw catch the daylight, down both sides, each a different length...
+	var y := opening.position.y
+	while y < opening.end.y:
+		var span := _hole_span(opening, y)
+		if span.y > span.x:
+			var noise := _hash(int(y) * 89 + 5)
+			var left := 1.0 + float(noise % 4)
+			var right := 1.0 + float((noise >> 4) % 4)
+			_fill(image, at, span.x - left, y, left, 1.0, lit[noise % lit.size()])
+			_fill(image, at, span.y, y, right, 1.0, lit[(noise >> 3) % lit.size()])
+			# ...with a straw poking in off the side now and then, dark against the light.
+			if noise % 7 == 0 and y - opening.position.y > ARCH_DROP:
+				var poke := 2.0 + float((noise >> 5) % 5)
+				var from_left := noise % 2 == 0
+				_fill(image, at, span.x if from_left else span.y - poke, y, poke, 1.0, STRAW_DARK)
+		y += 1.0
+	# ...and over the top, where the straw left hanging across the opening is lit from behind:
+	# a dark strand against the sky with the light only on its end.
+	var x := opening.position.x - 4.0
+	while x < opening.end.x + 4.0:
+		var top := _hole_top(opening, x)
+		if is_finite(top):
+			var noise := _hash(int(x) * 211 + 17)
+			var cap := 1.0 + float((noise >> 2) % 3)
+			_fill(image, at, x, top - cap, 1.0, cap, lit[noise % lit.size()])
+			if noise % 2 == 0:
+				var hang := 2.0 + float((noise >> 4) % 7)
+				if absf(x - opening.get_center().x) < 14.0:
+					hang += float((noise >> 8) % 10)
+				_fill(image, at, x, top, 1.0, hang, STRAW_DARK)
+				_fill(image, at, x, top + hang, 1.0, 1.0, STRAW_LIT)
+		x += 1.0
 
 
 ## Trodden earth, laid in courses the way the boards in the house are, because a floor that

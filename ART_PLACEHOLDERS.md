@@ -145,7 +145,12 @@ columns and read as a shaded dome with scratches on it.
 | **Collision** | **None**, deliberately — a solid heap would wall off the only route out of the level. |
 | **Must read as** | **Cut straw, never harvested grain.** A build constraint, not a preference: the Protector route scatters it across the terrace, and scattering somebody's *tinawon* harvest is not a neutral image to stage. |
 
-### Inside the heap · `game/scripts/straw_room_2d.gd` · 1 at (1900, −900)
+### Inside the heap · `game/scripts/straw_room_2d.gd` · 1 at (2580, −900)
+
+**NOW KENT'S PAINTING.** `Level1/hay_interior.png` is the whole room, one panorama fitted to the
+room's ruler (`_draw_backdrop`); the way out, the key's board, the nail and the ants are drawn
+over it, and nothing else is. The rows below describe the built room it replaced, except
+**The way out**, which is current.
 
 **BUILT, NOT PAINTED — and it took three goes.** A cutaway of the heap read as a close-up of
 a haystack. Kent's delivered interior, tiled across the room, read as "a mere drawing". What
@@ -160,7 +165,7 @@ the same argument in straw.
 | **The wall** | **Thatch on a frame.** A first cut stacked bound *bales* in a running bond, and however much the tone and grain varied, the eye found the boxes before the material — crisp rectangles are right for timber and wrong for straw. So: vertical straw in **clumps** (a run of strands shares a tone and a length), held by horizontal **split-bamboo binding poles** at four heights plus a sill, with nodes and lashings. The structure comes from the frame; the material stays soft. |
 | **Lit from the door** | The straw falls a value darker past 62% of the room's length. It is the only thing in here saying the far end is further away — there is nowhere else for light to come from inside a heap. |
 | **The floor** | Trodden earth in courses, the way the boards in the house are: bands a shade apart, a hairline joint, grit and wisps of straw walked into it, and the doorway's light spilling across it. |
-| **The way out** | An opening with a **pole lintel** over it — a hole with nothing over it reads as damage, not a door — and the valley beyond as three bands: sky, the terrace behind, the earth she is standing on. |
+| **The way out** | **A hole worn through the heap**, the terrace mouth (`haybale.png`) seen from inside: a ragged pointed arch in a collar of straw, the straw over it hanging dark across the daylight with lit ends, and the terrace through it (sky, far ridge, two terrace lips, earth), pale and dithered where bands meet. Drawn in code, once, into its own texture (`_build_way_out`), inside the old doorway's footprint only: Kent turned down a first cut that darkened the end of the room and copied floor under the hole. It replaced a framed rectangle with a pole lintel that read as a picture hung on the bales. A drawn or painted doorway from Kent can replace it in place. |
 | **Drawn 480 units past the walls she can reach** | The camera sees 400 either side at this zoom and she can walk to the end wall, so a room drawn only as far as it is walkable puts its own edge on screen with the level's sky behind it. Safe to be generous **because the room is not drawn at all while she is somewhere else** — left switched on it painted the whole valley, which is what "the map in the overworld is still black at some parts" was. |
 | **In it** | The **baul** at (2076, −900), a **brass key on a nail** at local (−40, −250) — out of reach on purpose, which is the room's whole puzzle — and the **ants**. ⚠ Lola's canvas is NOT in here and has not been since the chain became heap → key → house → painting; it hangs in Ang Bale's interior. |
 
