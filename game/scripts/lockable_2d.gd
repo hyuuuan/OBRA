@@ -14,5 +14,9 @@ func try_unlock(key_tag: String, item: DrawnItemData) -> Dictionary:
 		return {"unlocked": false, "consumed": false}
 	is_locked = false
 	unlocked.emit(item.instance_id)
+	# ⚠ Looked up, not named: a class a --script probe compiles cannot name an autoload.
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"unlock")
 	return {"unlocked": true, "consumed": consume_key}
 
