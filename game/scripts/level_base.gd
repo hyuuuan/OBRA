@@ -1896,10 +1896,28 @@ func _refresh_room_framing(snap: bool = false) -> void:
 	world_camera.set_base_zoom(float(room.call("how_far_in")) if inside else 1.0)
 	world_camera.set_room_bounds(_camera_rect_for(room) if inside else Rect2())
 	if placement_controller != null:
-		placement_controller.set_allowed_area(
-			Rect2(room.call("bounds")) if inside else Rect2())
+		placement_controller.set_allowed_area(_placement_rect_for(room) if inside else Rect2())
 	if snap:
 		world_camera.snap_to_target()
+
+
+## THE BOX A DRAWING MAY BE SET DOWN IN: the room, less its way out.
+##
+## ⚠ NOT IN THE DOORWAY. Kent: "it places it at the door at the bottom which is very bad". The
+## way out is the only way out, it stands at the end of the floor she lands on, and a drawing
+## set down in it is one she has to climb over to leave. So the box ends at the doorway's far
+## jamb, and an aim at the doorway is held clear of it the way an aim past a wall is held at the
+## wall. Every interior's way out is at one end of it, so cutting the box across is enough.
+func _placement_rect_for(room: Node2D) -> Rect2:
+	var box := Rect2(room.call("bounds"))
+	if not room.has_method("exit_rect"):
+		return box
+	var door := Rect2(room.call("exit_rect"))
+	door.position += room.global_position
+	if door.get_center().x < box.get_center().x:
+		var left := minf(door.end.x, box.end.x)
+		return Rect2(left, box.position.y, box.end.x - left, box.size.y)
+	return Rect2(box.position, Vector2(maxf(0.0, door.position.x - box.position.x), box.size.y))
 
 
 ## The box the camera may not look out of, for a room that has an opinion about it.

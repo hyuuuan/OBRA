@@ -324,6 +324,8 @@ func drop_to_world(world_root: Node2D, at: Vector2) -> void:
 	reparent(world_root, true)
 	global_position = at
 	freeze = false
+	# Held, it was frozen and carried: the same stale motion a ghost has (see the base).
+	_unfrozen_where_it_stands()
 	gravity_scale = 1.0
 	collision_layer = 1
 	collision_mask = 1
