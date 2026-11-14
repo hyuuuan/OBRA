@@ -92,10 +92,23 @@ information, so it needs none.
 | `sfx.unlock` | `sfx/unlock.txt` | A lock giving: the key's metal click (short-mode noise), the bolt's thud (noise and a falling pulse), then two small kulintang notes, F#5 to B5. 0.72 s. |
 | `sfx.level_complete` | `sfx/level_complete.txt` | The level-complete jingle, I–IV–V–I in D: a bamboo-flute phrase (A D F# A, B, A C#, D) over a swung kulintang run, rondalla tremolo in thirds (VRC7 guitar), an FM bass, the agung opening and landing it, babendil on every eighth and the dabakan on the changes, and the painting's sparkle up the D chord at the arrival. 2.3 s. |
 
+| `sfx.draw_submit` | `sfx/draw_submit.txt` | The page going to be read: a brush swish of noise and a small 12.5% pulse glide up from A4. 0.16 s. |
+| `sfx.recognised` | `sfx/recognised.txt` | The painting knows what she drew: VRC7 vibraphone E5 then A5, and a pulse sparkle that follows the drawing into the bag. 0.7 s. |
+| `sfx.declined` | `sfx/declined.txt` | It cannot tell: a soft 25% pulse falling B4 to G#4, wavering and sagging, with an echo. Kind rather than wrong. 0.39 s. |
+| `sfx.place_refused` | `sfx/place_refused.txt` | The ghost cannot go there: two low, flat bumps (50% pulse on D3 over a noise thud). A wall, not a question. 0.17 s. |
+| `sfx.morph` | `sfx/morph.txt` | She becomes the drawing: a 12.5% pulse gliding up through the D chord with its echo, a rising breath of noise, the VRC7 chorus swelling on D and A, and a bell on D6 as the ring opens. 0.86 s. |
+| `sfx.revert` | `sfx/revert.txt` | Back to herself: the glide turned round from A5, shorter and softer, settling on the chorus's D. 0.47 s. |
+| `sfx.place` | `sfx/place.txt` | A drawing set down: a wooden tok of noise, a low VRC7 bass thunk on D3, and a tick as it settles. 0.33 s. |
+| `sfx.ink_low` | `sfx/ink_low.txt` | The ink nearly gone: a soft high ti-tu (E6, B5), twice, the second fainter. 0.39 s. |
+| `sfx.ink_empty` | `sfx/ink_empty.txt` | The ink gone: a hollow 50% pulse falling A4 F#4 D4, the last note sagging, over a breath that fades. 0.56 s. |
+
 **The sound effects keep one rule between them:** the interface speaks in the 2A03 (soft pulses,
 a tick of noise) and the painting, what the world hands her, speaks in the VRC7's kulintang,
 agung and bamboo flute, the title theme's band. Every one sits under the music's loudness, and
-all eight are **provisional until Kent has listened** (rendered 2026-11-14).
+every one is **provisional until Kent has listened** (rendered 2026-11-14). The drawing's own
+moments, the answer and the change, are the painting's (VRC7); the page, the bag and the gauge
+are the interface's (2A03). `declined`, `place_refused` and Mayon's brush refusal never sound
+alike: a wavering question, a flat bump, and silence.
 
 ⚠ **No triangle in a sound effect, for now.** A triangle silenced mid-wave freezes on a step, and
 the renderer's resampler rings on that step at the very end of a one-shot, so the file keeps two
