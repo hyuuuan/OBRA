@@ -65,17 +65,22 @@ the build right now and needs replacing · **READY** = code and hook exist, wait
 
 ## 4. Audio
 
-**There is no sound in the game yet, and the code is built so that is a content gap, not a code
-one.** `AudioDirector` (`game/scripts/audio_director.gd`) plays a sound by id; the ids live in
-`game/config/audio.json` with empty paths, so every call is written and does nothing until an
-`.ogg` is named beside its id. The profile keeps master, music and SFX volumes and `AudioDirector` applies
-them to the buses; the Settings screen's sliders for them are taken out until there is something to hear
-(their rows come back in `ui/settings_overlay.tscn`).
+**The audio is NES music on the VRC7, written as FamiTracker modules** (Kent, 2026-11-14). The
+modules are in `audio/` and rendered on a Mac, inside a sandbox, by `tools/build_music.py`;
+[`audio/README.md`](audio/README.md) has the pipeline and the rules a module keeps.
+
+`AudioDirector` (`game/scripts/audio_director.gd`) plays a sound by id, from the ids in
+`game/config/audio.json`. An id with an empty path is still silent, so a call can be written
+before its sound exists. The profile keeps the master, music and SFX volumes, and
+`AudioDirector` applies them to the buses. The Settings screen's sliders for them were taken out
+while nothing could be heard; with music in, they are owed back (`ui/settings_overlay.tscn`).
+`run_audio_probe` holds every file to how Godot plays it.
 
 | What | Status | Where it goes | Notes |
 |---|---|---|---|
 | UI sounds | **MISSING** | `audio.json` → `sfx.ui_click`, `ui_open`, `ui_close` | Already called by the UI; a file is all they need. |
 | A page of her diary turning | **MISSING — id READY** (2026-11-01) | `audio.json` → `sfx.page_turn` | Played by `DiaryBook.turn` every time a page turns; the page-turn animation is its visual twin. |
 | Level and pickup sounds | **MISSING** | `audio.json` → `sfx.level_complete`, `checkpoint`, `item_acquired` | Ids exist; not all are called yet. |
-| Music | **MISSING** | `audio.json` → `music.menu`, `music.level_1` | One id per level is the shape; Levels 2–5 have none yet. |
+| Title music | **DONE — PROVISIONAL** (2026-11-14) | `audio/music/menu.txt` → `music.menu` | Played by the main menu while it is up, stopped when it leaves. Composed and rendered without being heard; it stands until Kent has listened. |
+| Level music | **MISSING** | `audio.json` → `music.level_1`; ids for the house and Levels 2–4 to come | One loop per place. Mayon stays silent. |
 | **Dilim's sounds** | **MISSING — ids READY** (2026-10-19) | `audio.json` → `sfx.tiktik_call`, `tiyanak_cry`, `lantern_hit`, `dawn` | Played already, silent until a file is named. The **tik-tik's call** plays at its call's strength (louder the further off it is), and the **tiyanak's cry** at its ripple's (`play_sfx` takes a loudness). The lantern's hit and the dawn play at full. The design: "every audio cue has a visual equivalent" -- the edge ripples (`EdgeRipple.cue`) stay when a sound is delivered; they are how a player who cannot hear plays the level. The santelmo and the aswang have no sound and no ids yet. `run_level4_sound_probe` checks each is asked for. |

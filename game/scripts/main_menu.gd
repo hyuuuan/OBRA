@@ -2,6 +2,10 @@ extends Node2D
 
 const PANEL_SNAP := 8.0
 
+## The title's own loop (audio/music/menu.txt). It plays while the menu is up and ends with it:
+## the house and the levels have no music yet, and this was written for the title card alone.
+const MENU_MUSIC := &"menu"
+
 ## THE HOME SCREEN IS THE TITLE CARD (title_card.gd): the logo and "DRAW ◆ BECOME ◆
 ## DISCOVER", over Kent's vista -- the apo looking out over the place the game is set -- the
 ## same card the loading screen shows, so loading fades onto this without the picture moving
@@ -126,6 +130,7 @@ func _ready() -> void:
 	menu_root.add_child(_card)
 	menu_root.move_child(_card, 0)
 	_apply_backdrop(PlayerProfile.last_level())
+	AudioDirector.play_music(MENU_MUSIC)
 	settings_button.pressed.connect(_open_overlay.bind(&"SettingsOverlay"))
 	controls_button.pressed.connect(_open_overlay.bind(&"ControlsOverlay"))
 	quit_button.pressed.connect(_ask_quit)
@@ -145,6 +150,12 @@ func _ready() -> void:
 		_show_selector.call_deferred()
 	else:
 		play_button.grab_focus()
+
+
+func _exit_tree() -> void:
+	# Only the menu's own track: a scene that has already started one of its own keeps it.
+	if AudioDirector.current_music() == MENU_MUSIC:
+		AudioDirector.stop_music()
 
 
 ## The shared overlays are siblings of this node, instanced into the menu scene.

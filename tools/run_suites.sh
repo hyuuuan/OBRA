@@ -57,7 +57,7 @@ HEADLESS=(
   run_level2_audit run_level2_scene_probe run_level2_chain_probe run_level2_finish_probe
   run_level2_systems_probe run_level2_alley_probe run_nodraw_level2 run_water_audit run_hub_audit
   run_assembly_probe run_dance_probe run_objective_probe run_tool_routes_probe run_fan_probe
-  run_playtest_telemetry_probe
+  run_playtest_telemetry_probe run_audio_probe
   run_dialogue_pool_probe
   run_play_level2 run_hud_layout_probe run_minimap_probe run_screens_fit_probe run_journey_probe run_new_game_probe run_backend_ownership_probe
   run_request_timeout_probe
@@ -148,7 +148,8 @@ if (( WITH_PYTHON )); then
     tests.test_correction_experiment \
     tests.test_playtest_telemetry \
     tests.test_player_simulation \
-    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments tests.test_build_dagat_bangka tests.test_build_dagat_cave tests.test_build_diary_book tests.test_build_house_lolo >> "$LOG" 2>&1
+    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments tests.test_build_dagat_bangka tests.test_build_dagat_cave tests.test_build_diary_book tests.test_build_house_lolo \
+    tests.test_famirender tests.test_build_music >> "$LOG" 2>&1
   note_result python $? $(( EPOCHSECONDS - began ))
 fi
 
