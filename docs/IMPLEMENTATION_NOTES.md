@@ -950,6 +950,14 @@ fitting its page, and being given by some level's script.
 
 ## Traps this project keeps re-learning
 
+- ⚠ **A frozen RigidBody2D, unfrozen, is swept from wherever it was last NOT frozen.** Freezing
+  makes it static, and the physics server moves a static body without updating the transform it
+  measures the next step's motion from. A placement ghost enters the tree at the world origin,
+  is frozen and aimed, and on confirm was swept (CCD cast shape) from the origin to its spot;
+  anything on the line pushed it off. In a room it moved 30–60 px toward the doorway. Set the
+  transform on the server once the body is rigid (`_unfrozen_where_it_stands`). ⚠ A probe that
+  confirms straight after a physics frame never shows it; click through the input queue.
+
 - ⚠ **A visual runner that prints a diagnostic instead of failing is a runner nobody reads.**
   `run_visual_level1` looked for a node the choice overlay never had, printed "pressed the
   real button: false", carried on, and captured a frame called `09_artist_committed` in which
