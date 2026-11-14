@@ -4701,6 +4701,9 @@ func _adopt_player(new_player: Node2D, previous_state: Dictionary, flash: bool) 
 	# which reads as a glitch rather than as the transformation the game is about.
 	if flash:
 		MorphFlash.play(entity_root, new_player.global_position, new_player)
+		# The flash is both ways, and so is the sound: into a drawing, or back to the apo --
+		# whether by Q, a life run out, or a level's own zero case.
+		_sound(&"revert" if new_player is Wanderer else &"morph")
 
 	var camera_target := new_player
 	if new_player.has_method("get_camera_target"):

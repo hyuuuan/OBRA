@@ -25,6 +25,8 @@
     "draw_submit": "res://assets/audio/sfx/draw_submit.wav",
     "recognised": "res://assets/audio/sfx/recognised.wav",
     "declined": "res://assets/audio/sfx/declined.wav",
+    "morph": "res://assets/audio/sfx/morph.wav",
+    "revert": "res://assets/audio/sfx/revert.wav",
     "place": "res://assets/audio/sfx/place.wav",
     "place_refused": "res://assets/audio/sfx/place_refused.wav"
   },
