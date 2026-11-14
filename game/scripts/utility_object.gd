@@ -1080,6 +1080,7 @@ func _throw_boomerang(actor: Node2D) -> String:
 		0.0, 1.0, 1.1
 	)
 	flight.tween_callback(func() -> void: _catch_boomerang(actor))
+	_sound(&"throw")
 	return "Boomerang thrown"
 
 

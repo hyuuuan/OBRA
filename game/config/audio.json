@@ -32,7 +32,8 @@
     "ink_low": "res://assets/audio/sfx/ink_low.wav",
     "ink_empty": "res://assets/audio/sfx/ink_empty.wav",
     "swing": "res://assets/audio/sfx/swing.wav",
-    "cannon": "res://assets/audio/sfx/cannon.wav"
+    "cannon": "res://assets/audio/sfx/cannon.wav",
+    "throw": "res://assets/audio/sfx/throw.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
