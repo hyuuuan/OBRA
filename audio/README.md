@@ -92,7 +92,7 @@ information, so it needs none.
 | `sfx.unlock` | `sfx/unlock.txt` | A lock giving: the key's metal click (short-mode noise), the bolt's thud (noise and a falling pulse), then two small kulintang notes, F#5 to B5. 0.72 s. |
 | `sfx.level_complete` | `sfx/level_complete.txt` | The level-complete jingle, I–IV–V–I in D: a bamboo-flute phrase (A D F# A, B, A C#, D) over a swung kulintang run, rondalla tremolo in thirds (VRC7 guitar), an FM bass, the agung opening and landing it, babendil on every eighth and the dabakan on the changes, and the painting's sparkle up the D chord at the arrival. 2.3 s. |
 
-| `sfx.draw_submit` | `sfx/draw_submit.txt` | The page going to be read: a brush swish of noise and a small 12.5% pulse glide up from A4. 0.16 s. |
+| `sfx.draw_submit` | `sfx/draw_submit.txt` | The page going to be read: one soft brush stroke on paper, dark long-mode noise swelling in and easing out, and no tone (Kent, 2026-11-15: the first version's pulse glide "screeches my ear ... it should just sound like a paint"). 0.26 s. |
 | `sfx.recognised` | `sfx/recognised.txt` | The painting knows what she drew: VRC7 vibraphone E5 then A5, and a pulse sparkle that follows the drawing into the bag. 0.7 s. |
 | `sfx.declined` | `sfx/declined.txt` | It cannot tell: a soft 25% pulse falling B4 to G#4, wavering and sagging, with an echo. Kind rather than wrong. 0.39 s. |
 | `sfx.place_refused` | `sfx/place_refused.txt` | The ghost cannot go there: two low, flat bumps (50% pulse on D3 over a noise thud). A wall, not a question. 0.17 s. |
