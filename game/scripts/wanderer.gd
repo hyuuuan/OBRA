@@ -208,6 +208,7 @@ func _leave_a_mark(delta: float, was_airborne: bool, fall_speed: float) -> void:
 		var force := clampf((fall_speed - LAND_DUST_FLOOR)
 			/ (LAND_DUST_FULL - LAND_DUST_FLOOR), 0.2, 1.0)
 		SceneryPuff2D.burst(host, feet, SceneryPuff2D.Kind.LAND, force)
+		_sound(&"land", force)
 		_stride_dust = 0.0
 		return
 	if not is_on_floor():

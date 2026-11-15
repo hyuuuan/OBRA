@@ -49,7 +49,8 @@
     "gift": "res://assets/audio/sfx/gift.wav",
     "painting": "res://assets/audio/sfx/painting.wav",
     "step": "res://assets/audio/sfx/step.wav",
-    "jump": "res://assets/audio/sfx/jump.wav"
+    "jump": "res://assets/audio/sfx/jump.wav",
+    "land": "res://assets/audio/sfx/land.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
@@ -59,6 +60,7 @@
   "ambience": {},
   "spacing": {
     "step": 0.12,
+    "land": 0.15,
     "jump": 0.1
   }
 }
