@@ -2,7 +2,7 @@
 
     compose_dilim.py TOOLS_DIR FOREST.txt RACE.txt AMBIENCE.txt
 
-The forest theme uses the four NES channels in E Dorian. The race
+The forest theme pairs 2A03 square and triangle with VRC7 keys. The race
 keeps the original Phrygian gallop and the ambience supplies low frog calls.
 tests/test_dilim_calls_read.py checks that the music and ambience leave room
 for the tik-tik's call and tiyanak's cry.
@@ -24,76 +24,85 @@ MOTIF = [("E3", 1), ("F3", 3), ("E3", 1), ("B2", 1)]
 # --- the forest --------------------------------------------------------------------------------
 
 def forest() -> Song:
-    bar = 8
-    s = Song("Dilim - Lantern Trail", frames=6, rows=4 * bar, speed=19, comments=(
-        "An original 2A03 exploration theme for Dilim in E Dorian.",
-        "Two NES pulses, triangle bass, and noise. 100 BPM with light eighth-note swing.",
+    bar = 16
+    s = Song("Dilim - Under Makiling's Moon", frames=6, rows=4 * bar, speed=11, comments=(
+        "Original night exploration theme for Dilim, E minor, around 90 BPM.",
+        "2A03 square lead and triangle bass with soft VRC7 keys and vibraphone.",
     ))
-    s.swing(19, 17)
-    lead = s.inst_2a03("Square melody", volume=[11, 10, 9, 8, 8, 7, 7, 6, 6, 5],
-                        duty=[1, 1, 2])
-    major = s.inst_2a03("Major chip arpeggio", volume=[6, 6, 5, 5, 4, 4, 3, 3, 2, 1, 0],
-                         arpeggio=[0, 4, 7, 12, 7, 4, 0, 4, 7, 12, 7], duty=[1])
-    minor = s.inst_2a03("Minor chip arpeggio", volume=[6, 6, 5, 5, 4, 4, 3, 3, 2, 1, 0],
-                         arpeggio=[0, 3, 7, 12, 7, 3, 0, 3, 7, 12, 7], duty=[1])
-    sus = s.inst_2a03("Sus2 chip arpeggio", volume=[6, 6, 5, 5, 4, 4, 3, 3, 2, 1, 0],
-                       arpeggio=[0, 2, 7, 12, 7, 2, 0, 2, 7, 12, 7], duty=[1])
-    bass = s.inst_2a03("Short triangle bass", volume=[15] * 13 + [0])
-    tap = s.inst_2a03("Noise tap", volume=[5, 4, 3, 2, 1, 0], duty=[0])
-    tick = s.inst_2a03("Noise tick", volume=[3, 2, 1, 0], duty=[0])
+    s.swing(11, 9)
+    lead = s.inst_2a03("Square lead", volume=[13, 12, 11, 10, 9, 8, 8, 7, 7, 6, 6, 5],
+                        duty=[2])
+    bass = s.inst_2a03("Triangle bass", volume=[15] * 13 + [0])
+    keys = s.inst_vrc7("FM keys", patch=3)
+    bell = s.inst_vrc7("FM vibraphone", patch=11)
 
-    # Triangle notes are written an octave up. The second pulse plays quick, quiet chord bursts.
+    # Bass root and fifth, then three closely voiced FM notes.
     chords = {
-        "Em":    ("E3",  "B3",  "E3", minor),
-        "G":     ("G3",  "D4",  "G3", major),
-        "D/F#":  ("F#3", "A3",  "D3", major),
-        "A":     ("A3",  "E3",  "A3", major),
-        "Bm":    ("B3",  "F#3", "B3", minor),
-        "Esus2": ("E3",  "B3",  "E3", sus),
+        "Em9":     ("E3",  "B3", ("G3",  "D4", "F#4")),
+        "Cmaj7":   ("C3",  "G3", ("G3",  "B3", "E4")),
+        "Gmaj7/B": ("B3",  "G3", ("F#3", "D4", "G4")),
+        "Gmaj7":   ("G3",  "D4", ("F#3", "B3", "D4")),
+        "D6/A":    ("A3",  "D3", ("F#3", "B3", "D4")),
+        "Am9":     ("A3",  "E3", ("C3",  "G3", "B3")),
+        "Dadd9":   ("D3",  "A3", ("F#3", "A3", "E4")),
+        "Bm7":     ("B3",  "F#3", ("F#3", "A3", "D4")),
     }
-    verse = ("Em", "Em", "G", "G", "D/F#", "D/F#", "A")
-    bridge = ("G", "G", "D/F#", "D/F#", "Bm", "Bm", "A", "A")
-    progression = (*verse, "Esus2", *bridge, *verse, "Em")
+    verse = ("Em9", "Cmaj7", "Gmaj7/B", "D6/A", "Em9", "Am9", "Cmaj7")
+    clearing = ("Gmaj7", "Cmaj7", "D6/A", "Em9", "Am9", "Cmaj7", "Dadd9", "Bm7")
+    progression = (*verse, "Dadd9", *clearing, *verse, "Em9")
 
-    # (eighth, pitch, duration). The hook rises three notes, then answers in the same register.
+    # (sixteenth, pitch, duration). The phrase is a quiet pickup, a held note, then an answer.
     hook = (
-        ((1, "G4", 1), (2, "A4", 1), (3, "B4", 4)),
-        ((0, "A4", 2), (3, "G4", 2), (6, "E4", 1)),
-        ((1, "G4", 2), (4, "B4", 3)),
-        ((0, "A4", 2), (3, "G4", 4)),
-        ((1, "A4", 1), (2, "B4", 1), (3, "A4", 3)),
-        ((0, "F#4", 3), (5, "A4", 2)),
-        ((1, "A4", 2), (4, "B4", 2)),
+        ((2, "B3", 2), (4, "E4", 3), (7, "G4", 6), (14, "F#4", 2)),
+        ((0, "E4", 4), (6, "G4", 2), (9, "E4", 4)),
+        ((1, "D4", 2), (3, "E4", 3), (6, "G4", 6), (14, "A4", 2)),
+        ((0, "F#4", 5), (8, "E4", 3), (12, "D4", 2)),
+        ((2, "E4", 2), (4, "G4", 3), (7, "B4", 6), (14, "A4", 2)),
+        ((0, "G4", 5), (7, "E4", 3), (12, "A4", 3)),
+        ((0, "B4", 4), (6, "G4", 3), (10, "E4", 3)),
     )
-    clearing = (
-        ((0, "B4", 4), (6, "A4", 1)),
-        ((0, "G4", 5),),
-        ((2, "F#4", 2), (5, "A4", 2)),
-        ((0, "F#4", 4),),
-        ((1, "F#4", 1), (2, "A4", 1), (3, "B4", 4)),
-        ((0, "A4", 2), (4, "F#4", 3)),
-        ((0, "E4", 2), (3, "F#4", 2), (6, "A4", 1)),
-        ((0, "B4", 3), (5, "A4", 2)),
+    answer = (
+        ((0, "B4", 6), (10, "D5", 3)),
+        ((0, "B4", 3), (6, "G4", 6)),
+        ((1, "A4", 2), (4, "F#4", 3), (9, "D4", 4)),
+        ((0, "E4", 6), (9, "G4", 4)),
+        ((1, "E4", 2), (4, "G4", 3), (8, "A4", 5)),
+        ((0, "G4", 6), (9, "E4", 3)),
+        ((0, "F#4", 4), (6, "A4", 3), (12, "F#4", 3)),
+        ((0, "D4", 6), (9, "F#4", 4)),
     )
     melody = (
-        *hook, ((0, "F#4", 2), (3, "E4", 4)),
-        *clearing,
-        *hook, ((0, "G4", 2), (3, "E4", 4)),
+        *hook, ((0, "F#4", 5), (8, "E4", 2), (12, "D4", 3)),
+        *answer,
+        *hook, ((1, "F#4", 3), (6, "E4", 7)),
     )
+    bell_answers = {1: (14, "B3"), 3: (14, "A3"), 7: (11, "A3"), 11: (14, "B3"),
+                    13: (13, "B3"), 15: (14, "A3"), 23: (14, "B3")}
 
     for index, (chord, phrase) in enumerate(zip(progression, melody, strict=True)):
         frame, start = s.at(0, index * bar)
-        root, fifth, arp_root, arp = chords[chord]
+        root, fifth, upper = chords[chord]
         s.put("triangle", frame, start, root, bass)
-        s.put("triangle", frame, start + 5, fifth, bass)
-        for step in ((1, 6) if index % 2 == 0 else (2, 5)):
-            s.put("pulse2", frame, start + step, arp_root, arp, 11)
-        if not 8 <= index < 12:
-            s.put("noise", frame, start + 4, "4-#", tap, 12)
-            s.put("noise", frame, start + 7, "7-#", tick, 11)
-        for step, note, duration in phrase:
-            volume = 9 if note == "E4" else 12
-            s.put("pulse1", frame, start + step, note, lead, volume)
+        if index % 4 == 3 or 8 <= index < 12:
+            s.put("triangle", frame, start + 10, fifth, bass)
+        else:
+            s.put("triangle", frame, start + (7 if index % 2 == 0 else 6), fifth, bass)
+            s.put("triangle", frame, start + (12 if index % 2 == 0 else 11), root, bass)
+
+        hits = ((0, 8, 10),) if 8 <= index < 12 else ((0, 6, 10), (9, 5, 9))
+        for step, duration, volume in hits:
+            for channel, pitch in zip(("fm1", "fm2", "fm3"), upper, strict=True):
+                s.put(channel, frame, start + step, pitch, keys, volume)
+                s.put(channel, frame, start + step + duration, "===")
+
+        if index in bell_answers:
+            step, pitch = bell_answers[index]
+            s.put("fm4", frame, start + step, pitch, bell, 10)
+            s.put("fm4", frame, start + step + 2, "===")
+
+        for step, pitch, duration in phrase:
+            volume = 9 if pitch in ("E4", "D5") else 12
+            s.put("pulse1", frame, start + step, pitch, lead, volume)
             s.put("pulse1", frame, start + step + duration, "---")
     return s
 
