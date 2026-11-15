@@ -64,6 +64,7 @@
     "church": "res://assets/audio/music/church.wav",
     "level_3": "res://assets/audio/music/level_3.wav",
     "level_3_deep": "res://assets/audio/music/level_3_deep.wav",
+    "bakunawa": "res://assets/audio/music/bakunawa.wav",
     "mayon_ending": ""
   },
   "ambience": {
