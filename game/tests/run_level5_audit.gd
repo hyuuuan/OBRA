@@ -335,11 +335,11 @@ func _audit_nothing_the_ash_takes_is_solid(scene: Node) -> void:
 
 ## MAYON HAS MUSIC NOW (Kent, 2026-11-14 and 2026-11-15), which reverses the 1 November "Mayon is
 ## silent". What stays from that rule is that the scene plays nothing itself: every sound goes
-## through AudioDirector, by id. And every one of its ids that has music written has a file, so
-## none is a hook left silent by mistake.
+## through AudioDirector, by id. And every one of its ids now has a file -- the ascent, the four
+## memories, Lola, the ending and the brush -- so none is a hook left silent by mistake.
 const MAYON_MUSIC := ["level_5", "memory_terraces", "memory_piyesta", "memory_dagat", "memory_dilim",
 	"lola", "mayon_ending"]
-const MAYON_SFX := []
+const MAYON_SFX := ["mayon_brush"]
 
 
 func _audit_mayon_sounds_through_the_director(scene: Node) -> void:

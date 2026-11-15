@@ -23,7 +23,7 @@
     "tiyanak_cry": "res://assets/audio/sfx/tiyanak_cry.wav",
     "lantern_hit": "res://assets/audio/sfx/lantern_hit.wav",
     "dawn": "res://assets/audio/sfx/dawn.wav",
-    "mayon_brush": "",
+    "mayon_brush": "res://assets/audio/sfx/mayon_brush.wav",
     "page_turn": "res://assets/audio/sfx/page_turn.wav",
     "draw_submit": "res://assets/audio/sfx/draw_submit.wav",
     "recognised": "res://assets/audio/sfx/recognised.wav",
