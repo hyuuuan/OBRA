@@ -534,6 +534,16 @@ Traps it has sprung, kept so they are not sprung again:
   the sigbin answers it, while drawing a bee does not. Dagat's bakunawa and sea creatures take a
   strike as they take a blade, but a weapon still starts the bakunawa's fight. Each use is logged
   (`form_ability_used`). `run_creature_ability_probe`.
+- **A sun burns what stands in its heat; a fire, what stands close** (Kent's decision,
+  2026-11-16). Their ConceptNet Scorch and Burn (`config/ability_effects.json`, kind `scorch`):
+  once placed, a `UtilityObject` burns every creature within `radius` one tick each `every`
+  seconds (`Enemy2D.apply_scorch`), for `lasts` seconds -- a sun's 8, a fire's for as long as it
+  stands -- and while hot is an `Enemy2D` ward, so smell-hunters are held at its edge, still in
+  reach (`SCORCH_EDGE`). A gilt ring at its reach sweeps away as the heat runs out. ⚠ The
+  sigbin, tiyanak and manananggal are not burned (their fights already take a light as the
+  artist's answer, and a burn that drove one off would turn that into the protector's), nor the
+  bungisngis, and the manananggal's lower half above all: its `apply_burn` is salt. Logged as
+  `object_ability_used`. `run_scorch_probe`.
 - **A creature in a fight shows its health** (Kent: "show the like hp/life of the creatures in
   Dilim level"). `FoeHealthBars` (`LevelBase._shows_foe_health`, on in Dilim only) draws a pip a
   blow over each foe's head, on layer 4: ⚠ over the dark (3), since a bar drawn in the world was
