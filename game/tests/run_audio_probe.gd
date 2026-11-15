@@ -56,6 +56,8 @@ const PROBE_SPACING_S := 0.4
 const SOUGHT_S := 12.0
 const SAME_PLACE_S := 0.05
 const LOOP_FADE_PROBE_S := 0.6
+## The probe's own crossfade, for reading its middle.
+const CROSS_S := 1.0
 
 var failures := 0
 var checked := 0
@@ -265,22 +267,23 @@ func _the_house_plays_its_music_and_fades_it_when_she_leaves() -> void:
 
 
 ## Two tracks overlap for the fade, the old falling and the new rising, and then only the new one
-## plays, at full. The second track is the menu's own file under a probe id: what is checked is the
-## crossfade, not a second piece of music.
+## plays, at full. ⚠ Equal power: halfway through, each is near -3 dB (a straight-line crossfade had
+## both at -6, and the music sagged between places). The second track is the menu's own file under
+## a probe id: what is checked is the crossfade, not a second piece of music.
 func _a_new_track_crossfades(music: Dictionary) -> void:
 	_music_paths()["_probe_second"] = music.get("menu", "")
 	director.call(&"play_music", &"menu", 0.0)
 	var first := director.call(&"music_player") as AudioStreamPlayer
-	director.call(&"play_music", &"_probe_second")
+	director.call(&"play_music", &"_probe_second", CROSS_S)
 	var second := director.call(&"music_player") as AudioStreamPlayer
-	await create_timer(0.25).timeout
+	await create_timer(CROSS_S * 0.5).timeout
 	var both := first != second and first.playing and second.playing
-	var crossing := first.volume_db < -0.5 and second.volume_db < -0.5 and second.volume_db > -60.0
+	var middle := absf(first.volume_db + 3.0) < 1.5 and absf(second.volume_db + 3.0) < 1.5
 	var mid := "old %.1f dB, new %.1f dB" % [first.volume_db, second.volume_db]
 	var done := await _until(func() -> bool: return not first.playing, FADE_WAIT_S)
-	_check(both and crossing and done and second.playing and absf(second.volume_db) < 0.1,
-		"a new track crossfades: both sound for the fade, then the new one alone at full",
-		"%s; then old stopped %s, new %.1f dB" % [mid, done, second.volume_db])
+	_check(both and middle and done and second.playing and absf(second.volume_db) < 0.1,
+		"a new track crossfades at equal power: both near -3 dB halfway, then the new one alone at full",
+		"halfway %s; then old stopped %s, new %.1f dB" % [mid, done, second.volume_db])
 	director.call(&"stop_music", 0.0)
 	_music_paths().erase("_probe_second")
 

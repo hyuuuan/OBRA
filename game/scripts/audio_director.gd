@@ -283,7 +283,8 @@ func _fade(loop: _Loop, player: AudioStreamPlayer, level: float, seconds: float)
 		return
 	var tween := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	loop.fades[player] = tween
-	tween.tween_method(_set_level.bind(player), db_to_linear(player.volume_db), maxf(level, FADE_FLOOR), seconds)
+	tween.tween_method(_set_along.bind(player, db_to_linear(player.volume_db), maxf(level, FADE_FLOOR)),
+		0.0, 1.0, seconds)
 	if level <= 0.0:
 		tween.tween_callback(player.stop)
 
@@ -295,8 +296,13 @@ func _kill_fade(loop: _Loop, player: AudioStreamPlayer) -> void:
 	loop.fades.erase(player)
 
 
-func _set_level(level: float, player: AudioStreamPlayer) -> void:
-	player.volume_db = linear_to_db(maxf(level, FADE_FLOOR))
+## A fade's level at `progress` (0..1) from `from` to `to`, linear amplitudes. ⚠ EQUAL POWER, on a
+## quarter sine: rising as sin, falling as cos, so two tracks crossing hold their summed loudness. A
+## straight line dips both to half (-6 dB each, -3 dB together) at the middle, which is heard as
+## the music sagging between two places.
+func _set_along(progress: float, player: AudioStreamPlayer, from: float, to: float) -> void:
+	var shaped := sin(progress * PI * 0.5) if to > from else 1.0 - cos(progress * PI * 0.5)
+	player.volume_db = linear_to_db(maxf(from + (to - from) * shaped, FADE_FLOOR))
 
 
 func _on_setting_changed(key: String, value: Variant) -> void:
