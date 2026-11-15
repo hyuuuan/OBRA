@@ -26,11 +26,16 @@ func dialogue_path() -> String:
 
 
 ## Dilim's music (audio/music/level_4.txt): scary and unknown (Kent, 2026-11-15) -- a beating drone,
-## a low motif that never resolves, far bells, a knock in the trees. The whole level: the forest is as dark under the canopy by day
-## (Kent's answer to the plan's question 9). LevelBase plays it when the level opens.
+## a low motif that never resolves, far bells, a knock in the trees -- over the night's frogs
+## (audio/ambience/level_4.txt). The whole level: the forest is as dark under the canopy by day
+## (Kent's answer to the plan's question 9). LevelBase plays both when the level opens.
 ## ⚠ THE CREATURES ARE GAMEPLAY. Everything in the music and the bed sits under 500 Hz, out of the
 ## tik-tik's and the tiyanak's bands; tests/test_dilim_calls_read.py holds them to it.
 func _level_music() -> StringName:
+	return &"level_4"
+
+
+func _level_ambience() -> StringName:
 	return &"level_4"
 
 
