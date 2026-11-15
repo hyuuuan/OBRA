@@ -548,9 +548,10 @@ func sees(point: Vector2, lit: bool = false) -> bool:
 ## it lost, before the player has said they mean to, is not a route -- it is an accident the
 ## game should not let them have.
 func apply_tool_hit(tool: String, _impulse: float, _actor: Node2D) -> bool:
-	if _state != State.FIGHTING or not BITE.has(tool):
+	# A body's own blow (a sting) counts as one, as a drawn blade does (CreatureAbility).
+	if _state != State.FIGHTING or not (BITE.has(tool) or CreatureAbility.is_strike(tool)):
 		return false
-	_hits += float(BITE[tool])
+	_hits += float(BITE.get(tool, 1.0))
 	_thrash = 0.5
 	# ⚠ A HIT SHOWS, IN RED. Kent: "the fight ... should indicate when he is hit (like a red flash
 	# or something)". It flashed white for a tenth of a second, which on a storm-dark sea read as
