@@ -6,8 +6,9 @@ extends SceneTree
 ## effect is not repeated inside its spacing, the Music slider moves the Music bus, and a level that
 ## has not opted in (LevelBase._level_music) leaves the music as it found it. The places that play
 ## their own: the boot loading screen starts the title's loop and the menu carries it on, and
-## the house plays its loop and fades it when she leaves. And a level that has opted in -- Terraces
-## -- plays its music and ambience when it opens and fades both when it closes.
+## the house plays its loop and fades it when she leaves. And the levels that have opted in: each
+## plays its music and ambience when it opens and fades both when it closes, Piyesta changes them
+## by room, and Dagat trades its surface music for its deep one at the waterline.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -56,7 +57,7 @@ const LOOP_FADE_PROBE_S := 0.6
 
 var failures := 0
 var checked := 0
-const CHECKS := 22
+const CHECKS := 25
 var director: Node
 
 
@@ -95,6 +96,7 @@ func _run() -> void:
 	await _terraces_plays_its_music_and_wind_and_fades_both()
 	await _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time()
 	await _piyestas_church_has_its_own_music_and_no_street()
+	await _dagat_trades_its_music_at_the_waterline()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -449,6 +451,58 @@ func _piyestas_church_has_its_own_music_and_no_street() -> void:
 		"hymn inside %s, street hushed %s, plaza and street outside %s" % [inside, hushed, outside])
 	director.call(&"stop_music", 0.0)
 	director.call(&"stop_ambience", 0.0)
+
+
+## Dagat: the rowing song and the waves at the surface; below it the same piece from under the
+## water, with no waves, at the same place in the bar; up again, both back. A frame between the
+## waterline's two edges changes nothing, either way, and leaving from below takes the deep's music
+## too. Through the level's own _refresh_the_place_audio, with its physics off so her own body
+## does not answer first.
+func _dagat_trades_its_music_at_the_waterline() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := await _open("res://level_3.tscn")
+	var opened := _now_playing()
+	scene.set_physics_process(false)
+	var deep_in := float(scene.get_script().get_script_constant_map()["DEEP_IN"])
+	var line := float(scene.get(&"_waterline_y"))
+	var x := (scene.get(&"player") as Node2D).global_position.x
+	var surface := director.call(&"music_player") as AudioStreamPlayer
+	surface.seek(SOUGHT_S)
+	await _frames(3)
+	scene.call(&"_refresh_the_place_audio", Vector2(x, line + deep_in + 40.0))
+	var deep := director.call(&"music_player") as AudioStreamPlayer
+	var apart := absf(deep.get_playback_position() - surface.get_playback_position())
+	var below := _now_playing()
+	var file := deep.stream.resource_path.get_file() if deep.stream != null else "-"
+	_check(opened == "level_3/level_3" and below == "level_3_deep/" and file == "level_3_deep.wav"
+		and surface != deep and apart < SAME_PLACE_S,
+		"Dagat: the rowing song and waves at the surface; diving, the deep's music at the same place, no waves",
+		"opened '%s', below '%s' (%s), %.3f s apart" % [opened, below, file, apart])
+	scene.call(&"_refresh_the_place_audio", Vector2(x, line + deep_in * 0.5))
+	var held_deep := _now_playing()
+	scene.call(&"_refresh_the_place_audio", Vector2(x, line - 40.0))
+	var up := _now_playing()
+	scene.call(&"_refresh_the_place_audio", Vector2(x, line + deep_in * 0.5))
+	var held_surface := _now_playing()
+	_check(held_deep == "level_3_deep/" and up == "level_3/level_3" and held_surface == "level_3/level_3",
+		"Dagat: between the waterline's two edges the music stays as it was; up again, both return",
+		"bobbing below '%s', up '%s', bobbing above '%s'" % [held_deep, up, held_surface])
+	scene.call(&"_refresh_the_place_audio", Vector2(x, line + deep_in + 200.0))
+	var left_from := _now_playing()
+	scene.queue_free()
+	await _frames(5)
+	var after := _now_playing()
+	var stopped := await _until(func() -> bool: return not deep.playing, FADE_WAIT_S)
+	_check(left_from == "level_3_deep/" and after == "/" and stopped,
+		"Dagat: leaving from below the surface takes the deep's music with it",
+		"left from '%s', after '%s', stopped %s" % [left_from, after, stopped])
+	director.call(&"stop_music", 0.0)
+	director.call(&"stop_ambience", 0.0)
+
+
+## "music/ambience", what AudioDirector is playing now.
+func _now_playing() -> String:
+	return "%s/%s" % [director.call(&"current_music"), director.call(&"current_ambience")]
 
 
 func _open(path: String) -> Node:
