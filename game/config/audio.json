@@ -67,7 +67,8 @@
   },
   "ambience": {
     "level_1": "res://assets/audio/ambience/level_1.wav",
-    "level_2": "res://assets/audio/ambience/level_2.wav"
+    "level_2": "res://assets/audio/ambience/level_2.wav",
+    "level_3": "res://assets/audio/ambience/level_3.wav"
   },
   "spacing": {
     "step": 0.12,

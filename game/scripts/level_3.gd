@@ -1225,9 +1225,14 @@ func _boats() -> Array[UtilityObject]:
 
 ## Dagat's music (audio/music/level_3.txt): a Visayan rowing song for the surface -- the level's
 ## start, the bangka, the shores, and all a player hears who never dives (Kent: "in case the
-## player just wants to not go to the ocean"). LevelBase plays it when the
-## level opens.
+## player just wants to not go to the ocean") -- over the waves (audio/ambience/level_3.txt).
+## LevelBase plays both when the level opens; _refresh_the_place_audio changes them at the
+## waterline.
 func _level_music() -> StringName:
+	return &"level_3"
+
+
+func _level_ambience() -> StringName:
 	return &"level_3"
 
 
