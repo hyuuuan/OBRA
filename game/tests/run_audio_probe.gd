@@ -3,7 +3,10 @@ extends SceneTree
 ## plays them, no sound effect loops, and every file has something that plays it. And the plumbing
 ## that plays them: a change of track crossfades, the ambience is its own channel, a spaced sound
 ## effect is not repeated inside its spacing, the Music slider moves the Music bus, and a level that
-## has not opted in (LevelBase._level_music) leaves the music as it found it.
+## has not opted in (LevelBase._level_music) leaves the music as it found it. The places that play
+## their own: the boot loading screen starts the title's loop and the menu carries it on, and
+## the house plays its loop and fades it when she leaves. And a level that has opted in -- Terraces
+## -- plays its music and ambience when it opens and fades both when it closes.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -17,16 +20,25 @@ const CATALOG := "res://config/audio.json"
 const SHORTEST_LOOP_S := 4.0
 ## Mixed on each side of a seam.
 const AROUND_SEAM_S := 0.25
-## What follows the seam must be the loop's start: the same samples, so all but identical.
-const SAME_AS_LOOP_START := 0.98
+## What follows the seam must be the loop's start: the same samples, so all but identical. Music
+## measures 0.99-1.00; an ambience bed of broadband noise 0.96, because QOA and the resampler cost
+## noise a few hundredths; a track that does not loop, 0.
+const SAME_AS_LOOP_START := 0.90
 ## Just before the seam, the track must already be the audio that leads into its loop's start,
 ## so that what follows the jump is its true continuation. famirender fades the loop's end into
-## it (0.997 over the last 2 ms); an unfaded end measures about 0.79, a hard cut far less.
-const SEAMLESS := 0.95
+## it (0.975-0.998 over the last 2 ms for music, 0.945 for the noise of an ambience bed); an unfaded
+## end measures about 0.79 for music and near 0 for noise, a hard cut far less.
+const SEAMLESS := 0.90
 ## The window it is measured over, ending a few samples short of the seam so the resampler's
 ## taps never reach across it.
 const LEAD_IN_FRAMES := 88
 const RESAMPLER_REACH := 8
+## ⚠ A seam out of silence has nothing to compare. Terraces loops out of a rest (-101 dBFS) into a
+## gong and drum struck on the loop's first step; the window before the loop's start is digital
+## zero in the file but reads 0.018 played, because QOA smears the attack a little backward
+## (pre-echo), so the two correlate at 0.03. A loop that ends in silence cannot click: what follows
+## is an onset, exactly as on the first pass. Below this level (-60 dBFS) the end counts as silence.
+const SILENT := 0.001
 ## Folders searched for the code that plays an id. Tests do not count.
 const CODE_FOLDERS := ["res://scripts", "res://ui", "res://levels", "res://objects",
 	"res://creatures", "res://environment"]
@@ -38,7 +50,7 @@ const PROBE_SPACING_S := 0.4
 
 var failures := 0
 var checked := 0
-const CHECKS := 15
+const CHECKS := 18
 var director: Node
 
 
@@ -66,11 +78,14 @@ func _run() -> void:
 	_no_sound_effect_loops(sfx)
 	_every_voiced_id_has_a_caller(music, ambience, sfx)
 	await _the_menu_plays_its_music()
+	await _the_loading_screen_starts_the_title_music_and_the_menu_carries_it()
+	await _the_house_plays_its_music_and_fades_it_when_she_leaves()
 	await _a_new_track_crossfades(music)
 	await _the_ambience_is_its_own_channel(music)
 	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
 	_the_music_slider_moves_the_music_bus()
 	await _a_level_that_has_not_opted_in_leaves_the_music_alone()
+	await _terraces_plays_its_music_and_wind_and_fades_both()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -123,11 +138,14 @@ func _music_loops(music: Dictionary) -> void:
 		if likeness < SAME_AS_LOOP_START:
 			not_back.append("%s (%.2f)" % [id, likeness])
 		var lead_from := half - RESAMPLER_REACH - LEAD_IN_FRAMES
-		var lead_in := _likeness(across.slice(lead_from, half - RESAMPLER_REACH),
-			at_start.slice(lead_from, half - RESAMPLER_REACH))
+		var before_seam := across.slice(lead_from, half - RESAMPLER_REACH)
+		var before_start := at_start.slice(lead_from, half - RESAMPLER_REACH)
+		var silent := _loudest(before_seam) < SILENT
+		var lead_in := 1.0 if silent else _likeness(before_seam, before_start)
 		if lead_in < SEAMLESS:
 			clicks.append("%s (%.3f)" % [id, lead_in])
-		heard.append("%s %.1f-%.1f s, returns %.2f, lead-in %.3f" % [id, region.x, region.y, likeness, lead_in])
+		heard.append("%s %.1f-%.1f s, returns %.2f, lead-in %s" % [id, region.x, region.y, likeness,
+			"silent" if silent else "%.3f" % lead_in])
 	_check(unlooped.is_empty(), "every music file loops, over at least %.0f s" % SHORTEST_LOOP_S,
 		"; ".join(heard) if unlooped.is_empty() else ", ".join(unlooped))
 	_check(not_back.is_empty(), "past its loop's end, each track plays its loop's start again",
@@ -178,6 +196,51 @@ func _the_menu_plays_its_music() -> void:
 	var faded := await _until(func() -> bool: return not player.playing, FADE_WAIT_S)
 	_check(playing == &"" and faded, "leaving the menu fades its music out and stops it",
 		"playing '%s', player stopped %s" % [playing, faded])
+
+
+## The title card loading at boot is the title card: its music starts there, and the menu that
+## follows asks for the same track, so it carries on -- the same player, never restarted.
+func _the_loading_screen_starts_the_title_music_and_the_menu_carries_it() -> void:
+	director.call(&"stop_music", 0.0)
+	var screen: Node = (load("res://scripts/loading_screen.gd") as GDScript).new()
+	root.add_child(screen)
+	await _frames(3)
+	var started := director.call(&"current_music") as StringName
+	var player := director.call(&"music_player") as AudioStreamPlayer
+	await create_timer(0.3).timeout
+	var before := player.get_playback_position()
+	screen.free()
+	var menu := (load("res://ui/main_menu.tscn") as PackedScene).instantiate()
+	root.add_child(menu)
+	await _frames(5)
+	var same: bool = director.call(&"music_player") == player and player.playing
+	var after := player.get_playback_position()
+	# ⚠ >=, not >: headless, the playback position moves in mix-sized steps and can read the same
+	# five frames later. A restart is what this guards against, and that reads near zero.
+	_check(started == &"menu" and same and after >= before,
+		"the boot loading screen starts the title's music, and the menu carries it on unrestarted",
+		"started '%s', same player %s, %.2f s -> %.2f s" % [started, same, before, after])
+	menu.queue_free()
+	await _frames(3)
+	director.call(&"stop_music", 0.0)
+
+
+## The house's own loop while she is home, faded out when she leaves.
+func _the_house_plays_its_music_and_fades_it_when_she_leaves() -> void:
+	director.call(&"stop_music", 0.0)
+	var hub := (load("res://levels/hub/hub.tscn") as PackedScene).instantiate()
+	root.add_child(hub)
+	await _frames(5)
+	var playing := director.call(&"current_music") as StringName
+	var player := director.call(&"music_player") as AudioStreamPlayer
+	var path := player.stream.resource_path if player.stream != null else ""
+	hub.queue_free()
+	await _frames(3)
+	var left := director.call(&"current_music") as StringName
+	var faded := await _until(func() -> bool: return not player.playing, FADE_WAIT_S)
+	_check(playing == &"house" and path.ends_with("/house.wav") and left == &"" and faded,
+		"the house plays music.house while she is home, and fades it when she leaves",
+		"home '%s' (%s), after '%s', faded %s" % [playing, path.get_file(), left, faded])
 
 
 ## Two tracks overlap for the fade, the old falling and the new rising, and then only the new one
@@ -264,10 +327,10 @@ func _the_music_slider_moves_the_music_bus() -> void:
 
 
 ## Levels opt in to music (LevelBase._level_music, off by default): one that has not, opened and
-## closed, leaves the music that was playing as it was.
+## closed, leaves the music that was playing as it was. Piyesta, until its own loop is written.
 func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
 	director.call(&"play_music", &"menu", 0.0)
-	var scene := (load("res://game_level.tscn") as PackedScene).instantiate()
+	var scene := (load("res://level_2.tscn") as PackedScene).instantiate()
 	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(scene)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
@@ -281,6 +344,32 @@ func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
 		"a level that has not opted in leaves the music alone, in and out",
 		"in it '%s', after it '%s', sounding %s" % [during, after, player.playing])
 	director.call(&"stop_music", 0.0)
+
+
+## Terraces opts in: its music and its wind start as it opens, over whatever played before, and
+## both fade when it closes.
+func _terraces_plays_its_music_and_wind_and_fades_both() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := (load("res://game_level.tscn") as PackedScene).instantiate()
+	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(scene)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(20)
+	var music := director.call(&"current_music") as StringName
+	var wind := director.call(&"current_ambience") as StringName
+	var track := director.call(&"music_player") as AudioStreamPlayer
+	var bed := director.call(&"ambience_player") as AudioStreamPlayer
+	var files := "%s, %s" % [track.stream.resource_path.get_file() if track.stream else "-",
+		bed.stream.resource_path.get_file() if bed.stream else "-"]
+	var sounding := track.playing and bed.playing
+	scene.queue_free()
+	await _frames(5)
+	var after := "%s/%s" % [director.call(&"current_music"), director.call(&"current_ambience")]
+	var faded := await _until(func() -> bool: return not track.playing and not bed.playing, FADE_WAIT_S)
+	_check(music == &"level_1" and wind == &"level_1" and sounding and files == "level_1.wav, level_1.wav"
+		and after == "/" and faded,
+		"Terraces plays its music and wind as it opens, and fades both when it closes",
+		"in it '%s' + '%s' (%s), after '%s', faded %s" % [music, wind, files, after, faded])
 
 
 # --- helpers ---------------------------------------------------------------------------------
@@ -306,6 +395,13 @@ func _mix(stream: AudioStream, from_s: float, seconds: float) -> PackedFloat32Ar
 	for frame in frames:
 		out.append(frame.x)
 	return out
+
+
+func _loudest(samples: PackedFloat32Array) -> float:
+	var top := 0.0
+	for sample in samples:
+		top = maxf(top, absf(sample))
+	return top
 
 
 ## Normalised correlation: 1 the same, 0 unrelated (or one of them silent).

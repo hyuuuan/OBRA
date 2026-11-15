@@ -62,8 +62,10 @@ CHANNELS_VRC7 = ("fm1", "fm2", "fm3", "fm4", "fm5", "fm6")
 EXPANSION_VRC7 = 2
 
 # Fxx speed/tempo, Bxx jump, Cxx halt, Dxx skip, Gxx delay, Sxx cut, Vxx duty, 0xy arpeggio,
-# 4xy vibrato, Pxx fine pitch. Anything else is refused (see the module docstring).
-SUPPORTED_EFFECTS = frozenset("FBCDGSV04P")
+# 4xy vibrato, Pxx fine pitch, and the slides: 1xx up, 2xx down, 3xx glide into each new note,
+# Qxy / Rxy a slide up / down of y semitones at speed x. Anything else is refused (see the module
+# docstring).
+SUPPORTED_EFFECTS = frozenset("FBCDGSV04P123QR")
 
 # nesdev's linear mixer approximation, per unit of channel level (0..15).
 PULSE_GAIN = 0.00752
@@ -481,6 +483,12 @@ class Voice:
         self.pending: Cell | None = None
         self.delay = 0
         self.cut = -1
+        # Slides, in period units a tick, as FamiTracker counts them (up in pitch is down in period).
+        self.period: float | None = None   # the pitch sounding, which a slide moves
+        self.bend = 0.0                    # 1xx / 2xx: a continuous bend
+        self.glide = 0.0                   # 3xx: new notes glide from the old pitch
+        self.slide_to: int | None = None   # Qxy / Rxy: the note a slide is heading for
+        self.slide_speed = 0.0
         # Values the last tick produced.
         self.out_note = 0.0
         self.out_vol = 0
@@ -514,6 +522,12 @@ class Voice:
                 self.duty_col = value & 0x03
             elif effect == "S":
                 self.cut = value
+            elif effect == "1":
+                self.bend = -float(value)
+            elif effect == "2":
+                self.bend = float(value)
+            elif effect == "3":
+                self.glide = float(value)
         if cell.note == HALT:
             self.on = False
         elif cell.note == RELEASE:
@@ -523,11 +537,23 @@ class Voice:
                 self.on = False
         elif cell.note is not None:
             self._trigger(int(cell.note))
+        # A note slide starts from the row's own note, so it is read after the note is struck.
+        for effect, value in cell.effects:
+            if effect in "QR" and self.note is not None and value & 0x0F:
+                semitones = value & 0x0F
+                self.slide_to = self.note + (semitones if effect == "Q" else -semitones)
+                self.slide_speed = float(2 * (value >> 4) + 1)
 
     def _trigger(self, note: int) -> None:
+        gliding = self.glide > 0 and self.on and self.period is not None
         self.note = note
         self.on = True
-        self.triggered = True
+        # ⚠ A glided note is NOT re-struck: on the VRC7 that would restart its envelope, and the
+        # glide is the point -- one breath bending to the next note. The 2A03's macros restart.
+        self.triggered = not gliding
+        self.slide_to = None
+        if not gliding:
+            self.period = pulse_period(note)
         self.pitch_acc = 0
         self.arp_acc = 0
         self.arp_state = 0
@@ -576,13 +602,31 @@ class Voice:
         note = self.note if self.note is not None else 0
         base = fixed_note if fixed_note is not None else note + seq_arp
         self.out_note = float(base + arp_offset)
+        # The sounding pitch: where a slide has moved it, or the note's own.
+        target = pulse_period(note)
+        if self.period is None:
+            self.period = target
+        if self.bend:
+            self.period = min(max(self.period + self.bend, 1.0), 4000.0)
+        elif self.slide_to is not None:
+            goal = pulse_period(self.slide_to)
+            self.period = _toward(self.period, goal, self.slide_speed)
+            if self.period == goal:
+                self.note, self.slide_to = self.slide_to, None
+                self.out_note = float(self.note)
+        elif self.glide:
+            self.period = _toward(self.period, target, self.glide)
+        else:
+            self.period = target
+        # An arpeggio plays its notes outright; a slide moves only the note itself.
+        arpeggiated = arp_offset != 0 or seq_arp != 0 or fixed_note is not None
+        sounding = pulse_period(self.out_note) if arpeggiated else self.period
         vibrato = 0.0
         if self.vib_depth:
             self.vib_phase = (self.vib_phase + self.vib_speed) & 63
             vibrato = VIBRATO_DEPTH[self.vib_depth] * math.sin(2 * math.pi * self.vib_phase / 64)
         # Period units, as FamiTracker applies them: up in pitch is down in period.
-        self.out_period = (pulse_period(self.out_note) + self.pitch_acc - vibrato
-                           - (self.fine - 0x80))
+        self.out_period = sounding + self.pitch_acc - vibrato - (self.fine - 0x80)
         if self.fm:
             self.out_vol = self.vol
         else:
@@ -592,6 +636,12 @@ class Voice:
             self.out_vol = volume if self.on else 0
         # A duty macro overrides Vxx on every tick it runs, as in the tracker.
         self.out_duty = seq_duty if seq_duty is not None else (self.duty_col or 0)
+
+
+def _toward(value: float, goal: float, step: float) -> float:
+    if abs(goal - value) <= step:
+        return goal
+    return value + step if goal > value else value - step
 
 
 # --- The 2A03 ----------------------------------------------------------------------------------

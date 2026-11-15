@@ -10,6 +10,10 @@ extends Node2D
 ## why they are the same five things, which is that Lola painted all of them.
 ##
 ## Painting availability follows the level catalog and progression flag, including DevMode.
+
+## The house's own loop (audio/music/house.txt): a slow serenade on the title theme's motif. It
+## plays while she is home and fades when she leaves, if still the house's.
+const HOUSE_MUSIC := &"house"
 ##
 ## The room builds itself here rather than being authored as a scene tree, because every
 ## number in it is derived from one thing: how far apart five paintings want to be. The
@@ -87,6 +91,7 @@ var _last_hall_x := SPAWN_X
 
 
 func _ready() -> void:
+	AudioDirector.play_music(HOUSE_MUSIC)
 	_room = HubRoomScript.new()
 	_room.name = "Room"
 	add_child(_room)
@@ -229,6 +234,9 @@ func epilogue() -> HouseEpilogue:
 
 func _exit_tree() -> void:
 	remember_position()
+	# Only the house's own track: a scene that has already started one of its own keeps it.
+	if AudioDirector.current_music() == HOUSE_MUSIC:
+		AudioDirector.stop_music()
 
 
 func remember_position() -> void:

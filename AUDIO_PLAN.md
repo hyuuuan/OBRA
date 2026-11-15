@@ -16,7 +16,7 @@ what to build with it, and in what order.
 - **PR #217 is merged**, with revision 2 of `music.menu`. Kent heard it and asked for an MP3 to
   share.
 - **PR 2 (`audio-plumbing`) is built**: the sliders, the crossfade, the ambience channel,
-  sfx spacing, and the LevelBase hooks. The hooks' opt-in path is first exercised when Payyo opts
+  sfx spacing, and the LevelBase hooks. The hooks' opt-in path is first exercised when Terraces (Level 1) opts
   in (PR 4); that PR's probe asserts it.
 - **Two sessions (Kent, 2026-11-14).** This one does the plumbing and the music (PRs 2–10).
   The "audio-sfx" session does the sound effects (PRs 11, 12, 14 and 15), and PR 13
@@ -39,6 +39,7 @@ what to build with it, and in what order.
 | Boss and finale music | **Yes.** Dagat's Bakunawa and Dilim's finale get their own loop, then the level's loop returns. |
 | Ambience | **Yes.** A quiet bed under each level's music, on its own player. |
 | Sound effects | **All four groups**: drawing and morphing, the apo's moves (**with footsteps**), combat, and level props. Plus a **level-complete jingle**. |
+| Style (2026-11-15) | **After a Fearofdark track Kent likes: jazzy chords, swing, slides and bends, energy.** Every piece still to write; the title theme stays. **But the house and Terraces follow Philippine traditions instead** (Kent, 2026-11-15): the house is a kundiman for rondalla, Terraces is after Ifugao gangsa music, each with only a touch of the new style. Still no thin high pulses or bright noise. Kent approved a style test, a sketch of Piyesta, which PR 5 builds from (`piyesta_sketch_level_2.txt` and `compose_piyesta_sketch.py` in the side-session notes folder). |
 | Visual twin | **Every sound cue has a visual equivalent** (Dilim's rule): each sound below plays beside something the screen already shows. Music and ambience carry no information and need none. |
 
 ## Ask Kent once, at the start of the next session
@@ -59,8 +60,8 @@ Riskiest first: the shared plumbing, then the music, then the sounds.
 |---|---|---|---|
 | 1 | `famitracker-audio` | Kent listens to `music.menu`; adjust; push and open the PR on his OK. | done (see the end) |
 | 2 | `audio-plumbing` (built) | **Volume sliders** back in `ui/settings_overlay.tscn` (taken out while nothing could be heard; the profile and buses already work). **LevelBase hook `_level_music() -> StringName`**, default `&""` (off); a level that returns an id plays it on entry. **`_level_ambience()`** likewise, played by a new `AudioDirector.play_ambience` on a second looping player (`audio.json` → `ambience`, `audio/ambience/<id>.txt`, `build_music.py` learns the section). **Crossfade in `play_music`** (~0.6 s, `Tween.TWEEN_PAUSE_PROCESS`), so a boss loop or a new place does not cut. **Per-id minimum interval in `play_sfx`** (see traps). | **full** (an autoload and shared LevelBase plumbing) |
-| 3 | `music-house` | Turn the helper into `tools/famitext.py`. Write `music.house`; `hub.gd` opts in. **Loading screen**: the menu's loop starts on the boot loading screen (the same title card) and carries into the menu; a level load keeps the outgoing music until the next place's begins. | python, run_audio_probe, run_hub_audit, run_new_game_probe, run_journey_probe |
-| 4 | `music-payyo` | `music.level_1` and `ambience.level_1` (wind); `game_level.gd` opts in. | python, run_audio_probe, run_level1_audit, run_walk_level1, run_level_ready |
+| 3 | `music-house` (built) | Turn the helper into `tools/famitext.py`. Write `music.house`; `hub.gd` opts in. **Loading screen**: the menu's loop starts on the boot loading screen (the same title card) and carries into the menu; a level load keeps the outgoing music until the next place's begins. | python, run_audio_probe, run_hub_audit, run_new_game_probe, run_journey_probe |
+| 4 | `music-terraces` (built) | `music.level_1` and `ambience.level_1` (wind); `game_level.gd` opts in. | python, run_audio_probe, run_level1_audit, run_walk_level1, run_level_ready |
 | 5 | `music-piyesta` | `music.level_2` and `ambience.level_2` (a crowd's murmur in noise); `level_2.gd` opts in. ⚠ The dance minigame (`dance_minigame.gd`, `cue_judged`) keeps its own beat: check that the loop does not fight it, and pause the loop for the dance if it does. | python, run_audio_probe, run_level2_audit, run_dance_probe, run_play_level2 |
 | 6 | `music-dagat` | `music.level_3` and `ambience.level_3` (waves); `level_3.gd` opts in. | python, run_audio_probe, run_level3_audit, run_level3_play_probe, run_water_audit |
 | 7 | `music-dilim` | `music.level_4` and `ambience.level_4` (night insects); `level_4.gd` opts in. Sparse and low, so the tik-tik's call and the tiyanak's cry (gameplay information) read over it. It stops at the dawn. | python, run_audio_probe, run_level4_sound_probe, run_darkness_probe, run_makiling_probe |
@@ -95,10 +96,10 @@ Every piece is the same chip set at the same fixed loudness, so their levels rel
 
 | Id | Place | Brief |
 |---|---|---|
-| `music.menu` | Title card, and the boot loading screen | **Done** (provisional): E minor, 112 BPM, flute lead over chorus pads; arpeggio with echo. |
-| `music.house` | Lola's house (hub) | Warm, small, still. The menu's motif slowed, solo VRC7 piano or vibraphone over one pad. 80–90 BPM. No drums. |
-| `music.level_1` | Payyo, the terraces | Morning in the mountains: pentatonic, open fifths, a bamboo-flute-like VRC7 flute, gong-like figures on the soft bell. A gentle walking pulse, 100–110 BPM. |
-| `music.level_2` | Piyesta, the fiesta plaza | Festive and bright: a brass-band feel (VRC7 trumpet and brass, guitar strums as arpeggios), a 2/4 march or a 6/8 lilt, 120–130 BPM, busy noise percussion. |
+| `music.menu` | Title card, and the boot loading screen | **Done**, revision 2 (Kent heard the first): D major pentatonic, ~129 BPM, a bamboo-flute theme over kulintang, agung, rondalla, babendil and dabakan, with the painting's sparkle. |
+| `music.house` | Lola's house (hub) | **Done** (provisional): a kundiman for rondalla, bandurria tremolo over octavina, laud and guitar, E minor turning to E major, ~90 BPM. ⚠ After the run the house is the epilogue's: PR 9/10 decides whether `mayon_ending` carries on there instead. |
+| `music.level_1` | Terraces (Level 1) | **Done** (provisional), after Ifugao music, with `ambience.level_1` (wind): four short gangsa gongs in a hocket (redone after Kent heard them run together), bangibang-like wood in the gaps, a low drum, and a hudhud-like call and response over one gong; ~112 BPM straight. |
+| `music.level_2` | Piyesta, the fiesta plaza | **Sketched and approved** (the style test): a swung banda in F, ~150 BPM, a trumpet that scoops, falls and glides over jazz changes, a second trumpet in the last phrase, 7th-chord arpeggios, piano comping, a walking triangle bass with a kick, ride and snare, xylophone fills. ⚠ Check it against the dance minigame's beat. |
 | `music.level_3` | Dagat, the sea | A flowing 3/4: broken-chord arpeggios like waves (pulse with echo), VRC7 chorus and vibraphone, a long-breathed clarinet line. 90–100 BPM. |
 | `music.bakunawa` | Dagat, the Bakunawa | The sea theme's motif in a minor key, driving 140 BPM, a low FM bass ostinato and noise tom fills. |
 | `music.level_4` | Dilim, the forest at night | Sparse and low: a drone on the bass, a few soft bell notes far apart, a minor second that does not resolve. No snare. **Leaves the mid and high band to the creatures.** Stops at the dawn. |
@@ -106,7 +107,7 @@ Every piece is the same chip set at the same fixed loudness, so their levels rel
 | `music.level_5` | Mayon, the ascent and the heart | Lola's motif (the menu's) worn thin: fewer voices with each act, ending on a single line. Stops as the summit begins. |
 | `mayon_ending` | Lola's easel, the house epilogue | The motif whole again, warm: "Lolo. Let's go home." |
 | `music.ending` | The ending screen | `mayon_ending` carried on, or a short coda of it. |
-| `ambience.level_1..4` | Under each level | Payyo wind (noise swells); Piyesta crowd murmur (noise with a slow volume walk); Dagat waves (long noise swells); Dilim insects (high pulse chirps, sparse). |
+| `ambience.level_1..4` | Under each level | Terraces wind (noise swells); Piyesta crowd murmur (noise with a slow volume walk); Dagat waves (long noise swells); Dilim insects (high pulse chirps, sparse). |
 
 ## The sounds, by what makes them
 

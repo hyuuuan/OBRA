@@ -57,10 +57,13 @@
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
-    "level_1": "",
+    "house": "res://assets/audio/music/house.wav",
+    "level_1": "res://assets/audio/music/level_1.wav",
     "mayon_ending": ""
   },
-  "ambience": {},
+  "ambience": {
+    "level_1": "res://assets/audio/ambience/level_1.wav"
+  },
   "spacing": {
     "step": 0.12,
     "land": 0.15,

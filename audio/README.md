@@ -47,7 +47,12 @@ A module using anything else is **refused, by line**, never rendered approximate
 - Channels, in the tracker's order: Pulse 1, Pulse 2, Triangle, Noise, DPCM, then FM 1–6.
   **DPCM is not rendered**, so the drums are triangle and noise.
 - Effects: `Fxx` speed/tempo, `Bxx` jump, `Cxx` halt, `Dxx` skip, `Gxx` delay, `Sxx` cut,
-  `Vxx` duty or noise mode, `0xy` arpeggio, `4xy` vibrato, `Pxx` fine pitch.
+  `Vxx` duty or noise mode, `0xy` arpeggio, `4xy` vibrato, `Pxx` fine pitch, and the slides:
+  `1xx` / `2xx` bend up / down, `3xx` glide into each new note (on the VRC7 a glided note is not
+  struck again), `Qxy` / `Rxy` slide up / down `y` semitones at speed `x`, the arrival becoming the
+  note. An arpeggio still plays its notes outright.
+- Swing: `tools/famitext.py`'s `Song.swing(long, short)` alternates the speed row by row. The
+  speed and the loop's jump ride the DPCM channel's two effect columns, which carry nothing else.
 - 2A03 macros: volume, arpeggio (absolute, fixed or relative), pitch, duty. A fixed arpeggio
   counts from the tracker's C-0.
 - VRC7 instruments: one of the fifteen built-in patches, or patch 0 with its eight registers.
@@ -99,7 +104,10 @@ information, so it needs none.
 
 | Id | Module | Notes |
 |---|---|---|
-| `music.menu` | `music/menu.txt` | The title card, revised at Kent's word (2026-11-14: "nice, but it lacks the cultural, painting, adventure-game vibe in the Philippines"). D major pentatonic, ~129 BPM, a 7.5 s intro (agung, then kulintang, then a bamboo-flute call) and a 30 s loop: an adventure march under a bamboo-flute theme (VRC7 flute), a kulintang ostinato (VRC7 xylophone), agung gongs (VRC7 soft bell, low), rondalla tremolo in thirds (VRC7 guitar), a babendil tick and dabakan drum (short and long noise), an agung thump (triangle), and the painting's sparkle (pulse arpeggio and echo). The B section turns from B minor to D major, as a kundiman does. **Provisional until Kent has listened.** |
+| `music.menu` | `music/menu.txt` | The title card (and the boot loading screen, which is the same card), revised at Kent's word (2026-11-14: "nice, but it lacks the cultural, painting, adventure-game vibe in the Philippines"). D major pentatonic, ~129 BPM, a 7.5 s intro (agung, then kulintang, then a bamboo-flute call) and a 30 s loop: an adventure march under a bamboo-flute theme (VRC7 flute), a kulintang ostinato (VRC7 xylophone), agung gongs (VRC7 soft bell, low), rondalla tremolo in thirds (VRC7 guitar), a babendil tick and dabakan drum (short and long noise), an agung thump (triangle), and the painting's sparkle (pulse arpeggio and echo). The B section turns from B minor to D major, as a kundiman does. **Provisional until Kent has listened.** |
+| `music.house` | `music/house.txt` | Lola's house, the hub: a kundiman for rondalla (Kent, 2026-11-15: "more on the Philippine cultural side"). The bandurria (VRC7 guitar) carries a cantabile tune in tremolo, a stroke every thirty-second; the octavina answers an octave under; the laud plays a harana-like broken chord; the guitar holds the chord on two and three; a triangle bass and a soft chord sparkle. 3/4, E minor turning to E major as a kundiman does, ~90 BPM, a 32 s loop; a scoop at each phrase's peak. **Provisional until Kent has listened.** |
+| `music.level_1` | `music/level_1.txt` | Terraces (Level 1), after Ifugao music (Kent, 2026-11-15): four gangsa gongs in a hocket (no two strike on the same step), each a custom VRC7 patch that rings about a third of a second and is damped after, pitched D-A-D-E and a little off a Western scale; bangibang-like wood (VRC7 xylophone) in the gaps; a low drum. ~112 BPM straight. The gongs enter one by one; in the middle the ensemble drops to one gong under a hudhud-like call and response (a gliding lead voice, a chorus in octaves). Original. A 34 s loop. ⚠ The first version used the VRC7 soft bell, which rang 3.9 s a strike: the gongs ran together (Kent: "everything is overlapping"). **Provisional until Kent has listened.** |
+| `ambience.level_1` | `ambience/level_1.txt` | Terraces' wind: low noise in uneven swells over a faint hiss, a 13 s loop about 13 dB under the music. Dark on purpose. **Provisional.** |
 | `sfx.ui_click` | `sfx/ui_click.txt` | Every button. A soft babendil tick: a 25% pulse on B5 that falls a hair, and a glint of short-mode noise. 0.08 s, about −26 dBFS RMS. |
 | `sfx.ui_open` | `sfx/ui_open.txt` | An overlay coming up: two soft 50% pulses, D5 then A5, with a quieter echo three ticks behind. 0.26 s. |
 | `sfx.ui_close` | `sfx/ui_close.txt` | And going: the same two notes down, A5 to D5, a shade softer. 0.25 s. |
