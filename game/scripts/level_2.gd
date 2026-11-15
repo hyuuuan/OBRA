@@ -474,6 +474,10 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 		# with a scattered troupe, but a probe or restored developer state must not deadlock.
 		await get_tree().create_timer(DancerGroup2D.PUZZLE_LEAD_IN, false, false, true).timeout
 	if dance_screen != null and is_instance_valid(dance_screen):
+		# ⚠ THE DANCE KEEPS ITS OWN TIME: its cues fall on their own beat, and the level's loop
+		# under them would be a second, different beat. The music fades out for the dance and
+		# comes back when it is over (_on_dance_screen_finished).
+		AudioDirector.stop_music()
 		dance_screen.present()
 
 
@@ -485,6 +489,7 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 ## this level's per-class statistics -- which is exactly the reporting rule the thesis is
 ## built on. The item is the dance itself.
 func _on_dance_screen_finished(_cleared: bool, _flower: bool) -> void:
+	AudioDirector.play_music(_level_music())
 	# The flower and the telemetry were already recorded by `_on_dance_finished`, off the
 	# model's own signal, so nothing about the outcome is decided twice.
 	if director != null and not director.is_solved("L2_N1"):

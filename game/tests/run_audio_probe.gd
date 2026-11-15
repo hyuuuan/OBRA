@@ -50,7 +50,7 @@ const PROBE_SPACING_S := 0.4
 
 var failures := 0
 var checked := 0
-const CHECKS := 18
+const CHECKS := 19
 var director: Node
 
 
@@ -86,6 +86,7 @@ func _run() -> void:
 	_the_music_slider_moves_the_music_bus()
 	await _a_level_that_has_not_opted_in_leaves_the_music_alone()
 	await _terraces_plays_its_music_and_wind_and_fades_both()
+	await _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -370,6 +371,29 @@ func _terraces_plays_its_music_and_wind_and_fades_both() -> void:
 		and after == "/" and faded,
 		"Terraces plays its music and wind as it opens, and fades both when it closes",
 		"in it '%s' + '%s' (%s), after '%s', faded %s" % [music, wind, files, after, faded])
+
+
+## Piyesta plays its loop; the dance, which keeps its own beat, fades it out, and the music comes
+## back when the dance is over. Driven through the level's own handlers for the Artist route.
+func _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := (load("res://level_2.tscn") as PackedScene).instantiate()
+	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(scene)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(20)
+	var opened := director.call(&"current_music") as StringName
+	scene.call(&"_on_route_committed_here", "L2_N1", "artist")
+	var hushed := await _until(func() -> bool: return director.call(&"current_music") == &"", 10.0)
+	scene.call(&"_on_dance_screen_finished", true, true)
+	await _frames(3)
+	var after := director.call(&"current_music") as StringName
+	scene.queue_free()
+	await _frames(5)
+	_check(opened == &"level_2" and hushed and after == &"level_2",
+		"Piyesta plays its music, fades it for the dance, and brings it back after",
+		"opened '%s', hushed for the dance %s, after it '%s'" % [opened, hushed, after])
+	director.call(&"stop_music", 0.0)
 
 
 # --- helpers ---------------------------------------------------------------------------------
