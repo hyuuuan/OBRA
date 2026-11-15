@@ -57,7 +57,7 @@ const LOOP_FADE_PROBE_S := 0.6
 
 var failures := 0
 var checked := 0
-const CHECKS := 32
+const CHECKS := 37
 var director: Node
 
 
@@ -100,6 +100,7 @@ func _run() -> void:
 	await _the_bakunawa_has_its_own_music_until_it_is_answered()
 	await _dilim_races_to_its_own_music()
 	await _dilims_night_builds_wave_by_wave_and_breaks_off_at_dawn()
+	await _mayon_climbs_remembers_and_finds_her()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -671,6 +672,77 @@ func _dilims_night_builds_wave_by_wave_and_breaks_off_at_dawn() -> void:
 	_check(night == "dilim_night_1" and retried == "level_4",
 		"a retried night goes back to the forest's music until it begins again",
 		"night '%s', retried '%s'" % [night, retried])
+	director.call(&"stop_music", 0.0)
+	director.call(&"stop_ambience", 0.0)
+
+
+## Mayon: the ascent plays her worn motif as it opens; the memory lane plays each earlier level's
+## memory by the vignette she is in, crossfading slowly; the music stops in the frame Lolo
+## vanishes; Lola's kundiman when the summit opens, the ending's from the bloom, and nothing again
+## below the summit with him gone. A memory saved is heard as its line is shown. Through the
+## level's own state and handlers, with its physics off.
+var _brush_heard := false
+
+
+func _mayon_climbs_remembers_and_finds_her() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := await _open("res://level_5.tscn")
+	scene.set_physics_process(false)
+	var ascent := String(director.call(&"current_music"))
+	var file := (director.call(&"music_player") as AudioStreamPlayer).stream.resource_path.get_file()
+	_check(ascent == "level_5" and file == "level_5.wav", "Mayon's ascent plays her motif, worn thin",
+		"opened '%s' (%s)" % [ascent, file])
+	scene.set(&"_phase", "memories")
+	var lane: Array[String] = []
+	var slow := true
+	for vignette: String in ["payyo_terraces", "piyesta_plaza", "dagat_sea", "dilim_forest"]:
+		var before := director.call(&"music_player") as AudioStreamPlayer
+		scene.set(&"_active_cluster", vignette)
+		scene.call(&"_refresh_the_place_audio")
+		lane.append(String(director.call(&"current_music")))
+		await create_timer(1.0).timeout
+		# A second in, a 2 s crossfade still has the last memory sounding under the new one.
+		slow = slow and before.playing and before.volume_db > -40.0
+	_check(lane == ["memory_terraces", "memory_piyesta", "memory_dagat", "memory_dilim"] and slow,
+		"the memory lane plays each level's memory by its vignette, crossfading slowly",
+		"%s, still crossing a second in %s" % [lane, slow])
+	var last := director.call(&"music_player") as AudioStreamPlayer
+	scene.call(&"_vanish_lolo")
+	var gone := String(director.call(&"current_music"))
+	_check(gone == "" and not last.playing, "the music stops in the frame Lolo vanishes",
+		"music '%s', still sounding %s" % [gone, last.playing])
+	scene.set(&"_summit", "quiet")
+	scene.call(&"_refresh_the_place_audio")
+	var found := String(director.call(&"current_music"))
+	scene.set(&"_summit", "blooming")
+	scene.call(&"_refresh_the_place_audio")
+	var bloom := String(director.call(&"current_music"))
+	scene.set(&"_summit", "lowering")
+	scene.call(&"_reset_summit")
+	scene.call(&"_refresh_the_place_audio")
+	var below := String(director.call(&"current_music"))
+	_check(found == "lola" and bloom == "mayon_ending" and below == "",
+		"the summit plays Lola's music when she is found, the ending's from the bloom; below it again, nothing",
+		"found '%s', bloom '%s', back below '%s'" % [found, bloom, below])
+	scene.queue_free()
+	await _frames(5)
+	scene = await _open("res://level_5.tscn")
+	_brush_heard = false
+	var listen := func(id: StringName, _loudness: float) -> void:
+		if id == &"mayon_brush":
+			_brush_heard = true
+	director.connect(&"sfx_requested", listen)
+	var fragments := scene.get(&"_fragments") as Array
+	var fragment_id := String((fragments[0] as Node).get(&"fragment_id")) if not fragments.is_empty() else ""
+	scene.call(&"_on_fragment_saved", fragment_id)
+	var label := scene.get(&"status_label") as Label
+	var shown := label != null and label.visible and not label.text.is_empty()
+	director.disconnect(&"sfx_requested", listen)
+	scene.queue_free()
+	await _frames(5)
+	_check(not fragment_id.is_empty() and _brush_heard and shown,
+		"a memory saved is heard (mayon_brush) as its saved line is shown",
+		"fragment '%s', heard %s, line shown %s" % [fragment_id, _brush_heard, shown])
 	director.call(&"stop_music", 0.0)
 	director.call(&"stop_ambience", 0.0)
 
