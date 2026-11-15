@@ -59,10 +59,14 @@
     "menu": "res://assets/audio/music/menu.wav",
     "house": "res://assets/audio/music/house.wav",
     "level_1": "res://assets/audio/music/level_1.wav",
+    "level_2": "res://assets/audio/music/level_2.wav",
+    "dance": "res://assets/audio/music/dance.wav",
+    "church": "res://assets/audio/music/church.wav",
     "mayon_ending": ""
   },
   "ambience": {
-    "level_1": "res://assets/audio/ambience/level_1.wav"
+    "level_1": "res://assets/audio/ambience/level_1.wav",
+    "level_2": "res://assets/audio/ambience/level_2.wav"
   },
   "spacing": {
     "step": 0.12,

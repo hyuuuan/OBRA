@@ -141,6 +141,30 @@ func dialogue_path() -> String:
 	return "res://config/dialogue_l2.json"
 
 
+## Piyesta's loop (audio/music/level_2.txt): the plaza after the Sinulog -- a hypnotic drum cell
+## of two strokes forward and one back, kalutang and agong, a simple hook a crowd could sing, Pit
+## Senyor called and answered -- over the street's murmur (audio/ambience/level_2.txt). LevelBase
+## plays both when the level opens; _refresh_the_place_audio changes them by room.
+func _level_music() -> StringName:
+	return &"level_2"
+
+
+func _level_ambience() -> StringName:
+	return &"level_2"
+
+
+## Inside the church: a slow hymn on the reed organ, and no street (Kent: "solemn, peaceful").
+const CHURCH_MUSIC := &"church"
+## The dance minigame's own music, its strong beats on the cues (DanceOverlay.music_id).
+const DANCE_MUSIC := &"dance"
+## Which place the music is currently set for ("church" or "outside"), so it changes only when
+## the answer does. Asked every physics frame, like the ceiling, so a restore or a fall that
+## moves the player without a door still gets the right music.
+var _music_for := "?"
+## While the dance is up, its music is the dance's own and the rooms leave it alone.
+var _dancing := false
+
+
 func _dialogue_node_obstacle_id() -> String:
 	return _live_node_obstacle
 
@@ -445,6 +469,7 @@ func _build_the_dance_screen() -> void:
 	dance_screen.name = "DanceOverlay"
 	add_child(dance_screen)
 	dance_screen.bind(dance)
+	dance_screen.music_id = DANCE_MUSIC
 	dance_screen.run_finished.connect(_on_dance_screen_finished)
 	dance_screen.attempt_lost.connect(_on_dance_attempt_lost)
 	if director != null:
@@ -467,6 +492,9 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 		# with a scattered troupe, but a probe or restored developer state must not deadlock.
 		await get_tree().create_timer(DancerGroup2D.PUZZLE_LEAD_IN, false, false, true).timeout
 	if dance_screen != null and is_instance_valid(dance_screen):
+		# ⚠ THE DANCE KEEPS ITS OWN TIME: its cues fall on their own beat, so it brings its own
+		# music, written onto them, and the plaza's steps aside until it is over.
+		_dancing = true
 		dance_screen.present()
 
 
@@ -478,6 +506,8 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 ## this level's per-class statistics -- which is exactly the reporting rule the thesis is
 ## built on. The item is the dance itself.
 func _on_dance_screen_finished(_cleared: bool, _flower: bool) -> void:
+	_dancing = false
+	_music_for = "?"   # the plaza's music (or the church's) comes back on the next frame
 	# The flower and the telemetry were already recorded by `_on_dance_finished`, off the
 	# model's own signal, so nothing about the outcome is decided twice.
 	if director != null and not director.is_solved("L2_N1"):
@@ -1570,6 +1600,7 @@ func _handle_level_input(event: InputEvent) -> bool:
 func _level_physics(anchor_position: Vector2) -> void:
 	_tend_the_alleys()
 	_refresh_the_ceiling()
+	_refresh_the_place_audio()
 	if restrictions == null or player == null or not is_instance_valid(player):
 		return
 	if _current_form_id.is_empty():
@@ -1602,6 +1633,39 @@ func _on_ceiling_crossed(entity_id: String, height_over: float) -> void:
 		"level_id": LevelManager.current_level_id,
 		"rule": "flight_ceiling", "class": entity_id, "over_by": height_over,
 	})
+
+
+## The church has its hymn and no street; everywhere else has the plaza and the street. Asked
+## every frame and acted on only when the answer changes, like the ceiling below: a restore or
+## a fall can move the player between rooms without a doorway. The dance keeps its own music.
+## ⚠ AudioDirector BY PATH, never by name: an autoload's name does not compile in a --script
+## run, and that broke every probe that loads this level.
+func _refresh_the_place_audio() -> void:
+	if _dancing:
+		return
+	var room := _room_holding_player()
+	var where := "church" if room != null and room == church else "outside"
+	if where == _music_for:
+		return
+	_music_for = where
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio == null:
+		return
+	if where == "church":
+		audio.call(&"play_music", CHURCH_MUSIC)
+		audio.call(&"stop_ambience")
+	else:
+		audio.call(&"play_music", _level_music())
+		audio.call(&"play_ambience", _level_ambience())
+
+
+## LevelBase fades the level's own music as it leaves; the church's and the dance's are this
+## level's too, and leave with it.
+func _exit_tree() -> void:
+	super()
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null and audio.call(&"current_music") in [CHURCH_MUSIC, DANCE_MUSIC]:
+		audio.call(&"stop_music")
 
 
 ## THE CEILING IS PER SCENE, NOT ONE NUMBER. Whatever Y the bandaritas are strung at in the

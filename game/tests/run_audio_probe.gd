@@ -50,7 +50,7 @@ const PROBE_SPACING_S := 0.4
 
 var failures := 0
 var checked := 0
-const CHECKS := 18
+const CHECKS := 20
 var director: Node
 
 
@@ -86,6 +86,8 @@ func _run() -> void:
 	_the_music_slider_moves_the_music_bus()
 	await _a_level_that_has_not_opted_in_leaves_the_music_alone()
 	await _terraces_plays_its_music_and_wind_and_fades_both()
+	await _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time()
+	await _piyestas_church_has_its_own_music_and_no_street()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -327,10 +329,10 @@ func _the_music_slider_moves_the_music_bus() -> void:
 
 
 ## Levels opt in to music (LevelBase._level_music, off by default): one that has not, opened and
-## closed, leaves the music that was playing as it was. Piyesta, until its own loop is written.
+## closed, leaves the music that was playing as it was. Dagat, until its own loop is written.
 func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
 	director.call(&"play_music", &"menu", 0.0)
-	var scene := (load("res://level_2.tscn") as PackedScene).instantiate()
+	var scene := (load("res://level_3.tscn") as PackedScene).instantiate()
 	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(scene)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
@@ -370,6 +372,58 @@ func _terraces_plays_its_music_and_wind_and_fades_both() -> void:
 		and after == "/" and faded,
 		"Terraces plays its music and wind as it opens, and fades both when it closes",
 		"in it '%s' + '%s' (%s), after '%s', faded %s" % [music, wind, files, after, faded])
+
+
+## Piyesta plays its loop over the street; the dance, which keeps its own beat, brings its own
+## music, started with the attempt; and the plaza's comes back when the dance is over. Driven
+## through the level's own handlers for the Artist route.
+func _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := await _open("res://level_2.tscn")
+	var opened := "%s/%s" % [director.call(&"current_music"), director.call(&"current_ambience")]
+	scene.call(&"_on_route_committed_here", "L2_N1", "artist")
+	var danced := await _until(func() -> bool: return director.call(&"current_music") == &"dance", 10.0)
+	var overlay := scene.get(&"dance_screen") as Node
+	if overlay != null and overlay.has_method(&"close"):
+		overlay.call(&"close")
+	scene.call(&"_on_dance_screen_finished", true, true)
+	var back := await _until(func() -> bool: return director.call(&"current_music") == &"level_2", 5.0)
+	scene.queue_free()
+	await _frames(5)
+	_check(opened == "level_2/level_2" and danced and back,
+		"Piyesta plays its music over the street, the dance its own, and the plaza's returns after",
+		"opened '%s', dance music %s, back after %s" % [opened, danced, back])
+	director.call(&"stop_music", 0.0)
+	director.call(&"stop_ambience", 0.0)
+
+
+## Inside the church a slow hymn plays and the street falls away; out of it, both come back.
+## Through the level's own doors (_enter_room / _leave_room).
+func _piyestas_church_has_its_own_music_and_no_street() -> void:
+	var scene := await _open("res://level_2.tscn")
+	var church := scene.get(&"church") as Node2D
+	var player := scene.get(&"player") as Node2D
+	scene.call(&"_enter_room", church, player.global_position)
+	var inside := await _until(func() -> bool: return director.call(&"current_music") == &"church", 3.0)
+	var hushed: bool = director.call(&"current_ambience") == &""
+	scene.call(&"_leave_room", church)
+	var outside := await _until(func() -> bool:
+		return director.call(&"current_music") == &"level_2" and director.call(&"current_ambience") == &"level_2", 3.0)
+	scene.queue_free()
+	await _frames(5)
+	_check(inside and hushed and outside, "Piyesta's church has its own hymn and no street; outside, both return",
+		"hymn inside %s, street hushed %s, plaza and street outside %s" % [inside, hushed, outside])
+	director.call(&"stop_music", 0.0)
+	director.call(&"stop_ambience", 0.0)
+
+
+func _open(path: String) -> Node:
+	var scene := (load(path) as PackedScene).instantiate()
+	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(scene)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(20)
+	return scene
 
 
 # --- helpers ---------------------------------------------------------------------------------
