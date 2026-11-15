@@ -384,3 +384,9 @@ class Undergrowth extends Node2D:
 	## Thinned when it was shown: redrawn once, then still.
 	func show_through() -> void:
 		queue_redraw()
+
+
+## Not by heat: a sun is the light that ends it (the artist's way); burned to death it would
+## answer the fight as the protector's.
+func apply_scorch(_ticks: int, _seconds: float) -> void:
+	pass

@@ -192,3 +192,8 @@ func _draw() -> void:
 		var grip := Vector2(_facing * (body_size.x * 0.5 + 8.0), top + 70.0)
 		var club_end := grip + (Vector2(0.0, -70.0) if raised else Vector2(_facing * 40.0, 50.0))
 		draw_line(grip, club_end, CLUB, 12.0)
+
+
+## Not by heat: it is a giant, not an aswang, and its fight is a blow or a way over, never a light.
+func apply_scorch(_ticks: int, _seconds: float) -> void:
+	pass

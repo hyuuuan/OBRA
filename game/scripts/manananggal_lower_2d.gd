@@ -85,3 +85,9 @@ func _draw() -> void:
 			var rise := (1.0 - _smoke / CRUMBLE_SECONDS) * 30.0
 			draw_circle(Vector2(-10.0 + puff * 7.0, -half.y - rise - puff * 4.0), 5.0,
 				Color(SALT_SMOKE, _smoke / CRUMBLE_SECONDS))
+
+
+## Not by heat: its apply_burn is salt -- the pragmatist's deed -- and a sun must not be salt. The
+## sun's light ends it the artist's way already.
+func apply_scorch(_ticks: int, _seconds: float) -> void:
+	pass
