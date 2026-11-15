@@ -20,7 +20,7 @@ const HOUSE_DOOR := ^"EnvironmentBaseplate/GameplayPlane/Bale/House"
 
 var failures := 0
 var checked := 0
-const CHECKS := 13
+const CHECKS := 14
 var level: Node
 ## Every sound asked for in the current scenario, with what the screen showed as it was asked:
 ## [id, snapshot]. ⚠ A member, not a local: a lambda captures locals by value.
@@ -41,7 +41,7 @@ func _run() -> void:
 	var only := " ".join(OS.get_cmdline_user_args())
 	# Payyo going home is last: it ends the level and loads the house.
 	for scenario: Callable in [_every_core_sound_has_a_file, _every_button_clicks,
-			_an_overlay_is_heard_coming_and_going, _each_found_thing_chimes_as_its_card_rises,
+			_a_button_with_a_sound_of_its_own_does_not_click_as_well, _an_overlay_is_heard_coming_and_going, _each_found_thing_chimes_as_its_card_rises,
 			_a_page_turns_with_its_sound, _a_checkpoint_is_heard_as_it_is_said,
 			_mayon_saves_without_a_sound, _the_key_is_heard_turning,
 			_a_finished_level_is_heard_with_its_name, _payyo_goes_home_on_its_jingle]:
@@ -91,8 +91,30 @@ func _every_button_clicks() -> void:
 	root.add_child(button)
 	await _frames(1)
 	button.pressed.emit()
+	await _frames(1)
 	_check(_ids() == ["ui_click"], "a button is heard as it is pressed", "%s" % [_ids()])
 	button.queue_free()
+
+
+## A press that makes a sound of its own is heard as that sound alone, not a click on top of it:
+## a button that opens an overlay is heard opening it.
+func _a_button_with_a_sound_of_its_own_does_not_click_as_well() -> void:
+	var overlay := (load("res://ui/controls_overlay.tscn") as PackedScene).instantiate() as ModalOverlay
+	root.add_child(overlay)
+	var button := Button.new()
+	button.text = "Controls"
+	root.add_child(button)
+	await _frames(1)
+	button.pressed.connect(overlay.open)
+	heard.clear()
+	button.pressed.emit()
+	await _frames(2)
+	var ids := _ids()
+	overlay.queue_free()
+	button.queue_free()
+	await _frames(2)
+	_check(ids == ["ui_open"], "a button that opens an overlay is heard opening it, without a click on top",
+		"%s" % [ids])
 
 
 func _an_overlay_is_heard_coming_and_going() -> void:
