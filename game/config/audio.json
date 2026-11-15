@@ -51,7 +51,8 @@
     "step": "res://assets/audio/sfx/step.wav",
     "jump": "res://assets/audio/sfx/jump.wav",
     "land": "res://assets/audio/sfx/land.wav",
-    "swim": "res://assets/audio/sfx/swim.wav"
+    "swim": "res://assets/audio/sfx/swim.wav",
+    "ladder": "res://assets/audio/sfx/ladder.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
@@ -63,6 +64,7 @@
     "step": 0.12,
     "land": 0.15,
     "swim": 0.25,
+    "ladder": 0.12,
     "jump": 0.1
   }
 }

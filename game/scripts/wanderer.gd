@@ -178,8 +178,12 @@ const LAND_DUST_FULL := 900.0
 ## How far she walks between footfalls. MEASURED IN DISTANCE, not in time: dust that arrives
 ## on a timer keeps coming while she is standing against a wall pushing into it.
 const STEP_DUST_STRIDE := 46.0
+## How far she climbs between one rung's sound and the next. The climb is one drawing, not a
+## cycle, so the rungs are heard by distance the way the steps are seen by it.
+const RUNG_STRIDE := 34.0
 
 var _stride_dust := 0.0
+var _rung_travel := 0.0
 
 
 func _ready() -> void:
@@ -280,6 +284,10 @@ func _physics_process(delta: float) -> void:
 			velocity -= across * clampf(offset * CLIMB_ALIGNMENT, -CLIMB_SPEED, CLIMB_SPEED)
 		else:
 			velocity.x += direction * SPEED * CLIMB_DRIFT
+		_rung_travel += velocity.length() * delta
+		if _rung_travel >= RUNG_STRIDE:
+			_rung_travel = 0.0
+			_sound(&"ladder")
 		if Input.is_action_just_pressed(&"jump"):
 			end_ladder()
 			_jump()
@@ -595,6 +603,9 @@ func _riding() -> bool:
 func begin_ladder(ladder: Node2D) -> void:
 	_ladder = ladder
 	_ladder_half_height = _measure_half_height(ladder)
+	# Taking hold is the first rung.
+	_rung_travel = 0.0
+	_sound(&"ladder")
 	# You climb THROUGH a ladder, not beside it. A placed ladder freezes into a solid body,
 	# so without this the player was pressed against its face the whole way up and could
 	# never step off at the top -- which made a ladder leaned against a cliff a wall with
