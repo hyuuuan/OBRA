@@ -33,6 +33,12 @@ const SEAMLESS := 0.90
 ## taps never reach across it.
 const LEAD_IN_FRAMES := 88
 const RESAMPLER_REACH := 8
+## ⚠ A seam out of silence has nothing to compare. Terraces loops out of a rest (-101 dBFS) into a
+## gong and drum struck on the loop's first step; the window before the loop's start is digital
+## zero in the file but reads 0.018 played, because QOA smears the attack a little backward
+## (pre-echo), so the two correlate at 0.03. A loop that ends in silence cannot click: what follows
+## is an onset, exactly as on the first pass. Below this level (-60 dBFS) the end counts as silence.
+const SILENT := 0.001
 ## Folders searched for the code that plays an id. Tests do not count.
 const CODE_FOLDERS := ["res://scripts", "res://ui", "res://levels", "res://objects",
 	"res://creatures", "res://environment"]
@@ -132,11 +138,14 @@ func _music_loops(music: Dictionary) -> void:
 		if likeness < SAME_AS_LOOP_START:
 			not_back.append("%s (%.2f)" % [id, likeness])
 		var lead_from := half - RESAMPLER_REACH - LEAD_IN_FRAMES
-		var lead_in := _likeness(across.slice(lead_from, half - RESAMPLER_REACH),
-			at_start.slice(lead_from, half - RESAMPLER_REACH))
+		var before_seam := across.slice(lead_from, half - RESAMPLER_REACH)
+		var before_start := at_start.slice(lead_from, half - RESAMPLER_REACH)
+		var silent := _loudest(before_seam) < SILENT
+		var lead_in := 1.0 if silent else _likeness(before_seam, before_start)
 		if lead_in < SEAMLESS:
 			clicks.append("%s (%.3f)" % [id, lead_in])
-		heard.append("%s %.1f-%.1f s, returns %.2f, lead-in %.3f" % [id, region.x, region.y, likeness, lead_in])
+		heard.append("%s %.1f-%.1f s, returns %.2f, lead-in %s" % [id, region.x, region.y, likeness,
+			"silent" if silent else "%.3f" % lead_in])
 	_check(unlooped.is_empty(), "every music file loops, over at least %.0f s" % SHORTEST_LOOP_S,
 		"; ".join(heard) if unlooped.is_empty() else ", ".join(unlooped))
 	_check(not_back.is_empty(), "past its loop's end, each track plays its loop's start again",
@@ -386,6 +395,13 @@ func _mix(stream: AudioStream, from_s: float, seconds: float) -> PackedFloat32Ar
 	for frame in frames:
 		out.append(frame.x)
 	return out
+
+
+func _loudest(samples: PackedFloat32Array) -> float:
+	var top := 0.0
+	for sample in samples:
+		top = maxf(top, absf(sample))
+	return top
 
 
 ## Normalised correlation: 1 the same, 0 unrelated (or one of them silent).
