@@ -15,7 +15,7 @@ extends SceneTree
 ## Music is rendered from FamiTracker modules by tools/build_music.py into WAVs whose loop is a
 ## `smpl` chunk (audio/README.md). The loop is checked the way a player hears it: Godot mixes
 ## across the loop's end, and what follows must be the loop's start, with no jump at the seam
-## bigger than the music makes on its own. Mayon's ids stay silent; run_level5_audit owns that.
+## bigger than the music makes on its own.
 
 const CATALOG := "res://config/audio.json"
 ## A loop shorter than this is a jingle on repeat, not a piece of music.
@@ -367,24 +367,19 @@ func _the_music_slider_moves_the_music_bus() -> void:
 		"the Music slider moves the Music bus as it is dragged", "%.1f dB, reads %s" % [heard, readout])
 
 
-## Levels opt in to music (LevelBase._level_music, off by default): one that has not, opened and
-## closed, leaves the music that was playing as it was. Mayon, until its own music is wired.
+## Levels opt in to music (LevelBase._level_music, off by default): one that has not asks for no
+## music and no ambience, so LevelBase plays nothing when it opens and stops nothing when it
+## leaves (_start_the_place_audio, _exit_tree: both act only on a hook's id). Every level has opted
+## in now, so the one that has not is LevelBase itself -- out of the tree, where its @onready
+## furniture is never looked up.
 func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
-	director.call(&"play_music", &"menu", 0.0)
-	var scene := (load("res://level_5.tscn") as PackedScene).instantiate()
-	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
-	root.add_child(scene)
-	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
-	await _frames(20)
-	var during := director.call(&"current_music") as StringName
-	scene.queue_free()
-	await _frames(5)
-	var after := director.call(&"current_music") as StringName
-	var player := director.call(&"music_player") as AudioStreamPlayer
-	_check(during == &"menu" and after == &"menu" and player.playing,
-		"a level that has not opted in leaves the music alone, in and out",
-		"in it '%s', after it '%s', sounding %s" % [during, after, player.playing])
-	director.call(&"stop_music", 0.0)
+	var bare: Node = (load("res://scripts/level_base.gd") as GDScript).new()
+	var music := bare.call(&"_level_music") as StringName
+	var ambience := bare.call(&"_level_ambience") as StringName
+	bare.free()
+	_check(music == &"" and ambience == &"",
+		"a level that has not opted in asks for no music and no ambience, so LevelBase leaves both alone",
+		"music '%s', ambience '%s'" % [music, ambience])
 
 
 ## Terraces opts in: its music and its wind start as it opens, over whatever played before, and

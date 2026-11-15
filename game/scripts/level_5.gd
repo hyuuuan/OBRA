@@ -134,6 +134,16 @@ func _ends_with_its_own_scene() -> bool:
 	return true
 
 
+## MAYON HAS MUSIC NOW (Kent, 2026-11-14: music everywhere, Mayon included, which reverses the
+## 1 November "Mayon is silent"; and 2026-11-15: "different type of music when we are in memory
+## lane", and "a peaceful [one] when Lola is found"). Every piece carries Lola's motif, the title
+## theme's opening (audio/music/level_5.txt and its neighbours).
+##
+## The ascent: her motif worn thin under the ash. LevelBase plays it when the level opens.
+func _level_music() -> StringName:
+	return &"level_5"
+
+
 ## THE HOUSE IS THE ENDING NOW (DIARY.md; Kent, 2026-11-01): "lolo let's go home", and the apo is
 ## home -- in the house, where Lolo is in every painting and Lola is waiting (HouseEpilogue). It
 ## replaced the frame's return, a separate painted room with an ordinary brush in it.
