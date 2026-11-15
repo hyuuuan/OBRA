@@ -81,6 +81,8 @@ var _sfx_spacing: Dictionary = {}
 ## id -> Time.get_ticks_msec() of its last play.
 var _sfx_last_ms: Dictionary = {}
 var _sfx_players: Array[AudioStreamPlayer] = []
+## The frame the last sound effect other than the click sounded in. See _on_any_button_pressed.
+var _sounded_in := -1
 var _next_voice: int = 0
 var _music := _Loop.new()
 var _ambience := _Loop.new()
@@ -117,7 +119,17 @@ func _on_node_added(node: Node) -> void:
 	button.pressed.connect(_on_any_button_pressed)
 
 
+## ⚠ THE CLICK GIVES WAY. A press that makes a sound of its own -- an overlay opening, the page
+## going to be read -- is already answered, and a click on top of it was two sounds for one act:
+## Kent heard the click "for everything". So it waits for the end of the frame, and plays only if
+## nothing else sounded in it.
 func _on_any_button_pressed() -> void:
+	_click_unless_answered.call_deferred(Engine.get_process_frames())
+
+
+func _click_unless_answered(pressed_in: int) -> void:
+	if _sounded_in == pressed_in:
+		return
 	play_sfx(&"ui_click")
 
 
@@ -176,6 +188,8 @@ func play_sfx(id: StringName, loudness: float = 1.0) -> bool:
 	if _sfx_last_ms.has(key) and now - int(_sfx_last_ms[key]) < float(_sfx_spacing.get(key, 0.0)) * 1000.0:
 		return false
 	_sfx_last_ms[key] = now
+	if id != &"ui_click":
+		_sounded_in = Engine.get_process_frames()
 	var player := _sfx_players[_next_voice]
 	_next_voice = (_next_voice + 1) % _sfx_players.size()
 	player.stream = stream
