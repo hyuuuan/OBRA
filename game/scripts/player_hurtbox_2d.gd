@@ -25,6 +25,9 @@ const DEFAULT_LOCK := 0.22
 
 var health: PlayerHealth = null
 var player: Node2D = null
+## Asked before a blow lands, with where it came from: true takes the blow for her. The level sets
+## it to her body's armor (CreatureAbility: Armor, Shell, Rough Hide); unset, nothing guards her.
+var guard := Callable()
 
 
 func _ready() -> void:
@@ -78,6 +81,10 @@ func receive_hit(from_position: Vector2, knock: Vector2 = DEFAULT_KNOCK,
 	if health == null or player == null or not is_instance_valid(player):
 		return false
 	var last_light := health.stage <= PlayerHealth.GUTTERING
+	# Her body's armor takes it -- asked only for a blow that would land, so the grace after a hit
+	# does not spend a shell that had nothing to stop.
+	if not health.is_invulnerable() and guard.is_valid() and bool(guard.call(from_position)):
+		return false
 	if not health.take_hit():
 		return false
 	struck.emit(from_position)
