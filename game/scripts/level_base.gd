@@ -578,6 +578,10 @@ var _level_completed := false
 ## and say in the telemetry which class was abandoned.
 var _current_form_name := ""
 var _current_form_id := ""
+## What the current body can do besides move (CreatureAbility), made when it is first asked for and
+## kept while the form lasts; and the way she last pressed to face, for a blow struck standing.
+var _form_ability: CreatureAbility = null
+var _form_facing := 1.0
 ## Payyo's obstacle layer. The director decides what an obstacle accepts, the checkpoints
 ## decide what a death costs, and the script decides what Lolo says about either.
 var director: LevelDirector
@@ -3503,8 +3507,61 @@ func _take_back_under_cursor(world_position: Vector2) -> void:
 ## F used to call through and ignore the answer, so for most utilities the key did
 ## nothing AND said nothing -- indistinguishable from a broken build. Every behavior
 ## now reports what it did, including when it could not act.
+## What the current body can do besides move, from its ConceptNet abilities -- null for her own
+## body, or before anything is drawn. See CreatureAbility.
+func current_form_ability() -> CreatureAbility:
+	if _current_form_id.is_empty():
+		_form_ability = null
+	elif _form_ability == null or _form_ability.class_id != _current_form_id:
+		_form_ability = CreatureAbility.for_class(_current_form_id)
+	return _form_ability
+
+
+## The body's F action, the way she faces, logged as what it is: a ConceptNet ability used, and
+## whether it landed -- so the thesis can count abilities that acted, not only drawings that moved.
+func _use_form_ability(ability: CreatureAbility) -> void:
+	if player == null or not is_instance_valid(player) or not ability.is_ready():
+		return
+	var origin := PlayerHurtbox2D.middle_of(player)
+	var landed := ability.act(player, origin, _form_facing)
+	var label := String(ability.action.get("label", ""))
+	status_label.text = "%s — %s" % [label, "it landed" if not landed.is_empty() else "nothing in reach"]
+	Telemetry.record_event("form_ability_used", {
+		"level_id": LevelManager.current_level_id,
+		"entity_id": _current_form_id,
+		"ability": label,
+		"kind": String(ability.action.get("kind", "")),
+		"landed": landed.size(),
+	})
+
+
+## Her body's armor taking a blow for her (PlayerHurtbox2D.guard): seen, and logged.
+func _form_takes_the_blow(from_position: Vector2) -> bool:
+	var ability := current_form_ability()
+	if ability == null or not ability.absorbs_hit():
+		return false
+	var label := String(ability.armor.get("label", ""))
+	if player != null and is_instance_valid(player):
+		CannonShot2D.burst(player.get_parent(), PlayerHurtbox2D.middle_of(player), CannonShot2D.Burst.LANDED)
+	status_label.text = "%s — took the blow" % label
+	Telemetry.record_event("form_ability_used", {
+		"level_id": LevelManager.current_level_id,
+		"entity_id": _current_form_id,
+		"ability": label,
+		"kind": "armor",
+		"landed": 1,
+		"from_x": from_position.x,
+	})
+	return true
+
+
 func _use_equipped_utility() -> void:
 	if _equipped_utility == null or not is_instance_valid(_equipped_utility):
+		# A body that can do something with F does it -- a bee stings, a snake squeezes.
+		var ability := current_form_ability()
+		if ability != null and ability.has_action():
+			_use_form_ability(ability)
+			return
 		status_label.text = "Nothing in hand — press E next to something you drew"
 		return
 	# A swing still under way. The press is nothing -- not a failed use, not "can't do that
@@ -3655,10 +3712,15 @@ func _refresh_action_prompts() -> void:
 		if can_use and _equipped_utility.item_data != null else ""
 	var answers := not held_id.is_empty() and _tool_answers_here(held_id)
 	var level_verb := "" if answers or held_id.is_empty() else _level_use_verb(held_id)
-	action_prompts.set_use_available(
-		can_use,
-		_drawing_display_name(_equipped_utility) if can_use else "",
-		_verb_for(held_id) if answers else (level_verb if not level_verb.is_empty() else "USE"))
+	# Nothing in hand, and a body that can act: F says what it does -- F STING, F SQUEEZE.
+	var form := current_form_ability() if can_act and not can_use else null
+	if form != null and form.has_action():
+		action_prompts.set_use_available(true, _current_form_name, form.verb())
+	else:
+		action_prompts.set_use_available(
+			can_use,
+			_drawing_display_name(_equipped_utility) if can_use else "",
+			_verb_for(held_id) if answers else (level_verb if not level_verb.is_empty() else "USE"))
 	_offer_the_tool_in_the_bag(can_act and not answers and level_verb.is_empty())
 
 	# ⚠ THE ONE VERB PAYYO IS ABOUT, AND THE INTERFACE SAID THE OPPOSITE OF IT.
@@ -4293,6 +4355,9 @@ func _on_ink_changed(remaining: float, capacity: float, reserved: float) -> void
 
 
 func _physics_process(_delta: float) -> void:
+	var axis := Input.get_axis("move_left", "move_right")
+	if absf(axis) > 0.05:
+		_form_facing = signf(axis)
 	_refresh_action_prompts()
 	_refresh_empty_chips()
 	# ⚠ THE GOAL MARKER USED TO GATE THIS WHOLE FUNCTION, and everything below it is not
@@ -4789,6 +4854,7 @@ func _arm_player_health() -> void:
 	player_hurtbox = PlayerHurtbox2D.new()
 	player_hurtbox.name = "PlayerHurtbox"
 	player_hurtbox.health = player_health
+	player_hurtbox.guard = _form_takes_the_blow
 	entity_root.add_child(player_hurtbox)
 
 
