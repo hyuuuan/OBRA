@@ -64,12 +64,19 @@ func _refresh_the_place_audio() -> void:
 		return
 	var a_new_wave := music in NIGHT_MUSIC and _music_for in NIGHT_MUSIC
 	_music_for = music
-	audio.call(&"play_music", music, NIGHT_FADE_S, a_new_wave)
+	if music.is_empty():
+		# ⚠ THE NIGHT BREAKS OFF AT DAWN, in the frame the light comes: no fade. The dawn's own
+		# sound and the light are what follow.
+		audio.call(&"stop_music", 0.0)
+	else:
+		audio.call(&"play_music", music, NIGHT_FADE_S, a_new_wave)
 
 
 ## The music for now. A retried night (DilimFinale2D.reset_for_restore) is not running, so it
 ## goes back to the forest's until the night begins again.
 func _music_now() -> StringName:
+	if _morning:
+		return &""
 	if _finale != null and is_instance_valid(_finale) and _finale.is_running():
 		return NIGHT_MUSIC[clampi(_finale.current_wave(), 0, NIGHT_MUSIC.size() - 1)]
 	if _tikbalang != null and is_instance_valid(_tikbalang) and _tikbalang.is_racing():
@@ -1105,6 +1112,7 @@ func _on_dawn() -> void:
 	# Now, not on the card's timer: the line below stops the tree, and "Ash shows what I cannot see"
 	# stood over the morning for as long as she read it.
 	refresh_objective()
+	_refresh_the_place_audio()      # the night's music cut in this frame, with the dawn's sound
 	AudioDirector.play_sfx(&"dawn")
 	if dawn_clock != null:
 		dawn_clock.morning()
