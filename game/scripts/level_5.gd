@@ -151,8 +151,8 @@ const MEMORY_MUSIC := {"payyo": &"memory_terraces", "piyesta": &"memory_piyesta"
 	"dagat": &"memory_dagat", "dilim": &"memory_dilim"}
 ## Walking from one memory into the next is remembering, not a cut: a long crossfade.
 const MEMORY_FADE_S := 2.0
-## Any other change: AudioDirector's own crossfade.
-const PLACE_FADE_S := 0.6
+## Any other change: AudioDirector's own crossfade (LOOP_FADE_S).
+const PLACE_FADE_S := 1.5
 ## Lola found, when the summit opens: a kundiman like her house's (audio/music/lola.txt).
 const LOLA_MUSIC := &"lola"
 ## From the bloom, through her last page and the house: the motif whole again.

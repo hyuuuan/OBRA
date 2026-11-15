@@ -1241,8 +1241,10 @@ func _level_ambience() -> StringName:
 ## (AudioDirector.play_music keep_position) and sounds like the world closing over her, not like
 ## a new song.
 const DEEP_MUSIC := &"level_3_deep"
-## How long the trade takes: AudioDirector's own crossfade.
+## How long the trade takes: quick, since it is one piece changing.
 const WATER_FADE_S := 0.6
+## The fight coming in, or giving way: a new piece, but an event, so quicker than a change of place.
+const FIGHT_FADE_S := 1.0
 ## ⚠ THE WATERLINE HAS TWO EDGES. Deeper than DEEP_IN under it the music is the deep's; shallower
 ## than SURFACE_OUT it is the surface's again; between the two it stays as it was. A swimmer
 ## bobbing at the surface (her breath is spent from AIR_DEPTH, 30) would otherwise flip the music
@@ -1281,7 +1283,7 @@ func _refresh_the_place_audio(anchor_position: Vector2) -> void:
 		# The surface and the deep are one piece, traded at its place; the fight is its own, and
 		# begins (and gives way) as a new piece does.
 		var same_piece := BAKUNAWA_MUSIC not in [music, _music_for]
-		audio.call(&"play_music", music, WATER_FADE_S, same_piece)
+		audio.call(&"play_music", music, WATER_FADE_S if same_piece else FIGHT_FADE_S, same_piece)
 	if bed != _bed_for:
 		if bed.is_empty():
 			audio.call(&"stop_ambience")

@@ -38,8 +38,12 @@ const SILENCE_LINEAR := 0.001
 ## clicks can never grow the node count without bound.
 const SFX_VOICES := 8
 
-## How long a change of music or ambience takes, out and in at once.
-const LOOP_FADE_S := 0.6
+## How long a change of music or ambience takes, out and in at once, between two different pieces:
+## long enough that two tempos never meet head on. Kent (2026-11-15) heard the changes as "not that
+## smooth", and the recorded tour (tests/run_audio_tour.gd) showed why: 0.6 s linear crossfades,
+## and scene changes that fell to silence between places. Two arrangements of one piece trade
+## faster; their callers pass it.
+const LOOP_FADE_S := 1.5
 ## A fade's floor. linear_to_db(0) is -inf, which must never reach a player.
 const FADE_FLOOR := 0.001
 
