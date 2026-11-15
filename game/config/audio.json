@@ -67,6 +67,9 @@
     "bakunawa": "res://assets/audio/music/bakunawa.wav",
     "level_4": "res://assets/audio/music/level_4.wav",
     "level_4_race": "res://assets/audio/music/level_4_race.wav",
+    "dilim_night_1": "res://assets/audio/music/dilim_night_1.wav",
+    "dilim_night_2": "res://assets/audio/music/dilim_night_2.wav",
+    "dilim_night_3": "res://assets/audio/music/dilim_night_3.wav",
     "mayon_ending": ""
   },
   "ambience": {
