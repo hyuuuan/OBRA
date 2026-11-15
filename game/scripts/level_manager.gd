@@ -141,7 +141,7 @@ func open_level(level_id: String, painting: Node2D = null) -> bool:
 		_transition_pending = true
 		_enter_painting.call_deferred(scene_path, level_id, painting)
 	else:
-		_queue_transition(scene_path, level_id)
+		_queue_transition(scene_path, level_id, true)
 	return true
 
 
@@ -276,7 +276,7 @@ func return_to_house() -> bool:
 		_transition_pending = true
 		_return_to_painting.call_deferred()
 	else:
-		_queue_transition(HOUSE_SCENE, "")
+		_queue_transition(HOUSE_SCENE, "", not current_level_id.is_empty())
 	return true
 
 
@@ -285,7 +285,7 @@ func return_to_selector() -> bool:
 		return false
 	get_tree().paused = false
 	_selector_requested = true
-	_queue_transition(SELECTOR_SCENE, "")
+	_queue_transition(SELECTOR_SCENE, "", not current_level_id.is_empty())
 	return true
 
 
@@ -414,6 +414,7 @@ func _enter_painting(scene_path: String, level_id: String, painting: Node2D) -> 
 		await RenderingServer.frame_post_draw
 	level_changed.emit(level_id)
 	transition_started.emit(scene_path)
+	_play_level_whoosh()
 	await _painting_transition.play()
 	_release_players(frozen)
 	_finish_transition(scene_path)
@@ -454,6 +455,7 @@ func _return_to_painting() -> void:
 		var hall: Texture2D = _painting_transition.capture_world()
 		_painting_transition.prepare(painting.call("transition_source"), hall, true, scene)
 		transition_started.emit(HOUSE_SCENE)
+		_play_level_whoosh()
 		await _painting_transition.play()
 	else:
 		_painting_transition.clear()
@@ -486,12 +488,20 @@ func wipe_progress() -> float:
 
 ## Reserve the request before deferring the scene change. Two presses in one frame used to
 ## both return true, with the second level id overwriting the first request's destination.
-func _queue_transition(scene_path: String, level_id: String) -> void:
+func _queue_transition(scene_path: String, level_id: String, with_level_whoosh: bool = false) -> void:
 	_transition_pending = true
-	_transition_to.call_deferred(scene_path, level_id)
+	_transition_to.call_deferred(scene_path, level_id, with_level_whoosh)
 
 
-func _transition_to(scene_path: String, level_id: String) -> void:
+func _play_level_whoosh() -> void:
+	if transition_step_seconds <= 0.0:
+		return
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"level_whoosh")
+
+
+func _transition_to(scene_path: String, level_id: String, with_level_whoosh: bool) -> void:
 	if _transitioning:
 		return
 	_transition_pending = false
@@ -499,6 +509,8 @@ func _transition_to(scene_path: String, level_id: String) -> void:
 	transition_started.emit(scene_path)
 	_transition_root.visible = true
 	_transition_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	if with_level_whoosh:
+		_play_level_whoosh()
 	await _animate_wipe(true)
 
 	# The incoming scene reads its id during _ready. Keep the outgoing id until this point,
