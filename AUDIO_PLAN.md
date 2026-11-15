@@ -39,7 +39,7 @@ what to build with it, and in what order.
 | Boss and finale music | **Yes.** Dagat's Bakunawa and Dilim's finale get their own loop, then the level's loop returns. |
 | Ambience | **Yes.** A quiet bed under each level's music, on its own player. |
 | Sound effects | **All four groups**: drawing and morphing, the apo's moves (**with footsteps**), combat, and level props. Plus a **level-complete jingle**. |
-| Style (2026-11-15) | **After a Fearofdark track Kent likes: jazzy chords, swing, slides and bends, energy.** Every piece still to write, and the house and Terraces (redone); the title theme stays. Still no thin high pulses or bright noise. Kent approved a style test, a sketch of Piyesta, which PR 5 builds from (`piyesta_sketch_level_2.txt` and `compose_piyesta_sketch.py` in the side-session notes folder). |
+| Style (2026-11-15) | **After a Fearofdark track Kent likes: jazzy chords, swing, slides and bends, energy.** Every piece still to write; the title theme stays. **But the house and Terraces follow Philippine traditions instead** (Kent, 2026-11-15): the house is a kundiman for rondalla, Terraces is after Ifugao gangsa music, each with only a touch of the new style. Still no thin high pulses or bright noise. Kent approved a style test, a sketch of Piyesta, which PR 5 builds from (`piyesta_sketch_level_2.txt` and `compose_piyesta_sketch.py` in the side-session notes folder). |
 | Visual twin | **Every sound cue has a visual equivalent** (Dilim's rule): each sound below plays beside something the screen already shows. Music and ambience carry no information and need none. |
 
 ## Ask Kent once, at the start of the next session
@@ -97,8 +97,8 @@ Every piece is the same chip set at the same fixed loudness, so their levels rel
 | Id | Place | Brief |
 |---|---|---|
 | `music.menu` | Title card, and the boot loading screen | **Done**, revision 2 (Kent heard the first): D major pentatonic, ~129 BPM, a bamboo-flute theme over kulintang, agung, rondalla, babendil and dabakan, with the painting's sparkle. |
-| `music.house` | Lola's house (hub) | **Done** (provisional), redone in the new style: a swung jazz waltz, G major, ~110 BPM, on the menu's motif; the vibraphone slides over jazz changes, piano comping, triangle bass, brushes. ⚠ After the run the house is the epilogue's: PR 9/10 decides whether `mayon_ending` carries on there instead. |
-| `music.level_1` | Terraces (Level 1) | **Done** (provisional), redone in the new style, with `ambience.level_1` (wind): gangsa-like bells interlocking on swung eighths, a sliding bamboo flute, jazz changes, walking bass, ~133 BPM. |
+| `music.house` | Lola's house (hub) | **Done** (provisional): a kundiman for rondalla, bandurria tremolo over octavina, laud and guitar, E minor turning to E major, ~90 BPM. ⚠ After the run the house is the epilogue's: PR 9/10 decides whether `mayon_ending` carries on there instead. |
+| `music.level_1` | Terraces (Level 1) | **Done** (provisional), after Ifugao music, with `ambience.level_1` (wind): five interlocking gangsa gongs, bangibang-like wood, a low drum, and a hudhud-like call and response over one gong; ~112 BPM straight. |
 | `music.level_2` | Piyesta, the fiesta plaza | **Sketched and approved** (the style test): a swung banda in F, ~150 BPM, a trumpet that scoops, falls and glides over jazz changes, a second trumpet in the last phrase, 7th-chord arpeggios, piano comping, a walking triangle bass with a kick, ride and snare, xylophone fills. ⚠ Check it against the dance minigame's beat. |
 | `music.level_3` | Dagat, the sea | A flowing 3/4: broken-chord arpeggios like waves (pulse with echo), VRC7 chorus and vibraphone, a long-breathed clarinet line. 90–100 BPM. |
 | `music.bakunawa` | Dagat, the Bakunawa | The sea theme's motif in a minor key, driving 140 BPM, a low FM bass ostinato and noise tom fills. |
