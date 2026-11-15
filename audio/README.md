@@ -14,6 +14,10 @@ the WAV in `game/assets/audio/` is only its render.
 Each module's first `TRACK` is rendered. The id must already be in `game/config/audio.json`,
 with the code that plays it, and `run_audio_probe` fails a file nothing plays.
 
+Writing a new piece: the workbench (compose by script, render fenced, measure, make Kent an MP3)
+is [tools/audio_lab/README.md](../tools/audio_lab/README.md). What is left to write is
+[AUDIO_PLAN.md](../AUDIO_PLAN.md).
+
 ## Rendering, on this Mac
 
 ```bash
