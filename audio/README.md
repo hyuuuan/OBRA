@@ -73,6 +73,10 @@ Things the tracker does that a module should expect:
 - **A sound effect ends with `Cxx`.** After it, the 2A03 stops and the VRC7 rings out its
   release, up to 2 s, cut at −60 dB.
 - **A mix that would clip is refused.** Turn the module's volumes down instead.
+- ⚠ **Vibrato (`4xy`) on the VRC7 is deep up high.** famirender applies it in pulse-period units,
+  so on a note near A5 a `433` swings about half a semitone. Kent heard Mayon's first take, with a
+  late vibrato on every long note and 2-semitone scoops, as "a voice crack". Hold long notes
+  straight; keep a shake (`4A4`) for one brass note at a phrase's end, as Piyesta does.
 
 ## Editing a module by ear
 
@@ -101,8 +105,9 @@ over the same file. Then render it here with `build_music.py`. Keep to the subse
 same game. A sound effect plays beside something the screen already shows. Music carries no
 information, so it needs none.
 
-**Mayon is silent**, by the team's decision (1 November 2026). Its ids stay without files, and
-`run_level5_audit` asserts it.
+**Mayon has music now** (Kent, 2026-11-14 and 2026-11-15), which reverses the team's 1 November
+"Mayon is silent". The scene still plays nothing itself: everything goes through AudioDirector, and
+`run_level5_audit` asserts that and that every Mayon id has a file.
 
 ## The pieces
 
@@ -120,6 +125,13 @@ information, so it needs none.
 | `music.level_4` | `music/level_4.txt` | Dilim, the forest at night, the whole level (Kent, 2026-11-15: "scary / unknown vibe type of music"). E Phrygian, ~72 BPM in eighths: a VRC7 bass drone on E with a low flute a minor second above it, beating and never resolved, a low clarinet fifth under it; the motif -- E, F, E, down to B -- on a low flute, then climbing whole tones and sagging (R81); a few soft bells far apart, damped; a knock from somewhere in the trees (the soft bell low, cut at once). Long rests. ⚠ **Everything under 500 Hz, no noise and no pulse**, so the tik-tik's call (strongest at 4-8 kHz) and the tiyanak's cry (500 Hz-1 kHz) read over it: `tests/test_dilim_calls_read.py` holds each call at full strength 6 dB over the music and bed in its own band (23.9 and 8.0 dB). A 27 s loop. **Provisional until Kent has listened.** |
 | `music.level_4_race` | `music/level_4_race.txt` | Dilim, the tikbalang's race (Kent: "a thrilling version for that music"), while `Tikbalang2D.is_racing()`. The forest's motif galloping in triplets at ~157 BPM: the hooves on the tambol ("da . da", all three on the fourth beat), the drone driven into a bass with the flat second pulling at it, low reed stabs on the offbeats with the minor second in them, a gong on every bar, and the motif on a low clarinet climbing a whole tone every four bars (E, F#, G#, A#) and never arriving. ⚠ The motif is on the clarinet, not the trumpet, whose partials filled the tiyanak's band to within 4 dB. Clears the calls by 23.3 and 7.9 dB. A 24.5 s loop. **Provisional.** |
 | `music.dilim_night_1`, `_2`, `_3` | `music/dilim_night_1.txt` … | Surviving Dilim's night (Kent, 2026-11-15: "as thrilling as possible (make use of fearofdark still)"): the most energetic piece in the game, one piece in three arrangements, one per wave of `DilimFinale2D.WAVES`, **the same length to the row**, so each wave trades them mid-bar (`keep_position`) and the night builds. ~164 BPM on lightly swung sixteenths (6/5), altered changes in E minor (m9, maj7#11, 7b9, 7#9, m7b5, an F7#11 tritone turn home), a syncopated VRC7 bass with the flat second pulling, the tambol kicking with a fill into every phrase, a dark noise snare, and the forest's motif at speed as the hook on the bamboo flute. Wave 1: drums, bass, the motif. Wave 2: and a clarinet counter-line, chip-chord arpeggios (50% duty) and offbeat stabs. Wave 3: and the lead's echo, a gong opening each phrase, doubled stabs. It **breaks off at dawn** in the frame the `dawn` sound plays. ⚠ The lead stays at pitch in wave 3, not an octave up as first planned: there it buried the tik-tik's call (2.7 dB clear), in the wave the tik-tik flies in; and it is the flute because the trumpet's partials filled that band even at pitch. Clears the tik-tik by 9.0 / 7.7 / 7.5 dB. A 23 s loop after a 6 s intro. **Provisional until Kent has listened.** |
+| `music.level_5` | `music/level_5.txt` | Mayon, the ascent: Lola's motif (the title's opening, A D E F#, E D B A) worn thin under the ash. A 13 s intro with it nearly whole on the title's band -- bamboo flute, rondalla broken chords, agung, bass -- then a 26 s loop that has lost voices: the motif with its long note left out, the harmony down to a bass and one guitar, the major iv gone minor, a fragment with its middle gone, one held line over a breath of wind. D major, ~75 BPM. Take 2: straight tones (take 1's vibrato and scoops were "a voice crack", and one scoop slid to G#, out of the key). **Provisional until Kent has listened.** |
+| `music.memory_terraces` | `music/memory_terraces.txt` | Mayon's memory lane, the Terraces vignettes (`payyo_*`): two of Terraces' gangsa gongs (its custom patch) in their hocket, slower (~90 BPM) and in tune here, a drone, Lola's motif on a far flute, and the hudhud's answer on a far bell (not the chorus patch, whose "voices" cracked). A 21 s loop. **Provisional.** |
+| `music.memory_piyesta` | `music/memory_piyesta.txt` | The fiesta vignettes: the drum corps far off, slower (~120 BPM), the beat-two stop, the agong; Lola's motif in A minor on a soft trumpet. A 16 s loop. **Provisional.** |
+| `music.memory_dagat` | `music/memory_dagat.txt` | The sea vignettes: Dagat's rowing song half remembered (~80 BPM, 3/4), soft strum, waves an octave down; Lola's motif, which is the shape of Dagat's own opening, on the flute, then the song's first phrase. A 18 s loop. **Provisional.** |
+| `music.memory_dilim` | `music/memory_dilim.txt` | The forest vignettes: Dilim's drone and its motif, warmer and an octave up, answered by Lola's motif in E minor on a clarinet, a far bell. A 27 s loop. **Provisional.** |
+| `music.lola` | `music/lola.txt` | Mayon's summit, from the moment it opens (Lola found): a kundiman for rondalla like her house's, slower (~75 BPM, 3/4, E major) and patient, no drums -- her motif on the bandurria's tremolo (a stroke on every row, as the house's), the laud's broken chord, the guitar on two and three, a soft sparkle. It holds while she paints and the brush refuses twice. A 29 s loop. **Provisional.** |
+| `mayon_ending` | `music/mayon_ending.txt` | From the bloom on: Lola's motif whole again, warm, on the title's band in its key (D major, ~90 BPM) -- bamboo flute with its echo, rondalla broken chords, kulintang, agung, a soft dabakan. "Lolo. Let's go home." A 32 s loop. **Provisional.** |
 | `ambience.level_1` | `ambience/level_1.txt` | Terraces' wind: low noise in uneven swells over a faint hiss, a 13 s loop about 13 dB under the music. Dark on purpose. **Provisional.** |
 | `ambience.level_2` | `ambience/level_2.txt` | Piyesta's street: a soft chip hubbub (Kent chose it over the syllable babble, which he heard as "distorted, hazy"). Four low VRC7 flute hums, each struck once and gliding between nearby pitches, never re-struck; no noise. Quiet (-33 dBFS) and dark. Silent in the church. Provisional. |
 | `ambience.level_3` | `ambience/level_3.txt` | Dagat's waves, at the surface only: long dark swells of low noise at uneven gaps (3.7, 3.3, 3.1, 2.7 s), each rising for a second and running back for two, a faint wash between. -33 dBFS. Silent under the water. **Provisional.** |
@@ -166,6 +178,7 @@ information, so it needs none.
 | `sfx.foe_hit` | `sfx/foe_hit.txt` | A blow landing: a punch of noise and a 25% pulse knocked down from E4. 0.1 s. |
 | `sfx.foe_down` | `sfx/foe_down.txt` | A foe falling: a long 12.5% slide down from E5 with its echo, the noise giving out under it, and a last low thud. 0.51 s. |
 | `sfx.ink_empty` | `sfx/ink_empty.txt` | The ink gone: a hollow 50% pulse falling A4 F#4 D4, the last note sagging, over a breath that fades. 0.56 s. |
+| `sfx.mayon_brush` | `sfx/mayon_brush.txt` | A memory saved in Mayon, beside its saved line: two slow strokes of a brush (dark long-mode noise, no tone, as paint must sound) and a warm low fifth on the VRC7 flute under them. Not the page's single short stroke (`draw_submit`). 0.7 s. **Provisional.** |
 
 **The sound effects keep one rule between them:** the interface speaks in the 2A03 (soft pulses,
 a tick of noise) and the painting, what the world hands her, speaks in the VRC7's kulintang,

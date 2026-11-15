@@ -55,9 +55,10 @@ The memory scraps remain deterministic crops of earlier paintings, rather than
 twelve newly illustrated memories. Their torn edges are procedural. The summit
 compositions reuse transparent scenery from those levels (see the revision below).
 
-Mayon is silent. Its synthesized wind, eruption, brush and ending cue were removed on
-1 November 2026; `mayon_brush` and `mayon_ending` remain in `game/config/audio.json` as
-hooks with no file. A recorded Lola voice is also absent; no dialogue playback depends on one.
+Mayon has music now (Kent, 2026-11-14: music for every place, Mayon included; and 2026-11-15 ("different type of music when we are in memory lane"; "a peaceful [one] when Lola is found")), reversing the 1 November 2026 "Mayon is silent": its
+synthesized wind, eruption, brush and ending cue stay removed, and the music and the brush are
+FamiTracker modules (`audio/README.md`). A recorded Lola voice is still absent; no dialogue
+playback depends on one.
 
 ## Landscape revision after in-game visual review
 
@@ -88,7 +89,7 @@ piece in the summit. The old enlarged torn-card summit outputs have been removed
 The new upper slope, cliff materials, crossing, steps, column and arch join the
 provisional generated-art review list. The crossing and steps are no longer
 repeated path/masonry rectangles. Memory targets remain procedural torn crops;
-there is still no recorded Lola voice, and Mayon has no audio.
+there is still no recorded Lola voice (Mayon's music is in `audio/README.md`).
 
 `bangka_memory.png` is a dedicated generated restoration vignette with water
 ripples, replacing the enlargement of Dagat's small code-drawn boat. It is part of

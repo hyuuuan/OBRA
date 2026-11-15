@@ -152,7 +152,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - The landscape now uses broad generated cliffs and a continuous registered vista; inspect the actual scene after art changes.
 - The optional light gate is intentionally omitted to preserve the memory ink budget.
 - Generated Mayon performances and room need human art-direction review; originals and prompts are retained in `LEVEL5_Mayon/authored/`.
-- Generated landscape/prop art and procedural memory targets remain provisional; summit scenery reuses existing transparent art. Mayon is silent (its synthesized audio was removed; its sound ids remain as hooks with no file), and Lola has no recorded voice (see the authored README).
+- Generated landscape/prop art and procedural memory targets remain provisional; summit scenery reuses existing transparent art. Mayon has music now, reversing the 1 November "Mayon is silent" (Kent, 2026-11-14: music for every place, Mayon included; and 2026-11-15 ("different type of music when we are in memory lane"; "a peaceful [one] when Lola is found")): the ascent, a memory-lane piece for each earlier level, silence from the frame Lolo vanishes, Lola's kundiman from the summit, and `mayon_ending` from the bloom (`level_5.gd _music_now`; `audio/README.md`). Everything plays through `AudioDirector`; the scene has no player of its own (`run_level5_audit`). All of it is provisional until Kent has listened. Lola has no recorded voice (see the authored README).
 
 ---
 
