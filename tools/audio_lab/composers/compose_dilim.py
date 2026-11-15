@@ -2,7 +2,7 @@
 
     compose_dilim.py TOOLS_DIR FOREST.txt RACE.txt AMBIENCE.txt
 
-The forest theme pairs 2A03 square and triangle with VRC7 keys. The race
+The forest theme layers two low FM swells and occasional noise. The race
 keeps the original Phrygian gallop and the ambience supplies low frog calls.
 tests/test_dilim_calls_read.py checks that the music and ambience leave room
 for the tik-tik's call and tiyanak's cry.
@@ -24,87 +24,41 @@ MOTIF = [("E3", 1), ("F3", 3), ("E3", 1), ("B2", 1)]
 # --- the forest --------------------------------------------------------------------------------
 
 def forest() -> Song:
-    bar = 16
-    s = Song("Dilim - Under Makiling's Moon", frames=6, rows=4 * bar, speed=11, comments=(
-        "Original night exploration theme for Dilim, E minor, around 90 BPM.",
-        "2A03 square lead and triangle bass with soft VRC7 keys and vibraphone.",
+    song = Song("Dilim - The Dark Between Trees", frames=4, rows=64, speed=11, comments=(
+        "Original horror ambience for Dilim.",
+        "Low A and E swells on FM1 and FM2, with occasional noise.",
     ))
-    s.swing(11, 9)
-    lead = s.inst_2a03("Square lead", volume=[13, 12, 11, 10, 9, 8, 8, 7, 7, 6, 6, 5],
-                        duty=[2])
-    bass = s.inst_2a03("Triangle bass", volume=[15] * 13 + [0])
-    keys = s.inst_vrc7("FM keys", patch=3)
-    bell = s.inst_vrc7("FM vibraphone", patch=11)
 
-    # Bass root and fifth, then three closely voiced FM notes.
-    chords = {
-        "Em9":     ("E3",  "B3", ("G3",  "D4", "F#4")),
-        "Cmaj7":   ("C3",  "G3", ("G3",  "B3", "E4")),
-        "Gmaj7/B": ("B3",  "G3", ("F#3", "D4", "G4")),
-        "Gmaj7":   ("G3",  "D4", ("F#3", "B3", "D4")),
-        "D6/A":    ("A3",  "D3", ("F#3", "B3", "D4")),
-        "Am9":     ("A3",  "E3", ("C3",  "G3", "B3")),
-        "Dadd9":   ("D3",  "A3", ("F#3", "A3", "E4")),
-        "Bm7":     ("B3",  "F#3", ("F#3", "A3", "D4")),
-    }
-    verse = ("Em9", "Cmaj7", "Gmaj7/B", "D6/A", "Em9", "Am9", "Cmaj7")
-    clearing = ("Gmaj7", "Cmaj7", "D6/A", "Em9", "Am9", "Cmaj7", "Dadd9", "Bm7")
-    progression = (*verse, "Dadd9", *clearing, *verse, "Em9")
+    DRONE = song.inst_vrc7("Slow FM swell", patch=0,
+                           regs=(0x21, 0x21, 0x1C, 0x02, 0x73, 0x83, 0x47, 0x37))
+    HUSH = song.inst_2a03("Noise swell", volume=[1] * 12 + [2] * 18 + [1] * 16 + [0], duty=[0])
 
-    # (sixteenth, pitch, duration). The phrase is a quiet pickup, a held note, then an answer.
-    hook = (
-        ((2, "B3", 2), (4, "E4", 3), (7, "G4", 6), (14, "F#4", 2)),
-        ((0, "E4", 4), (6, "G4", 2), (9, "E4", 4)),
-        ((1, "D4", 2), (3, "E4", 3), (6, "G4", 6), (14, "A4", 2)),
-        ((0, "F#4", 5), (8, "E4", 3), (12, "D4", 2)),
-        ((2, "E4", 2), (4, "G4", 3), (7, "B4", 6), (14, "A4", 2)),
-        ((0, "G4", 5), (7, "E4", 3), (12, "A4", 3)),
-        ((0, "B4", 4), (6, "G4", 3), (10, "E4", 3)),
+
+    # Leave gaps in all of the pitched voices before the second and final orders.
+    floor = (
+        ((0, "A2", 21, 13), (31, "E2", 19, 11)),
+        ((4, "A2", 25, 12), (36, "A2", 18, 13)),
+        ((0, "A2", 35, 14), (44, "E2", 13, 12)),
+        ((5, "A2", 29, 13), (39, "A2", 12, 11)),
     )
-    answer = (
-        ((0, "B4", 6), (10, "D5", 3)),
-        ((0, "B4", 3), (6, "G4", 6)),
-        ((1, "A4", 2), (4, "F#4", 3), (9, "D4", 4)),
-        ((0, "E4", 6), (9, "G4", 4)),
-        ((1, "E4", 2), (4, "G4", 3), (8, "A4", 5)),
-        ((0, "G4", 6), (9, "E4", 3)),
-        ((0, "F#4", 4), (6, "A4", 3), (12, "F#4", 3)),
-        ((0, "D4", 6), (9, "F#4", 4)),
+    # Stagger the second voice within each swell while keeping the gaps between orders.
+    # The two brief B-flats are the tension already in the drone.
+    under = (
+        ((5, "E3", 14, 11), (35, "A2", 13, 10)),
+        ((9, "E3", 16, 11), (40, "A#2", 9, 8)),
+        ((3, "E3", 8, 9), (12, "A#2", 21, 10), (46, "A2", 10, 10)),
+        ((9, "E3", 22, 11), (42, "E3", 8, 9)),
     )
-    melody = (
-        *hook, ((0, "F#4", 5), (8, "E4", 2), (12, "D4", 3)),
-        *answer,
-        *hook, ((1, "F#4", 3), (6, "E4", 7)),
-    )
-    bell_answers = {1: (14, "B3"), 3: (14, "A3"), 7: (11, "A3"), 11: (14, "B3"),
-                    13: (13, "B3"), 15: (14, "A3"), 23: (14, "B3")}
+    for frame, (low, layer) in enumerate(zip(floor, under, strict=True)):
+        for channel, events in (("fm1", low), ("fm2", layer)):
+            for row, note, length, volume in events:
+                song.put(channel, frame, row, note, DRONE, volume)
+                song.put(channel, frame, row + length, "===")
 
-    for index, (chord, phrase) in enumerate(zip(progression, melody, strict=True)):
-        frame, start = s.at(0, index * bar)
-        root, fifth, upper = chords[chord]
-        s.put("triangle", frame, start, root, bass)
-        if index % 4 == 3 or 8 <= index < 12:
-            s.put("triangle", frame, start + 10, fifth, bass)
-        else:
-            s.put("triangle", frame, start + (7 if index % 2 == 0 else 6), fifth, bass)
-            s.put("triangle", frame, start + (12 if index % 2 == 0 else 11), root, bass)
-
-        hits = ((0, 8, 10),) if 8 <= index < 12 else ((0, 6, 10), (9, 5, 9))
-        for step, duration, volume in hits:
-            for channel, pitch in zip(("fm1", "fm2", "fm3"), upper, strict=True):
-                s.put(channel, frame, start + step, pitch, keys, volume)
-                s.put(channel, frame, start + step + duration, "===")
-
-        if index in bell_answers:
-            step, pitch = bell_answers[index]
-            s.put("fm4", frame, start + step, pitch, bell, 10)
-            s.put("fm4", frame, start + step + 2, "===")
-
-        for step, pitch, duration in phrase:
-            volume = 9 if pitch in ("E4", "D5") else 12
-            s.put("pulse1", frame, start + step, pitch, lead, volume)
-            s.put("pulse1", frame, start + step + duration, "---")
-    return s
+    song.put("noise", 1, 30, "0-#", HUSH, 10)
+    song.put("noise", 2, 8, "1-#", HUSH, 11)
+    song.put("noise", 3, 41, "0-#", HUSH, 9)
+    return song
 
 
 def race() -> Song:
