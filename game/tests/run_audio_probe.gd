@@ -6,7 +6,7 @@ extends SceneTree
 ## has not opted in (LevelBase._level_music) leaves the music as it found it. The places that play
 ## their own: the boot loading screen starts the title's loop and the menu carries it on, and
 ## the house plays its loop and fades it when she leaves. And a level that has opted in -- Terraces
-## -- plays its music when it opens and fades it when it closes.
+## -- plays its music and ambience when it opens and fades both when it closes.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -20,12 +20,15 @@ const CATALOG := "res://config/audio.json"
 const SHORTEST_LOOP_S := 4.0
 ## Mixed on each side of a seam.
 const AROUND_SEAM_S := 0.25
-## What follows the seam must be the loop's start: the same samples, so all but identical.
-const SAME_AS_LOOP_START := 0.98
+## What follows the seam must be the loop's start: the same samples, so all but identical. Music
+## measures 0.99-1.00; an ambience bed of broadband noise 0.96, because QOA and the resampler cost
+## noise a few hundredths; a track that does not loop, 0.
+const SAME_AS_LOOP_START := 0.90
 ## Just before the seam, the track must already be the audio that leads into its loop's start,
 ## so that what follows the jump is its true continuation. famirender fades the loop's end into
-## it (0.975-0.998 over the last 2 ms); an unfaded end measures about 0.79, a hard cut far less.
-const SEAMLESS := 0.95
+## it (0.975-0.998 over the last 2 ms for music, 0.945 for the noise of an ambience bed); an unfaded
+## end measures about 0.79 for music and near 0 for noise, a hard cut far less.
+const SEAMLESS := 0.90
 ## The window it is measured over, ending a few samples short of the seam so the resampler's
 ## taps never reach across it.
 const LEAD_IN_FRAMES := 88
@@ -76,7 +79,7 @@ func _run() -> void:
 	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
 	_the_music_slider_moves_the_music_bus()
 	await _a_level_that_has_not_opted_in_leaves_the_music_alone()
-	await _terraces_plays_its_music_and_fades_it()
+	await _terraces_plays_its_music_and_wind_and_fades_both()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -334,9 +337,9 @@ func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
 	director.call(&"stop_music", 0.0)
 
 
-## Terraces opts in: its music starts as it opens, over whatever played before, and fades when it
-## closes.
-func _terraces_plays_its_music_and_fades_it() -> void:
+## Terraces opts in: its music and its wind start as it opens, over whatever played before, and
+## both fade when it closes.
+func _terraces_plays_its_music_and_wind_and_fades_both() -> void:
 	director.call(&"play_music", &"menu", 0.0)
 	var scene := (load("res://game_level.tscn") as PackedScene).instantiate()
 	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
@@ -344,16 +347,20 @@ func _terraces_plays_its_music_and_fades_it() -> void:
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _frames(20)
 	var music := director.call(&"current_music") as StringName
+	var wind := director.call(&"current_ambience") as StringName
 	var track := director.call(&"music_player") as AudioStreamPlayer
-	var file := track.stream.resource_path.get_file() if track.stream else "-"
-	var sounding := track.playing
+	var bed := director.call(&"ambience_player") as AudioStreamPlayer
+	var files := "%s, %s" % [track.stream.resource_path.get_file() if track.stream else "-",
+		bed.stream.resource_path.get_file() if bed.stream else "-"]
+	var sounding := track.playing and bed.playing
 	scene.queue_free()
 	await _frames(5)
-	var after := director.call(&"current_music") as StringName
-	var faded := await _until(func() -> bool: return not track.playing, FADE_WAIT_S)
-	_check(music == &"level_1" and sounding and file == "level_1.wav" and after == &"" and faded,
-		"Terraces plays its music as it opens, and fades it when it closes",
-		"in it '%s' (%s), after '%s', faded %s" % [music, file, after, faded])
+	var after := "%s/%s" % [director.call(&"current_music"), director.call(&"current_ambience")]
+	var faded := await _until(func() -> bool: return not track.playing and not bed.playing, FADE_WAIT_S)
+	_check(music == &"level_1" and wind == &"level_1" and sounding and files == "level_1.wav, level_1.wav"
+		and after == "/" and faded,
+		"Terraces plays its music and wind as it opens, and fades both when it closes",
+		"in it '%s' + '%s' (%s), after '%s', faded %s" % [music, wind, files, after, faded])
 
 
 # --- helpers ---------------------------------------------------------------------------------

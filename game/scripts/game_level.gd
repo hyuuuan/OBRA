@@ -905,9 +905,14 @@ func dialogue_path() -> String:
 	return "res://config/dialogue_l1.json"
 
 
-## Terraces' own loop (audio/music/level_1.txt): morning on the terraces, interlocking bells and a
-## bamboo flute. LevelBase plays it when the level opens and fades it when it leaves.
+## Terraces' own loop (audio/music/level_1.txt) -- morning on the terraces, interlocking bells and a
+## bamboo flute -- and the wind under it (audio/ambience/level_1.txt). LevelBase plays both when the
+## level opens and fades them when it leaves.
 func _level_music() -> StringName:
+	return &"level_1"
+
+
+func _level_ambience() -> StringName:
 	return &"level_1"
 
 
