@@ -117,6 +117,12 @@ information, so it needs none.
 | `sfx.revert` | `sfx/revert.txt` | Back to herself: the glide turned round from A5, shorter and softer, settling on the chorus's D. 0.47 s. |
 | `sfx.place` | `sfx/place.txt` | A drawing set down: a wooden tok of noise, a low VRC7 bass thunk on D3, and a tick as it settles. 0.33 s. |
 | `sfx.ink_low` | `sfx/ink_low.txt` | The ink nearly gone: a soft high ti-tu (E6, B5), twice, the second fainter. 0.39 s. |
+| `sfx.step` | `sfx/step.txt` | A footfall: one soft, dark tap of noise, at the stride's force. Far under the music (about −32 dBFS). 0.06 s. |
+| `sfx.jump` | `sfx/jump.txt` | A jump: a short, low hup on a 50% pulse gliding up a little, and a breath of noise. 0.12 s. |
+| `sfx.land` | `sfx/land.txt` | A landing: a low thud of noise and a soft 50% pulse knocked down, at the fall's force. 0.1 s. |
+| `sfx.swim` | `sfx/swim.txt` | A swim stroke: a soft push of dark noise and a low bubble on the pulse. 0.15 s. |
+| `sfx.splash` | `sfx/splash.txt` | Something breaks the surface: a splash of noise falling away, darker than the line's cast, at how hard it went in. 0.23 s. |
+| `sfx.ladder` | `sfx/ladder.txt` | A rung: a small wooden tok, quieter than a drawing set down. 0.06 s. |
 | `sfx.tiktik_call` | `sfx/tiktik_call.txt` | The tik-tik: two dry, high ticks (short-mode noise and a 12.5% pulse on E7), tik... tik. Played at its call's strength, so it starts loud. 0.22 s. |
 | `sfx.tiyanak_cry` | `sfx/tiyanak_cry.txt` | The tiyanak: a thin 25% pulse wail on A5 that rises and sags, wavering, over a fainter one a tritone down. 0.51 s. |
 | `sfx.lantern_hit` | `sfx/lantern_hit.txt` | Her lantern struck: a glassy clang on a tritone (E6 and A#5) and a flicker of short-mode noise. 0.17 s. |

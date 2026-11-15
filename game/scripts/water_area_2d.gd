@@ -177,8 +177,14 @@ func _splash_for(body: Node2D) -> void:
 	elif body is RigidBody2D:
 		speed = absf((body as RigidBody2D).linear_velocity.y)
 	var surface_y := global_position.y - surface_size.y * 0.5
+	var force := clampf(0.3 + speed / 700.0, 0.3, 1.0)
 	SceneryPuff2D.burst(self, to_local(Vector2(body.global_position.x, surface_y)),
-		SceneryPuff2D.Kind.SPLASH, clampf(0.3 + speed / 700.0, 0.3, 1.0))
+		SceneryPuff2D.Kind.SPLASH, force)
+	# As loud as it went in. ⚠ Looked up, not named: a class a --script probe compiles cannot
+	# name an autoload. Spaced in audio.json, so a drawing dropped in beside her is one splash.
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"splash", force)
 
 
 func _on_body_exited(body: Node2D) -> void:

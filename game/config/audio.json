@@ -47,7 +47,13 @@
     "cast": "res://assets/audio/sfx/cast.wav",
     "reel": "res://assets/audio/sfx/reel.wav",
     "gift": "res://assets/audio/sfx/gift.wav",
-    "painting": "res://assets/audio/sfx/painting.wav"
+    "painting": "res://assets/audio/sfx/painting.wav",
+    "step": "res://assets/audio/sfx/step.wav",
+    "jump": "res://assets/audio/sfx/jump.wav",
+    "land": "res://assets/audio/sfx/land.wav",
+    "swim": "res://assets/audio/sfx/swim.wav",
+    "splash": "res://assets/audio/sfx/splash.wav",
+    "ladder": "res://assets/audio/sfx/ladder.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
@@ -55,5 +61,12 @@
     "mayon_ending": ""
   },
   "ambience": {},
-  "spacing": {}
+  "spacing": {
+    "step": 0.12,
+    "land": 0.15,
+    "swim": 0.25,
+    "ladder": 0.12,
+    "splash": 0.3,
+    "jump": 0.1
+  }
 }

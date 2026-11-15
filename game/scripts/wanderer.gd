@@ -159,6 +159,16 @@ func _jump() -> void:
 	velocity.y = JUMP_VELOCITY * sqrt(maxf(jump_scale, 0.0))
 	_jump_buffered = 0.0
 	_coyote_left = 0.0
+	_sound(&"jump")
+
+
+## A sound beside what the figure shows. ⚠ Looked up, not named: a --script probe compiles this
+## class before the autoloads exist, and the identifier AudioDirector would fail to compile it.
+## The constant ones (steps, strokes, rungs, landings) are spaced in audio.json.
+func _sound(id: StringName, loudness: float = 1.0) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id, loudness)
 
 
 ## How fast you have to be coming down before a landing throws real dust, and the speed at
@@ -168,8 +178,12 @@ const LAND_DUST_FULL := 900.0
 ## How far she walks between footfalls. MEASURED IN DISTANCE, not in time: dust that arrives
 ## on a timer keeps coming while she is standing against a wall pushing into it.
 const STEP_DUST_STRIDE := 46.0
+## How far she climbs between one rung's sound and the next. The climb is one drawing, not a
+## cycle, so the rungs are heard by distance the way the steps are seen by it.
+const RUNG_STRIDE := 34.0
 
 var _stride_dust := 0.0
+var _rung_travel := 0.0
 
 
 func _ready() -> void:
@@ -198,6 +212,7 @@ func _leave_a_mark(delta: float, was_airborne: bool, fall_speed: float) -> void:
 		var force := clampf((fall_speed - LAND_DUST_FLOOR)
 			/ (LAND_DUST_FULL - LAND_DUST_FLOOR), 0.2, 1.0)
 		SceneryPuff2D.burst(host, feet, SceneryPuff2D.Kind.LAND, force)
+		_sound(&"land", force)
 		_stride_dust = 0.0
 		return
 	if not is_on_floor():
@@ -212,6 +227,8 @@ func _leave_a_mark(delta: float, was_airborne: bool, fall_speed: float) -> void:
 	var force := clampf(absf(velocity.x) / SPEED, 0.2, 1.0)
 	SceneryPuff2D.burst(host, feet - Vector2(_facing * 9.0, 0.0),
 		SceneryPuff2D.Kind.STEP, force * 0.55)
+	# With the dust, a walk softer than a run, and never so soft it is not there at all.
+	_sound(&"step", clampf(force, 0.4, 1.0))
 
 
 func _physics_process(delta: float) -> void:
@@ -267,6 +284,10 @@ func _physics_process(delta: float) -> void:
 			velocity -= across * clampf(offset * CLIMB_ALIGNMENT, -CLIMB_SPEED, CLIMB_SPEED)
 		else:
 			velocity.x += direction * SPEED * CLIMB_DRIFT
+		_rung_travel += velocity.length() * delta
+		if _rung_travel >= RUNG_STRIDE:
+			_rung_travel = 0.0
+			_sound(&"ladder")
 		if Input.is_action_just_pressed(&"jump"):
 			end_ladder()
 			_jump()
@@ -387,7 +408,11 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 		# The kick keeps time with the water covered either way: diving straight down is a stroke.
 		if previous_pose != next_pose:
 			_phase = 0.0
+		var before := _phase
 		_phase = fposmod(_phase + delta * velocity.length() / SWIM_STROKE, 1.0)
+		# A stroke is heard as its cycle comes round, once per stroke drawn.
+		if _phase < before:
+			_sound(&"swim")
 	elif next_pose in [&"swim_idle_side", &"swim_idle_front", &"swim_float"]:
 		if previous_pose != next_pose:
 			_phase = 0.0
@@ -578,6 +603,9 @@ func _riding() -> bool:
 func begin_ladder(ladder: Node2D) -> void:
 	_ladder = ladder
 	_ladder_half_height = _measure_half_height(ladder)
+	# Taking hold is the first rung.
+	_rung_travel = 0.0
+	_sound(&"ladder")
 	# You climb THROUGH a ladder, not beside it. A placed ladder freezes into a solid body,
 	# so without this the player was pressed against its face the whole way up and could
 	# never step off at the top -- which made a ladder leaned against a cliff a wall with
