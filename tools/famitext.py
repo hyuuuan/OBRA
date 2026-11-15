@@ -15,6 +15,9 @@ Notes are written "C4", "F#5", "A#3" (sharps only), "r" for a rest in `line`, "-
 "===" (release) as themselves, and noise pitches as the tracker writes them ("5-#").
 A row past the end of a frame lands in the next; past the last frame, in `loop_to`, which is
 where the song goes next when it loops -- so an echo or a pickup crosses the seam as it plays.
+
+The DPCM channel plays nothing here (famirender renders no samples), so its two effect columns
+carry the song's own: the first its speed, for `swing`; the second the loop's jump.
 """
 
 from __future__ import annotations
@@ -24,7 +27,12 @@ from dataclasses import dataclass, field
 CHANNELS = ("pulse1", "pulse2", "triangle", "noise", "dpcm", "fm1", "fm2", "fm3", "fm4", "fm5", "fm6")
 NOTES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 MACRO_KINDS = {"volume": 0, "arpeggio": 1, "pitch": 2, "duty": 4}
-EMPTY = "... .. . ..."
+# Effect columns per channel: DPCM's two hold the song's speed and its loop.
+COLUMNS = {name: (2 if name == "dpcm" else 1) for name in CHANNELS}
+
+
+def _empty(channel: str) -> str:
+    return " ".join(["...", "..", "."] + ["..."] * COLUMNS[channel])
 
 
 def transpose(note: str, semitones: int) -> str:
@@ -59,7 +67,7 @@ class Song:
     _grid: list[list[list[str]]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        self._grid = [[[EMPTY for _ in CHANNELS] for _ in range(self.rows)]
+        self._grid = [[[_empty(c) for c in CHANNELS] for _ in range(self.rows)]
                       for _ in range(self.frames)]
 
     # --- instruments ---------------------------------------------------------------------
@@ -119,6 +127,18 @@ class Song:
             cell[3] = fx
         self._grid[frame][row][CHANNELS.index(channel)] = " ".join(cell)
 
+    def swing(self, long: int, short: int) -> None:
+        """A swung groove: every even row `long` ticks, every odd row `short`, through the whole
+        song. Two rows still take long + short ticks, so the tempo is their average."""
+        for frame in range(self.frames):
+            for row in range(self.rows):
+                self._set(frame, row, "dpcm", 3, f"F{long if row % 2 == 0 else short:02X}")
+
+    def _set(self, frame: int, row: int, channel: str, token: int, value: str) -> None:
+        cell = self._grid[frame][row][CHANNELS.index(channel)].split()
+        cell[token] = value
+        self._grid[frame][row][CHANNELS.index(channel)] = " ".join(cell)
+
     def line(self, channel: str, frame: int, row: int, notes: list[tuple[str, int]], inst: int,
              vol: int, *, rest: str = "===", held_fx: tuple[int, str, str] | None = None) -> int:
         """Notes one after another from (frame, row): (note, rows), "r" a rest. `held_fx` is
@@ -138,11 +158,8 @@ class Song:
 
     def text(self) -> str:
         if self.loop_to is not None:
-            # The loop's jump rides pulse 1's last cell, which must have no effect of its own.
-            last = self._grid[self.frames - 1][self.rows - 1][0].split()[3]
-            if last not in ("...", f"B{self.loop_to:02X}"):
-                raise ValueError(f"pulse 1's last cell already holds {last}; the loop needs it")
-            self.put("pulse1", self.frames - 1, self.rows - 1, fx=f"B{self.loop_to:02X}")
+            # The loop's jump has DPCM's second effect column to itself.
+            self._set(self.frames - 1, self.rows - 1, "dpcm", 4, f"B{self.loop_to:02X}")
         out = ["# FamiTracker text export (written for O.B.R.A.; import with File > Import Text)",
                "", f'TITLE           "O.B.R.A. - {self.title}"', 'AUTHOR          "O.B.R.A. team"',
                'COPYRIGHT       "2026"', ""]
@@ -150,7 +167,7 @@ class Song:
         out += ["", "MACHINE         0", "FRAMERATE       0", "EXPANSION       2",
                 "VIBRATO         1", "SPLIT           32", "", *self._macros, "", *self._insts, "",
                 f'TRACK  {self.rows}   {self.speed} {self.tempo} "{self.title}"',
-                "COLUMNS : " + " ".join(["1"] * len(CHANNELS)), ""]
+                "COLUMNS : " + " ".join(str(COLUMNS[c]) for c in CHANNELS), ""]
         out += [f"ORDER {f:02X} : " + " ".join([f"{f:02X}"] * len(CHANNELS)) for f in range(self.frames)]
         out.append("")
         for f in range(self.frames):

@@ -62,6 +62,7 @@ class ModuleTest(unittest.TestCase):
         self.assertIn("MACRO 4 0 -1 -1 0 : 2", text)
         self.assertIn('INST2A03 1 0 -1 -1 -1 0 "pluck"', text)
         self.assertIn('INSTVRC7 0 4 00 00 00 00 00 00 00 00 "flute"', text)
+        self.assertIn("COLUMNS : 1 1 1 1 2 1 1 1 1 1 1", text)
 
     def test_a_held_note_gets_its_late_effect_and_the_next_cancels_it(self) -> None:
         song = Song("t", frames=1, rows=16)
@@ -76,11 +77,14 @@ class ModuleTest(unittest.TestCase):
         self.assertFalse(fm1[11].endswith("443"))      # B is short: no vibrato
         self.assertTrue(fm1[13].endswith("443"))       # C is held: it gets one
 
-    def test_the_loop_will_not_overwrite_an_effect(self) -> None:
-        song = Song("t", frames=1, rows=16)
-        song.put("pulse1", 0, 15, fx="V02")
-        with self.assertRaisesRegex(ValueError, "last cell"):
-            song.text()
+    def test_a_swung_song_still_loops_and_its_rows_alternate(self) -> None:
+        # Seven ticks then five, row after row: two rows are twelve ticks, as at speed 6, but a
+        # three-row song is nineteen, not eighteen. The jump has its own column, so both fit.
+        song = Song("t", frames=1, rows=3)
+        song.swing(7, 5)
+        song.put("fm1", 0, 0, "A4", song.inst_vrc7("flute", patch=4), 12)
+        result = fr.render(fr.parse_module(song.text()))
+        self.assertAlmostEqual(len(result.samples) - result.loop_start, 19 * TICK, delta=1.0)
 
     def test_mistakes_are_refused(self) -> None:
         song = Song("t", frames=1, rows=16)
