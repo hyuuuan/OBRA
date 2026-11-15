@@ -337,7 +337,8 @@ func _audit_nothing_the_ash_takes_is_solid(scene: Node) -> void:
 ## silent". What stays from that rule is that the scene plays nothing itself: every sound goes
 ## through AudioDirector, by id. And every one of its ids that has music written has a file, so
 ## none is a hook left silent by mistake.
-const MAYON_MUSIC := ["level_5", "memory_terraces", "memory_piyesta", "memory_dagat", "memory_dilim"]
+const MAYON_MUSIC := ["level_5", "memory_terraces", "memory_piyesta", "memory_dagat", "memory_dilim",
+	"lola", "mayon_ending"]
 const MAYON_SFX := []
 
 

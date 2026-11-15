@@ -75,8 +75,8 @@
     "memory_piyesta": "res://assets/audio/music/memory_piyesta.wav",
     "memory_dagat": "res://assets/audio/music/memory_dagat.wav",
     "memory_dilim": "res://assets/audio/music/memory_dilim.wav",
-    "lola": "",
-    "mayon_ending": ""
+    "lola": "res://assets/audio/music/lola.wav",
+    "mayon_ending": "res://assets/audio/music/mayon_ending.wav"
   },
   "ambience": {
     "level_1": "res://assets/audio/ambience/level_1.wav",
