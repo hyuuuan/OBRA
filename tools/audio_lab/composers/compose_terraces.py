@@ -1,8 +1,4 @@
-"""Scaffolding: Terraces (Level 1) after Ifugao music (Kent, 2026-11-15: "like how Ifugao music
-cultural sounds like"). Written from what the sources describe -- a gangsa ensemble of five or six
-flat gongs, one player each, interlocking in syncopated parts (palook, struck with sticks while
-dancing); bangibang, wooden bars struck with sticks; hudhud, chanted epic poetry, which
-instruments do not accompany. Original: no real chant or gong piece is reproduced.
+"""Write Payyo's "Up the Green Steps" tracker module.
 
     compose_terraces.py TOOLS_DIR OUT.txt
 """
@@ -10,114 +6,246 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, sys.argv[1])
-from famitext import Song  # noqa: E402
+from famitext import Song, transpose  # noqa: E402
 
-BAR = 16                          # 4/4 in sixteenths, straight: gong music does not swing
-song = Song("Terraces", frames=5, rows=64, speed=8, loop_to=1, comments=(
-    "Terraces, after Ifugao music: four short gangsa gongs in a hocket, wooden bangibang in the gaps,",
-    "and a hudhud-like call and response over one gong. Original; ~112 BPM, straight sixteenths.",
+BAR = 16
+song = Song("Payyo - Up the Green Steps", frames=10, speed=8, comments=(
+    "Original music for Payyo, the green terraces.",
+    "D major, 138 BPM, 8:5 sixteenth swing. A A' B Break/Lift A''.",
+    "2A03 drums and pulses, VRC7 bass, chord stabs, reeds, and short gangsa accents.",
 ))
+song.swing(8, 5)
 
-# ⚠ THE GONG IS SHORT. The VRC7's soft bell rang 3.9 s a strike, and with ten strikes a bar the
-# whole ensemble ran together into one wash (Kent: "everything is overlapping"). This custom patch
-# is percussive -- modulator x3 over carrier x1, a little feedback, a fast decay to a low sustain
-# level and a quick release -- and rings about a third of a second, dark (~1.4 kHz). Measured
-# against the soft bell and three others before choosing it.
-GONG = song.inst_vrc7("gangsa", patch=0, regs=(0x03, 0x01, 0x1E, 0x04, 0xF6, 0xF5, 0x37, 0x6A))
-WOOD = song.inst_vrc7("bangibang", patch=10)      # wooden bars
-CHANTER = song.inst_vrc7("chanter", patch=5)
-CHORUS = song.inst_vrc7("chorus", patch=15)
-DRUM = song.inst_2a03("low drum", volume=[15, 15, 12, 0], arpeggio=[26, 23, 21, 19], fixed=True)
+LEAD = song.inst_vrc7("Terrace reed", patch=5)
+BRASS = song.inst_vrc7("Hilltop trumpet", patch=7)
+KEYS = song.inst_vrc7("Soft comp keys", patch=3)
+BASS = song.inst_vrc7("Finger bass", patch=13)
+GONG = song.inst_vrc7("Short gangsa", patch=0, regs=(0x03, 0x01, 0x1E, 0x04, 0xF6, 0xF5, 0x37, 0x6A))
+PLUCK = song.inst_2a03("Answer pluck", volume=[7, 7, 6, 5, 4, 3, 2, 1, 0], duty=[2])
+ECHO = song.inst_2a03("Reed shadow", volume=[5, 5, 4, 3, 3, 2, 1, 0], duty=[2])
+KICK = song.inst_2a03("Kick", volume=[15, 15, 15, 12, 10, 0],
+                      arpeggio=[0, -3, -6, -8, -10, -12])
+HAT = song.inst_2a03("Closed hat", volume=[4, 3, 2, 1, 0], duty=[0])
+OPEN_HAT = song.inst_2a03("Loose hat", volume=[5, 4, 3, 3, 2, 2, 1, 0], duty=[0])
+SNARE = song.inst_2a03("Backbeat", volume=[11, 9, 8, 7, 5, 4, 3, 2, 1, 0], duty=[0])
+GHOST = song.inst_2a03("Ghost snare", volume=[5, 4, 3, 2, 1, 0], duty=[0])
 
-# The gong set, low to high: four gongs a fifth and octaves apart, so nothing rubs. Not tuned to a
-# Western scale: each is pitched a little off (Pxx). (A bend as it rings was tried and dropped:
-# 2xx's smallest step, held through a low gong's ring, falls two semitones.)
-# ⚠ A HOCKET: no two gongs ever strike on the same step. Each part has its own steps, and together
-# they make one line of strokes with gaps in it, which the wood fills -- not a pile.
-GONGS = [  # channel, note, fine pitch, the steps of the bar it strikes (its part in the interlock)
-    ("fm2", "D4", "P7D", (0, 8)),
-    ("fm3", "A4", "P83", (4, 12, 14)),
-    ("fm4", "D5", "P7E", (2, 6, 10)),
-    ("fm5", "E5", "P84", (7, 11, 15)),
-]
-WOOD_STEPS = (1, 5, 9, 13)                         # the steps no gong takes
-WOOD_NOTES = ("A5", "C6")
+# Root and three upper voices. The upper voices stay close as the bass moves.
+CHORDS = {
+    "Dmaj9":    ("D2",  ("F#4", "C#5", "E5")),
+    "D6/9":     ("D2",  ("F#4", "B4",  "E5")),
+    "F#m7":     ("F#2", ("A4",  "C#5", "E5")),
+    "B7b13":    ("B2",  ("G4",  "A4",  "D#5")),
+    "Bm9":      ("B2",  ("F#4", "A4",  "C#5")),
+    "Em9":      ("E2",  ("G4",  "B4",  "D5")),
+    "A13":      ("A2",  ("G4",  "B4",  "C#5")),
+    "A7sus":    ("A2",  ("G4",  "A4",  "D5")),
+    "Gmaj9":    ("G2",  ("F#4", "A4",  "B4")),
+    "Gm6":      ("G2",  ("E4",  "A#4", "D5")),
+    "C13":      ("C2",  ("G4",  "A#4", "E5")),
+    "Fmaj9#11": ("F2",  ("A4",  "B4",  "E5")),
+    "Dm9":      ("D2",  ("F4",  "C5",  "E5")),
+    "G13":      ("G2",  ("F4",  "B4",  "E5")),
+    "Cmaj9":    ("C2",  ("G4",  "B4",  "D5")),
+    "E7b13":    ("E2",  ("G#4", "C5",  "D5")),
+}
+
+# Each tuple gives the chord changes within a bar. A second chord enters on beat three.
+CHANGES = (
+    # A: the hook climbs, answers down, and turns through the minor subdominant.
+    ("Dmaj9",), ("F#m7", "B7b13"), ("Em9",), ("A13",),
+    ("Gmaj9",), ("Gm6", "C13"), ("D6/9", "Bm9"), ("Em9", "A13"),
+    # A': a second pass with a different cadence and a bass answer.
+    ("Dmaj9",), ("F#m7", "B7b13"), ("Em9",), ("A7sus", "A13"),
+    ("Gmaj9",), ("Gm6", "C13"), ("F#m7", "B7b13"), ("Em9", "A13"),
+    # B: a side step into F Lydian and a chain of dominants back toward D.
+    ("Fmaj9#11",), ("G13",), ("Cmaj9",), ("E7b13",),
+    ("Dm9",), ("G13",), ("Em9", "Gm6"), ("A7sus", "A13"),
+    # The gong and bass get space before the trumpet lift.
+    ("Bm9",), ("Gmaj9",), ("Dmaj9",), ("A7sus",),
+    ("Gmaj9",), ("F#m7", "B7b13"), ("Em9",), ("A7sus", "A13"),
+    # A'': the hook returns with a higher answer and a short turnaround.
+    ("Dmaj9",), ("F#m7", "B7b13"), ("Em9",), ("A13",),
+    ("Gmaj9",), ("Gm6", "C13"), ("D6/9", "Bm9"), ("Em9", "A13"),
+)
+
+# Lead, written as (sixteenth, pitch, duration). The silences leave room for the answer pluck.
+MELODY = (
+    ((2, "F#5", 1), (3, "A5", 2), (6, "B5", 1), (7, "A5", 1), (8, "F#5", 4), (14, "E5", 1)),
+    ((0, "C#5", 3), (4, "E5", 1), (6, "F#5", 2), (9, "G5", 2), (12, "D#5", 2), (15, "F#5", 1)),
+    ((0, "G5", 3), (5, "F#5", 1), (6, "E5", 2), (10, "B4", 3), (14, "D5", 2)),
+    ((1, "E5", 2), (4, "F#5", 1), (5, "E5", 1), (7, "C#5", 4), (13, "A4", 1), (14, "C#5", 2)),
+    ((0, "D5", 2), (3, "F#5", 2), (6, "A5", 3), (10, "B5", 1), (11, "A5", 3)),
+    ((0, "G5", 2), (3, "E5", 2), (6, "D5", 1), (8, "E5", 3), (12, "A#4", 1), (14, "D5", 2)),
+    ((0, "C#5", 2), (2, "F#5", 2), (5, "E5", 3), (10, "D5", 2), (14, "C#5", 2)),
+    ((0, "B4", 3), (5, "D5", 2), (8, "E5", 1), (9, "F#5", 1), (10, "E5", 4)),
+    ((2, "F#5", 1), (3, "A5", 2), (6, "B5", 1), (7, "A5", 1), (8, "F#5", 4), (14, "E5", 1)),
+    ((0, "C#5", 2), (3, "E5", 2), (6, "F#5", 2), (9, "A5", 2), (12, "G5", 2), (15, "D#5", 1)),
+    ((0, "E5", 3), (4, "F#5", 1), (6, "G5", 2), (9, "B5", 4), (14, "A5", 2)),
+    ((0, "G5", 3), (5, "E5", 2), (9, "F#5", 1), (10, "E5", 1), (11, "C#5", 3)),
+    ((0, "D5", 2), (3, "F#5", 2), (6, "A5", 3), (10, "B5", 1), (11, "D6", 3)),
+    ((0, "A#5", 3), (4, "A5", 1), (6, "G5", 2), (9, "E5", 2), (12, "D5", 2), (15, "C5", 1)),
+    ((0, "C#5", 2), (3, "E5", 2), (6, "F#5", 2), (8, "D#5", 3), (13, "G5", 2)),
+    ((0, "F#5", 2), (3, "G5", 2), (6, "B5", 2), (8, "A5", 4), (14, "G5", 1)),
+    ((0, "E5", 4), (6, "A5", 2), (9, "B5", 1), (10, "C6", 3)),
+    ((0, "B5", 3), (5, "G5", 2), (8, "E5", 2), (11, "F5", 2), (14, "D5", 2)),
+    ((0, "E5", 3), (4, "G5", 2), (7, "B5", 4), (13, "D6", 2)),
+    ((0, "C6", 2), (3, "B5", 2), (6, "G#5", 2), (9, "F#5", 1), (10, "E5", 4)),
+    ((0, "F5", 4), (6, "A5", 1), (7, "C6", 2), (11, "E6", 3)),
+    ((0, "D6", 3), (5, "B5", 1), (6, "G5", 2), (9, "E5", 3), (14, "F5", 2)),
+    ((0, "F#5", 1), (2, "G5", 3), (7, "B5", 1), (8, "A#5", 3), (13, "G5", 2)),
+    ((0, "E5", 3), (5, "D5", 2), (8, "C#5", 4)),
+    (),
+    ((6, "B4", 2), (10, "D5", 3)),
+    (),
+    ((4, "E5", 3), (10, "D5", 2), (14, "E5", 2)),
+    ((0, "F#5", 3), (4, "A5", 2), (7, "B5", 3), (12, "D6", 3)),
+    ((0, "C#6", 3), (4, "A5", 2), (8, "G5", 2), (11, "D#5", 2), (14, "F#5", 2)),
+    ((0, "G5", 3), (4, "B5", 2), (7, "E6", 3), (12, "D6", 2), (14, "B5", 2)),
+    ((0, "A5", 3), (4, "G5", 2), (8, "F#5", 2), (11, "E5", 3)),
+    ((2, "F#5", 1), (3, "A5", 2), (6, "B5", 1), (7, "A5", 1), (8, "F#5", 4), (14, "E5", 1)),
+    ((0, "C#5", 2), (3, "E5", 2), (6, "F#5", 2), (9, "A5", 2), (12, "G5", 2), (15, "D#5", 1)),
+    ((0, "E5", 3), (5, "G5", 2), (8, "B5", 2), (11, "D6", 3)),
+    ((0, "C#6", 3), (5, "B5", 1), (6, "A5", 2), (10, "F#5", 2), (13, "E5", 2)),
+    ((0, "D5", 2), (3, "F#5", 2), (6, "A5", 3), (10, "B5", 1), (11, "D6", 3)),
+    ((0, "A#5", 3), (4, "A5", 1), (6, "G5", 2), (9, "E5", 3), (14, "C5", 2)),
+    ((0, "D5", 5), (7, "E5", 1), (8, "F#5", 3), (12, "D5", 2), (15, "C#5", 1)),
+    ((0, "B4", 3), (4, "G5", 2), (8, "E5", 3), (12, "C#5", 2), (15, "E5", 1)),
+)
+
+# The pluck answers between phrases. The shadow doubles selected lead accents a third or sixth below.
+ANSWERS = {
+    2: ((8, "F#4"), (12, "G4")), 3: ((10, "A4"), (12, "B4")),
+    5: ((10, "G4"), (13, "E4")), 7: ((11, "B4"), (13, "C#5"), (15, "E5")),
+    10: ((7, "B4"), (12, "D5")), 11: ((2, "D5"), (6, "C#5")),
+    13: ((7, "A#4"), (11, "G4")), 15: ((11, "C#5"), (13, "E5")),
+    17: ((4, "E5"), (12, "B4")), 19: ((7, "D5"), (14, "G#4")),
+    21: ((7, "B4"), (11, "D5")), 23: ((12, "F#5"), (14, "E5")),
+    24: ((2, "F#4"), (6, "A4"), (11, "C#5")), 25: ((2, "D5"), (14, "A4")),
+    26: ((2, "F#4"), (6, "A4"), (10, "E5"), (13, "C#5")),
+    27: ((2, "B4"), (7, "E4"), (12, "A4")),
+    35: ((4, "E5"), (9, "C#5")), 37: ((7, "D5"), (12, "G4")),
+    38: ((4, "A4"), (10, "B4")), 39: ((6, "B4"), (11, "A4")),
+}
+HARMONY = {
+    4: ((6, "F#5"), (11, "F#5")), 6: ((0, "A4"), (5, "C#5")),
+    12: ((6, "F#5"), (11, "B5")), 14: ((6, "C#5"), (8, "B4")),
+    16: ((0, "A4"), (10, "E5")), 18: ((7, "G5"), (13, "G5")),
+    20: ((0, "D5"), (11, "C6")), 22: ((2, "E5"), (8, "G5")),
+    28: ((0, "D5"), (7, "G5"), (12, "B5")), 29: ((0, "A5"), (8, "D#5")),
+    30: ((0, "E5"), (7, "B5"), (12, "G5")), 31: ((0, "E5"), (8, "C#5")),
+    34: ((8, "G5"), (11, "B5")), 36: ((6, "F#5"), (11, "B5")),
+    38: ((0, "F#4"), (8, "D5")), 39: ((8, "C#5"),),
+}
+# Local percussion, exposed in the breakdown and used sparingly under the band.
+GONG_HITS = {
+    0: ((0, "D4"), (11, "A4")), 3: ((14, "E4"),),
+    7: ((0, "E4"), (14, "A4")), 8: ((0, "D4"),), 12: ((8, "G4"),),
+    15: ((0, "E4"), (14, "A4")), 19: ((12, "E4"),), 23: ((14, "A4"),),
+    24: ((0, "B3"), (8, "F#4"), (14, "B4")), 25: ((0, "G3"), (7, "D4"), (12, "A4")),
+    26: ((0, "D4"), (8, "A4"), (14, "E4")), 27: ((0, "A3"), (8, "E4"), (13, "A4")),
+    28: ((0, "G4"),), 31: ((14, "A4"),), 32: ((0, "D4"), (11, "A4")),
+    36: ((8, "G4"),), 39: ((14, "A4"),),
+}
 
 
-def gongs(frame: int, bar: int, which: range, vol: int = 14) -> None:
-    row = bar * BAR
-    for index in which:
-        channel, note, fine, steps = GONGS[index]
-        for n, step in enumerate(steps):
-            # The low gong, struck least, is struck hardest, so the time it keeps is heard.
-            song.put(channel, frame, row + step, note, GONG, min(15, vol + (1 if index == 0 else 0)),
-                     fine if n == 0 else None)
-            # Damped two sixteenths on, as a hand stops a gangsa, unless the gong strikes again first.
-            if step + 2 < BAR and step + 1 not in steps and step + 2 not in steps:
-                song.put(channel, frame, row + step + 2, "===")
+def write_lead(bar, frame, start):
+    instrument = BRASS if 28 <= bar < 32 else LEAD
+    for step, pitch, length in MELODY[bar]:
+        volume = 14 if length > 1 else 12
+        scoop = length >= 3 and (bar, step) in {(4, 6), (12, 11), (16, 0), (28, 7), (38, 0)}
+        song.put("fm1", frame, start + step, pitch, instrument, volume, "P79" if scoop else None)
+        if scoop:
+            song.put("fm1", frame, start + step + 1, fx="P80")
+        if step + length <= BAR:
+            song.put("fm1", frame, start + step + length, "===")
+    for step, pitch in ANSWERS.get(bar, ()):
+        song.put("pulse1", frame, start + step, pitch, PLUCK, 12)
+    for step, pitch in HARMONY.get(bar, ()):
+        song.put("pulse2", frame, start + step, pitch, ECHO, 12)
 
 
-def wood_and_drum(frame: int, bar: int, vol: int) -> None:
-    row = bar * BAR
-    for n, step in enumerate(WOOD_STEPS):
-        song.put("fm1", frame, row + step, WOOD_NOTES[n % 2], WOOD, vol)
-    song.put("triangle", frame, row, "C4", DRUM)
-    song.put("triangle", frame, row + 8, "C4", DRUM)
+def write_comp(bar, frame, start, changes):
+    sparse = 24 <= bar < 28
+    for section, chord in enumerate(changes):
+        row = start + 8 * section
+        _, voicing = CHORDS[chord]
+        if sparse:
+            hits = ((0, 4, 9), (10, 3, 8))
+        elif len(changes) == 2:
+            hits = ((0, 3, 11), (5, 2, 10))
+        elif bar % 4 == 2:
+            hits = ((0, 2, 11), (5, 2, 10), (11, 3, 11))
+        else:
+            hits = ((0, 3, 11), (6, 2, 10), (10, 3, 11))
+        for step, length, volume in hits:
+            for channel, pitch in zip(("fm3", "fm4", "fm5"), voicing):
+                song.put(channel, frame, row + step, pitch, KEYS, volume)
+                song.put(channel, frame, row + step + length, "===")
+    for step, pitch in GONG_HITS.get(bar, ()):
+        song.put("fm2", frame, start + step, pitch, GONG, 12 if sparse else 10)
+        if step < 14:
+            song.put("fm2", frame, start + step + 2, "===")
 
 
-# Intro: the gongs come in one at a time, lowest first, as an ensemble gathers.
-for bar in range(4):
-    gongs(0, bar, range(min(bar + 1, 4)))
-    if bar >= 2:
-        wood_and_drum(0, bar, 7)
-
-# Frames 1-2: the full ensemble, eight bars of the dance.
-for frame in (1, 2):
-    for bar in range(4):
-        gongs(frame, bar, range(4))
-        wood_and_drum(frame, bar, 9)
-
-# Frames 3-4: the chant. The ensemble drops out but for the lowest gong, keeping time softly; a
-# lead voice calls, gliding between its few notes, and a chorus answers.
-CALLS = [
-    [("A4", 4), ("A4", 2), ("G4", 2), ("A4", 6, "Q12"), ("B4", 2)],
-    [("A4", 8, "303"), ("G4", 4), ("E4", 4, "300")],
-    None, None,
-    [("B4", 4), ("A4", 4), ("B4", 6, "303"), ("D5", 2)],
-    [("B4", 8), ("A4", 4, "300"), ("G4", 4)],
-    None, None,
-]
-ANSWERS = [
-    None, None,
-    [("G4", 4), ("A4", 4), ("G4", 4), ("E4", 4)],
-    [("D4", 8), ("E4", 6), ("r", 2)],
-    None, None,
-    [("A4", 4), ("G4", 4), ("E4", 8)],
-    [("D4", 8), ("E4", 6), ("r", 2)],
-]
+def write_bass(bar, frame, start, changes, next_chord):
+    sparse = 24 <= bar < 28
+    root, _ = CHORDS[changes[0]]
+    fifth = transpose(root, 7)
+    octave = transpose(root, 12)
+    next_root, _ = CHORDS[next_chord]
+    pickup = transpose(next_root, 1 if bar % 4 == 1 else -1)
+    if sparse:
+        notes = ((0, root, 6), (8, fifth, 3), (13, octave, 2))
+    elif len(changes) == 2:
+        second_root, _ = CHORDS[changes[1]]
+        notes = ((0, root, 3), (4, fifth, 2), (7, octave, 1), (8, second_root, 3),
+                 (12, transpose(second_root, 7), 2), (15, pickup, 1))
+    elif bar % 4 in (0, 2):
+        notes = ((0, root, 3), (3, octave, 2), (6, fifth, 2), (8, root, 2),
+                 (11, octave, 2), (14, fifth, 1), (15, pickup, 1))
+    else:
+        notes = ((0, root, 3), (5, fifth, 2), (7, octave, 1), (8, root, 3),
+                 (12, fifth, 2), (15, pickup, 1))
+    for step, pitch, length in notes:
+        song.put("fm6", frame, start + step, pitch, BASS, 13 if step % 8 == 0 else 11)
+        if step + length < BAR:
+            song.put("fm6", frame, start + step + length, "===")
 
 
-def sing(channel: str, inst: int, vol: int, frame: int, bar: int, notes) -> None:
-    row = bar * BAR
-    for item in notes:
-        note, length = item[0], item[1]
-        fx = item[2] if len(item) > 2 else None
-        song.put(channel, frame, row, "===" if note == "r" else note,
-                 None if note == "r" else inst, None if note == "r" else vol, fx)
-        row += length
-    # A breath at the end of the phrase.
-    song.put(channel, frame, row - 1 if row % BAR == 0 else row, "===")
+def write_drums(bar, frame, start):
+    if 24 <= bar < 27:
+        kick_steps = (0, 8)
+        hits = ((4, "5-#", GHOST), (10, "7-#", HAT), (12, "5-#", GHOST))
+    elif bar == 23:
+        kick_steps = (0, 5, 10)
+        hits = ((0, "7-#", HAT), (3, "7-#", HAT), (4, "5-#", SNARE),
+                (8, "7-#", HAT), (12, "4-#", SNARE))
+    else:
+        kick_steps = (0, 6, 8, 11) if bar % 2 == 0 else (0, 5, 10, 14)
+        hits = [(step, "7-#", HAT) for step in (0, 2, 5, 8, 10, 13)]
+        hits.extend(((4, "5-#", SNARE), (12, "4-#", SNARE)))
+        hits.append((14, "6-#", OPEN_HAT))
+        if bar % 4 == 3:
+            hits.extend(((11, "4-#", GHOST), (15, "5-#", GHOST)))
+    for step in kick_steps:
+        song.put("triangle", frame, start + step, "F2", KICK)
+    for step, pitch, instrument in hits:
+        song.put("noise", frame, start + step, pitch, instrument, 15)
 
 
-for index in range(8):
-    frame, bar = 3 + index // 4, index % 4
-    gongs(frame, bar, range(1), vol=11)
-    song.put("triangle", frame, bar * BAR, "C4", DRUM)
-    if CALLS[index]:
-        sing("fm1", CHANTER, 13, frame, bar, CALLS[index])
-    if ANSWERS[index]:
-        sing("fm3", CHORUS, 11, frame, bar, ANSWERS[index])
-        sing("fm4", CHORUS, 10, frame, bar, [(n[0] if n[0] == "r" else n[0][:-1] + str(int(n[0][-1]) - 1), n[1]) for n in ANSWERS[index]])
+def main():
+    for bar, changes in enumerate(CHANGES):
+        frame, start = song.at(0, bar * BAR)
+        next_chord = CHANGES[(bar + 1) % len(CHANGES)][0]
+        write_bass(bar, frame, start, changes, next_chord)
+        write_comp(bar, frame, start, changes)
+        write_drums(bar, frame, start)
+        write_lead(bar, frame, start)
+    # FamiStudio's importer requires the standard FamiTracker version header.
+    _, _, module = song.text().partition("\n")
+    Path(sys.argv[2]).write_text("# FamiTracker text export 0.4.2\n" + module, encoding="utf-8")
 
-Path(sys.argv[2]).write_text(song.text())
-print("wrote", sys.argv[2])
+
+if __name__ == "__main__":
+    main()
