@@ -5,7 +5,8 @@ extends SceneTree
 ## effect is not repeated inside its spacing, the Music slider moves the Music bus, and a level that
 ## has not opted in (LevelBase._level_music) leaves the music as it found it. The places that play
 ## their own: the boot loading screen starts the title's loop and the menu carries it on, and
-## the house plays its loop and fades it when she leaves.
+## the house plays its loop and fades it when she leaves. And a level that has opted in -- Terraces
+## -- plays its music when it opens and fades it when it closes.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -23,7 +24,7 @@ const AROUND_SEAM_S := 0.25
 const SAME_AS_LOOP_START := 0.98
 ## Just before the seam, the track must already be the audio that leads into its loop's start,
 ## so that what follows the jump is its true continuation. famirender fades the loop's end into
-## it (0.997 over the last 2 ms); an unfaded end measures about 0.79, a hard cut far less.
+## it (0.975-0.998 over the last 2 ms); an unfaded end measures about 0.79, a hard cut far less.
 const SEAMLESS := 0.95
 ## The window it is measured over, ending a few samples short of the seam so the resampler's
 ## taps never reach across it.
@@ -40,7 +41,7 @@ const PROBE_SPACING_S := 0.4
 
 var failures := 0
 var checked := 0
-const CHECKS := 17
+const CHECKS := 18
 var director: Node
 
 
@@ -75,6 +76,7 @@ func _run() -> void:
 	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
 	_the_music_slider_moves_the_music_bus()
 	await _a_level_that_has_not_opted_in_leaves_the_music_alone()
+	await _terraces_plays_its_music_and_fades_it()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -313,10 +315,10 @@ func _the_music_slider_moves_the_music_bus() -> void:
 
 
 ## Levels opt in to music (LevelBase._level_music, off by default): one that has not, opened and
-## closed, leaves the music that was playing as it was.
+## closed, leaves the music that was playing as it was. Piyesta, until its own loop is written.
 func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
 	director.call(&"play_music", &"menu", 0.0)
-	var scene := (load("res://game_level.tscn") as PackedScene).instantiate()
+	var scene := (load("res://level_2.tscn") as PackedScene).instantiate()
 	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(scene)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
@@ -330,6 +332,28 @@ func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
 		"a level that has not opted in leaves the music alone, in and out",
 		"in it '%s', after it '%s', sounding %s" % [during, after, player.playing])
 	director.call(&"stop_music", 0.0)
+
+
+## Terraces opts in: its music starts as it opens, over whatever played before, and fades when it
+## closes.
+func _terraces_plays_its_music_and_fades_it() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := (load("res://game_level.tscn") as PackedScene).instantiate()
+	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(scene)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(20)
+	var music := director.call(&"current_music") as StringName
+	var track := director.call(&"music_player") as AudioStreamPlayer
+	var file := track.stream.resource_path.get_file() if track.stream else "-"
+	var sounding := track.playing
+	scene.queue_free()
+	await _frames(5)
+	var after := director.call(&"current_music") as StringName
+	var faded := await _until(func() -> bool: return not track.playing, FADE_WAIT_S)
+	_check(music == &"level_1" and sounding and file == "level_1.wav" and after == &"" and faded,
+		"Terraces plays its music as it opens, and fades it when it closes",
+		"in it '%s' (%s), after '%s', faded %s" % [music, file, after, faded])
 
 
 # --- helpers ---------------------------------------------------------------------------------

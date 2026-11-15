@@ -905,6 +905,12 @@ func dialogue_path() -> String:
 	return "res://config/dialogue_l1.json"
 
 
+## Terraces' own loop (audio/music/level_1.txt): morning on the terraces, interlocking bells and a
+## bamboo flute. LevelBase plays it when the level opens and fades it when it leaves.
+func _level_music() -> StringName:
+	return &"level_1"
+
+
 ## The gorge's node. Payyo is the reason the base cannot resolve this itself.
 func _resolve_level_nodes() -> void:
 	dialogue_node = get_node_or_null(
