@@ -61,7 +61,7 @@ const CROSS_S := 1.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 42
+const CHECKS := 43
 var director: Node
 
 
@@ -93,6 +93,7 @@ func _run() -> void:
 	await _the_house_plays_its_music_and_fades_it_when_she_leaves()
 	await _a_new_track_crossfades(music)
 	await _a_scene_change_hands_the_music_over(music)
+	await _a_cue_restarts_its_music_and_the_old_fades_under_it(music)
 	await _an_arrangement_takes_over_where_the_other_is(music)
 	await _the_ambience_is_its_own_channel(music)
 	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
@@ -327,6 +328,30 @@ func _a_scene_change_hands_the_music_over(music: Dictionary) -> void:
 		"carried on unrestarted %s, still holding halfway %s, faded after %s" % [carried, still, faded])
 	director.call(&"stop_music", 0.0)
 	_music_paths().erase("_probe_next")
+
+
+## The dance starts its music at once, from its top, on every attempt (restart_music), and what played
+## before fades out under it rather than stopping dead.
+func _a_cue_restarts_its_music_and_the_old_fades_under_it(music: Dictionary) -> void:
+	_music_paths()["_probe_cue"] = music.get("menu", "")
+	director.call(&"play_music", &"menu", 0.0)
+	var old := director.call(&"music_player") as AudioStreamPlayer
+	director.call(&"restart_music", &"_probe_cue", 0.5)
+	var cue := director.call(&"music_player") as AudioStreamPlayer
+	await _frames(2)
+	var at_once := cue != old and cue.playing and absf(cue.volume_db) < 0.1 and cue.get_playback_position() < 0.1
+	await create_timer(0.2).timeout
+	var under := old.playing and old.volume_db < -1.0
+	var gone := await _until(func() -> bool: return not old.playing, FADE_WAIT_S)
+	director.call(&"restart_music", &"_probe_cue", 0.5)
+	var again := director.call(&"music_player") as AudioStreamPlayer
+	var restarted := again != cue and again.get_playback_position() < 0.1 and cue.playing
+	_check(at_once and under and gone and restarted,
+		"a cue's music starts at once from its top, and what played before fades under it",
+		"at once %s, old fading under it %s, then gone %s, restarted on the next attempt %s"
+		% [at_once, under, gone, restarted])
+	director.call(&"stop_music", 0.0)
+	_music_paths().erase("_probe_cue")
 
 
 ## Two arrangements of one piece trade places mid-bar (keep_position): the incoming track starts

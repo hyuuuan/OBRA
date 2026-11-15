@@ -217,6 +217,16 @@ func play_music(id: StringName, fade: float = LOOP_FADE_S, keep_position: bool =
 	_loop_play(_music, id, fade, keep_position)
 
 
+## Start `id` from its top, at full, at once -- even if it is already playing -- and fade whatever
+## played before out over `fade_out`. For music that must begin on a cue: the dance's, on every
+## attempt (DanceOverlay). Stopping the old track dead for it was a hard cut out of the plaza.
+func restart_music(id: StringName, fade_out: float = 0.5) -> void:
+	var stream := _stream_for(_music.paths, id)
+	if _music.players.is_empty() or stream == null:
+		return
+	_start(_music, id, stream, 0.0, fade_out, 0.0)
+
+
 ## The id of the track playing, or &"" when none is.
 func current_music() -> StringName:
 	return _music.id
