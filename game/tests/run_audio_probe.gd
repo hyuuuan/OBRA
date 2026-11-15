@@ -50,7 +50,7 @@ const PROBE_SPACING_S := 0.4
 
 var failures := 0
 var checked := 0
-const CHECKS := 19
+const CHECKS := 20
 var director: Node
 
 
@@ -87,6 +87,7 @@ func _run() -> void:
 	await _a_level_that_has_not_opted_in_leaves_the_music_alone()
 	await _terraces_plays_its_music_and_wind_and_fades_both()
 	await _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time()
+	await _piyestas_church_has_its_own_music_and_no_street()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -392,6 +393,26 @@ func _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time() -> void:
 	_check(opened == "level_2/level_2" and danced and back,
 		"Piyesta plays its music over the street, the dance its own, and the plaza's returns after",
 		"opened '%s', dance music %s, back after %s" % [opened, danced, back])
+	director.call(&"stop_music", 0.0)
+	director.call(&"stop_ambience", 0.0)
+
+
+## Inside the church a slow hymn plays and the street falls away; out of it, both come back.
+## Through the level's own doors (_enter_room / _leave_room).
+func _piyestas_church_has_its_own_music_and_no_street() -> void:
+	var scene := await _open("res://level_2.tscn")
+	var church := scene.get(&"church") as Node2D
+	var player := scene.get(&"player") as Node2D
+	scene.call(&"_enter_room", church, player.global_position)
+	var inside := await _until(func() -> bool: return director.call(&"current_music") == &"church", 3.0)
+	var hushed: bool = director.call(&"current_ambience") == &""
+	scene.call(&"_leave_room", church)
+	var outside := await _until(func() -> bool:
+		return director.call(&"current_music") == &"level_2" and director.call(&"current_ambience") == &"level_2", 3.0)
+	scene.queue_free()
+	await _frames(5)
+	_check(inside and hushed and outside, "Piyesta's church has its own hymn and no street; outside, both return",
+		"hymn inside %s, street hushed %s, plaza and street outside %s" % [inside, hushed, outside])
 	director.call(&"stop_music", 0.0)
 	director.call(&"stop_ambience", 0.0)
 
