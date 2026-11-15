@@ -64,7 +64,8 @@
     "mayon_ending": ""
   },
   "ambience": {
-    "level_1": "res://assets/audio/ambience/level_1.wav"
+    "level_1": "res://assets/audio/ambience/level_1.wav",
+    "level_2": "res://assets/audio/ambience/level_2.wav"
   },
   "spacing": {
     "step": 0.12,

@@ -373,13 +373,13 @@ func _terraces_plays_its_music_and_wind_and_fades_both() -> void:
 		"in it '%s' + '%s' (%s), after '%s', faded %s" % [music, wind, files, after, faded])
 
 
-## Piyesta plays its loop; the dance, which keeps its own beat, brings its own
+## Piyesta plays its loop over the street; the dance, which keeps its own beat, brings its own
 ## music, started with the attempt; and the plaza's comes back when the dance is over. Driven
 ## through the level's own handlers for the Artist route.
 func _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time() -> void:
 	director.call(&"play_music", &"menu", 0.0)
 	var scene := await _open("res://level_2.tscn")
-	var opened := director.call(&"current_music") as StringName
+	var opened := "%s/%s" % [director.call(&"current_music"), director.call(&"current_ambience")]
 	scene.call(&"_on_route_committed_here", "L2_N1", "artist")
 	var danced := await _until(func() -> bool: return director.call(&"current_music") == &"dance", 10.0)
 	var overlay := scene.get(&"dance_screen") as Node
@@ -389,10 +389,11 @@ func _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time() -> void:
 	var back := await _until(func() -> bool: return director.call(&"current_music") == &"level_2", 5.0)
 	scene.queue_free()
 	await _frames(5)
-	_check(opened == &"level_2" and danced and back,
-		"Piyesta plays its music, the dance its own, and the plaza's returns after",
+	_check(opened == "level_2/level_2" and danced and back,
+		"Piyesta plays its music over the street, the dance its own, and the plaza's returns after",
 		"opened '%s', dance music %s, back after %s" % [opened, danced, back])
 	director.call(&"stop_music", 0.0)
+	director.call(&"stop_ambience", 0.0)
 
 
 func _open(path: String) -> Node:

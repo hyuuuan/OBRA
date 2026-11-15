@@ -141,10 +141,15 @@ func dialogue_path() -> String:
 	return "res://config/dialogue_l2.json"
 
 
-## Piyesta's loop (audio/music/level_2.txt): a fiesta after the Sinulog -- the tambol's two
-## strokes forward and one back, a trumpet hook that climbs the same way, a Pit Senyor call and
-## its answer. LevelBase plays it when the level opens and fades it when it leaves.
+## Piyesta's loop (audio/music/level_2.txt): the plaza after the Sinulog -- a hypnotic drum cell
+## of two strokes forward and one back, kalutang and agong, a simple hook a crowd could sing, Pit
+## Senyor called and answered -- over the street's murmur (audio/ambience/level_2.txt). LevelBase
+## plays both when the level opens and fades them when it leaves.
 func _level_music() -> StringName:
+	return &"level_2"
+
+
+func _level_ambience() -> StringName:
 	return &"level_2"
 
 
