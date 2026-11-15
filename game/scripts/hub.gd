@@ -14,6 +14,10 @@ extends Node2D
 ## The house's own loop (audio/music/house.txt): a slow serenade on the title theme's motif. It
 ## plays while she is home and fades when she leaves, if still the house's.
 const HOUSE_MUSIC := &"house"
+## The house after the run: Mayon's ending, carried home (AUDIO_PLAN.md, question 12).
+const ENDING_MUSIC := &"mayon_ending"
+## Which of the two the house is playing.
+var _music: StringName = HOUSE_MUSIC
 ##
 ## The room builds itself here rather than being authored as a scene tree, because every
 ## number in it is derived from one thing: how far apart five paintings want to be. The
@@ -91,7 +95,10 @@ var _last_hall_x := SPAWN_X
 
 
 func _ready() -> void:
-	AudioDirector.play_music(HOUSE_MUSIC)
+	# After the run the house is the ending (HouseEpilogue), and its music is the ending's, carried
+	# on from Mayon's bloom unrestarted: the same id asked for again plays on.
+	_music = ENDING_MUSIC if HouseEpilogue.after_the_run() else HOUSE_MUSIC
+	AudioDirector.play_music(_music)
 	_room = HubRoomScript.new()
 	_room.name = "Room"
 	add_child(_room)
@@ -235,7 +242,7 @@ func epilogue() -> HouseEpilogue:
 func _exit_tree() -> void:
 	remember_position()
 	# Only the house's own track: a scene that has already started one of its own keeps it.
-	if AudioDirector.current_music() == HOUSE_MUSIC:
+	if AudioDirector.current_music() == _music:
 		AudioDirector.stop_music()
 
 

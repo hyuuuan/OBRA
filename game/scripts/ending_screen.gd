@@ -18,7 +18,16 @@ extends Control
 @onready var _continue_button: Button = $Panel/VBox/ContinueButton
 
 
+## Mayon's ending: the music the run ends on (AUDIO_PLAN.md, question 12).
+const ENDING_MUSIC := &"mayon_ending"
+
+
 func _ready() -> void:
+	# The run's ending has the ending's music, carried on if it is already playing (the same id
+	# asked for again plays on). By path, for the reason _on_continue gives.
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call(&"play_music", ENDING_MUSIC)
 	_continue_button.pressed.connect(_on_continue)
 	_continue_button.grab_focus()
 	_render(EndingResolver.explain(get_node_or_null(^"/root/PlayerProfile")))

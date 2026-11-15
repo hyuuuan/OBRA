@@ -208,7 +208,8 @@ func _play_own_ending() -> void:
 	refresh_objective()
 	objective_banner.show()
 	await _speak_and_wait(script_lines.fire("APO.home"))
-	AudioDirector.stop_music()
+	# The ending's music goes home with her: the house after the run takes it as its own (hub.gd),
+	# and the ending screen too (Kent's answer to the plan's question 12).
 	_went_home = true
 	LevelManager.return_to_house()
 
