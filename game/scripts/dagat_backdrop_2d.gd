@@ -167,6 +167,9 @@ const BANDS := {
 		]},
 		# The palms lean in the wind -- see shaders/wind_sway.gdshader. A shear of the whole
 		# clump with its foot held, so the rocks it stands on do not move with it.
+		# Stand the complete clumps ON the sand at plate row 790. Their cropped opaque
+		# bounds end at rows 926 (home) and 900 (island); the original plate registration
+		# buried their rocks through the platform. Lift by 136 / 110 to plant those bases.
 		#
 		# ⚠ EVERY PIECE STANDS ON THE LAND, AND THIS IS THE THIRD ANSWER. The two plates are one
 		# clump split across the plate's border: `palms_left` is CUT at its column 0 and tapers
@@ -185,7 +188,7 @@ const BANDS := {
 		# into open sand and end on sand -- which is where the edge of the land is drawn.
 		{"key": "shore/palms_left", "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
 			"pieces": [
-			{"crop": Vector2(0, 478), "at": "home_ground.x", "align": "left"},
+			{"crop": Vector2(0, 478), "at": "home_ground.x", "align": "left", "lift": 136.0},
 		]},
 		# ⚠ THE ISLAND'S CLUMP WITHOUT ITS SAND SPIT. `palms_right` is the clump at the end of a
 		# painted spit -- driftwood, a coral, a wavy sand edge -- all of it below the walking
@@ -195,7 +198,7 @@ const BANDS := {
 		# home beach does. Its right edge is the plate's, so it stands where it always stood.
 		{"key": PALMS_ISLAND, "rate": 1.00, "z": -160, "sway": Vector2(5.0, 0.28),
 			"top_row": 0.0, "pieces": [
-			{"at": "island_ground.y", "nudge": 100.0, "align": "right"},
+			{"at": "island_ground.y", "nudge": 100.0, "align": "right", "lift": 110.0},
 		]},
 	],
 	"deep": [

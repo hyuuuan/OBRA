@@ -1,5 +1,10 @@
 # Level 3 — Dagat
 
+**Palms on the beach (2026-11-16):** both palm-and-rock clusters stand on the sand,
+instead of extending through the platform face. Their cropped opaque bases end at plate
+rows 926 (home) and 900 (island), so the shore backdrop lifts them 136 and 110 pixels
+respectively to meet the walking surface at plate row 790 (world y 560).
+
 **Fish and Bakunawa health:** the catchable bangus and background schools share the three
 swim poses from `LEVEL3_Dagat/creatures/fish.JPG`. `tools/build_dagat_bangus.py` registers
 the poses at the eye and cuts them onto a transparent strip. Bakunawa shows one heart for
