@@ -69,7 +69,7 @@ Riskiest first: the shared plumbing, then the music, then the sounds.
 | 10 | `music-ending` | The ending screen's music (`music.ending`, or `mayon_ending` carried on if it flows straight in). The **level-complete jingle** itself was built and wired in `sfx-core` (row 11); this PR makes it **duck the level's loop** for its length. | python, run_audio_probe, run_level5_endings_probe, the level finish probes |
 | 11 | `sfx-core` | **Built (provisional until Kent has listened).** The one-shot path end to end: table A's eight ids have modules and files, `item_acquired` and `level_complete` have call sites, and `unlock` (already called) is in `audio.json`. `run_sfx_core_probe` checks each is asked for beside its visual. | python, run_audio_probe, run_sfx_core_probe, run_button_feedback_probe, run_diary_probe, run_key_probe, run_level1_finish_probe |
 | 12 | `sfx-drawing` | **Built (provisional until Kent has listened).** Drawing, recognition, morphing and placing (table B): nine new ids, each with its call site and file. `run_sfx_drawing_probe` checks each is asked for beside its visual, and that the brush's refusal is silent. | python, run_audio_probe, run_sfx_drawing_probe, run_brush_refusal_probe, run_morph_gate_probe, run_placement_probe, run_revert_probe, run_ink_economy_probe, run_draw_again_probe, run_level3_play_probe |
-| 13 | `sfx-moves` | The apo's body, footsteps included (table C). | python, run_audio_probe, run_locomotion_probe, run_water_audit, run_swim_reach_probe, run_ladder_angle_probe |
+| 13 | `sfx-moves` | **Built (provisional until Kent has listened).** The apo's body, footsteps included (table C): six new ids with call sites, files and `spacing` entries (step 0.12 s, land 0.15, swim 0.25, ladder 0.12, splash 0.3, jump 0.1). `run_sfx_moves_probe` checks each is asked for beside its visual and that the spacing holds a repeat back. | python, run_audio_probe, run_sfx_moves_probe, run_locomotion_probe, run_water_audit, run_swim_reach_probe, run_ladder_angle_probe |
 | 14 | `sfx-combat` | **Built (provisional until Kent has listened).** Weapons and foes (table D): six new ids, each with its call sites and file. `run_sfx_combat_probe` checks each is asked for beside its visual. | python, run_audio_probe, run_sfx_combat_probe, run_weapon_probe, run_combat_probe, run_enemy_probe, run_bakunawa_probe, run_level4_sound_probe, run_level4_whip_probe, run_satchel_probe, run_level2_alley_probe, run_level3_sea_probe, run_foe_health_probe, run_level4_tiktik_probe |
 | 15 | `sfx-places` | **Built (provisional until Kent has listened).** Dilim's four get files (already called), and each level's props get ids, call sites and files (table E); Mayon's `mayon_brush` is left to `music-mayon`. `run_sfx_places_probe` checks each is asked for beside its visual. | python, run_audio_probe, run_sfx_places_probe, run_level4_sound_probe, run_level2_audit, run_dance_probe, run_level2_scene_probe, run_level2_chain_probe, run_level2_finish_probe, run_play_level2, run_level3_audit, run_bakunawa_probe, run_level3_finish_probe, run_level3_play_probe, run_key_probe, run_hub_audit, run_painting_entry_probe, run_level1_finish_probe |
 
@@ -138,17 +138,17 @@ Every row names its trigger and its visual twin. Each sound is one module in
 | `place` / `place_refused` | `LevelBase._on_placement_confirmed` (once it is paid for) / `_on_placement_rejected` | "placed" and the drawing in the world / "Can't build that into solid ground" and the ghost's refusal tint |
 | `ink_low` / `ink_empty` | `ink_low`: a drawn form's "is fading" (`LevelBase._on_life_changed`) and Dagat's "nearly gone" (`level_3._on_low_ink`). `ink_empty`: the out-of-ink screen opening (`OutOfInkOverlay._open_sound`) and Dagat's "Out of ink". ⚠ Not `DrawingCanvas.ink_blocked`: that is the PAGE being full ("Page full. Paint, undo, or clear."), not the ink. Dilim's and Mayon's drains end in the flash back, heard as `revert`. | the line, the card's bar, the screen |
 
-**C. The apo's body** (new ids; throttled)
+**C. The apo's body** (built in `sfx-moves`; `run_sfx_moves_probe`; each spaced in `audio.json`)
 
 | Id | Trigger | Visual twin |
 |---|---|---|
-| `step` | `wanderer.gd _advance_stride`, once per footfall, soft | the walk cycle's footfall |
-| `jump` | `wanderer.gd _jump` | the jump pose |
-| `land` | `wanderer.gd _leave_a_mark`, over a fall speed | the landing mark |
-| `swim` | `wanderer.gd _swim`, once per stroke | the swim stroke pose |
-| `splash` | entering water | the splash |
-| `ladder` | each rung climbed (`begin_ladder` and stepping) | the climb |
-| `hurt` | `PlayerHealth.hit_taken` | the hit flash, the hearts |
+| `step` | `Wanderer._leave_a_mark`, with each footfall's dust (by distance, `STEP_DUST_STRIDE`), at the stride's force, never under 0.4 | the dust off her heel |
+| `jump` | `Wanderer._jump` | the jump pose, her rising |
+| `land` | `Wanderer._leave_a_mark`, with the landing cloud over `LAND_DUST_FLOOR`, at the fall's force | the landing cloud |
+| `swim` | `Wanderer._advance_stride`, as the swim stroke's cycle comes round (once per `SWIM_STROKE` travelled) | the swim stroke pose |
+| `splash` | `WaterArea2D._splash_for`, at how hard it went in | the splash's rings |
+| `ladder` | `Wanderer.begin_ladder` (taking hold), then one per `RUNG_STRIDE` (34 px) climbed: the climb is one drawing, not a cycle | the climb |
+| `hurt` | **Not built: it is Dilim's `lantern_hit`.** Dilim is the only level with player health, and `level_4._arm_player_health` already plays `lantern_hit` on every `hit_taken`; a second sound would double it. | the hit flash, the hearts |
 
 **D. Combat** (built in `sfx-combat`; `run_sfx_combat_probe`)
 
