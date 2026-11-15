@@ -57,6 +57,7 @@
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
+    "house": "res://assets/audio/music/house.wav",
     "level_1": "",
     "mayon_ending": ""
   },

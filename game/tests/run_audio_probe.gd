@@ -3,7 +3,8 @@ extends SceneTree
 ## plays them, no sound effect loops, and every file has something that plays it. And the plumbing
 ## that plays them: a change of track crossfades, the ambience is its own channel, a spaced sound
 ## effect is not repeated inside its spacing, the Music slider moves the Music bus, and a level that
-## has not opted in (LevelBase._level_music) leaves the music as it found it.
+## has not opted in (LevelBase._level_music) leaves the music as it found it. The house plays its
+## own loop and fades it when she leaves.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -38,7 +39,7 @@ const PROBE_SPACING_S := 0.4
 
 var failures := 0
 var checked := 0
-const CHECKS := 15
+const CHECKS := 16
 var director: Node
 
 
@@ -66,6 +67,7 @@ func _run() -> void:
 	_no_sound_effect_loops(sfx)
 	_every_voiced_id_has_a_caller(music, ambience, sfx)
 	await _the_menu_plays_its_music()
+	await _the_house_plays_its_music_and_fades_it_when_she_leaves()
 	await _a_new_track_crossfades(music)
 	await _the_ambience_is_its_own_channel(music)
 	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
@@ -178,6 +180,24 @@ func _the_menu_plays_its_music() -> void:
 	var faded := await _until(func() -> bool: return not player.playing, FADE_WAIT_S)
 	_check(playing == &"" and faded, "leaving the menu fades its music out and stops it",
 		"playing '%s', player stopped %s" % [playing, faded])
+
+
+## The house's own loop while she is home, faded out when she leaves.
+func _the_house_plays_its_music_and_fades_it_when_she_leaves() -> void:
+	director.call(&"stop_music", 0.0)
+	var hub := (load("res://levels/hub/hub.tscn") as PackedScene).instantiate()
+	root.add_child(hub)
+	await _frames(5)
+	var playing := director.call(&"current_music") as StringName
+	var player := director.call(&"music_player") as AudioStreamPlayer
+	var path := player.stream.resource_path if player.stream != null else ""
+	hub.queue_free()
+	await _frames(3)
+	var left := director.call(&"current_music") as StringName
+	var faded := await _until(func() -> bool: return not player.playing, FADE_WAIT_S)
+	_check(playing == &"house" and path.ends_with("/house.wav") and left == &"" and faded,
+		"the house plays music.house while she is home, and fades it when she leaves",
+		"home '%s' (%s), after '%s', faded %s" % [playing, path.get_file(), left, faded])
 
 
 ## Two tracks overlap for the fade, the old falling and the new rising, and then only the new one
