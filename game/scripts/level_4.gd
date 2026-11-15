@@ -42,6 +42,12 @@ func _level_ambience() -> StringName:
 
 ## The tikbalang's race: the forest's motif made thrilling (audio/music/level_4_race.txt).
 const RACE_MUSIC := &"level_4_race"
+## Surviving the night (Kent: "as thrilling as possible"): one piece in three arrangements, one per
+## wave of DilimFinale2D.WAVES, each fuller (audio/music/dilim_night_1..3.txt). ⚠ They are written
+## to one length TO THE ROW, so a new wave trades them mid-bar (keep_position) and the night
+## builds rather than restarting.
+const NIGHT_MUSIC: Array[StringName] = [&"dilim_night_1", &"dilim_night_2", &"dilim_night_3"]
+const NIGHT_FADE_S := 0.6
 ## The music asked for, so it changes only when the answer does. Worked out every physics frame
 ## from the race itself, not set on its start and finish: a checkpoint restore mid-race stops the
 ## race without either, and must not leave its music on.
@@ -56,21 +62,34 @@ func _refresh_the_place_audio() -> void:
 	var audio := get_node_or_null(^"/root/AudioDirector")
 	if audio == null:
 		return
+	var a_new_wave := music in NIGHT_MUSIC and _music_for in NIGHT_MUSIC
 	_music_for = music
-	audio.call(&"play_music", music)
+	if music.is_empty():
+		# ⚠ THE NIGHT BREAKS OFF AT DAWN, in the frame the light comes: no fade. The dawn's own
+		# sound and the light are what follow.
+		audio.call(&"stop_music", 0.0)
+	else:
+		audio.call(&"play_music", music, NIGHT_FADE_S, a_new_wave)
 
 
+## The music for now. A retried night (DilimFinale2D.reset_for_restore) is not running, so it
+## goes back to the forest's until the night begins again.
 func _music_now() -> StringName:
+	if _morning:
+		return &""
+	if _finale != null and is_instance_valid(_finale) and _finale.is_running():
+		return NIGHT_MUSIC[clampi(_finale.current_wave(), 0, NIGHT_MUSIC.size() - 1)]
 	if _tikbalang != null and is_instance_valid(_tikbalang) and _tikbalang.is_racing():
 		return RACE_MUSIC
 	return _level_music()
 
 
-## LevelBase fades the level's own music as it leaves; the race's is this level's too.
+## LevelBase fades the level's own music as it leaves; the race's and the night's are this level's
+## too.
 func _exit_tree() -> void:
 	super()
 	var audio := get_node_or_null(^"/root/AudioDirector")
-	if audio != null and audio.call(&"current_music") == RACE_MUSIC:
+	if audio != null and audio.call(&"current_music") in [RACE_MUSIC] + NIGHT_MUSIC:
 		audio.call(&"stop_music")
 
 
@@ -1093,6 +1112,7 @@ func _on_dawn() -> void:
 	# Now, not on the card's timer: the line below stops the tree, and "Ash shows what I cannot see"
 	# stood over the morning for as long as she read it.
 	refresh_objective()
+	_refresh_the_place_audio()      # the night's music cut in this frame, with the dawn's sound
 	AudioDirector.play_sfx(&"dawn")
 	if dawn_clock != null:
 		dawn_clock.morning()

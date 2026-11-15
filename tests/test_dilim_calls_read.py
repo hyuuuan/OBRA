@@ -11,6 +11,7 @@ Read from the committed WAVs (tools/build_music.py --check keeps them true to th
 from __future__ import annotations
 
 import json
+import re
 import struct
 import unittest
 import wave
@@ -25,10 +26,15 @@ MARGIN_DB = 6.0
 WINDOW_S = 0.1              # about a call's own length: the tik-tik's two ticks take 0.22 s
 EDGES = [30, 60, 120, 250, 500, 1000, 2000, 4000, 8000, 16000]
 CALLS = ("tiktik_call", "tiyanak_cry")
-# Dilim's music, each with the calls that can be heard over it.
+# Dilim's music, each with the calls that can be heard over it. The night is the tik-tik's (it flies
+# in with the last wave); the tiyanak cannot be heard there, which test_the_tiyanak_is_out_of_earshot_
+# of_the_night holds from the scene itself.
 MUSIC = {
     "level_4": CALLS,
     "level_4_race": CALLS,
+    "dilim_night_1": ("tiktik_call",),
+    "dilim_night_2": ("tiktik_call",),
+    "dilim_night_3": ("tiktik_call",),
 }
 BED = "level_4"
 
@@ -87,7 +93,22 @@ def margin(call: str, music: str) -> tuple[float, tuple[int, int]]:
     return float(loud - level), (lo, hi)
 
 
+def _position(scene: str, node: str) -> tuple[float, float]:
+    match = re.search(r'\[node name="%s"[^\]]*\]\nposition = Vector2\(([-0-9.]+), ([-0-9.]+)\)' % node, scene)
+    assert match, f"no {node} in the scene"
+    return float(match.group(1)), float(match.group(2))
+
+
 class DilimCallsRead(unittest.TestCase):
+    def test_the_tiyanak_is_out_of_earshot_of_the_night(self) -> None:
+        """The night's music need not leave the tiyanak's band: she cries only within CRY_HEARD_FROM
+        of the apo (level_4.gd _on_tiyanak_cried), and the finale is further from her than that."""
+        scene = (GAME / "levels/level_4/level_4_environment.tscn").read_text()
+        heard_from = float(re.search(r"const CRY_HEARD_FROM := ([0-9.]+)",
+                                     (GAME / "scripts/level_4.gd").read_text()).group(1))
+        tiyanak, finale = _position(scene, "Tiyanak"), _position(scene, "Finale")
+        self.assertGreater(abs(finale[0] - tiyanak[0]), heard_from)
+
     def test_every_dilim_piece_has_a_file(self) -> None:
         catalog = _catalog()
         for music in MUSIC:
