@@ -128,9 +128,8 @@ def new_song(title: str, comments: tuple[str, ...]) -> Song:
 
 
 def lead(song: Song, channel: str, inst: int, vol: int, bars_of, first: int, start_bar: int = 0, *,
-         shift: int = 0, echo: int | None = None, vibrato: str = "443") -> None:
-    """A line, bar by bar: scoops and fall-offs as written, a late vibrato on the long notes (on its
-    third row), cleared on the next plain note (⚠ 4xy stays on until a 400)."""
+         shift: int = 0, echo: int | None = None) -> None:
+    """A line, bar by bar: scoops and fall-offs as written, and straight long notes."""
     vib_on = False
     for offset, notes in enumerate(bars_of):
         index = start_bar + offset
@@ -150,9 +149,9 @@ def lead(song: Song, channel: str, inst: int, vol: int, bars_of, first: int, sta
                 song.put(channel, frame, row, transpose(note, shift), inst, vol, fx)
                 if echo is not None:
                     song.put("pulse2", frame, row + 1, transpose(note, shift), echo, 15)
-                if length >= 3 and not (fx or "").startswith(("Q", "R")):
-                    song.put(channel, frame, row + 2, fx=vibrato)
-                    vib_on = True
+                # ⚠ NO LATE VIBRATO on the long notes. famirender applies 4xy in pulse-period units, which on a
+                # VRC7 note near A5 swings about half a semitone: Kent heard it in Mayon's take 1 as "a voice
+                # crack". The scoops and fall-offs stay: they are the style he approved.
             row += length
 
 
@@ -270,8 +269,8 @@ def deep() -> Song:
     for frame in range(FRAMES):
         s.put("fm4", frame, 1, fx="423")
     clarinet_vol = 12
-    lead(s, "fm1", clarinet, clarinet_vol, [PICKUP], 0, 3, shift=-12, vibrato="423")
-    lead(s, "fm1", clarinet, clarinet_vol, TUNE, 1, shift=-12, vibrato="423")
+    lead(s, "fm1", clarinet, clarinet_vol, [PICKUP], 0, 3, shift=-12)
+    lead(s, "fm1", clarinet, clarinet_vol, TUNE, 1, shift=-12)
     return s
 
 
