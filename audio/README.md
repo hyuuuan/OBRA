@@ -47,7 +47,12 @@ A module using anything else is **refused, by line**, never rendered approximate
 - Channels, in the tracker's order: Pulse 1, Pulse 2, Triangle, Noise, DPCM, then FM 1–6.
   **DPCM is not rendered**, so the drums are triangle and noise.
 - Effects: `Fxx` speed/tempo, `Bxx` jump, `Cxx` halt, `Dxx` skip, `Gxx` delay, `Sxx` cut,
-  `Vxx` duty or noise mode, `0xy` arpeggio, `4xy` vibrato, `Pxx` fine pitch.
+  `Vxx` duty or noise mode, `0xy` arpeggio, `4xy` vibrato, `Pxx` fine pitch, and the slides:
+  `1xx` / `2xx` bend up / down, `3xx` glide into each new note (on the VRC7 a glided note is not
+  struck again), `Qxy` / `Rxy` slide up / down `y` semitones at speed `x`, the arrival becoming the
+  note. An arpeggio still plays its notes outright.
+- Swing: `tools/famitext.py`'s `Song.swing(long, short)` alternates the speed row by row. The
+  speed and the loop's jump ride the DPCM channel's two effect columns, which carry nothing else.
 - 2A03 macros: volume, arpeggio (absolute, fixed or relative), pitch, duty. A fixed arpeggio
   counts from the tracker's C-0.
 - VRC7 instruments: one of the fifteen built-in patches, or patch 0 with its eight registers.
@@ -100,8 +105,8 @@ information, so it needs none.
 | Id | Module | Notes |
 |---|---|---|
 | `music.menu` | `music/menu.txt` | The title card (and the boot loading screen, which is the same card), revised at Kent's word (2026-11-14: "nice, but it lacks the cultural, painting, adventure-game vibe in the Philippines"). D major pentatonic, ~129 BPM, a 7.5 s intro (agung, then kulintang, then a bamboo-flute call) and a 30 s loop: an adventure march under a bamboo-flute theme (VRC7 flute), a kulintang ostinato (VRC7 xylophone), agung gongs (VRC7 soft bell, low), rondalla tremolo in thirds (VRC7 guitar), a babendil tick and dabakan drum (short and long noise), an agung thump (triangle), and the painting's sparkle (pulse arpeggio and echo). The B section turns from B minor to D major, as a kundiman does. **Provisional until Kent has listened.** |
-| `music.house` | `music/house.txt` | Lola's house, the hub. A harana-like serenade in 3/4, G major, ~82 BPM, on the title theme's motif slowed: VRC7 vibraphone over a waltz guitar, a quiet pad, a low agung on each phrase and an occasional xylophone chime, a flute answering in the second half, and the triangle's short waltz oom. No drums and no thin pulses. **Provisional until Kent has listened.** |
-| `music.level_1` | `music/level_1.txt` | Terraces (Level 1): morning on the rice terraces. Two VRC7 xylophones interlocking like Cordillera gangsa, a low agung every other bar, a bamboo flute (VRC7 flute) with an original pentatonic tune, a walking bass, a soft drone, a triangle slit drum and dark bamboo ticks; a round pulse answers the flute in the middle. C major pentatonic, ~100 BPM, a 9 s intro and a 38 s loop. **Provisional until Kent has listened.** |
+| `music.house` | `music/house.txt` | Lola's house, the hub, in the new style: a swung jazz waltz, G major, ~110 BPM, on the title theme's motif. The vibraphone scoops, glides and falls off its notes, over maj7 and m7 changes with a Cm6 turn, piano comping on two and three, a plucked triangle bass, dark brushes, round chord arpeggios and an echo, a flute in the second half, xylophone fills. **Provisional until Kent has listened.** |
+| `music.level_1` | `music/level_1.txt` | Terraces (Level 1), in the new style: two VRC7 xylophones interlocking like Cordillera gangsa on swung eighths, a bamboo flute that scoops, glides and falls off, an agung on the phrases; jazz changes (Cmaj9, Am9, Fmaj7, G9; Dm9 to A7) with piano shells, a walking triangle bass with a kick, a soft ride and snare. ~133 BPM, a 29 s loop. **Provisional until Kent has listened.** |
 | `ambience.level_1` | `ambience/level_1.txt` | Terraces' wind: low noise in uneven swells over a faint hiss, a 13 s loop about 13 dB under the music. Dark on purpose. **Provisional.** |
 | `sfx.ui_click` | `sfx/ui_click.txt` | Every button. A soft babendil tick: a 25% pulse on B5 that falls a hair, and a glint of short-mode noise. 0.08 s, about −26 dBFS RMS. |
 | `sfx.ui_open` | `sfx/ui_open.txt` | An overlay coming up: two soft 50% pulses, D5 then A5, with a quieter echo three ticks behind. 0.26 s. |
