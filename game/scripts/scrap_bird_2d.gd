@@ -58,6 +58,8 @@ const GRAVITY := 900.0
 ## How fast it comes down to food, and how fast it gets out when its nest falls.
 const DESCEND_SPEED := 150.0
 const FLEE_SPEED := 260.0
+const FEED_HOP_SECONDS := 0.45
+const FEED_TURN_SECONDS := FEED_HOP_SECONDS * 2.0 + 0.65
 ## How long a struck bird sits stunned on the floor before it shakes it off and goes. Struck,
 ## never killed: a bird lying still for the rest of the level reads as one that died.
 const DAZED_SECONDS := 1.4
@@ -105,6 +107,10 @@ var _landing := Vector2.ZERO
 ## Where the food it was fed is, across the parent's x, so it lands facing it and sets its piece
 ## down behind itself -- not under the thing it came down to eat. NAN when it was not fed.
 var _food_x := NAN
+var _offering: PhysicsShapeObject
+var _peck_at := Vector2.ZERO
+var _feed_start := INF
+var _pecking := false
 ## A scrap let go of in the air, fluttering down on its own (parent space). INF when none.
 var _loose_scrap := Vector2.INF
 var _loose_fall := 0.0
@@ -164,6 +170,7 @@ func _physics_process(delta: float) -> void:
 			_descend(delta)
 		State.CALMED:
 			_flap += delta * 5.0
+			_update_peck()
 		State.FALLING:
 			_fall(delta)
 		State.DOWNED:
@@ -244,9 +251,63 @@ func calm(landing: Vector2 = Vector2.INF, food: Vector2 = Vector2.INF) -> bool:
 		else position
 	_landing = Vector2(local.x, floor_y - 6.0)
 	_food_x = (parent.to_local(food) if parent != null else food).x if food.is_finite() else NAN
+	_pecking = true
 	_state = State.DESCENDING
 	_clock = 0.0
 	return true
+
+
+## Keep the bite point in the offering's coordinates so it follows the drawing as it settles.
+func schedule_peck(offering: PhysicsShapeObject, start: float) -> void:
+	if _state != State.DESCENDING:
+		return
+	_offering = offering
+	_feed_start = start
+	_pecking = false
+	var extent := offering.world_extent()
+	var edge := extent.position.x if _landing.x < _food_x else extent.end.x
+	var aim := Vector2(edge, extent.end.y - minf(5.0, extent.size.y * 0.5))
+	var skin := offering.get_node_or_null(^"DrawingSkin") as DrawingSkin2D
+	if skin != null:
+		aim = _nearest_ink(skin, aim)
+	_peck_at = offering.to_local(aim)
+
+
+## The collision bounds are useful for landing slots. The beak needs a point on the ink.
+func _nearest_ink(skin: DrawingSkin2D, at: Vector2) -> Vector2:
+	var aim := skin.to_local(at)
+	var nearest := aim
+	var distance := INF
+	for stroke: Dictionary in skin.get_vector_strokes():
+		var points: PackedVector2Array = stroke["points"]
+		for index in range(1, points.size()):
+			var point := Geometry2D.get_closest_point_to_segment(aim, points[index - 1], points[index])
+			var gap := aim.distance_squared_to(point)
+			if gap < distance:
+				distance = gap
+				nearest = point
+	return skin.to_global(nearest)
+
+
+func _update_peck() -> void:
+	var elapsed := _clock - _feed_start
+	if elapsed < 0.0:
+		return
+	if elapsed >= FEED_TURN_SECONDS or not is_instance_valid(_offering) \
+			or _offering.is_queued_for_deletion():
+		_offering = null
+		_feed_start = INF
+		_pecking = false
+		position = _landing
+		return
+	var parent := get_parent() as Node2D
+	var contact := parent.to_local(_offering.to_global(_peck_at))
+	_facing = 1.0 if contact.x >= _landing.x else -1.0
+	var beak: Vector2 = _cells.get("peck", {}).get("beak", Vector2.ZERO)
+	var perch := contact - Vector2(beak.x * _facing, beak.y)
+	var amount := minf(minf(elapsed, FEED_TURN_SECONDS - elapsed) / FEED_HOP_SECONDS, 1.0)
+	_pecking = amount >= 1.0
+	position = _landing.lerp(perch, amount) - Vector2(0.0, sin(amount * PI) * 34.0)
 
 
 func _descend(delta: float) -> void:
@@ -366,6 +427,9 @@ func _drop_the_loose_scrap(delta: float) -> void:
 func restore_to(done: bool) -> void:
 	_loose_scrap = Vector2.INF
 	_food_x = NAN
+	_offering = null
+	_feed_start = INF
+	_pecking = false
 	_spin = 0.0
 	_clock = 0.0
 	_velocity = Vector2.ZERO
@@ -413,7 +477,12 @@ func _frame_now() -> String:
 		State.PERCHED:
 			return "blink" if fposmod(_flap, 7.0) < 0.3 else "perch"
 		State.CALMED:
-			return "peck" if sin(_flap) > 0.2 else "stand"
+			if _pecking:
+				var beat := (_clock - _feed_start - FEED_HOP_SECONDS) * 14.0 \
+					if is_finite(_feed_start) else _flap
+				return "peck" if cos(beat) > 0.2 else "stand"
+			if position.is_equal_approx(_landing):
+				return "stand"
 		State.DOWNED:
 			return "dazed"
 	return STROKE[int(fposmod(_flap, TAU) / TAU * float(STROKE.size())) % STROKE.size()]

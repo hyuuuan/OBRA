@@ -22,7 +22,7 @@ const FLOOR_MARGIN := 0.15
 const BARS := {1: 0.60, 2: 0.60, 3: 0.65, 4: 0.70, 5: 0.75}
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 12
+const CHECKS := 13
 
 var failures := 0
 var checked := 0
@@ -101,10 +101,25 @@ func _the_panel_asks_the_client() -> void:
 	client.set("confidence_threshold", 0.9)
 	panel.open_panel()
 	await physics_frame
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.pressed = true
+	down.position = panel.canvas.size * 0.5
+	panel.canvas.call("_gui_input", down)
+	var motion := InputEventMouseMotion.new()
+	motion.position = down.position + Vector2(20.0, 10.0)
+	panel.canvas.call("_gui_input", motion)
+	# Match the revision claimed when a real live request is sent.
+	panel.set("_guessed_revision", panel.canvas.content_revision())
 	panel.call("_on_live_prediction", "fish", "Fish", 0.8, 0.5, {})
 	var colour := panel.guess_label.get_theme_color(&"font_color")
 	_check(colour == UISkin.PENDING, "the live guess is gold only when the client's gate passes",
 		"0.80 against a 0.90 bar reads %s" % ("pending" if colour == UISkin.PENDING else "SURE"))
+	motion.position += Vector2(20.0, 10.0)
+	panel.canvas.call("_gui_input", motion)
+	panel.call("_on_live_prediction", "fish", "Fish", 0.95, 0.5, {})
+	_check(panel.canvas.has_ink() and panel.guess_label.text == "…",
+		"a changed drawing drops both the displayed and late live guesses", panel.guess_label.text)
 	panel.recognition_declined.connect(_on_declined)
 	panel.set("_submitting", true)
 	panel.call("_on_entity_declined", "fish", 0.8, 0.5, {})

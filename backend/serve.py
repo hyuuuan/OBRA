@@ -226,7 +226,11 @@ def main(argv: list[str] | None = None) -> int:
             if args.log:
                 again.append("--append-log")
             sys.stdout.flush()
-            return subprocess.run(again).returncode
+            # ⚠ THE GAME HOLDS THIS PROCESS'S PID, NOT THE ONE BELOW, and stopping the recogniser
+            # kills only this. The one below watches this one (lifecycle.LAUNCHER_PID_ENV) and
+            # goes with it.
+            env = {**os.environ, "OBRA_LAUNCHER_PID": str(os.getpid())}
+            return subprocess.run(again, env=env).returncode
 
     status("Starting the drawing recogniser")
     for problem in problems():

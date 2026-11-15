@@ -7,7 +7,8 @@
 > after a named hint, 1 Hz frame rate, memory and CPU), and C1/C6/C7 plus the TU-Berlin protocol
 > are in the appeal letter.
 
-Checked 2026-10-31: `docs/OBRA_THESIS1.pdf` against `main` at `d2fdd4b` (PR #138).
+Checked 2026-10-31: the manuscript, `OBRA_THESIS1.pdf` (kept outside this repository since
+2026-11-01), against `main` at `d2fdd4b` (PR #138).
 Section and page numbers are the manuscript's own. "Game" means the code in this
 repository, not the design documents.
 
@@ -20,7 +21,8 @@ Each item is marked:
 - **Fixed in game**: changed in the game on 2026-10-31 to match the manuscript, one PR each.
   These no longer need a manuscript change.
 
-The items left to the manuscript are argued in `docs/OBRA Appeal Letter.docx`.
+The items left to the manuscript are argued in the team's appeal letter, kept outside this
+repository.
 
 ---
 

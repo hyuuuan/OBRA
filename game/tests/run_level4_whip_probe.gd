@@ -129,7 +129,7 @@ func _it_drops_only_in_the_second_and_third_waves() -> void:
 	await _put_her(finale.arena_west + 120.0)
 	await _seconds(0.5)
 	var first_wave := await _whips_after_a_fall()
-	finale.elapsed = 45.5
+	finale.elapsed = 27.5
 	await _frames(3)
 	var second_wave := await _whips_after_a_fall()
 	_check(finale.is_running() and by_day == 0 and first_wave == 0 and second_wave == 1,

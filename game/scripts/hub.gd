@@ -1,5 +1,8 @@
 extends Node2D
-## The start of the game: Lolo and Lola's house, with the five paintings on the wall.
+## Lolo and Lola's house, with the five paintings on the wall: where the apo comes home to.
+##
+## NOT WHERE A NEW GAME STARTS. NEW GAME goes straight into Payyo, carrying the brush, and the
+## house is reached by finishing it (LevelManager.start_new_game). CONTINUE comes here.
 ##
 ## WHAT THIS REPLACES. Choosing a level was a grid of cards on the main menu. It is a room
 ## now -- you walk in as the apo, walk along the wall, and the level you pick is the picture
@@ -7,6 +10,14 @@ extends Node2D
 ## why they are the same five things, which is that Lola painted all of them.
 ##
 ## Painting availability follows the level catalog and progression flag, including DevMode.
+
+## The house's own loop (audio/music/house.txt): a slow serenade on the title theme's motif. It
+## plays while she is home and fades when she leaves, if still the house's.
+const HOUSE_MUSIC := &"house"
+## The house after the run: Mayon's ending, carried home (AUDIO_PLAN.md, question 12).
+const ENDING_MUSIC := &"mayon_ending"
+## Which of the two the house is playing.
+var _music: StringName = HOUSE_MUSIC
 ##
 ## The room builds itself here rather than being authored as a scene tree, because every
 ## number in it is derived from one thing: how far apart five paintings want to be. The
@@ -15,18 +26,20 @@ extends Node2D
 
 const HubRoomScript = preload("res://scripts/hub_room.gd")
 const PaintingScript = preload("res://scripts/painting_2d.gd")
+const DrawingGallery = preload("res://scripts/drawing_gallery.gd")
 const BrushStandScript = preload("res://scripts/brush_stand_2d.gd")
 const BrushSheet: Texture2D = preload("res://assets/hud/brush_full.png")
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 const WandererScene = preload("res://creatures/wanderer.tscn")
 
 ## The five, in the order they hang. The title comes out of the catalog; this only says
 ## which painting goes where and what the plate reads.
 const WALL: Array[Dictionary] = [
-	{"id": "level_1", "plate": "PAYYO"},
-	{"id": "level_2", "plate": "PIYESTA"},
-	{"id": "level_3", "plate": "DAGAT"},
-	{"id": "level_4", "plate": "DILIM"},
-	{"id": "level_5", "plate": "MAYON"},
+	{"id": "level_1", "plate": "TERRACES", "art": preload("res://assets/hub/paintings/level_1.png")},
+	{"id": "level_2", "plate": "PIYESTA", "art": preload("res://assets/hub/paintings/level_2.png")},
+	{"id": "level_3", "plate": "DAGAT", "art": preload("res://assets/hub/paintings/level_3.png")},
+	{"id": "level_4", "plate": "DILIM", "art": preload("res://assets/hub/paintings/level_4.png")},
+	{"id": "level_5", "plate": "MAYON", "art": preload("res://assets/hub/paintings/level_5.png")},
 ]
 
 ## Where the apo comes in: in front of the first painting rather than at the end of the
@@ -67,16 +80,25 @@ var _stand: Node2D
 var _paintings: Array[Node2D] = []
 var _carried: Control
 ## What the prompt is currently saying. NONE until the first target comes into reach.
-enum Wear { NONE, TAKE, VIEW, REFUSE, LOCKED, UNFINISHED }
+enum Wear { NONE, TAKE, VIEW, REPLAY, REFUSE, LOCKED, UNFINISHED }
 ## The card that says a thing is yours now. See AcquiredOverlay.
 var _acquired: AcquiredOverlay
 var _wearing: Wear = Wear.NONE
 ## Where the camera looks instead of at the apo, while the house is showing her something.
 var _look_at := NAN
 var _revealing := false
+## The house after the run: Lolo in the paintings, Lola in the room. See HouseEpilogue.
+var _epilogue: HouseEpilogue
+var _gallery: DrawingGallery
+var _drawings_button: Button
+var _last_hall_x := SPAWN_X
 
 
 func _ready() -> void:
+	# After the run the house is the ending (HouseEpilogue), and its music is the ending's, carried
+	# on from Mayon's bloom unrestarted: the same id asked for again plays on.
+	_music = ENDING_MUSIC if HouseEpilogue.after_the_run() else HOUSE_MUSIC
+	AudioDirector.play_music(_music)
 	_room = HubRoomScript.new()
 	_room.name = "Room"
 	add_child(_room)
@@ -114,7 +136,18 @@ func _ready() -> void:
 	_player = WandererScene.instantiate()
 	_player.name = "Apo"
 	add_child(_player)
-	_player.global_position = Vector2(SPAWN_X, _room.call("ground_y"))
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	var manager := get_node_or_null(^"/root/LevelManager")
+	var fallback_x := SPAWN_X
+	if manager != null:
+		var returning := painting_for_level(String(manager.get("returning_level_id")))
+		if returning != null:
+			fallback_x = returning.position.x
+	_last_hall_x = float(profile.call("hall_position_x", fallback_x)) if profile != null else fallback_x
+	_last_hall_x = clampf(_last_hall_x, 40.0, float(_room.get("room_width")) - 40.0)
+	_player.global_position = Vector2(_last_hall_x, _room.call("ground_y"))
+	for painting in _paintings:
+		painting.call("set_player_aligned", bool(painting.call("within_reach", _player.position)), false)
 	# Kept indoors. The wanderer clamps itself to whatever bounds it is given, which is the
 	# only thing stopping a walk off the end of the wall into nothing.
 	if _player.has_method("set_world_bounds"):
@@ -147,11 +180,85 @@ func _ready() -> void:
 
 	_build_hud()
 	set_process(true)
-	var manager := get_node_or_null(^"/root/LevelManager")
 	var opened := String(manager.call("take_pending_reveal")) \
 		if manager != null and manager.has_method("take_pending_reveal") else ""
 	if not opened.is_empty():
+		_revealing = true
+		_player.set_physics_process(false)
 		_open_in_front_of_her.call_deferred(opened)
+	# AFTER THE RUN THE HOUSE IS NOT THE SAME HOUSE (DIARY.md): Lolo is in every painting and Lola
+	# is in the room. The first time she is here, the scene plays, with the apo held still for it.
+	if HouseEpilogue.after_the_run():
+		_epilogue = HouseEpilogue.new()
+		_epilogue.name = "Epilogue"
+		add_child(_epilogue)
+		_epilogue.build(self, _paintings, float(_room.call("ground_y")), _player.global_position.x, _player)
+		if not HouseEpilogue.has_played() and opened.is_empty():
+			_revealing = true
+			_player.set_physics_process(false)
+			_play_the_epilogue.call_deferred()
+
+
+func _play_the_epilogue() -> void:
+	await _epilogue.play()
+	_revealing = false
+	_player.set_physics_process(true)
+	_write_status()
+	if _drawings_button != null:
+		_drawings_button.show()
+		_show_drawings()
+
+
+func _show_drawings() -> void:
+	var paths := _drawing_paths()
+	if paths.is_empty():
+		return
+	if _gallery == null:
+		_gallery = DrawingGallery.new()
+		_gallery.name = "DrawingGallery"
+		add_child(_gallery)
+	_gallery.present(paths)
+
+
+func _drawing_paths() -> PackedStringArray:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	return profile.call(&"gallery_drawing_paths") if profile != null else PackedStringArray()
+
+
+## Where the camera looks while the house shows her something, and back to her.
+func look_at_x(x: float) -> void:
+	_look_at = x
+
+
+func look_back() -> void:
+	_look_at = NAN
+
+
+## The house after the run, for a probe: null before Mayon is finished.
+func epilogue() -> HouseEpilogue:
+	return _epilogue
+
+
+func _exit_tree() -> void:
+	remember_position()
+	# Only the house's own track: a scene that has already started one of its own keeps it.
+	if AudioDirector.current_music() == _music:
+		AudioDirector.stop_music()
+
+
+func remember_position() -> void:
+	if is_instance_valid(_player):
+		_last_hall_x = _player.position.x
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile != null:
+		profile.call("remember_hall_position", _last_hall_x)
+
+
+func painting_for_level(level_id: String) -> Node2D:
+	for painting in _paintings:
+		if String(painting.get("level_id")) == level_id:
+			return painting
+	return null
 
 
 ## A LEVEL JUST FINISHED HAS OPENED THE NEXT PAINTING, AND THE HOUSE OPENS IT IN FRONT OF HER.
@@ -160,15 +267,15 @@ func _ready() -> void:
 ## padlock comes off and the picture comes up into its colours (Painting2D.reveal), and the
 ## line under the title says where to go. The apo waits while it plays.
 func _open_in_front_of_her(level_id: String) -> void:
-	var painting: Node2D = null
-	for node in _paintings:
-		if String(node.get("level_id")) == level_id:
-			painting = node as Node2D
+	var painting := painting_for_level(level_id)
 	if painting == null:
 		return
 	_revealing = true
 	painting.call("show_locked")
 	_player.set_physics_process(false)
+	var manager := get_node_or_null(^"/root/LevelManager")
+	if manager != null and bool(manager.call("is_transitioning")):
+		await manager.transition_finished
 	# Home first -- she is seen to arrive -- and then the eye goes over to the picture.
 	await get_tree().create_timer(0.7).timeout
 	_look_at = painting.global_position.x
@@ -178,7 +285,6 @@ func _open_in_front_of_her(level_id: String) -> void:
 	_look_at = NAN
 	_revealing = false
 	_player.set_physics_process(true)
-	var manager := get_node_or_null(^"/root/LevelManager")
 	var title := String(manager.call("get_level", level_id).get("title", "")) if manager != null else ""
 	_status.text = "%s is open. Walk to it and press E." % title if not title.is_empty() \
 		else "A new painting is open."
@@ -195,9 +301,7 @@ func _hang(index: int, entry: Dictionary) -> void:
 	painting.name = "Painting%d" % (index + 1)
 	painting.set("level_id", String(entry["id"]))
 	painting.set("plate_text", String(entry["plate"]))
-	var art_path := "res://assets/hub/paintings/%s.png" % String(entry["id"])
-	if ResourceLoader.exists(art_path):
-		painting.set("art", load(art_path))
+	painting.set("art", entry["art"])
 	painting.position = _room.call("painting_anchor", index)
 	add_child(painting)
 	_paintings.append(painting)
@@ -207,6 +311,7 @@ func _hang(index: int, entry: Dictionary) -> void:
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	layer.name = "HubHud"
+	layer.layer = 5
 	add_child(layer)
 
 	var title := Label.new()
@@ -240,6 +345,8 @@ func _build_hud() -> void:
 
 	_build_carried(layer)
 	_build_menu_button(layer)
+	if HouseEpilogue.after_the_run() and not _drawing_paths().is_empty():
+		_build_drawings_button(layer)
 
 	# The prompt follows the painting rather than the player: it is a label on the picture,
 	# and one pinned over the apo's head covers the thing they are looking at.
@@ -317,7 +424,18 @@ func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
 	_camera.global_position = _eye_on(_look_at if is_finite(_look_at) else _player.global_position.x)
+	_last_hall_x = _player.position.x
+	var manager := get_node_or_null(^"/root/LevelManager")
+	var transitioning := manager != null and bool(manager.call("is_transitioning"))
+	if transitioning:
+		# Leave the current controls intact for their separate screen-space fade.
+		return
+	var previous_near := _near
 	_near = null if is_revealing() else _nearest_target()
+	if _near != previous_near and _near in _paintings:
+		get_node(^"/root/LevelManager").call("prepare_level", String(_near.get("level_id")))
+	for painting in _paintings:
+		painting.call("set_player_aligned", painting == _near)
 	_prompt.visible = _near != null
 	if _near == null:
 		return
@@ -331,7 +449,9 @@ func _process(_delta: float) -> void:
 	elif bool(_near.call("is_locked")):
 		_wear(Wear.LOCKED)
 	else:
-		_wear(Wear.VIEW)
+		var profile := get_node(^"/root/PlayerProfile")
+		var completed := bool(profile.call("is_level_completed", String(_near.get("level_id"))))
+		_wear(Wear.REPLAY if completed else Wear.VIEW)
 	# Placed in screen space so it reads with the thing it belongs to: under the plate on a
 	# picture, and ABOVE the case, clear of the dome -- the plate is on the floor at its
 	# foot and the brush is inside the glass between the two.
@@ -396,7 +516,24 @@ func _build_menu_button(layer: CanvasLayer) -> void:
 	layer.add_child(button)
 
 
+func _build_drawings_button(layer: CanvasLayer) -> void:
+	_drawings_button = Button.new()
+	_drawings_button.name = "DrawingsButton"
+	_drawings_button.text = "Your Drawings"
+	_drawings_button.theme_type_variation = &"DialogButton"
+	_drawings_button.focus_mode = Control.FOCUS_NONE
+	_drawings_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_drawings_button.offset_left = 300.0
+	_drawings_button.offset_right = 520.0
+	_drawings_button.offset_top = -72.0
+	_drawings_button.offset_bottom = -24.0
+	_drawings_button.visible = HouseEpilogue.has_played()
+	_drawings_button.pressed.connect(_show_drawings)
+	layer.add_child(_drawings_button)
+
+
 func _to_main_menu() -> void:
+	remember_position()
 	var manager := get_node_or_null(^"/root/LevelManager")
 	if manager != null:
 		manager.call("open_main_menu")
@@ -438,7 +575,10 @@ func _on_painting_chosen(level_id: String) -> void:
 		# having pressed the key anyway.
 		_status.text = "Lola has not painted that one yet."
 		return
-	manager.call("open_level", level_id)
+	var painting := painting_for_level(level_id)
+	if painting != null:
+		remember_position()
+		manager.call("open_level", level_id, painting)
 
 
 ## WHAT THE KEY WILL DO, not a generic verb. Standing at a painting without the brush is
@@ -460,6 +600,9 @@ func _wear(state: Wear) -> void:
 			_prompt.add_theme_color_override(&"font_color", UISkin.GILT_HI)
 		Wear.VIEW:
 			_prompt.text = "E   VIEW"
+			_prompt.add_theme_color_override(&"font_color", UISkin.GOLD)
+		Wear.REPLAY:
+			_prompt.text = "%s   REPLAY" % ControlsKeys.keys_for("interact")
 			_prompt.add_theme_color_override(&"font_color", UISkin.GOLD)
 		Wear.REFUSE:
 			_prompt.text = "NEEDS LOLA'S BRUSH"
@@ -500,6 +643,10 @@ func _on_brush_taken() -> void:
 ## The line under the title. It is the room's only standing instruction, so it says the
 ## thing the player cannot do anything without: on a first visit, where the brush is.
 func _write_status() -> void:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile != null and bool(profile.call("is_level_completed", "level_5")):
+		_status.text = "Journey complete. Progress saved. You can explore or revisit a painting."
+		return
 	_status.text = "Walk to a painting and press E" if _has_brush() \
 		else "Lola's brush is at the end of the hall. Take it first."
 

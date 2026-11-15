@@ -1,13 +1,45 @@
 extends SceneTree
 ## The flag opens the normal hub paintings, without changing the game's navigation.
+##
+## NEW GAME goes into Payyo, carrying the brush, and the house comes after it (PR #186,
+## LevelManager.start_new_game) -- with the flag on as with it off. So the house is reached
+## by leaving Payyo, and the stand is already empty when she gets there.
 
 const CHECKS := 26
+## ⚠ A probe that dies part-way must still end. A SCRIPT ERROR kills the coroutine, not the
+## process, and the old version of this probe sat at "Play opens the house" until the suite
+## runner's alarm. Comfortably longer than a passing run, which is a few seconds.
+const WATCHDOG_SECONDS := 90.0
 var checked := 0
 var failures := 0
 
 
 func _initialize() -> void:
+	# A level reached through LevelManager builds its own supervisor; catch it before its
+	# _ready, so no recogniser is launched for a probe that never draws.
+	node_added.connect(_quiet_the_backend)
+	create_timer(WATCHDOG_SECONDS, true, false, true).timeout.connect(_on_watchdog)
 	_run.call_deferred()
+
+
+func _quiet_the_backend(node: Node) -> void:
+	if node is BackendSupervisor:
+		(node as BackendSupervisor).auto_start_backend = false
+
+
+func _on_watchdog() -> void:
+	print("  FAIL  the probe did not finish in %d s" % int(WATCHDOG_SECONDS))
+	failures += 1
+	_finish()
+
+
+## Prints the verdict and quits: from the end of the run, or from wherever it had to stop.
+func _finish() -> void:
+	if checked != CHECKS:
+		failures += 1
+		push_error("Dev mode probe ran %d of %d checks" % [checked, CHECKS])
+	print("OBRA_DEV_MODE_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
+	quit(0 if failures == 0 else 1)
 
 
 func _check(ok: bool, what: String) -> void:
@@ -48,60 +80,62 @@ func _run() -> void:
 		and (current_scene.get("play_button") as Button).text == "NEW GAME", "the normal title screen stays in use")
 	await _capture("title")
 	(current_scene.get("play_button") as Button).pressed.emit()
-	await _arrive(manager, "res://levels/hub/hub.tscn")
+	if not await _arrive(manager, "res://game_level.tscn"):
+		_finish()
+		return
+	_check(String(manager.get("current_level_id")) == "level_1",
+		"NEW GAME still opens Payyo with the flag on, not the house")
+	_check(bool(profile.call("has_brush")), "carrying Lola's brush, as without the flag")
+	call_group(&"dialogue_box", &"hide_line")
+	manager.call("return_to_house")
+	if not await _arrive(manager, "res://levels/hub/hub.tscn"):
+		_finish()
+		return
 	var hub := current_scene
 	var paintings := get_nodes_in_group(&"paintings")
-	_check(paintings.size() == 5, "Play opens the normal house with five paintings")
+	_check(paintings.size() == 5, "leaving Payyo opens the normal house with five paintings")
 	var mayon: Node2D
 	for painting in paintings:
 		_check(not bool(painting.call("is_locked")), "the house shows its paintings unlocked")
 		if String(painting.get("level_id")) == "level_5":
 			mayon = painting as Node2D
 	var apo := hub.get("_player") as Node2D
-	var stand := hub.get("_stand") as Node2D
-	apo.global_position.x = stand.global_position.x
-	await create_timer(0.1).timeout
-	_press(&"interact")
-	await create_timer(0.1, true, false, true).timeout
-	var acquired := hub.get_node("AcquiredOverlay")
-	var deadline := Time.get_ticks_msec() + 8000
-	while bool(acquired.call("is_busy")) and Time.get_ticks_msec() < deadline:
-		await create_timer(0.05, true, false, true).timeout
-	_check(not bool(acquired.call("is_busy")), "the brush acquisition card has finished before entering a painting")
-	_check(bool(profile.call("has_brush")), "E at the stand takes the brush normally")
-	_check(mayon != null, "Mayon's painting is present")
-	if mayon != null:
+	_check(mayon != null and apo != null, "Mayon's painting is present")
+	if mayon != null and apo != null:
 		apo.global_position.x = mayon.global_position.x
 		await create_timer(0.1).timeout
 		await _capture("hub")
 		_press(&"interact")
-		await _arrive(manager, "res://level_5.tscn")
+		if not await _arrive(manager, "res://level_5.tscn"):
+			_finish()
+			return
 		_check(String(manager.get("current_level_id")) == "level_5", "E at Mayon's painting enters Mayon")
 		await _capture("level")
 		call_group(&"dialogue_box", &"hide_line")
 		manager.call("return_to_house")
-		await _arrive(manager, "res://levels/hub/hub.tscn")
+		if not await _arrive(manager, "res://levels/hub/hub.tscn"):
+			_finish()
+			return
 	dev_mode.set("enabled", false)
 	_check(not indicator.visible and root.title == normal_title
 		and not bool(manager.call("is_unlocked", "level_5")),
 		"disabling the flag restores the normal title, indicator and earned locks")
 	profile.call("mark_level_completed", "level_4")
 	_check(bool(manager.call("is_unlocked", "level_5")), "earned unlocks still work with the flag off")
-	if checked != CHECKS:
-		failures += 1
-		push_error("Dev mode probe ran %d of %d checks" % [checked, CHECKS])
-	print("OBRA_DEV_MODE_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
-	quit(0 if failures == 0 else 1)
+	_finish()
 
 
-func _arrive(manager: Node, path: String) -> void:
+## True once `path` is the scene and the transition is over; false (and a failed check) when it
+## never arrives, so the caller stops instead of reaching into a scene that is not there.
+func _arrive(manager: Node, path: String) -> bool:
 	var deadline := Time.get_ticks_msec() + 10000
 	while Time.get_ticks_msec() < deadline:
 		if current_scene != null and current_scene.scene_file_path == path \
 				and not bool(manager.call("is_transitioning")):
-			return
+			return true
 		await create_timer(0.05, true, false, true).timeout
 	_check(false, "scene transition timed out: " + path)
+	return false
 
 
 func _press(action: StringName) -> void:

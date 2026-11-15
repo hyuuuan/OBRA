@@ -46,29 +46,29 @@ print "started $EPOCHSECONDS" > "$LOG"
 
 HEADLESS=(
   run_tests run_level_ready test_player_profile run_dev_mode_probe
-  run_level1_audit run_walk_level1 run_nodraw_level1 run_level1_finish_probe
-  run_ink_economy_probe run_morph_gate_probe run_book_probe run_tutorial_audit
+  run_level1_audit run_walk_level1 run_nodraw_level1 run_level1_finish_probe run_level1_flight_ceiling_probe run_level1_backdrop_probe run_cliff_dressing_probe
+  run_ink_economy_probe run_morph_gate_probe run_book_probe run_tutorial_audit run_tutorial_coverage_probe
   run_gate_probe
-  run_tutorial_popup_probe run_action_prompt_probe run_hint_probe run_dialogue_box_probe
+  run_tutorial_popup_probe run_action_prompt_probe run_ladder_angle_probe run_hint_probe run_dialogue_box_probe run_line_timing_probe
   run_room_probe run_head_clear_probe run_motion_probe run_hud_motion_probe run_rig_fit_probe run_rig_facing_probe
-  run_locomotion_probe run_test_runs_probe run_weapon_probe run_combat_probe run_enemy_probe run_darkness_probe run_level4_enablers_probe run_makiling_probe run_mayon_probe run_drain_probe run_brush_refusal_probe run_level5_enablers_probe run_level5_audit run_level5_act_two_probe run_level5_act_one_probe run_level5_summit_probe run_level5_frame_probe run_companion_pose_probe run_morph_reach_probe run_revert_probe run_placement_probe run_key_probe
-  run_boarding_probe run_bag_probe run_python_lookup_probe run_unlock_reveal_probe run_import_guard_probe run_resize_probe run_backend_start_probe
+  run_room_placement_probe run_locomotion_probe run_test_runs_probe run_weapon_probe run_combat_probe run_enemy_probe run_darkness_probe run_level4_enablers_probe run_makiling_probe run_mayon_probe run_drain_probe run_old_way_fade_probe run_brush_refusal_probe run_level5_enablers_probe run_level5_audit run_level5_crater_probe run_level5_staging_probe run_level5_act_two_probe run_level5_act_one_probe run_level5_summit_probe run_level5_guidance_probe run_level5_frame_probe run_level5_endings_probe run_level5_overhaul_probe run_walk_level5 run_level5_memory_walk run_companion_pose_probe run_morph_reach_probe run_revert_probe run_placement_probe run_key_probe
+  run_boarding_probe run_bag_probe run_bag_drag_probe run_draw_again_probe run_diary_probe run_python_lookup_probe run_unlock_reveal_probe run_import_guard_probe run_resize_probe run_backend_start_probe
   run_behaviour_audit run_roster_sweep
   run_level2_audit run_level2_scene_probe run_level2_chain_probe run_level2_finish_probe
   run_level2_systems_probe run_level2_alley_probe run_nodraw_level2 run_water_audit run_hub_audit
-  run_assembly_probe run_dance_probe run_objective_probe run_tool_routes_probe
-  run_playtest_telemetry_probe
+  run_assembly_probe run_dance_probe run_objective_probe run_tool_routes_probe run_fan_probe
+  run_playtest_telemetry_probe run_audio_probe run_sfx_core_probe run_sfx_drawing_probe run_sfx_combat_probe run_sfx_places_probe run_sfx_moves_probe
   run_dialogue_pool_probe
-  run_play_level2 run_hud_layout_probe run_screens_fit_probe run_journey_probe run_backend_ownership_probe
+  run_play_level2 run_hud_layout_probe run_minimap_probe run_screens_fit_probe run_journey_probe run_new_game_probe run_backend_ownership_probe
   run_request_timeout_probe
   run_button_feedback_probe run_rig_isolated run_underwater_appearance_probe
   run_level3_audit run_nodraw_level3 run_bakunawa_probe run_level3_finish_probe
   run_swim_reach_probe run_level3_boat_probe run_level3_trouble_probe
-  run_spawn_latency_probe
-  run_level3_play_probe run_level3_sea_probe run_opening_probe run_resume_probe
-  run_level4_audit run_level4_seg1_probe run_level4_finale_probe run_satchel_probe run_level4_seg2_probe run_level4_seg3_probe run_level4_tiktik_probe run_level4_whip_probe run_level4_sound_probe
+  run_spawn_latency_probe run_painting_entry_probe
+  run_level3_play_probe run_level3_sea_probe run_level3_submarine_probe run_level3_current_probe run_opening_probe run_resume_probe
+  run_level4_audit run_moonlit_foliage_probe run_level4_seg1_probe run_level4_finale_probe run_satchel_probe run_level4_seg2_probe run_level4_seg3_probe run_level4_tiktik_probe run_level4_whip_probe run_foe_health_probe run_creature_ability_probe run_scorch_probe run_level4_sound_probe
 )
-WINDOW=(run_click_ui run_hud_watch_level1 run_real_drawing_probe)
+WINDOW=(run_click_ui run_hud_watch_level1 run_real_drawing_probe run_level5_finish_walk)
 
 if [ "${1:-}" = "quick" ]; then
   HEADLESS=("${(@)HEADLESS:#run_tests}")
@@ -148,7 +148,9 @@ if (( WITH_PYTHON )); then
     tests.test_correction_experiment \
     tests.test_playtest_telemetry \
     tests.test_player_simulation \
-    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments >> "$LOG" 2>&1
+    tests.test_suite_watch tests.test_build_dilim_creatures tests.test_build_dilim_delivered tests.test_build_dilim tests.test_build_dilim_props tests.test_build_mayon tests.test_build_mayon_fragments tests.test_build_dagat_bangka tests.test_build_dagat_cave tests.test_build_diary_book tests.test_build_house_lolo \
+    tests.test_famirender tests.test_build_music tests.test_famitext \
+    tests.test_piyesta_dance_music tests.test_dilim_calls_read >> "$LOG" 2>&1
   note_result python $? $(( EPOCHSECONDS - began ))
 fi
 

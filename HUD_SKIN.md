@@ -16,6 +16,26 @@ silently loses the edit — the same arrangement `config/tags.json` has with
 `tools/build_tags.py`. `run_tests.gd` checks one value from each button family against
 the skin, so a palette edit without a regeneration fails the suite instead of shipping.
 
+**Current gameplay corners (2026-11-01).** All five levels share `LevelMinimap`: a square
+256px map at the top left, with the brush in a matching 256px-wide panel directly below it.
+The brush uses three screen pixels per art pixel (183px wide), centred inside the panel
+with 12px content padding so the artwork stays clear of the frame.
+In Dilim, the lantern sits beside a HEALTH caption and live flame state/count (Full 4/4
+through Guttering 1/4), making its purpose clear within the same panel.
+The lantern artwork dims to 80%, 60% and 40% brightness as health drops; its flame also
+shortens and its glow fades. Restoring health restores its brightness.
+The map renders the existing world
+at low resolution, follows the active player's physics anchor, reveals nearby terrain and
+keeps explored cells for the current run. Interiors use their own map scale and show **only
+the room**: every interior is parked in the sky over its level, so the map holds its view
+inside the room's camera box, reveals the room whole, and inks over everything outside it
+(Kent, in the heap: "i can clearly see that this is just above level 1"). The pin marks her,
+not the middle of the view (`LevelMinimap.marked`, `shows`). The morph card
+stays at the top right. The brush has no description row; action feedback goes to
+`HudNotice` at the right and clears after five seconds. A ready backend produces no idle text.
+`run_minimap_probe` checks every level; run it with a window to save screenshots and verify
+that each map actually renders world pixels.
+
 **See it.** `godot --path game --script res://tests/run_visual_hud.gd` writes frames
 to `/tmp/obra_hud_*.png`: the HUD over the level, the brush gauge full, mid-stroke, low,
 nearly spent and dry, a line still typing and the same line finished, both voices, the
@@ -98,6 +118,11 @@ Taken pixel by pixel off the sheet, not approximated.
 | `CREAM_TEXT` | `E8E3C4` | body type on a dark fill |
 | `PENDING` | `FFBD3D` | ink claimed but not spent; the slot currently in hand |
 | `BEVEL` | `4D4E48` | the grey highlight ring inside a button's edge |
+
+`DawnClockHud`, Dilim's morning clock, is the one part of the HUD with a sky in it: `SKY_*`, `MOON_*`,
+`SUN_CORE` and `TREES_*` in `ui_skin.gd`, stepped, with no red, because nothing on it is a loss. Its
+moon-to-sun body is baked from rules in art pixels of three screen pixels (`body_image`).
+`run_visual_level4_clock` writes it through the night.
 
 ### What you ARE is top right; what you HAVE is top left
 
@@ -444,10 +469,11 @@ the drawing surface once it opens."
 
 | Zone | What is there | Why there |
 |---|---|---|
-| Top left | Ink plate and status line, then the checkpoint indicator beside it | State you glance at, never act on |
+| Top left | Square minimap, with the brush, ink and checkpoint counts beneath | Terrain and drawing resources |
+| Top right | Morph card and brief action feedback | Current form and relevant action results |
 | Top centre | Level banner, which gains the current beat's name on arrival | Where you are, at two scales |
 | Bottom left | The six-slot toolbelt | What you HAVE |
-| Bottom right | R DRAW and Q CHANGE BACK | What you DO — and the mouse is already there |
+| Bottom right | R DRAW and Q CHANGE BACK, and in Payyo the MOVE and JUMP reminders to their left; Z/X ROTATE and C/V SCALE replace Draw (and the reminders) while placing | What you DO — and the mouse is already there |
 | Bottom centre | The goal chip | The journey, under the middle of the frame where the eye rests |
 | Beside the player | E, F and the climb cap | Verbs that exist only where they work |
 
@@ -456,6 +482,27 @@ readout used to sit in that corner. Moving R there put a tutorial callout -- whi
 ABOVE the draw button -- straight across it, so the first thing the game ever says about
 drawing was printed over the distance to the goal. If you put anything else in that corner,
 check it against `TutorialCallout` with a lesson anchored on `draw_button`.
+(The callout is `TutorialSpotlight` now; the rule stands. Its pointer comes down from ABOVE the
+lit control.)
+
+⚠ **MOVE and JUMP are reminders, and they stand in R's row, not above it.** Kent asked for the
+draw key to be "paired with the WASD buttons for like guidance as well as the jump", so a level
+can turn on `_shows_movement_keys` (Payyo does) and `ActionPromptHUD` puts `A D MOVE` and
+`Space JUMP` to the left of Q's place, caps read off the InputMap. They are indicators like the
+climb cap — `MUTED`, no pulse, not clickable — and they step aside on Q's own eased reveal when
+Q comes in. A row above R was tried first: the draw lesson's pointer came down straight through
+JUMP and its lit hole took in the bottom of both. With Q up the row reaches to about 25px of the
+goal chip at 1600; `run_action_prompt_probe` measures that gap, and so should anything that
+widens a chip in this row.
+
+⚠ **The toolbelt drags.** A drawing in it is pulled off its slot and let go in the world: a thing
+to set down is its own ghost on the pointer and lands where it is let go; a tool goes into her
+hand. Its states, all from `UISkin`: a full slot under the pointer lifts its ring to `GOLD_PALE`
+(`UISkin.slot(..., lifted)`) with a hand cursor; while dragging, the caption over the tray says
+"Let go to set it down · back on the bag to keep it" (20 px, the floor), the ghost carries the
+placement's valid or refused tint and the pointer shows can-drop or no; back over the bar the tray
+wears `UISkin.drop_ring()` and letting go puts it back; let go where the ghost will not stand, the
+drawing flies back into its slot from there and the bar says why. The keys still do all of it.
 
 ⚠ **The keybind strip is gone and the node is not.** `CanvasLayer/HintLabel` still exists in
 `game_level.tscn` and is hidden at build time; the live key caps replaced it. Do not revive
@@ -476,7 +523,10 @@ it -- it advertised six verbs from the first frame, four of which could do nothi
 | Hints, which never stop play | `game/scripts/hint_bar.gd` |
 | The signs in the world saying which of those two is coming | `game/scripts/signpost_2d.gd` |
 | Route decision · Lola memory (both call `UIFrame.wrap`) | `game/scripts/dialogue_choice_overlay.gd` · `memory_overlay.gd` |
-| The top-left frame: the nameplate, the life bar, the ink row | `game/scripts/hud_panel.gd` |
+| Square minimap and explored terrain | `game/scripts/level_minimap.gd` |
+| The brush frame below the minimap | `game/scripts/hud_panel.gd` |
+| Brief action feedback at the right | `game/scripts/hud_notice.gd` |
+| Current morph and its life at the top right | `game/scripts/morph_card.gd` |
 | The ink gauge itself — Lola's brush, drying out | `game/scripts/ink_brush.gd` |
 | How long the drawing has left | `game/scripts/morph_life.gd` |
 | The brush in its case in the house | `game/scripts/brush_stand_2d.gd` |
@@ -484,6 +534,7 @@ it -- it advertised six verbs from the first frame, four of which could do nothi
 | Droplet and flag pictograms | `game/scripts/ui_glyph.gd` |
 | Level banner, goal chip, R-key action tag, controls strip | `game/scripts/game_level.gd` (`_build_hud_frame`) |
 | The six-slot hotbar | `game/scripts/inventory_hud.gd` |
+| Her diary: the bag's DIARY tab, and a page as it is found (see `DIARY.md`) | `game/scripts/diary_book.gd` · `diary_overlay.gd` |
 | Drawing panel, page brackets, live guess | `game/scripts/draw_panel.gd` |
 | Slider handle and fullscreen switch | `game/scripts/settings_overlay.gd` (`_skin_controls`) |
 | Pause menu | `game/game_level.tscn` (`PauseMenu`) |

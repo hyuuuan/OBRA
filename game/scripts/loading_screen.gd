@@ -28,6 +28,12 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	# This IS the title card, loading: its music starts with it and carries on into the menu,
+	# which asks for the same track and so does not restart it. Looked up, not named: this
+	# script must load with nothing imported (see boot.gd), and the autoload may not be up.
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call(&"play_music", &"menu")
 	_card = CARD.new()
 	_card.name = "TitleCard"
 	_card.set("mode", 1)  # LOADING

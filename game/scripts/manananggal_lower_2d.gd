@@ -40,6 +40,11 @@ func apply_tool_hit(_tool: String, _impulse: float, _actor: Node2D) -> bool:
 	return false
 
 
+## Never: only salt or light ends it, and a bar no blow could move would say the weapons were broken.
+func shows_health() -> bool:
+	return false
+
+
 ## Salt on it, however much: it is done.
 func apply_burn(_ticks: int, _seconds: float) -> void:
 	if _salted or state == State.DEAD:
@@ -55,10 +60,17 @@ func is_salted() -> bool:
 	return _salted
 
 
+## Restore a defeat from a saved checkpoint without firing the salt or death signals again.
+func remember_salted() -> void:
+	_salted = true
+	_enter(State.DEAD)
+	_set_colliding(false)
+	hide()
+
+
 func reset_for_restore() -> void:
-	_salted = false
-	_smoke = 0.0
-	super()
+	if not _salted:
+		super()
 
 
 func _draw() -> void:
@@ -73,3 +85,9 @@ func _draw() -> void:
 			var rise := (1.0 - _smoke / CRUMBLE_SECONDS) * 30.0
 			draw_circle(Vector2(-10.0 + puff * 7.0, -half.y - rise - puff * 4.0), 5.0,
 				Color(SALT_SMOKE, _smoke / CRUMBLE_SECONDS))
+
+
+## Not by heat: its apply_burn is salt -- the pragmatist's deed -- and a sun must not be salt. The
+## sun's light ends it the artist's way already.
+func apply_scorch(_ticks: int, _seconds: float) -> void:
+	pass

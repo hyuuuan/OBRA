@@ -10,18 +10,18 @@ game/assets/Level4/creatures/, so a delivered strip of the same name simply wins
 WHAT IS DELIVERED NOW
 ---------------------
 The art team's sheets (LEVEL4_Creatures/, 2026-10-20) give the kapre, the manananggal (both halves)
-and the lean aswang -- a white lady -- and tools/build_dilim_delivered.py cuts them. Their strips
-(build_dilim_delivered.DELIVERED) are not drawn here; the kapre's tree, its smoke and its cigar
+and the lean aswang -- a white lady. The crawling aswang sheet was supplied on 2026-11-01.
+The tikbalang and tiyanak sheets followed the same day; the bungisngis, wakwak, sigbin and nuno on 2026-11-04.
+tools/build_dilim_delivered.py cuts all ten.
+Their strips (build_dilim_delivered.DELIVERED) are not drawn here; the kapre's tree, its smoke and its cigar
 still are.
 
 HOW THEY ARE DRAWN
 ------------------
 In the delivered art's idiom (the apo, Lolo, the bakunawa): one art px to one screen px, five or
 six tones a material lit from the upper left, and selective coloured outlines -- see
-tools/creature_sculpt.py. The creatures themselves are in dilim_aswang.py (the old aswang),
-dilim_beasts.py (the sigbin), dilim_giants.py (the tikbalang, the bungisngis), dilim_kapre.py (the
-kapre's smoke and its cigar), dilim_fliers.py (the wakwak, the tik-tik) and dilim_small.py (the
-tiyanak and its undergrowth, the santelmo, the nuno's mound, the kapre's balete); the last
+tools/creature_sculpt.py. The remaining art is in dilim_kapre.py (the kapre's smoke and its cigar), dilim_fliers.py (the tik-tik) and dilim_small.py (the
+tiyanak's undergrowth, the santelmo, the kapre's balete); the last
 clearing's dead tree, drawn the same way, is in dilim_props.py.
 
 THE STRIP CONTRACT
@@ -46,10 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from PIL import Image  # noqa: E402
 
-import dilim_aswang as aswang  # noqa: E402
-import dilim_beasts as beasts  # noqa: E402
 import dilim_fliers as fliers  # noqa: E402
-import dilim_giants as giants  # noqa: E402
 import dilim_kapre as kapre  # noqa: E402
 import dilim_props as props  # noqa: E402
 import dilim_small as small  # noqa: E402
@@ -60,41 +57,15 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "game" / "assets" / "Level4" / "creatures"
 
 # Which way each stands: on its feet at the bottom row, or centred (a flier).
-GROUND = ["aswang_pig", "sigbin", "tikbalang", "bungisngis", "kapre_tree", "tiyanak", "tiyanak_undergrowth", "nuno_mound", "dead_tree"]
-FLYING = ["wakwak", "tiktik", "santelmo"]
-
-
-def _aswang(a):
-    out = {}
-    for anim, poses in aswang.ANIMS.items():
-        frames = []
-        for c in poses:
-            s = aswang.draw(a, c)
-            s.details()
-            frames.append(s.render())
-        out[anim] = frames
-    return out
-
-
-def _beast(b):
-    return {anim: [beasts.draw(b, p).render() for p in poses] for anim, poses in beasts.ANIMS.items()}
+GROUND = ["kapre_tree", "tiyanak_undergrowth", "dead_tree"]
+FLYING = ["tiktik", "santelmo"]
 
 
 def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
     return {
-        "aswang_pig": _aswang(aswang.OLD),
-        "sigbin": _beast(beasts.SIGBIN),
-        "tikbalang": {a: [giants.draw(giants.TIKBALANG, st).render() for st in poses] for a, poses in giants.TIKBALANG_ANIMS.items()},
-        "bungisngis": {a: [giants.draw_bungisngis(st).render() for st in poses] for a, poses in giants.BUNGISNGIS_ANIMS.items()},
         "kapre_smoke": {"idle": kapre.smoke()},
         "kapre_cigar": {"idle": [kapre.cigar()]},
-        "wakwak": {a: [fliers.wakwak(l, d).render() for l, d in poses] for a, poses in fliers.WAKWAK_ANIMS.items()},
         "tiktik": {a: [fliers.tiktik(l).render() for l in poses] for a, poses in fliers.TIKTIK_ANIMS.items()},
-        "tiyanak": {
-            "idle": [small.tiyanak_bundle(0.0).render(), small.tiyanak_bundle(1.0, 1).render()],
-            "true": [small.tiyanak_true(0.0).render(), small.tiyanak_true(0.5).render()],
-            "run": [small.tiyanak_true(k / 4, run=True).render() for k in range(4)],
-        },
         "tiyanak_undergrowth": {"idle": [small.undergrowth_picture()]},
         "santelmo": {
             "idle": [small.santelmo(k / 4).render() for k in range(4)],
@@ -103,10 +74,6 @@ def _sheets() -> dict[str, dict[str, list[Image.Image]]]:
         "kapre_tree": {
             "idle": [small.balete().render()],
             "felled": [small.balete(True).render()],
-        },
-        "nuno_mound": {
-            "idle": [small.nuno_mound(0.0).render()],
-            "peek": [small.nuno_mound(1.0).render()],
         },
         "dead_tree": {
             "idle": [props.dead_tree().render()],

@@ -11,6 +11,7 @@ extends SceneTree
 ##   the banner says something, and it is the line for THIS step
 ##   the marker has somewhere to point, in the room the player is in
 ##   a tag is named once the beat has taught it
+##   the arrow never points back at a gate the player got past some other way
 ##   and no objective in either config names a class the player has not earned
 
 var failures := 0
@@ -34,6 +35,7 @@ func _run() -> void:
 	await _the_card_reads_as_the_quest()
 	await _walk_piyesta()
 	await _walk_payyo()
+	await _flown_out_over_dagat()
 	print("OBRA_OBJECTIVE_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
 
@@ -336,6 +338,22 @@ func _walk_payyo() -> void:
 	print("  -- Payyo")
 	_expect("arrival", "b0_sub1")
 
+	# ⚠ UP BY ANY MEANS IS UP. Only a drawing set against the wall solves Beat 0, so a player
+	# who flew over it as a bird kept "Get up Ang Hagdan" and an arrow at the foot of the wall,
+	# behind them for the rest of the level.
+	var arrow := level.get("objective_marker") as ObjectiveMarker
+	var spawn := player.global_position
+	player.global_position = Vector2(1300.0, 300.0)
+	await _frames(30)
+	_expect("up Ang Hagdan without solving it", "gorge")
+	_check(not director.is_solved("B0_HAGDAN") and arrow.showing()
+		and arrow.target().x > player.global_position.x,
+		"and the arrow points on, not back at the wall",
+		"target %s, player %s" % [arrow.target(), player.global_position])
+	player.global_position = spawn
+	await _frames(30)
+	_expect("back down on the bank", "b0_sub1")
+
 	director.enter_obstacle("B0_HAGDAN")
 	await _frames()
 	_expect("at Ang Hagdan", "b0_sub1", true, "CLIMB")
@@ -346,6 +364,31 @@ func _walk_payyo() -> void:
 	var marker := level.get("objective_marker") as ObjectiveMarker
 	_check(not marker.on_screen(), "and the gorge is off screen, so it is an edge arrow",
 		"screen point %s" % marker.screen_point())
+
+	# ⚠ INSIDE THE HEAP WITH THE GORGE STILL UNANSWERED -- a bird got her over it. The room is
+	# parked in the sky over the gorge's x, so the gorge's line used to win in here, and with
+	# no arrow at all because the gorge is not in the room. Kent: "the arrow should just
+	# point at the key".
+	var heap_room := get_first_node_in_group(&"straw_rooms") as Node2D
+	var on_the_terrace := player.global_position
+	player.global_position = Vector2(heap_room.call("entry_point"))
+	await _frames(12)
+	_expect("in the heap, the gorge unanswered", "straw_inside")
+	var on_the_key: Vector2 = heap_room.global_position + Vector2(heap_room.call("key_mark"))
+	_check(arrow.showing() and arrow.target().is_equal_approx(on_the_key),
+		"and the arrow is on the key",
+		"target %s, the key's mark %s, showing %s" % [arrow.target(), on_the_key,
+			arrow.showing()])
+	# UNDER IT IS NOT HAVING IT. The nail is out of jump reach, and the chevron used to go out
+	# exactly here, under the thing she had to work out how to get up to.
+	player.global_position = heap_room.global_position \
+		+ Vector2(Vector2(heap_room.get("key_at")).x, 0.0)
+	await _frames(12)
+	_state()
+	_check(arrow.showing(), "and stays on it while she stands underneath",
+		"showing %s at %s" % [arrow.showing(), player.global_position])
+	player.global_position = on_the_terrace
+	await _frames(12)
 
 	director.enter_obstacle("L1_N1")
 	director.commit_route("L1_N1", "protector")
@@ -370,6 +413,56 @@ func _walk_payyo() -> void:
 	bale.call("_on_painting_body", player)
 	await _frames(12)
 	_expect("painting in hand", "home", false)
+	level.queue_free()
+	await process_frame
+
+
+# --- Dagat -----------------------------------------------------------------------------
+
+## ⚠ OUT AT THE CREATURE, THE CROSSING IS BEHIND HER. Only the boat or a swimmer answers it,
+## so a player who chose the boat and then flew out as a bird was pointed four thousand pixels
+## back to the bangka with the creature in front of them. Placed in the air above its volume,
+## which a bird can cross without entering.
+func _flown_out_over_dagat() -> void:
+	root.get_node("PlayerProfile").call("record_new_brush")
+	level = await _open("res://level_3.tscn")
+	var director = level.get("director")
+	var player := level.get("player") as Node2D
+	print("  -- Dagat, flown out")
+	# The forks would stop the tree over the checks: this is about the line, not the choice.
+	for fork_name in ["DialogueNode", "BakunawaNode"]:
+		var fork := level.get_node_or_null(
+			NodePath("EnvironmentBaseplate/GameplayPlane/%s" % fork_name)) as Node2D
+		if fork != null:
+			fork.set_process_mode(Node.PROCESS_MODE_DISABLED)
+	director.solve_with_item("L3_B0_SHORE", "new_brush")
+	director.commit_route("L3_N1", "artist")
+	await _frames()
+	_expect("chose the boat", "drag_the_boat")
+
+	var volume := level.get_node(
+		^"EnvironmentBaseplate/GameplayPlane/Obstacles/L3_N2") as LevelObstacle2D
+	var above := Vector2(volume.global_position.x - volume.trigger_size.x * 0.5 + 150.0,
+		volume.global_position.y - volume.trigger_size.y * 0.5 - 90.0)
+	player.call("apply_morph_state", {"position": above, "linear_velocity": Vector2.ZERO})
+	await _frames(2)
+	var arrow := level.get("objective_marker") as ObjectiveMarker
+	var now := _state()
+	_check(not director.is_solved("L3_N1") and not director.was_entered("L3_N2"),
+		"over the creature, the crossing unanswered and its volume not entered",
+		"at %s" % player.global_position)
+	_check(now["key"] == "bakunawa", "the line is about the creature, not the boat",
+		"'%s' -> \"%s\"" % [now["key"], now["text"]])
+	_check(arrow.has_target() and arrow.target().x > player.global_position.x - 250.0,
+		"and the arrow does not point back to the beach",
+		"target %s, player %s" % [arrow.target(), player.global_position])
+
+	# Put back on the beach -- a rescue does this -- the crossing is the line again.
+	var hull := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Marks/BangkaMark") as Node2D
+	player.call("apply_morph_state", {"position": hull.global_position + Vector2(200.0, -60.0),
+		"linear_velocity": Vector2.ZERO})
+	await _frames(20)
+	_expect("back on the beach", "drag_the_boat")
 	level.queue_free()
 	await process_frame
 

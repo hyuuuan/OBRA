@@ -1,0 +1,102 @@
+{
+  "$comment": [
+    "LOLA'S DIARY -- one entry a painting, in the order she wrote them, and the order is the illness.",
+    "Each entry is found somewhere in its level (DIARY.md has where and why); the bag's DIARY tab shows",
+    "every entry this player has found, as a book. An entry the player has not found is not shown and",
+    "not named: the tab counts them, the way the roster counts what has not been drawn.",
+    "",
+    "  id        what the level records (PlayerProfile.record_diary_page)",
+    "  level_id  the painting it is found in",
+    "  date      how she headed the page -- written as she would, so it gets less sure",
+    "  found     what the apo sees as it is found, in the narrator's voice, not hers",
+    "  pages     her words, a page each, left then right; an entry always starts on a left page.",
+    "            A page is a string, or {\"text\", \"anchor\"} where a level opens the book at that page",
+    "            (Dilim, at each creature). [s]...[/s] is a line she crossed out.",
+    "",
+    "⚠ NO PAGE MAY NAME A DRAWABLE CLASS, in English or Filipino -- the diary is read by a player",
+    "standing at the obstacle it is about. run_diary_probe checks every page against the fifty.",
+    "⚠ EVERY PAGE MUST FIT ITS PAGE. The book does not scroll; run_diary_probe lays each one out in",
+    "the real font and fails the one that runs over."
+  ],
+  "entries": [
+    {
+      "id": "payyo",
+      "level_id": "level_1",
+      "date": "Sunday",
+      "found": "A page from her diary, folded small and kept under the lid. The ink has gone brown at the edges.",
+      "pages": [
+        "I took the old canvases down again today. The terraces first, then the fiesta, then the sea. I sat with each one until I could hear him in it.\n\nHe is easier to find in the paintings than in my head now.",
+        "That is why I painted him into every one of them, so he would always be somewhere.\n\nSome mornings I reach for his name and come back with nothing. So I walk through them with him, one by one, while I still know the way.\n\nIf a day comes when I cannot find him at all, I hope somebody walks them for me."
+      ]
+    },
+    {
+      "id": "piyesta_church",
+      "level_id": "level_2",
+      "date": "Fiesta Sunday",
+      "found": "A page tucked under a pew, the fold gone soft from being opened and closed.",
+      "pages": [
+        "We walked to the plaza for the fiesta, the way we always do. The church was full of candles.\n\nI knelt to pray and the words were not there. Sixty years I have said that prayer.",
+        "My mouth knew the shape of it and the rest of me did not. I moved my lips so nobody would see. I think God saw.\n\nWe were married at that altar. I remember the dress. I remember the rain. I could not remember the prayer."
+      ]
+    },
+    {
+      "id": "piyesta_alley_1",
+      "level_id": "level_2",
+      "date": "Monday",
+      "found": "A page caught on the bunting's string, as if somebody had tied it there to find it again.",
+      "pages": [
+        "I went down to the plaza for thread and came home by the wrong street. Then another wrong street.\n\nThey all have bunting on them this week, and they all looked like ours.",
+        "A boy from the sari-sari store walked me to my gate. He called me Lola, the way you do.\n\nI told him I was only looking at the flags."
+      ]
+    },
+    {
+      "id": "piyesta_alley_2",
+      "level_id": "level_2",
+      "date": "Tuesday? Wednesday.",
+      "found": "A page folded small, then smaller, and pushed under a stone, the way you hide a note from yourself.",
+      "pages": [
+        "The kettle.\nThe gas.\nThe window at night.\n\nApo comes on Sundays.\n[s]Apo comes on Saturdays.[/s]\nApo comes on Sundays.\n\nI have written it here so I will see it. I have written it on the kitchen wall too.",
+        "He would laugh at me. He would say, Mahal, you have written it twice.\n\nI know. I know I have."
+      ]
+    },
+    {
+      "id": "dagat",
+      "level_id": "level_3",
+      "date": "Thursday, I think",
+      "found": "It had been holding a page of her diary down in the dark all along. The ink has run, but not all of it.",
+      "pages": [
+        "I dreamt of the sea he went out on every morning. Something was swimming in the dark under the bangka, looking for a light it had lost. Round and round.\n\nI woke, and I was looking for something too, all through the house, and I could not say what.",
+        "My daughter took me to a doctor. He asked me what year it was and I told him. Later he asked again and I told him something else. He wrote a word down and did not say it to me.\n\nI know what it is. I will not write its name in here. This book is for remembering."
+      ]
+    },
+    {
+      "id": "dilim",
+      "level_id": "level_4",
+      "date": "For apo",
+      "found": "Her handwriting, pages of it folded together: everything that lives in these woods, written down for you.",
+      "pages": [
+        "So you know them, if you ever meet one. I told you these at bedtime and you laughed. Do not laugh.\n\nKeep a light with you, and stay on the path.",
+        {"anchor": "nuno", "text": "THE NUNO\n\nHe lives in the punso, the mound beside the path. Do not step on it. Say tabi-tabi po, excuse me, and he lets you by.\n\nStep on it and your foot swells. It wears off if you keep walking. They remember the ones who ask."},
+        {"anchor": "santelmo", "text": "THE SANTELMO\n\nA ball of fire drifting in the dark. It is only lost.\n\nNever run from one. It chases whatever runs. Walk, slowly, and it loses interest."},
+        {"anchor": "sigbin", "text": "THE SIGBIN\n\nIt walks backwards, its head low between its legs. It waits where it is darkest and comes at you from behind.\n\nGive it no dark to hide in. Or put your back to the rock, so there is nothing behind you to come from. It cannot bear to be seen."},
+        {"anchor": "tikbalang", "text": "THE TIKBALANG\n\nTall, all legs, its face long like a -- I had the word. It walks you in circles until you give up.\n\nIt lets its own kind through. It does not chase what it does not hunt. And it hates to lose a race: beat it to the far side and it keeps its word."},
+        {"anchor": "kapre", "text": "THE KAPRE\n\nBig as a house, up in the balete, smoking. It keeps to itself, but its smoke turns you round.\n\nWeather clears smoke. Or bring its balete down and it goes to find another. Or knock the cigar out of its hand."},
+        {"anchor": "tiyanak", "text": "THE TIYANAK\n\nIf you hear a baby crying in the woods, do not go to it. Stay on the path.\n\nIt is not a baby. The light shows it for what it is, and it cannot stand to be seen."},
+        {"anchor": "bungisngis", "text": "THE BUNGISNGIS\n\nOne eye, and it laughs at everything. Laughing is the only thing stronger than it is: show it something silly enough and it laughs too hard to stand.\n\nOr go over the gap and leave it laughing."},
+        {"anchor": "manananggal", "text": "[s]THE SIGBIN[/s]\nTHE MANANANGGAL\n\nOnly half of her flies. Find where she left the rest of herself, and salt it.\n\nOr keep her busy until morning. She cannot come back together in the light."},
+        {"anchor": "tiktik", "text": "THE TIK-TIK\n\nTik, tik. When it sounds far away, it is close.\n\nAsh shows it."},
+        "Apo, I think I have written one of these twice. Or I have not written it at all. I cannot find the page.\n\nI will write them all again tomorrow, so you have them.\n\nFor apo.\nFor apo."
+      ]
+    },
+    {
+      "id": "mayon",
+      "level_id": "level_5",
+      "date": "",
+      "found": "The last page, on the easel's ledge, under her brushes. There is no date on it.",
+      "pages": [
+        "The mountain. I am painting the mountain. I do not remember why I started it.\n\nThere is a man in all of my paintings. I put him there so he would always be somewhere. I look at him and I know I loved him. I cannot find his name. It was a short name.",
+        "A child comes on Sundays. She looks at me as if she knows me. Be kind to her.\n\n[s]If a day comes[/s]\n\nIf a day comes when I cannot find him at all --\n\nI think it is today."
+      ]
+    }
+  ]
+}

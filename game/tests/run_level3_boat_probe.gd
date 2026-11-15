@@ -262,10 +262,9 @@ func _run() -> void:
 	level.call("_restore_level_run_state", {"bangka_found": true, "live_node": "L3_N2"})
 	await _frames(2)
 
-	# RESOLVED WITH LIGHT, the way the finish probe resolves it, and then on to the sand.
+	# RESOLVED WITH LIGHT, and then on to the sand.
 	# ⚠ THE LIGHT LEADS IT HOME NOW (2026-10-05): drawn, it is the first step, and the creature
-	# swimming into the cave under the first beach is the second. Led across the whole sea that is
-	# a minute of play the finish probe already walks; here it is brought within reach of the cave.
+	# swimming into the cave under the first beach is the second.
 	director.call("enter_obstacle", "L3_N2")
 	director.call("commit_route", "L3_N2", "artist")
 	await _unpause()
@@ -273,21 +272,43 @@ func _run() -> void:
 	await _frames(4)
 	_check(int(director.call("stage", "L3_N2")) == 1 and not bool(director.call("is_solved", "L3_N2")),
 		"the light is the first step, not the answer", "it has to be led home first")
+	# ⚠ ROWED HOME WITH A POINTER THAT STAYS ON THE SCREEN. This used to put the creature beside
+	# the cave and the light ON the cave mouth -- a point 960 px under the deck that no mouse could
+	# reach, because the boat was framed for the deck and the screen ended 700 px over the cave.
+	# Played, the creature parked out of the cave's reach and the boat + light run could not end
+	# (Kent, 2026-11-11). Now the boat rows back to the first beach with the creature after it, and
+	# the light is held where a player's pointer could be: aimed at the cave, inside the screen.
 	var mouth: Vector2 = level.get("_cave_mouth")
-	creature.global_position = mouth + Vector2(380.0, -260.0)
-	level.set("lure_override", mouth)
-	for _frame in range(900):
+	var deepest := -INF
+	var rowed := 0.0
+	Input.action_press(&"move_left")
+	while rowed < 60.0 and String(root.get_node("PlayerProfile").call("bakunawa_outcome")) != "LIT":
+		var view := level.get_viewport()
+		var shown := view.get_canvas_transform().affine_inverse() * view.get_visible_rect()
+		level.set("lure_override", mouth.clamp(shown.position + Vector2.ONE * 2.0,
+			shown.end - Vector2.ONE * 2.0))
+		# A player waits for it: rowing on with the creature far behind leaves it out of the light.
+		if creature.global_position.x - boat.global_position.x > 500.0:
+			Input.action_release(&"move_left")
+		else:
+			Input.action_press(&"move_left")
 		await physics_frame
 		if paused:
+			Input.action_release(&"move_left")
 			await _unpause()
-		if bool(director.call("is_solved", "L3_N2")) \
-				and String(root.get_node("PlayerProfile").call("bakunawa_outcome")) == "LIT":
-			break
+		rowed += 1.0 / 60.0
+		deepest = maxf(deepest, shown.end.y)
+	Input.action_release(&"move_left")
+	level.set("lure_override", null)
 	director.call("exit_obstacle", "L3_N2")
-	_check(bool(director.call("is_solved", "L3_N2")), "the light resolves it",
-		"outcome '%s'" % root.get_node("PlayerProfile").call("bakunawa_outcome"))
+	_check(bool(director.call("is_solved", "L3_N2"))
+			and String(root.get_node("PlayerProfile").call("bakunawa_outcome")) == "LIT",
+		"the light leads it home from the boat, pointer on screen",
+		"outcome '%s' after %.1f s; the screen reached y %.0f, the cave mouth is at %.0f" % [
+			root.get_node("PlayerProfile").call("bakunawa_outcome"), rowed, deepest, mouth.y])
 
-	await _hold_right(14.0, boat, true)
+	# From the first beach, the whole sea again.
+	await _hold_right(40.0, boat, true)
 	var sand := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Marks/IslandMark") as Node2D
 	player = level.get("player") as Node2D
 	_check(bool(level.get("_arrived")), "and the boat carries the apo to the island",
@@ -297,7 +318,112 @@ func _run() -> void:
 			- sand.global_position.x) < 120.0,
 		"and they step off onto the sand", "apo at %s, the sand at x %.0f"
 			% [player.global_position.round(), sand.global_position.x])
+	await _fight_from_the_deck()
 	_finish()
+
+
+## ⚠ AND FOUGHT FROM THE DECK, WITH F. Every probe fought it with apply_tool_hit. Played from the
+## boat, a drawn sword swung at the apo's hand, about 110 px over the creature's back: 150 presses
+## of F landed nothing and the fight never ended (2026-11-12). Rowed out, a sword drawn, and F
+## pressed the way a player presses it, on the swing's own clock.
+func _fight_from_the_deck() -> void:
+	level.queue_free()
+	await process_frame
+	level = (load("res://level_3.tscn") as PackedScene).instantiate()
+	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(40)
+	var director = level.get("director")
+	var creature := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Bakunawa
+	director.call("solve_with_item", "L3_B0_SHORE", "new_brush")
+	director.call("enter_obstacle", "L3_N1")
+	director.call("commit_route", "L3_N1", "artist")
+	await _unpause()
+	level.call("_launch_the_bangka")
+	director.call("solve_with_item", "L3_N1", "bangka")
+	director.call("exit_obstacle", "L3_N1")
+	await _unpause()
+	var boat := level.get("_launched_boat") as Node2D
+	_place(boat.global_position + Vector2(0.0, -40.0))
+	await _frames(4)
+	level.call("press_interact")
+	await _unpause()
+	# A cannon fired from the deck before setting out: fifteen shots of kick, and nothing to hit.
+	_draw_weapon("cannon")
+	await _unpause()
+	var slot := int(level.call("_slot_holding", "cannon"))
+	if slot >= 0 and level.get("_equipped_utility") == null:
+		level.call("_on_inventory_slot_pressed", slot)
+	await _press_use(15, false)
+	# Out to it, until the coils stop the hull.
+	var was := -INF
+	var still := 0.0
+	var rowed := 0.0
+	Input.action_press(&"move_right")
+	while rowed < 60.0 and still < 1.5:
+		await physics_frame
+		if paused:
+			Input.action_release(&"move_right")
+			await _unpause()
+			Input.action_press(&"move_right")
+		rowed += 1.0 / 60.0
+		still = still + 1.0 / 60.0 if boat.global_position.x - was < 0.5 else 0.0
+		was = boat.global_position.x
+	Input.action_release(&"move_right")
+	director.call("enter_obstacle", "L3_N2")
+	director.call("commit_route", "L3_N2", "protector")
+	await _unpause()
+	_draw_weapon("sword")
+	await _unpause()
+	var aboard := bool(boat.call("has_passenger", level.get("player")))
+	var holding = level.get("_equipped_utility")
+	await _press_use(30, true)
+	_check(aboard and creature.state() == Bakunawa.State.SUBDUED,
+		"fought from the deck, a drawn sword subdues it with F",
+		"%.0f blows, holding %s, %s" % [creature.hits_taken(),
+			holding.get("utility_behavior") if holding != null and is_instance_valid(holding) else "nothing",
+			"aboard" if aboard else "NOT aboard"])
+	# ⚠ AND STEPPING ASHORE AFTER FIRING FROM THE DECK, SHE STAYS ON THE SAND. A passenger banked
+	# every recoil and was paid it the frame she stepped off: set on the island's sand, she was
+	# thrown 500 px back into the sea at 1650 px/s, under the island's face with no way up
+	# (2026-11-12, after a cannon fight from the boat).
+	await _hold_right(30.0, boat, true)
+	await _frames(90)
+	var apo := level.get("player") as Node2D
+	var sand := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Marks/IslandMark") as Node2D
+	_check(bool(level.get("_arrived")) and absf(apo.global_position.x - sand.global_position.x) < 160.0
+			and absf(apo.global_position.y - sand.global_position.y) < 40.0,
+		"and after firing from the deck, she steps ashore and stays there",
+		"apo at %s, the sand at %s" % [apo.global_position.round(), sand.global_position.round()])
+
+
+## A weapon drawn the way a player draws one: through the drawing panel's door, into her hand.
+func _draw_weapon(entity_id: String) -> void:
+	var sheet := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color.WHITE)
+	level.call("_on_drawing_ready", entity_id, entity_id.capitalize(), sheet, {"confidence": 0.9},
+		[{"points": PackedVector2Array([Vector2(0, 0), Vector2(0, 80)]), "width": 6.0,
+			"color": Color.BLACK}], 1.0)
+
+
+## F, `count` times -- or, `in_the_fight`, until the fight is over: a press every 0.35 s, past
+## the blade's 270 ms swing, so none is a press into a swing.
+func _press_use(count: int, in_the_fight: bool) -> void:
+	var creature := level.get_node(^"EnvironmentBaseplate/GameplayPlane/Bakunawa") as Bakunawa
+	for _press in range(count):
+		if in_the_fight and creature.state() != Bakunawa.State.FIGHTING:
+			return
+		for pressed in [true, false]:
+			var key := InputEventAction.new()
+			key.action = &"use_utility"
+			key.pressed = pressed
+			Input.parse_input_event(key)
+			await physics_frame
+		for _frame in range(19):
+			await physics_frame
+			if paused:
+				await _unpause()
 
 
 func _finish() -> void:

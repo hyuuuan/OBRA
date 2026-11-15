@@ -37,6 +37,9 @@ const STUN_SECONDS := 0.3
 const KNOCK_BASE := 220.0
 const KNOCK_PER_DAMAGE := 80.0
 const DEATH_FADE := 0.4
+const HITBOX_PADDING := Vector2(20.0, 8.0)
+## Clear air between the top of its art and its health bar, px.
+const HEALTH_BAR_GAP := 6.0
 ## PLACEHOLDER BODY until there is art for it: a shape darker than the dark, and its eyes.
 const SHADE := Color(0.055, 0.047, 0.067)
 const EYE := Color(1.0, 0.62, 0.22)
@@ -109,7 +112,7 @@ func _ready() -> void:
 	add_child(shape)
 	hurtbox = _area("Hurtbox", PhysicsLayers.WORLD | PhysicsLayers.ENEMY_HURTBOX, 0, body_size)
 	hurtbox.monitoring = false
-	hitbox = _area("Hitbox", 0, PhysicsLayers.PLAYER_HURTBOX, body_size + Vector2(20.0, 8.0))
+	hitbox = _area("Hitbox", 0, PhysicsLayers.PLAYER_HURTBOX, body_size + HITBOX_PADDING)
 	hitbox.monitorable = false
 	art = PixelStripAnimator.new()
 	art.name = "Art"
@@ -155,6 +158,9 @@ func _physics_process(delta: float) -> void:
 				_enter(State.ATTACK)
 		State.ATTACK:
 			_try_to_land()
+			# A fatal strike can restore the checkpoint inside receive_hit().
+			if state != State.ATTACK or is_queued_for_deletion():
+				return
 			if _state_left <= 0.0:
 				_enter(State.RECOVER)
 		State.RECOVER:
@@ -244,6 +250,13 @@ func apply_burn(ticks: int, seconds: float) -> void:
 	_burn_clock = _burn_every
 
 
+## HEAT, NOT SALT (a sun's Scorch, a fire's Burn -- UtilityObject): burned as salt burns, by
+## default. A creature whose fight a light already answers -- or whose burn means salt -- says no
+## in its own script, so a sun is the light it is and never a second, hidden blow.
+func apply_scorch(ticks: int, seconds: float) -> void:
+	apply_burn(ticks, seconds)
+
+
 func is_burning() -> bool:
 	return _burn_ticks > 0
 
@@ -284,6 +297,25 @@ func reset_home() -> void:
 
 func is_dead() -> bool:
 	return state == State.DEAD
+
+
+## Whether its health is up over it (FoeHealthBars): once it is after her, or has been hurt -- never
+## while it waits, unseen and unbothered, and never once it is dead. A creature whose ambush is its
+## disguise, or that a blow cannot touch, says no in its own script.
+func shows_health() -> bool:
+	if state == State.DEAD or not is_visible_in_tree() or modulate.a < 0.1:
+		return false
+	return hp < max_hp or state in [State.CHASE, State.WINDUP, State.ATTACK, State.RECOVER, State.STUN]
+
+
+## Where its health bar hangs, in world px: just over its painted head, or the top of its body where
+## it has no art. ⚠ THE ART, NOT THE HIGHER OF THE TWO. The bungisngis' body is a 180 px wall across
+## the path, far taller than the giant drawn in it, and a bar on the body floated over empty air.
+func health_bar_anchor() -> Vector2:
+	var top := -body_size.y * 0.5
+	if art != null and art.has_art():
+		top = art.position.y + art.ink_top()
+	return global_position + Vector2(0.0, top - HEALTH_BAR_GAP)
 
 
 func state_name() -> String:
@@ -360,6 +392,12 @@ func _enter(next: State) -> void:
 func _try_to_land() -> void:
 	if _landed or _prey == null:
 		return
+	# Area overlaps are from the last physics sync. Check where she is now before
+	# counting a hit, especially after a dodge, transformation, or checkpoint move.
+	var gap := (_prey.middle() - hitbox.global_position).abs()
+	var reach := (body_size + HITBOX_PADDING + PlayerHurtbox2D.SIZE) * 0.5
+	if gap.x > reach.x or gap.y > reach.y:
+		return
 	for area in hitbox.get_overlapping_areas():
 		if area == _prey:
 			_landed = true
@@ -416,6 +454,7 @@ func _die() -> void:
 	velocity = Vector2.ZERO
 	_set_colliding(false)
 	died.emit(self)
+	_sound(&"foe_down")
 	_fade = create_tween()
 	_fade.tween_property(self, "modulate:a", 0.0, DEATH_FADE)
 	_fade.tween_callback(func() -> void: visible = false)
@@ -434,6 +473,17 @@ func _set_colliding(on: bool) -> void:
 func _flash() -> void:
 	modulate = Color(1.6, 0.55, 0.45)
 	create_tween().tween_property(self, "modulate", Color.WHITE, 0.18)
+	# Every blow that flashes it is heard, but the last: that one is heard as its fall (_die).
+	if hp > 0:
+		_sound(&"foe_hit")
+
+
+## ⚠ LOOKED UP, NOT NAMED. A probe run with --script compiles this class before the autoloads
+## exist, and the identifier AudioDirector would fail to compile it -- and every probe with it.
+func _sound(id: StringName) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id)
 
 
 func _area(area_name: String, layer: int, mask: int, size: Vector2) -> Area2D:

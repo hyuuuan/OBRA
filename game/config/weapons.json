@@ -1,6 +1,8 @@
 {
   "_comment": [
     "What each drawn weapon does in a fight, read by WeaponTable.",
+    "sting, venom and tusk_ram are not drawn weapons: they are a body's own blows, from its",
+    "ConceptNet abilities (config/ability_effects.json). A body never wears out (uses 0).",
     "",
     "'default' is every level that does not say otherwise, and it is exactly what the",
     "weapons did before this file existed: blade reach 96 (UtilityObject.TOOL_REACH), a",
@@ -21,7 +23,10 @@
     "boomerang": {"uses": 0, "damage": 1, "reach": 320, "arc": 360, "cooldown_ms": 0},
     "cannon": {"uses": 0, "damage": 1, "reach": 640, "arc": 360, "cooldown_ms": 0},
     "anvil": {"uses": 0, "damage": 1, "reach": 56, "arc": 360, "cooldown_ms": 0},
-    "buntot_pagi": {"uses": 0, "damage": 1, "reach": 96, "arc": 180, "cooldown_ms": 270}
+    "buntot_pagi": {"uses": 0, "damage": 1, "reach": 96, "arc": 180, "cooldown_ms": 270},
+    "sting": {"uses": 0, "damage": 1, "reach": 72, "arc": 140, "cooldown_ms": 600},
+    "venom": {"uses": 0, "damage": 1, "reach": 64, "arc": 140, "cooldown_ms": 700},
+    "tusk_ram": {"uses": 0, "damage": 2, "reach": 100, "arc": 120, "cooldown_ms": 900}
   },
   "levels": {
     "level_4": {

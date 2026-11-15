@@ -46,11 +46,15 @@ def _fake_game() -> subprocess.Popen:
     )
 
 
-def _env_naming(game: subprocess.Popen | None) -> dict[str, str]:
+def _env_naming(game: subprocess.Popen | None,
+                launcher: subprocess.Popen | None = None) -> dict[str, str]:
     env = dict(os.environ)
     env.pop("OBRA_GAME_PID", None)
+    env.pop("OBRA_LAUNCHER_PID", None)
     if game is not None:
         env["OBRA_GAME_PID"] = str(game.pid)
+    if launcher is not None:
+        env["OBRA_LAUNCHER_PID"] = str(launcher.pid)
     return env
 
 
@@ -92,6 +96,23 @@ class WatcherTests(unittest.TestCase):
             self.assertEqual(server.returncode, 0)
         finally:
             _stop(server, game)
+
+    def test_a_relaunched_server_ends_when_its_launcher_does(self) -> None:
+        # serve.py runs itself again in a child after setting up .venv, and the game holds the
+        # parent's pid: stopping the recogniser kills the parent. The child must go with it while
+        # the game is still up -- the game stopping its recogniser, not quitting.
+        game = _fake_game()
+        launcher = _fake_game()
+        server = subprocess.Popen([sys.executable, "-c", self.SERVER], env=_env_naming(game, launcher))
+        try:
+            time.sleep(0.5)
+            self.assertIsNone(server.poll(), "the server exited while its launcher was still up")
+            launcher.kill()
+            launcher.wait()
+            self.assertTrue(_ended_within(server, 5.0), "the server outlived the serve.py that launched it")
+            self.assertIsNone(game.poll(), "the game was meant to still be running")
+        finally:
+            _stop(server, launcher, game)
 
     def test_a_server_started_by_hand_is_left_alone(self) -> None:
         # The control: with no game named, the same script must still be running after

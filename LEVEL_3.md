@@ -1,5 +1,30 @@
 # Level 3 — Dagat
 
+**Fish and Bakunawa health:** the catchable bangus and background schools share the three
+swim poses from `LEVEL3_Dagat/creatures/fish.JPG`. `tools/build_dagat_bangus.py` registers
+the poses at the eye and cuts them onto a transparent strip. Bakunawa shows one heart for
+each of its 15 hits, with spent slots preserved when it throws the player back.
+
+**Strong currents (2026-11-01):** the marked open-water band steadily pushes non-aquatic
+players LEFT, including when idle, near a boat, or on the island half of the crossing.
+The force builds gradually on entry and eases to a bounded drift. Aquatic forms use the
+level's existing swimmer list for exemption; passengers still row with their boats.
+`dagat_current_2d.gd` draws leftward foam and arrow-headed streams over the same footprint
+used by the force, at the surface and throughout the depth. Reduce Motion keeps the
+direction marks still. `run_level3_current_probe` drives idle drift, both movement keys,
+aquatic and non-aquatic forms, calm water, swimming near a boat, and boarding/rowing with E.
+`run_visual_dagat_current` captures the surface, deep water and Reduce Motion views.
+
+**Breath recovery (2026-11-01):** reaching breathable water releases the forced rise and
+returns swimming control. Breath refilled at 30 px below the waterline, but steering stayed
+locked until 12 px; a ceiling could leave the apo with full air and no sideways movement.
+The forced rise's upward momentum also ends at air, so it cannot launch her out of the water
+and exhaust a barely recovered breath on the fall back in.
+She can also steer sideways during the forced rise to escape a hull or overhang; diving stays
+overridden until she reaches air. `run_level3_sea_probe` exhausts her breath under a ceiling
+and checks real left and right input during the rise and after recovery, as well as after an
+unobstructed rise.
+
 **Flashlight rendering:** the guiding beam fades along its length and across its edges
 (`shaders/flashlight_beam.gdshader`), with a warm core, blue underwater scattering,
 refracted shimmer and suspended specks. The guide target has a continuous radial glow
@@ -596,6 +621,7 @@ What that found, in the order a player meets it:
 | The objective | Jumped to "It cannot see. Decide what you are going to do about that" the moment the crossing was answered -- on the beach, to a player who had never seen what "it" was | `cross_by_boat` / `cross_by_dive` until the encounter's volume is entered |
 | The HUD | The ink panel said "Fish [vector/3 bodies/2 joints \| 2 strokes]" after every drawing, in every level. The form card went on saying FISH over the apo rowing, because it was only hidden by MorphLife and Dagat never starts MorphLife | The rig summary is behind `debug_timing_logs`; changing back hides the card directly |
 | The jars | Nothing said what they are. A line on the bar never landed -- Lolo tells the dive as a story and is on the bar for most of it | The `jars` lesson, beside the ink card, the first time one is within 360 px |
+| The cards (Kent, 2026-11-06: "other levels wont have any tutorials if necessary") | Five cards in a row for one rule | Two: `new_brush`, now saying the whole rule, and `jars`. The drain, the free change back and running low are `say` lines, reminders of what the card already said, and may wait for the bar |
 | The island, by boat, going around it | Slipping past was answered only at 420 px beyond the creature. The boat's hull runs aground on the island with the passenger at x 4417, so a boat player sat at the island's edge inside the sweep's reach, with the island's checkpoint written under them, and was caught and put back there over and over. The level could not end | Reaching the island unseen is slipping past, whatever carried the player there |
 
 And three things in the backgrounds, all seen only from the diver's side of the screen: the rain
@@ -616,13 +642,14 @@ the slip taken out, eleven of them fail, and they are the failures that were rep
 Kent: *"add the missing art and animations"*. `ART_PLACEHOLDERS.md` had three Dagat items left,
 and each was a moment the level marked with sparkles over nothing:
 
-- **What the light finds.** A torn corner of one of Lola's canvases, in the house's gilt, with
-  this sea on it (`painting_fragment.png`, sampled from the house's own painting of Dagat). It
-  rises out of the sand; the flower comes up out of it and travels to the apo; the card says
-  which of the five it is -- the count the design insists must be seen. The flower used to be
-  recorded silently. ⚠ From the boat the creature is staged at the surface and its treasure
-  point lies under its coils, so there the corner comes up beside the bow instead: drawn at the
-  point, it was pinned across the dragon's neck.
+- **What the light finds.** A page of Lola's diary (2026-11-01, `DIARY.md`; it was a torn corner
+  of her canvas, `painting_fragment.png`, which is still built but no longer shown). It rises out
+  of the sand, comes to the apo and opens in her diary; then the flower comes up and travels to
+  her, and the card says which of the five it is -- the count the design insists must be seen.
+  **Only the light route is given it**: fought, the creature carries the page off in its coils
+  and none is kept; slipped past, there is none. ⚠ From the boat the creature is staged at the
+  surface and its treasure point lies under its coils, so there the page comes up beside the bow
+  instead: drawn at the point, it was pinned across the dragon's neck.
 - **The next painting.** `NextPainting2D`, the house's painting for the next level in the
   house's gilt, standing in a heap of the island's sand and glinting. `Painting2D.draw_gilt` is
   now the one moulding for both, so the frame on the island is one of the frames in her house.
@@ -740,7 +767,7 @@ And each object got the volume it was missing:
 | Giant clam | ribs shaded one by one, a flat fan of stripes | the left third of the shell up a step, the right third down one, a highlight on the dome |
 | Seabed pillar | a 24x36 slab with a lit column and a dark one | a 30x50 fluted drum shaded as a cylinder, on a square plinth seen from above |
 | Wooden sign | a flat rectangle | a plank with a top edge and an end |
-| Beached bangka | two flat rows of olive under the hull, a ruled stripe along the sand | the hull in its own shadow, and one bamboo pole lying in front of it -- lit top, dark underside, a node every nine pixels |
+| Beached bangka | two flat rows of olive under the hull, a ruled stripe along the sand; then (2026-11-01) keel-up, it read as a mound of earth | the afloat boat itself, upright on the sand in its own shadow -- furled sail, painted band, the katig lying in front (`tests/test_build_dagat_bangka.py`) |
 
 The lantern and the sign are drawn by the same code in every level, so Payyo's and Piyesta's have
 the same depth, in their own stone and wood.
@@ -766,6 +793,11 @@ on screen and photographing each step. Three things, each its own commit:
   times in twenty seconds by a light it could barely see. It is half as bright again, has motes
   drifting in it, is cut into cells so it has no hard side, and is lit all the way to the rule's
   edge -- fading only outside it, so it never looks dark where it can see you.
+  **Since then (2026-11-07) that light is a flashlight's** (Kent: "nothing similar to how light is
+  presented in a flashlight"): the hand-cut wedge stopped on a hard arc, so it now uses the player's
+  `flashlight_beam.gdshader`, with a lit lens and no edge. It asks the shader for more light, kept
+  further out, so it is lit as far as before; it still goes out only past what `sees()` catches, and
+  `sees()` did not change. In a fight the same lamp goes red.
 - **And there was no way through at a swimmer's speed.** Along the bed a swimmer makes about
   100 px/s. At the old sweep (1.05 either side, 0.55 a second) there was no moment at which a run
   straight through the reach went unseen; the dark under the belly was 34 px of unmarked seabed; a
@@ -949,6 +981,93 @@ already said never waits; and one dropped is still there if they swim back.
 `run_level3_sea_probe` checks both halves with a fish swum to lola1 under power while Lolo has
 about seventeen seconds queued. Let go and not held, it drifted to about 575 px off and lola1 was
 said. Swum 400 px up with a key held, lola1 was dropped.
+
+## The old jetty fades (2026-11-01)
+
+A bamboo jetty stood at the end of the beach, out over the water: `GameplayPlane/OldJetty`,
+authored by `tools/build_dagat_props.py` in the bangka's wood. It is one of the fading old ways
+(`_fades_the_old_way`, as in Payyo; see LEVEL_1.md): no collision, gone from x 1150 by 1462,
+before its near end at 1585, so the open water reads as hers to cross -- by the boat or by
+swimming -- before Lolo asks which. It dissolves into the sea haze (`_fade_paper` 0.74, 0.88,
+0.93), not to white.
+
+- ⚠ `build_dagat_props.py --check` **rebuilds every picture** before comparing. It wrote nothing
+  but the new `jetty.png` here, because this Pillow encodes the committed PNGs byte for byte;
+  snapshot `git status` before running it all the same.
+
+## One way to move the bangka (2026-11-01)
+
+Kent: the boat beat was *"so confusing to play, so weird to look at"*. Played, it offered three
+ways to move one boat at once: walk a strong shape into the hull and it slid ahead of the shape
+untouched, press E with the shape held and it was dragged in whole, or drop the anvil and do it
+again a few times. Lolo said to push while the prompt said E, and the hull moved 106px in 2.3s of
+walking. Now:
+
+- **A strong or heavy shape held, E drags it in** -- digging it out on the way, so the prompt is
+  one verb, DRAG IN, and the objective one line. Walking the shape into the hull does nothing.
+- **The anvil, one drop** digs it out and knocks it all the way into the water.
+- Lolo's dug and shove lines match: the rake can still clear the sand on its own, and then he says
+  something strong can drag it down.
+
+`run_level3_sea_probe` asserts a walk does not move it, E does, and one anvil drop is enough;
+`run_level3_play_probe` asserts the single verb. Against the old code all four fail.
+
+## The bakunawa's cave, painted (2026-11-01)
+
+Kent: *"the asset for the cave there is so ugly"*. `_plant_the_cave` drew it as three flat
+Polygon2Ds -- a black half-disc, a one-colour slate rim, three oval pebbles -- the only thing in
+Dagat with no pixel to it. It is now one of the deep's own painted arches, cut from
+`deep/ruins.png` by `tools/build_dagat_props.py draw_cave_mouth` (`cave_mouth.png`): the box and
+the doorway are measured by hand off the plate, the far rock framed in the doorway becomes a
+dithered hollow, black at its heart, and the box's edges are ragged so no ruled cut shows. Doubled
+with nearest-neighbour, the backdrop's own pixel size. The opening's middle sits between the mouth
+the creature is led to and the inside it swims into (`CAVE_OPENING_AT`, `CAVE_OPENING_HERE`).
+
+`tests/test_build_dagat_cave.py` holds the opening dark, the rock pixel-for-pixel the painting's,
+no straight edge, and `level_3.gd`'s opening the same as the picture's; `run_level3_sea_probe`
+checks the level shows the picture with its opening on the creature's way in.
+
+## Led home from the boat (2026-11-12)
+
+Kent: *"i cant complete level 3 if i chose to row the boat and use flashlight for bakunawa"*.
+Played with real keys and a pointer that stays on the screen, the light caught the creature and it
+followed the boat back to the first beach -- and stopped 700 px over the cave mouth, for good. The
+light goes where the pointer is (`_lure_target`), and from the deck the camera looks up
+(`SURFACE_LOOK`), so the screen ended at y 785 while the mouth is at 1480 and `HOME_REACH` is 520.
+No pointer could lead it deep enough, so it never went in, and the objective stayed on leading it home.
+Every probe had put the light ON the mouth with `lure_override`, a point no mouse could reach.
+
+Now, while the light is leading it, `_frame_the_water` frames the water from the boat as it does for
+a swimmer: the screen reaches y 1206, and the light reaches 600 px under the deck, about 360 from the
+mouth. `run_level3_boat_probe` rows it home with the pointer held inside the screen (mutation-tested:
+without the framing it parks out of reach).
+
+**The same hole, in the fight.** Checked the same way, every combination at the encounter: the dive
+with the light, and the boat slipping past, reach the island; the boat fighting did not, with a blade.
+Staged for the boat, the creature's back is about 50 px under the water and a sword or an axe reaches
+96 px from the apo's hand, so 150 presses of F from the deck landed nothing (the cannon and the
+boomerang reach it from up there; every probe had fought it with `apply_tool_hit`). A blade swung from
+the deck that strikes nothing now goes over the side (`_strike_over_the_side`): it lands if the back
+is within the blade's reach of the waterline under her. `run_level3_boat_probe` rows out, draws a
+sword and presses F until it is subdued (mutation-tested: without it, no blow lands).
+
+**And stepping ashore after a cannon fight.** Fought with the cannon from the deck, the boat reached
+the island and the apo was set on the sand -- and thrown 500 px back into the sea at 1650 px/s, down
+under the island's face, where nothing lifts a swimmer out (`_climb_out_at_home` is the home shore's).
+A passenger's frame (`Wanderer._physics_process`) returned before it spent its impulse, so every
+recoil was banked while she rode and paid out the frame she stepped off. A rider now drops what
+pushes her; the boat carries her. The same probe fires a cannon from the deck before setting out and
+checks she stays on the sand (mutation-tested).
+
+## A submarine, ridden (2026-11-12)
+
+Kent: *"when i try to ride it, it rows but then my oxygen is affected which should not be
+happening"*. A drawn submarine, boarded and dived, put the apo in the water by every test `_breathe`
+makes, so her seven seconds of breath ran out inside a sealed hull and she was sent up "out of
+breath"; and `_row` handed her the bangka's paddle and stroked it the whole way down. A passenger
+now breathes whatever she rides -- the breath is for swimming -- and a submarine gets no paddle, no
+stroke and no splash: it is driven. `run_level3_submarine_probe` draws one, sets it in the sea,
+boards it with E and dives for ten seconds (mutation-tested: without either line, its check fails).
 
 ## Build order
 

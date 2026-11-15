@@ -17,9 +17,12 @@ class StubClient extends Node:
 	func send_drawing() -> void:
 		sent += 1
 
+	func decline_reason(_confidence: float, _margin: float) -> String:
+		return "confidence"
+
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 4
+const CHECKS := 8
 
 var failures := 0
 var checked := 0
@@ -58,6 +61,7 @@ func _a_refusing_page_takes_nothing_and_fades() -> void:
 	var ink := level.get("ink_manager") as InkManager
 	var ink_before := ink.remaining()
 	var profile := root.get_node("PlayerProfile")
+	var before: PackedStringArray = profile.call("gallery_drawing_paths")
 	var drawn_before: int = profile.call("class_diversity")
 	var heard: Array[int] = []
 	panel.quietly_refused.connect(func(strokes: int) -> void: heard.append(strokes))
@@ -67,6 +71,13 @@ func _a_refusing_page_takes_nothing_and_fades() -> void:
 	_draw_two_lines(panel)
 	await create_timer(1.0).timeout
 	var guess_text := panel.guess_label.text
+	# Kent, 2026-11-05: a quiet page that opened by itself showed nothing at all, and the world
+	# froze with nothing to say why. The dim stays, faint, and only the dim: no frame, no buttons.
+	var dim := panel.scrim.modulate.a
+	var bare := not panel.transform_button.is_visible_in_tree() and not panel.canvas_frame.is_visible_in_tree()
+	_check(panel.scrim.is_visible_in_tree() and dim >= 0.2 and dim <= 0.6 and bare,
+		"a refusing page dims the world, faintly, and shows nothing else",
+		"dim shown %s at %.2f, frame and buttons hidden %s" % [panel.scrim.is_visible_in_tree(), dim, bare])
 	_check(panel.is_open() and panel.is_refusing() and stub.live == 0 and panel.status.text == ""
 		and guess_text == "" and is_zero_approx(float(panel.get("_claim")))
 		and not panel.transform_button.disabled,
@@ -85,18 +96,42 @@ func _a_refusing_page_takes_nothing_and_fades() -> void:
 		"%.2f through the fade, open after %s, heard %s, sent %d, made %d, ink %.1f -> %.1f, level told %s" % [
 			mid_fade, panel.is_open(), heard, stub.sent, made[0], ink_before, ink.remaining(),
 			level.get("refused_with")])
-	# Putting the brush down is trying too.
+	# Cancelling is not a completed attempt.
 	level.call("_on_draw_button_pressed")
 	_draw_two_lines(panel)
 	await create_timer(0.2).timeout
 	var took := panel.handle_cancel()
 	await create_timer(DrawPanel.REFUSAL_FADE + 0.3).timeout
 	var drawn_after: int = profile.call("class_diversity")
-	_check(took and not panel.is_open() and heard == [2, 2] and stub.sent == 0
+	_check(took and not panel.is_open() and heard == [2] and stub.sent == 0
 		and panel.canvas.modulate.a == 1.0 and drawn_after == drawn_before,
-		"putting the brush down refuses the same way, and the page comes back clean",
+		"cancelling leaves the attempt pending and the page comes back clean",
 		"cancel taken %s, heard %s, sent %d, page alpha %.2f, classes drawn %d -> %d" % [took, heard,
 			stub.sent, panel.canvas.modulate.a, drawn_before, drawn_after])
+	# Kent, 2026-11-05: "this screen ... takes soo long i dont know what to do". Left untouched, the
+	# page waits a moment for her lines, then plays on without them -- the refusal, or the places.
+	var free: Array = []
+	panel.free_paint_completed.connect(func(strokes: Array) -> void: free.append(strokes.size()))
+	level.call("_on_draw_button_pressed")
+	await create_timer(DrawPanel.QUIET_UNTOUCHED * 0.5).timeout
+	var waited := panel.is_open()
+	await create_timer(DrawPanel.QUIET_UNTOUCHED * 0.5 + DrawPanel.REFUSAL_FADE + 0.4).timeout
+	var refused_untouched := not panel.is_open() and heard == [2, 0] and stub.sent == 0
+	panel.set_drawing_mode(DrawPanel.DrawingMode.FREE_PAINT)
+	panel.open_panel()
+	await create_timer(DrawPanel.QUIET_UNTOUCHED + 1.0).timeout
+	_check(waited and refused_untouched and not panel.is_open() and free == [0],
+		"an untouched page waits a moment, then plays on without her lines",
+		"open at half the wait %s; refused untouched %s (heard %s); free page closed %s, completed %s" % [
+			waited, refused_untouched, heard, not panel.is_open(), free])
+	panel.set_drawing_mode(DrawPanel.DrawingMode.FREE_PAINT)
+	panel.open_panel()
+	_draw_two_lines(panel)
+	panel.transform_button.pressed.emit()
+	await create_timer(0.6).timeout
+	var after: PackedStringArray = profile.call("gallery_drawing_paths")
+	_check(free == [0, 2] and after.size() == before.size() + 2,
+		"the gallery keeps the painted quiet and free pages", "%d pages added" % (after.size() - before.size()))
 	level.queue_free()
 	await _frames(3)
 
@@ -107,6 +142,8 @@ func _an_ordinary_page_is_unchanged() -> void:
 	var stub := StubClient.new()
 	panel.add_child(stub)
 	panel.client = stub
+	var profile := root.get_node("PlayerProfile")
+	var before: PackedStringArray = profile.call("gallery_drawing_paths")
 	level.call("_on_draw_button_pressed")
 	_draw_two_lines(panel)
 	await create_timer(1.0).timeout
@@ -117,6 +154,11 @@ func _an_ordinary_page_is_unchanged() -> void:
 		"everywhere else the page guesses as she draws and sends what she paints",
 		"refusing %s, guesses asked %d, sent %d, status '%s'" % [panel.is_refusing(), stub.live,
 			stub.sent, panel.status.text])
+	panel.call("_on_entity_declined", "", 0.1, 0.0, {"gate_reason": "confidence"})
+	panel.transform_button.pressed.emit()
+	var after: PackedStringArray = profile.call("gallery_drawing_paths")
+	_check(stub.sent == 2 and after.size() == before.size() + 1,
+		"a declined drawing stays in the gallery when Paint is retried", "%d page added" % (after.size() - before.size()))
 	panel.close_panel()
 	level.queue_free()
 	await _frames(3)

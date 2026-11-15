@@ -4,9 +4,8 @@ extends FlyingEnemy2D
 ## ashed (abo); approaches at 110, circles at 300, strikes at 56; its call is louder when it is
 ## far; under 220 px the lantern leans and gutters; bawang wards it").
 ##
-## IT IS NOT DRAWN AND CANNOT BE HIT until ash shows it: it is in AboDust2D.REVEALS, and a handful
-## thrown with it close shows it for the dust's seconds and blinds it for a moment -- the window a
-## weapon has. What she has before that is what the folklore gives her: its call, which is
+## It stays hidden until it winds up to strike or ash shows it. Ash also blinds it for a moment
+## and gives weapons an opening. While hidden, what she has is its call, which is
 ## LOUDER THE FURTHER OFF IT IS (`called`, strength by `call_strength`, the level's to put on the
 ## screen's edge), and her lantern, which leans and gutters once it is close (`pulls_at`).
 ##
@@ -40,6 +39,7 @@ const BEAK := Color(0.62, 0.55, 0.42)
 const ASH := Color(0.62, 0.6, 0.63)
 
 var _revealed := 0.0
+var was_revealed_with_ash := false
 var _circling := CIRCLE_SECONDS
 var _angle := 0.0
 var _call_clock := 0.0
@@ -66,14 +66,17 @@ func _physics_process(delta: float) -> void:
 	_clock += delta
 	_revealed = maxf(0.0, _revealed - delta)
 	if state != State.DEAD:
-		# Fading out once it is dead is the base's; until then, seen only while ashed.
-		modulate.a = 1.0 if _revealed > 0.0 else 0.0
 		_call_clock += delta
 		if _call_clock >= CALL_EVERY and _prey != null:
 			_call_clock = 0.0
 			called.emit(global_position, call_strength(global_position.distance_to(_prey.global_position)))
 	var was := state
 	super(delta)
+	if state != State.DEAD:
+		# The tell and the dive have to be visible even without ash. The opening
+		# for weapons is still determined by _revealed.
+		var striking := state == State.WINDUP or state == State.ATTACK
+		modulate.a = 1.0 if _revealed > 0.0 or striking else 0.0
 	if was == State.RECOVER and state == State.CHASE:
 		_circling = CIRCLE_SECONDS
 	queue_redraw()
@@ -84,6 +87,7 @@ func reveal(seconds: float) -> void:
 	if state == State.DEAD:
 		return
 	_revealed = maxf(_revealed, seconds)
+	was_revealed_with_ash = true
 	modulate.a = 1.0
 	stun(BLINDED_SECONDS)
 
@@ -141,10 +145,11 @@ func _move(delta: float, to_prey: Vector2) -> void:
 
 func reset_for_restore() -> void:
 	_revealed = 0.0
+	was_revealed_with_ash = false
 	_circling = CIRCLE_SECONDS
 	_call_clock = 0.0
-	modulate.a = 0.0
 	super()
+	modulate.a = 0.0
 
 
 func _draw() -> void:

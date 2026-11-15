@@ -93,8 +93,18 @@ func _level(path: String) -> void:
 	# THE WORLD IS FRAMED AS TALL AS IT WAS PAINTED, whatever the screen. A taller screen gets
 	# more interface, and the camera sits further in so the world above the painted sky and
 	# below the walk line never shows (WorldCameraController.DESIGN_HEIGHT).
+	#
+	# ⚠ AT REST. A test run has no opening, so Piyesta's first lantern has its moment as the level
+	# loads and the camera is pushed in on it for two seconds. That is a moment and not the framing.
+	# This passed only because L2_N1's advice spoke at the spawn, on the same frame, and its camera
+	# call let go of the lantern with the bars still in.
 	var camera := level.call("_world_camera") as WorldCameraController
 	var framed := root.get_visible_rect().size.y / camera.zoom.y if camera != null else 0.0
+	var began := Time.get_ticks_msec()
+	while camera != null and absf(framed - WorldCameraController.DESIGN_HEIGHT) >= 0.5 \
+			and Time.get_ticks_msec() - began < 6000:
+		await process_frame
+		framed = root.get_visible_rect().size.y / camera.zoom.y
 	_check(absf(framed - WorldCameraController.DESIGN_HEIGHT) < 0.5,
 		"%s: the world is framed as tall as it was painted" % path.get_file().get_basename(),
 		"%.0f units tall" % framed)

@@ -2,7 +2,7 @@
   "$comment": "OBRA Level 1 data, ported from level-1-design/files/level_01.json. Obstacles declare ability TAGS; satisfying classes resolve from tags.json at load time. The design document calls this level L1_PAYYO; the runtime id stays 'level_1' because PlayerProfile (schema v3) keys saved routes and completions by it and renaming would orphan every existing profile for a cosmetic gain.",
   "schema_version": 1,
   "level_id": "level_1",
-  "display_name": "Payyo",
+  "display_name": "Terraces",
   "display_name_note": "REQ-4.11-1 currently reads 'Bahay Kubo'. See build spec 12.1.",
   "order": 1,
   "unlocks_on_complete": "L2_PISTA",

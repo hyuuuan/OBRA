@@ -8,8 +8,8 @@
 [ext_resource type="Script" path="res://scripts/checkpoint_area_2d.gd" id="6_checkpoint"]
 [ext_resource type="Script" path="res://scripts/makiling_backdrop_2d.gd" id="7_backdrop"]
 [ext_resource type="Script" path="res://scripts/makiling_terrain_2d.gd" id="8_terrain"]
-[ext_resource type="Texture2D" path="res://assets/Level4/tiles/leaf.png" id="9_leaf"]
 [ext_resource type="Script" path="res://scripts/santelmo_2d.gd" id="10_santelmo"]
+[ext_resource type="Texture2D" path="res://assets/Level4/props/fallen_log.png" id="11_oldlog"]
 [ext_resource type="Script" path="res://scripts/nuno_mound_2d.gd" id="11_mound"]
 [ext_resource type="Script" path="res://scripts/dilim_finale_2d.gd" id="12_finale"]
 [ext_resource type="Script" path="res://scripts/satchel_pickup_2d.gd" id="13_pickup"]
@@ -22,6 +22,13 @@
 [ext_resource type="Script" path="res://scripts/manananggal_upper_2d.gd" id="20_upper"]
 [ext_resource type="Script" path="res://scripts/manananggal_lower_2d.gd" id="21_lower"]
 [ext_resource type="Script" path="res://scripts/dead_tree_2d.gd" id="22_tree"]
+[ext_resource type="Script" path="res://scripts/cliff_dressing_2d.gd" id="23_cliff"]
+[ext_resource type="Script" path="res://scripts/moonlit_foliage_2d.gd" id="24_foliage"]
+[ext_resource type="Texture2D" path="res://assets/Level4/ground_moonlit/platform.png" id="25_platform"]
+[ext_resource type="Texture2D" path="res://assets/Level4/backdrop_reference/sky.png" id="26_sky"]
+[ext_resource type="Texture2D" path="res://assets/Level4/backdrop_reference/makiling.png" id="27_makiling"]
+[ext_resource type="Texture2D" path="res://assets/Level4/backdrop_reference/canopy.png" id="28_canopy"]
+[ext_resource type="Texture2D" path="res://assets/Level4/trees/forest_plate.png" id="29_trees"]
 
 [sub_resource type="RectangleShape2D" id="Rect_Canopy"]
 size = Vector2(22800.0, 1360.0)
@@ -44,65 +51,72 @@ outdoor_x_limits = Vector2(116, 22300)
 [node name="Ambience" type="Node2D" parent="WorldCamera"]
 script = ExtResource("4_ambience")
 
-; Behind every band: the night sky's own colour, so a camera above the painted sky meets more
-; of it rather than the grey under the world.
+; Match the top of the painted sky, including when the camera looks above it.
 [node name="SkyFill" type="Polygon2D" parent="."]
 z_index = -300
-color = Color(0.039, 0.063, 0.141, 1)
-polygon = PackedVector2Array(-3000, -3000, 26000, -3000, 26000, 600, -3000, 600)
+color = Color(0.0013, 0.1773, 0.4853, 1)
+polygon = PackedVector2Array(-3000, -3000, 26000, -3000, 26000, 900, -3000, 900)
 
-; ⚠ PINNED AS run_visual_makiling.gd COMPOSED THEM, against ground at y 600. The vine frame is
-; the forest's middle distance here, behind her: repeated in front of the play at 1.08 it covered
-; her (see the makiling-art branch). Every band is graded to night by MakilingBackdrop2D.tint.
+; The nearest trees are still behind the play plane so their trunks never hide the apo.
 [node name="SkyBand" type="Node2D" parent="."]
 z_index = -100
 script = ExtResource("7_backdrop")
 plate = "sky"
+plate_texture = ExtResource("26_sky")
+plate_scale = Vector2(1, 1.1)
 scroll_scale = 0.02
 depth = 9.0
 span = Vector2(-200.0, 22600.0)
-plate_top = -160.0
+plate_top = -60.0
 
-[node name="MountainFarBand" type="Node2D" parent="."]
+[node name="MountainBand" type="Node2D" parent="."]
 z_index = -90
 script = ExtResource("7_backdrop")
-plate = "mountain_far"
-scroll_scale = 0.08
+plate_texture = ExtResource("27_makiling")
+plate_scale = Vector2(1.25, 0.83)
+repeat_plate = false
+scroll_scale = 0.044
 depth = 8.0
-span = Vector2(-200.0, 22600.0)
-plate_top = -120.0
+plate_top = -28.0
 
-[node name="MountainNearBand" type="Node2D" parent="."]
-z_index = -80
-script = ExtResource("7_backdrop")
-plate = "mountain_near"
-scroll_scale = 0.18
-depth = 7.0
-span = Vector2(-200.0, 22600.0)
-plate_top = 10.0
-
-[node name="TerraceBand" type="Node2D" parent="."]
+[node name="CanopyBand" type="Node2D" parent="."]
 z_index = -70
 script = ExtResource("7_backdrop")
-plate = "ground_far"
-scroll_scale = 0.38
+plate_texture = ExtResource("28_canopy")
+plate_scale = Vector2(1, 1.22)
+mirror_repeats = true
+scroll_scale = 0.29
 depth = 6.0
 span = Vector2(-200.0, 22600.0)
-plate_top = 260.0
+plate_top = -145.0
 
 [node name="ForestBand" type="Node2D" parent="."]
 z_index = -60
 script = ExtResource("7_backdrop")
 plate = "frame"
+plate_texture = ExtResource("29_trees")
 scroll_scale = 0.62
 depth = 5.0
 span = Vector2(-200.0, 22600.0)
-plate_top = -160.0
+; Sink the flared roots 20 px into the moss instead of balancing their lowest tips on it.
+plate_top = -140.0
 
 [node name="GameplayPlane" type="Node2D" parent="."]
 script = ExtResource("3_depth")
 
 [node name="EntityRoot" type="Node2D" parent="GameplayPlane"]
+
+; Bushes and vines are independent decorations, never a side effect of painting ground.
+; Both avoid encounter volumes and supplies; all creatures and Nuno draw above them.
+[node name="BackgroundBushes" type="Node2D" parent="GameplayPlane"]
+z_index = -10
+script = ExtResource("24_foliage")
+layer = 0
+
+[node name="GroundVines" type="Node2D" parent="GameplayPlane"]
+z_index = -4
+script = ExtResource("24_foliage")
+layer = 1
 
 [node name="SpawnPoint" type="Marker2D" parent="GameplayPlane"]
 position = Vector2(260.0, 510.0)
@@ -117,9 +131,6 @@ position = Vector2(260.0, 510.0)
 script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(-200, 600, 17450, 800), Rect2(17550, 600, 1600, 800), Rect2(19450, 600, 3150, 800)])
 
-; ⚠ THE CANOPY IS A CEILING, NOT A RULE (Kent's design: 'the canopy block flight physically').
-; 440 up: higher than a drawn tree reaches (362), so every way over the ground still fits under
-; it, and a flier meets leaves instead of a refusal. run_level4_audit holds it over every beat.
 ; A rock in the sigbin's ground, waist-high: she can jump it (94 px), it cannot climb it (48), so
 ; with her back to it nothing can get behind her.
 [node name="SigbinRock" type="StaticBody2D" parent="GameplayPlane/Terrain"]
@@ -135,15 +146,21 @@ platforms = Array[Rect2]([Rect2(8230, 560, 70, 40)])
 body = "stone"
 
 [node name="Fork" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+z_index = -3
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(8650, 520, 220, 18), Rect2(8950, 450, 260, 18), Rect2(9300, 470, 260, 18)])
+branch_texture = ExtResource("25_platform")
+tint = Color(1, 1, 1, 1)
 
 ; THE PATH OVER THE TIYANAK'S DROP (Kent's design: "stay on the path and do not approach"). Logs
 ; she steps up onto -- 70 then 65 px, each a jump -- and walks along over the drop, down again past
 ; it. Down on the ground under them is the cry, and the bushes run on over nothing.
 [node name="TiyanakPath" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+z_index = -3
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(16900, 530, 220, 18), Rect2(17080, 465, 600, 18)])
+branch_texture = ExtResource("25_platform")
+tint = Color(1, 1, 1, 1)
 
 ; THE CROSSING THE BUNGISNGIS STANDS IN (Kent's design: "Blocks a crossing"). The ravine's floor,
 ; 220 down -- a drop she takes and walks -- and two stones up its far side, 73 px each, to the rim.
@@ -161,8 +178,11 @@ body = "stone"
 ; onto it -- a ladder, stairs, a tree, a body that climbs -- and along it over the giant and the
 ; ravine both, down again on the far bank. Kent's design: "go over or around it entirely".
 [node name="HighPath" type="StaticBody2D" parent="GameplayPlane/Terrain"]
+z_index = -3
 script = ExtResource("8_terrain")
 branches = Array[Rect2]([Rect2(18880, 400, 800, 18)])
+branch_texture = ExtResource("25_platform")
+tint = Color(1, 1, 1, 1)
 
 ; THE HOLLOW WHERE THE MANANANGGAL LEFT HER LOWER HALF: a rock leaning out over the ground, its
 ; underside 110 up -- room for her to walk in under it -- and dark in there. Kent's design: "The
@@ -172,19 +192,34 @@ script = ExtResource("8_terrain")
 platforms = Array[Rect2]([Rect2(20780, 460, 180, 30)])
 body = "stone"
 
+; Native pixels from the supplied moonlit ground, bushes and vines:
+; LEVEL4_Mt.Makiling/authored/moonlit_ground. The repeat is cut through matching stone pixels.
+; Moonlight is baked into this kit: white tint preserves its colors. The darkness layer still
+; controls visibility. Vines are inset decoration. The terrain keeps collision and branches
+; (MakilingTerrain2D.dressed_ground). Behind the bodies, as Mayon's terrain is.
+[node name="CliffDressing" type="Node2D" parent="GameplayPlane/Terrain"]
+z_index = -5
+script = ExtResource("23_cliff")
+kit = "res://assets/Level4/ground_moonlit"
+ground_group = &"makiling_ground"
+kind = "mud"
+tint = Color(1, 1, 1, 1)
+
+[node name="CliffDressingStone" type="Node2D" parent="GameplayPlane/Terrain"]
+z_index = -5
+script = ExtResource("23_cliff")
+kit = "res://assets/Level4/ground_moonlit"
+ground_group = &"makiling_ground"
+kind = "stone"
+tint = Color(1, 1, 1, 1)
+
+; Invisible flight ceiling, 440 px above the ground and above the 362 px drawing reach.
+; ForestBand supplies the visible trees. run_level4_audit checks the ceiling over every beat.
 [node name="Canopy" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(11200.0, -520.0)
 
 [node name="Shape" type="CollisionShape2D" parent="GameplayPlane/Terrain/Canopy"]
 shape = SubResource("Rect_Canopy")
-
-; The canopy's underside, drawn from the same leaf cover the ground wears and graded darker.
-[node name="Leaves" type="Polygon2D" parent="GameplayPlane/Terrain/Canopy"]
-texture_filter = 1
-texture_repeat = 2
-color = Color(0.26, 0.32, 0.3, 1)
-texture = ExtResource("9_leaf")
-polygon = PackedVector2Array(-11400, -680, 11400, -680, 11400, 694, -11400, 694)
 
 [node name="WestWall" type="StaticBody2D" parent="GameplayPlane/Terrain"]
 position = Vector2(-20.0, 100.0)
@@ -199,6 +234,18 @@ position = Vector2(22420.0, 100.0)
 shape = SubResource("Rect_Wall")
 
 ; Where each encounter IS, for the level's furniture and its objective marker. On the ground.
+; THE OLD LOG (group fades_away, level_4.gd _fades_the_old_way): the way over the bungisngis's
+; ravine that used to be there, Makiling's own mossy log (tools/build_dilim_log.py). No collision.
+; Its trunk's top (row 13) on the forest floor at 600, over the 300-px ravine with 25 on each lip.
+; Gone from x 18600 by 18912, before its near end at 19125 -- and the bungisngis stands at 19000.
+[node name="OldLog" type="Sprite2D" parent="GameplayPlane" groups=["fades_away"]]
+texture_filter = 1
+position = Vector2(19125, 587)
+texture = ExtResource("11_oldlog")
+centered = false
+metadata/fade_at = 18600.0
+metadata/fade_over = 1.2
+
 [node name="Marks" type="Node2D" parent="GameplayPlane"]
 
 [node name="StartMark" type="Marker2D" parent="GameplayPlane/Marks"]
@@ -266,6 +313,7 @@ span_length = 280.0
 span_height = 64.0
 stands_solid = false
 art_kind = "dead_tree"
+art_folder = "res://assets/Level4/trees/"
 blocked_hint = ""
 
 ; Lola's things, lying where she will find them. Aswang drop more as they fall.
@@ -382,6 +430,9 @@ pickup_id = "L4_JAR_BUNGISNGIS"
 position = Vector2(3400.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_NUNO"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -220.0
+story_sign_offset = 300.0
 plants_hint_sign = false
 trigger_size = Vector2(1200.0, 460.0)
 plants_commit_mark = false
@@ -390,6 +441,9 @@ plants_commit_mark = false
 position = Vector2(5000.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_REST1"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -200.0
+story_sign_offset = 120.0
 plants_hint_sign = false
 trigger_size = Vector2(800.0, 460.0)
 plants_commit_mark = false
@@ -398,6 +452,9 @@ plants_commit_mark = false
 position = Vector2(6800.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_SIGBIN"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -220.0
+story_sign_offset = 300.0
 plants_hint_sign = false
 trigger_size = Vector2(1200.0, 460.0)
 plants_commit_mark = false
@@ -406,6 +463,9 @@ plants_commit_mark = false
 position = Vector2(9000.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_TIKBALANG"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -820.0
+story_sign_offset = 100.0
 plants_hint_sign = false
 trigger_size = Vector2(2000.0, 460.0)
 plants_commit_mark = false
@@ -414,6 +474,9 @@ plants_commit_mark = false
 position = Vector2(13800.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_KAPRE"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -270.0
+story_sign_offset = 250.0
 plants_hint_sign = false
 trigger_size = Vector2(1200.0, 460.0)
 plants_commit_mark = false
@@ -422,6 +485,9 @@ plants_commit_mark = false
 position = Vector2(15400.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_REST2"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -200.0
+story_sign_offset = 120.0
 plants_hint_sign = false
 trigger_size = Vector2(800.0, 460.0)
 plants_commit_mark = false
@@ -430,6 +496,9 @@ plants_commit_mark = false
 position = Vector2(17100.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_TIYANAK"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -270.0
+story_sign_offset = 350.0
 plants_hint_sign = false
 trigger_size = Vector2(1400.0, 460.0)
 plants_commit_mark = false
@@ -439,6 +508,9 @@ plants_commit_mark = false
 position = Vector2(19000.0, 510.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_BUNGISNGIS"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -220.0
+story_sign_offset = 300.0
 plants_hint_sign = false
 trigger_size = Vector2(1200.0, 700.0)
 plants_commit_mark = false
@@ -447,6 +519,9 @@ plants_commit_mark = false
 position = Vector2(20500.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_MANANANGGAL"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -220.0
+story_sign_offset = 200.0
 plants_hint_sign = false
 trigger_size = Vector2(1000.0, 460.0)
 plants_commit_mark = false
@@ -455,6 +530,9 @@ plants_commit_mark = false
 position = Vector2(21900.0, 390.0)
 script = ExtResource("5_obstacle")
 obstacle_id = "L4_FINALE"
+announce_size = Vector2(160.0, 460.0)
+announce_offset = -320.0
+story_sign_offset = 100.0
 plants_hint_sign = false
 trigger_size = Vector2(1000.0, 460.0)
 plants_commit_mark = false

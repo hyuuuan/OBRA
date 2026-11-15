@@ -1,28 +1,26 @@
 class_name HudPanel
 extends PanelContainer
-## What the player has to draw with, and what the game just said, in one frame.
+## The brush, ink count and checkpoint count, beneath the minimap at the top left.
 ##
 ## THE FRAME IS BACK, and the unframed version is why. The brush was drawn straight onto the
 ## level with an outline on every line of type, which reads fine in a still and badly in
 ## motion: this corner sits over Payyo's SKY on nearly every frame, a large bright field,
 ## and a gold brush with a dark edge on pale blue is a gold brush you have to look for. An
 ## outline gives a glyph an edge. It does not give it a GROUND, and small type over moving
-## art needs a ground. So the rectangle is back, and the brush keeps the size it earned.
+## art needs a ground. So the rectangle is back.
 ##
 ## WHAT YOU ARE IS NOT HERE. The nameplate and the life bar used to sit above the brush;
 ## they are `MorphCard` in the opposite corner now, holding the drawing itself rather than
 ## a word for it. This corner is the things that are true whoever you currently are.
 ##
-## INK IS THE CLOCK THIS CORNER OWNS. "Ink 12.0 / 12.0" was a debug print -- the decimals
-## move while you draw, and 12.0 of 12.0 tells you nothing 12 does not -- so it gets the
-## brush at six screen pixels to the art pixel, which is the artwork at native size.
+## The gauge scales in whole art pixels to fit the minimap's width.
 
 const GOLD := UISkin.GOLD
 const CREAM := UISkin.CREAM_TEXT
 
-## Screen pixels to the art pixel. Six is the artwork 1:1 -- 366 by 66 -- as big as the
-## brush can be drawn without inventing pixels, and the size this corner is built around.
-const GAUGE_SCALE := 6
+## Three screen pixels per art pixel leaves breathing room inside the 256px map-width frame.
+const GAUGE_SCALE := 3
+const SIDE_PADDING := 12.0
 
 var _value: Label
 var _gauge: InkBrush
@@ -32,7 +30,7 @@ var _whole_ink := -1
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_theme_stylebox_override(&"panel", UISkin.frame())
+	add_theme_stylebox_override(&"panel", UISkin.frame(SIDE_PADDING, SIDE_PADDING))
 
 	var column := VBoxContainer.new()
 	column.name = "Column"
@@ -45,22 +43,18 @@ func _init() -> void:
 
 ## The brush, and the count under it.
 func _build_ink(column: VBoxContainer) -> void:
-	# Sized exactly and pinned left. A VBoxContainer stretches its children to its own
-	# width, which would leave InkBrush centring itself in whatever was left over and
-	# drifting sideways every time the status line under it changed length.
+	# Keep the art on whole pixels and centre it inside the padded panel.
 	_gauge = InkBrush.new()
 	_gauge.name = "Gauge"
 	_gauge.custom_minimum_size = InkBrush.size_at(GAUGE_SCALE)
-	_gauge.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_gauge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(_gauge)
 
 	var heading := HBoxContainer.new()
 	heading.name = "Heading"
 	heading.add_theme_constant_override(&"separation", 7)
 	heading.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# The brush's own width, so the count lands under the bristles.
-	heading.custom_minimum_size = Vector2(InkBrush.size_at(GAUGE_SCALE).x, 0.0)
-	heading.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	# Use the padded panel width for both readings, independently of the smaller brush.
 	column.add_child(heading)
 
 	var drop := UIGlyph.new()
@@ -82,23 +76,6 @@ func _build_ink(column: VBoxContainer) -> void:
 	_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_value.theme_type_variation = &"HudValue"
 	heading.add_child(_value)
-
-
-## The status line lives inside the frame rather than floating on the level behind it, so it
-## has something to be read against. It stays the node the rest of game_level already writes
-## to -- there are thirty of those call sites and none of them need to know.
-func adopt_status(label: Label) -> void:
-	if label == null:
-		return
-	var parent := label.get_parent()
-	if parent != null:
-		parent.remove_child(label)
-	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size = Vector2(0.0, 22.0)
-	label.add_theme_color_override(&"font_color", UISkin.MUTED)
-	label.add_theme_font_size_override(&"font_size", UISkin.FONT_CAPTION)
-	($Column as VBoxContainer).add_child(label)
 
 
 ## THE CHECKPOINT COUNT, on the ink plate's own heading row rather than on a chip beside it.
@@ -131,17 +108,52 @@ func adopt_checkpoints(label: Label) -> void:
 	heading.add_child(label)
 
 
-## THE LANTERN, where a level counts it as her health: a row of its own under the ink, in the same
-## corner the thesis puts the things that are true whoever she currently is.
+## The lantern and its health reading share a row, so the lamp's purpose and flame stages
+## are readable without recognising the artwork alone.
 func adopt_lantern(health: PlayerHealth) -> LanternHud:
+	var row := HBoxContainer.new()
+	row.name = "Health"
+	row.add_theme_constant_override(&"separation", 12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var column := $Column as VBoxContainer
+	column.add_child(row)
+	column.move_child(row, ($Column/Heading as Control).get_index() + 1)
+
 	var lantern := LanternHud.new()
 	lantern.name = "Lantern"
 	lantern.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	lantern.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	lantern.bind(health)
-	var column := $Column as VBoxContainer
-	column.add_child(lantern)
-	column.move_child(lantern, ($Column/Heading as Control).get_index() + 1)
+	row.add_child(lantern)
+
+	var reading := VBoxContainer.new()
+	reading.name = "Reading"
+	reading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	reading.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	reading.add_theme_constant_override(&"separation", 0)
+	reading.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(reading)
+
+	var caption := Label.new()
+	caption.name = "Caption"
+	caption.text = "HEALTH"
+	caption.theme_type_variation = &"HudCaption"
+	reading.add_child(caption)
+
+	var value := Label.new()
+	value.name = "Value"
+	value.theme_type_variation = &"HudValue"
+	value.text = _lantern_reading(health.stage)
+	reading.add_child(value)
+	health.stage_changed.connect(func(stage: int) -> void:
+		value.text = _lantern_reading(stage))
 	return lantern
+
+
+static func _lantern_reading(stage: int) -> String:
+	var names := ["", "Guttering", "Low", "Dim", "Full"]
+	return "%s  %d/%d" % [names[clampi(stage, PlayerHealth.GUTTERING, PlayerHealth.FULL)],
+		stage, PlayerHealth.FULL]
 
 
 ## Whole units. `remaining` is continuous, so it is floored -- a gauge that rounds up claims

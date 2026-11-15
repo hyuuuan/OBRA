@@ -16,6 +16,16 @@ what is left. The superseded provisional design is folded away at the bottom.
 
 ---
 
+
+> **What the plaza says, in order (2026-11-06).** The opening and its two rules, then at the fork:
+> `L2_N1.enter`, its three ways (`kind: lore`), the question. The volume begins ten pixels from
+> where she wakes, so `.enter` used to fire on her first step and its ways were gone the same frame.
+> The dancers' warning waits for the plaza to have been introduced and is not said to somebody who
+> chose another way (`_warn_about_the_dancers`). The doors are asides (`HintBar.interject`), so
+> walking past one no longer costs the two rules. Alleys: `.enter`, `.teach`, question, at the fork.
+> ⚠ `Signpost2D._yield_if_crowded` compared only x, and the two alleys are stacked rooms: the second
+> had no boards at all.
+
 ## What the first playthrough found
 
 The suites were green and the level was not finished. Every one of these passed
@@ -163,6 +173,13 @@ with no collision or interaction. `run_level2_chain_probe` checks the art regist
 the level’s E handler; `run_visual_level2 --church` pushes E through a real viewport
 and captures both doors, the rack and the placed-candle state.
 
+## Her diary — November 2026
+
+Three pages of Lola's diary lie in Piyesta (`DIARY.md`): one on the nave floor on the way to the
+candle rack, and one in each alley between its doors, where its pieces come down. They are found
+by walking over them (`level_2.gd` `DIARY_PAGES` → `DiaryPage2D`), and open in her diary.
+`run_diary_probe` checks where they lie and that walking over one finds it.
+
 ## The supplied Alley 1 layers — October 2026
 
 Alley 1 now uses the supplied afternoon sky, sari-sari store, ground and red bandaritas.
@@ -173,7 +190,7 @@ store's feet are at 800: each is registered separately to the same live floor. T
 floor, transition areas, flock space and route mechanics retain their geometry. Small
 street signs mark the existing exits, with a barrier on the onward route until collection
 opens it. The plates use one scale on both axes to preserve their original proportions;
-Alley 2 keeps its previous art.
+Alley 2 uses the animated sunset market described below.
 
 The supplied store also contained painted flags. Its runtime copy removes those with
 ImageGen, retaining the unedited original alongside the other source plates. The upper
@@ -185,6 +202,26 @@ target. Cutting leaves no flags in the store backdrop, and restoring raises the 
 Visual check: `run_visual_level2.gd -- --alley1` photographs the entry, middle, onward
 approach, falling bunting, cut state and restored state. The existing alley probe plays
 feeding, climbing/cutting, throwing, collecting and checkpoint restore in both alleys.
+
+## The supplied Alley 2 market loop — November 2026
+
+Alley 2 uses the four supplied sunset market frames, in filename-number order, held for
+0.45 seconds each (a 1.8-second loop). They are used unchanged, so the supplied files live
+only in `game/assets/Level2/alley_2/`: a second copy in `level-2-assets/` was the same bytes
+twice. `alley_2_room_2d.gd` draws them
+at native pixel size and advances only while the room is occupied and the world is running.
+It inherits the same collision, openings, floor and route mechanics as before. Both supplied
+alley dressings use the room shell's shared street exit signs and closed-onward barrier.
+
+Source row 790 is the live pavement. The view samples rows 350–933, below the painted
+red overhead banners, so the live cuttable bunting remains the only visible string over
+the flock. Each frame uses the common 1684px width (the first supplied frame is one column
+narrower); no frame is stretched. The camera clamp stays inside this common rectangle.
+The supplied market shoppers animate behind the player, birds, scraps and live bunting.
+
+Visual check: `run_visual_level2.gd -- --alley2` visits both approaches, captures all four
+frames, climbs and cuts the live bunting, then restores the checkpoint. The existing alley
+probe continues to exercise all three routes in both alleys.
 
 ## The level in one paragraph
 
@@ -204,6 +241,11 @@ way into each alley, and **both alleys are the same problem with the same three 
 Every way through an alley ends with its pieces **on the floor**, and they are picked up by
 walking over them; the way on opens only when every piece from that alley is in hand. Nothing
 escapes and nothing runs on a clock, so no road to the table can lose one.
+
+For a placed offering, the birds drop their scraps on clear floor, then take turns pecking
+at the drawing. The peck point follows the offering if it moves.
+
+In the dance, press Space or finish a stroke on the beat. Both inputs use the same timing windows.
 
 ---
 

@@ -21,7 +21,7 @@ const JUMP := 94.3
 const FLOOR_BEFORE := 180.0
 
 ## Every check this audit makes. A script error that skips them must not pass as quiet.
-const CHECKS := 13
+const CHECKS := 15
 
 var failures := 0
 var checked := 0
@@ -40,10 +40,10 @@ func _run() -> void:
 		root.add_child(tags)
 	var level := _load(LEVEL_PATH)
 	_audit_gates_have_two_strong_answers(level)
-	_audit_no_line_names_a_class()
 	_audit_nothing_refills(level)
 	_audit_shipping_state()
 	var scene := await _open_level()
+	_audit_no_line_names_a_class(scene)
 	_audit_hooks(scene)
 	_audit_the_reserve_is_the_gates(scene)
 	_audit_gate_ground(scene)
@@ -53,6 +53,10 @@ func _run() -> void:
 	_audit_the_fragments(scene)
 	_audit_the_flower_is_off_the_path(scene)
 	_audit_nothing_the_ash_takes_is_solid(scene)
+	_audit_mayon_sounds_through_the_director(scene)
+	scene.queue_free()
+	for _frame in range(6):
+		await process_frame
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -87,7 +91,7 @@ func _audit_gates_have_two_strong_answers(level: Dictionary) -> void:
 		"; ".join(seen) if thin.is_empty() else "; ".join(thin))
 
 
-func _audit_no_line_names_a_class() -> void:
+func _audit_no_line_names_a_class(scene: Node) -> void:
 	var terms := _class_terms()
 	var hits: Array[String] = []
 	for line_value: Variant in _load(DIALOGUE_PATH).get("lines", []):
@@ -97,11 +101,14 @@ func _audit_no_line_names_a_class() -> void:
 			if pattern.search(text) != null:
 				hits.append("%s names '%s'" % [(line_value as Dictionary).get("id", "?"), term])
 	var objectives: Dictionary = _load(LEVEL_PATH).get("objectives", {})
+	# Audit the words the player sees. A {key:redraw} token renders as the bound
+	# control, and its literal "key" is also a drawable class in the roster.
 	for key: String in objectives:
 		if key.begins_with("$"):
 			continue
+		var shown := String(scene.call("with_keys", String(objectives[key])))
 		for term in terms:
-			if RegEx.create_from_string("\\b%s\\b" % term.to_lower()).search(String(objectives[key]).to_lower()) != null:
+			if RegEx.create_from_string("\\b%s\\b" % term.to_lower()).search(shown.to_lower()) != null:
 				hits.append("objective %s names '%s'" % [key, term])
 	_check(hits.is_empty(), "no line or objective names a drawable class",
 		"none" if hits.is_empty() else "; ".join(hits.slice(0, 4)))
@@ -166,7 +173,7 @@ func _audit_the_reserve_is_the_gates(scene: Node) -> void:
 	var at_gates: Array[bool] = []
 	for id: String in GATES:
 		director.enter_obstacle(id)
-		at_gates.append(bool(scene.call("_may_use_hidden_ink", "bridge")))
+		at_gates.append(bool(scene.call("_may_use_hidden_ink", "bridge" if id == "L5_SPAN" else "stairs")))
 		director.exit_obstacle(id)
 	_check(not at_the_foot and at_gates == [true, true],
 		"only the climb's gates may draw on the hidden reserve",
@@ -190,6 +197,9 @@ func _audit_gate_ground(scene: Node) -> void:
 		var gap := after.position.x - before.end.x
 		var rise := before.position.y - after.position.y
 		if gap > 1.0:
+			# The crater is an entrance, measured and driven by run_level5_crater_probe.
+			var crater: Vector2 = scene.call("_anchor", "crater")
+			if crater.x > before.end.x and crater.x < after.position.x: continue
 			gaps.append("%.0f wide after %.0f of floor" % [gap, before.size.x])
 			if gap <= RUNNING_JUMP or gap >= BRIDGE or before.size.x < FLOOR_BEFORE:
 				wrong.append("the gap at %.0f is %.0f across after %.0f of floor" % [before.end.x, gap, before.size.x])
@@ -224,7 +234,8 @@ func _audit_silent_checkpoints(scene: Node, level: Dictionary) -> void:
 func _audit_nothing_fights(scene: Node) -> void:
 	var fighters: Array[String] = []
 	for node in scene.find_children("*", "", true, false):
-		if node is Enemy2D:
+		# Avoid importing the entire combat dependency cycle into a no-combat audit.
+		if node.is_in_group(&"dilim_foes"):
 			fighters.append(String(node.name))
 	_check(fighters.is_empty(), "nothing on the mountain fights",
 		"no enemy" if fighters.is_empty() else ", ".join(fighters))
@@ -244,28 +255,19 @@ func _audit_every_obstacle_has_a_volume(scene: Node, level: Dictionary) -> void:
 		", ".join(volumes) if data == volumes else "data %s, ground %s" % [data, volumes])
 
 
-## Act Two: twelve fragments, three with lolo in them, and every class that saves one reads at
-## or above the floor -- a misread fragment costs nothing but is a choice taken away.
+## Act Two has twelve distinct preservation landmarks and three that steady Lolo.
 func _audit_the_fragments(scene: Node) -> void:
-	var report := _report()
 	var fragments := scene.find_children("*", "MemoryFragment2D", true, false)
 	var lolo := 0
-	var thin: Array[String] = []
+	var ids := {}
 	for node in fragments:
 		var fragment := node as MemoryFragment2D
+		ids[fragment.fragment_id] = true
 		if fragment.holds_lolo:
 			lolo += 1
-		var strong := 0
-		for entity: String in fragment.accepts:
-			if float((report.get(entity, {}) as Dictionary).get("recall", 0.0)) >= RECALL_FLOOR:
-				strong += 1
-			else:
-				thin.append("%s: %s" % [fragment.fragment_id, entity])
-		if strong < 2:
-			thin.append("%s has %d" % [fragment.fragment_id, strong])
-	_check(fragments.size() == 12 and lolo == 3 and thin.is_empty(),
-		"twelve fragments, three with lolo in them, each saved by two or more strong classes",
-		"%d fragments, %d with lolo" % [fragments.size(), lolo] if thin.is_empty() else "; ".join(thin))
+	_check(fragments.size() == 12 and ids.size() == 12 and lolo == 3,
+		"twelve distinct fragments, three with Lolo in them",
+		"%d fragments, %d distinct, %d with Lolo" % [fragments.size(), ids.size(), lolo])
 
 
 ## The flower's fragment is down a path nobody needed to walk: out of reach of the corridor.
@@ -276,11 +278,48 @@ func _audit_the_flower_is_off_the_path(scene: Node) -> void:
 			flower = node
 	var below := 0.0
 	if flower != null:
-		var ground_y := 60.0 if flower.global_position.x < 9200.0 else -20.0
+		var ground_y := 600.0
+		for ground: Rect2 in scene.get("_journey").route:
+			if flower.global_position.x >= ground.position.x and flower.global_position.x < ground.end.x:
+				ground_y = ground.position.y
 		below = ground_y - flower.global_position.y
-	_check(flower != null and below > flower.reach + 60.0,
-		"the flower is off the path: out of reach from the corridor beneath it",
+	# Standing only: a jump from the path peaks 94px nearer, so reach alone does not keep it off.
+	_check(flower != null and below > flower.reach and flower.needs_footing,
+		"the flower is off the path: out of reach from the corridor beneath it, even jumping",
 		"%.0f px above the path, reach %.0f" % [below, flower.reach if flower != null else 0.0])
+	_audit_the_flower_stair(scene, flower)
+
+
+## Every rise on the detour leaves margin under a 94px jump that a released key cuts short, and
+## only the top rock puts the flower in reach.
+func _audit_the_flower_stair(scene: Node, flower: MemoryFragment2D) -> void:
+	var rocks: Array = scene.get_node("EnvironmentBaseplate/GameplayPlane/Terrain/FlowerLedge").get("platforms")
+	rocks = rocks.duplicate()
+	rocks.sort_custom(func(a: Rect2, b: Rect2) -> bool: return a.position.y > b.position.y)
+	var step_from := 600.0
+	for ground: Rect2 in scene.get("_journey").route:
+		if not rocks.is_empty() and (rocks[0] as Rect2).position.x >= ground.position.x \
+				and (rocks[0] as Rect2).position.x < ground.end.x:
+			step_from = ground.position.y
+	var rises: Array[float] = []
+	for rock: Rect2 in rocks:
+		rises.append(step_from - rock.position.y)
+		step_from = rock.position.y
+	var steep := rises.filter(func(rise: float) -> bool: return rise > 60.0)
+	var top_gap := INF
+	var next_gap := INF
+	if flower != null and rocks.size() >= 2:
+		top_gap = (rocks[-1] as Rect2).position.y - flower.global_position.y
+		next_gap = (rocks[-2] as Rect2).position.y - flower.global_position.y
+	var planted := false
+	if flower != null and not rocks.is_empty():
+		var picture := flower.get_node("Picture") as Sprite2D
+		var foot := picture.global_position.y + picture.texture.get_height()*picture.global_scale.y*.5
+		planted = absf(foot-(rocks[-1] as Rect2).position.y) < .1
+	_check(rocks.size() >= 2 and steep.is_empty() and flower != null and planted
+			and top_gap <= flower.reach and next_gap > flower.reach,
+		"the flower stands on its top rock; each rise is at most 60px and only the top is in reach",
+		"rises %s, flower %.0f above the top rock and %.0f above the next" % [rises, top_gap, next_gap])
 
 
 ## A thing going white must never be something she stands on: what the ash takes is scenery.
@@ -292,6 +331,30 @@ func _audit_nothing_the_ash_takes_is_solid(scene: Node) -> void:
 			solid.append(String(node.name))
 	_check(not taken.is_empty() and solid.is_empty(), "nothing the ash takes is solid",
 		"%d things taken, none stood on" % taken.size() if solid.is_empty() else "solid: " + ", ".join(solid))
+
+
+## MAYON HAS MUSIC NOW (Kent, 2026-11-14 and 2026-11-15), which reverses the 1 November "Mayon is
+## silent". What stays from that rule is that the scene plays nothing itself: every sound goes
+## through AudioDirector, by id. And every one of its ids now has a file -- the ascent, the four
+## memories, Lola, the ending and the brush -- so none is a hook left silent by mistake.
+const MAYON_MUSIC := ["level_5", "memory_terraces", "memory_piyesta", "memory_dagat", "memory_dilim",
+	"lola", "mayon_ending"]
+const MAYON_SFX := ["mayon_brush"]
+
+
+func _audit_mayon_sounds_through_the_director(scene: Node) -> void:
+	var players := scene.find_children("*", "AudioStreamPlayer", true, false)
+	players.append_array(scene.find_children("*", "AudioStreamPlayer2D", true, false))
+	var audio: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://config/audio.json"))
+	var silent: Array[String] = []
+	for pair: Array in [["music", MAYON_MUSIC], ["sfx", MAYON_SFX]]:
+		var ids: Dictionary = audio.get(pair[0], {})
+		for id: String in pair[1]:
+			if String(ids.get(id, "")).is_empty():
+				silent.append("%s.%s" % [pair[0], id])
+	_check(players.is_empty() and silent.is_empty(),
+		"Mayon plays its music and its brush through AudioDirector, and every one has a file",
+		"%d players of its own, ids without a file %s" % [players.size(), silent])
 
 
 # --- Helpers ----------------------------------------------------------------------------

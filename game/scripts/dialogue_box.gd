@@ -40,6 +40,8 @@ extends Control
 signal finished()
 ## Emitted when the whole conversation has been read and the box has closed.
 signal conversation_finished()
+## Optional in-world cue, including when a reader reveals a line with one click.
+signal line_progress(text: String, characters: int)
 
 ## Characters per second. Fast enough not to be a wait, slow enough to read along with.
 ## A line of Payyo's runs about ninety characters, so this is a shade under two seconds.
@@ -271,6 +273,7 @@ func complete() -> void:
 		return
 	_shown = float(_full.length())
 	_label.visible_ratio = 1.0
+	line_progress.emit(_full, int(_shown))
 	_arrow.visible = true
 	finished.emit()
 
@@ -295,6 +298,11 @@ func frame_rect() -> Rect2:
 ## Where the speaker's bust ended up.
 func portrait_rect() -> Rect2:
 	return _portrait.bust_rect()
+
+
+## A speaker can leave during a line while their unfinished words remain on screen.
+func hide_speaker() -> void:
+	_portrait.dismiss_immediately()
 
 
 func is_typing() -> bool:
@@ -390,6 +398,7 @@ func _process(delta: float) -> void:
 	if _shown < length:
 		_shown = minf(length, _shown + SPEED * delta)
 		_label.visible_ratio = _shown / maxf(1.0, length)
+		line_progress.emit(_full, int(_shown))
 		if _shown >= length:
 			_arrow.visible = true
 			finished.emit()

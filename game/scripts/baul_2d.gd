@@ -103,11 +103,14 @@ func open() -> void:
 
 
 ## Turn up out of the straw. Idempotent: three combing passes all end at the same chest.
-func reveal() -> void:
+func reveal(animate: bool = true) -> void:
 	if _found:
 		return
 	_found = true
 	visible = true
+	if not animate:
+		found.emit()
+		return
 	# Rises out of the pile rather than appearing, so the moment reads as uncovering
 	# something rather than as the level spawning it.
 	# Rises TO its resting place, from below it. Tweening away from the rest position

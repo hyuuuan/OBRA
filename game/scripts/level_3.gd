@@ -32,12 +32,17 @@ const SkinClass = preload("res://scripts/drawing_skin_2d.gd")
 ## to parse in every one of the probes that loads this level.
 const BakunawaClass = preload("res://scripts/bakunawa_2d.gd")
 const LifeClass = preload("res://scripts/dagat_life_2d.gd")
+const CurrentClass = preload("res://scripts/dagat_current_2d.gd")
 const NextPaintingClass = preload("res://scripts/next_painting_2d.gd")
 ## The house's own painting of the next place -- the picture that hangs in her house for Level 4.
 const NEXT_PAINTING := preload("res://assets/hub/paintings/level_4.png")
-## What the bakunawa had lost: a torn corner of one of her canvases, in its gilt. Authored by
-## tools/build_dagat_props.py from the house's own painting of this sea.
-const LOST_CORNER := preload("res://assets/Level3/authored/painting_fragment.png")
+## What the bakunawa had lost: a page of her diary (DIARY.md; Kent, 2026-11-01: "instead of a
+## corner of the next painting, the bakunawa should give the diary entry"). It was a torn corner
+## of her canvas; the page says more, and only a player who guided it home is given it. Drawn at
+## three times the loose page's size, so it reads coming up out of the dark.
+const LOST_PAGE := preload("res://assets/hud/diary_page.png")
+const LOST_PAGE_SCALE := 3.0
+const DIARY_PAGE := "dagat"
 const FLOWER_ART := preload("res://assets/Level1/hidden_flower.png")
 ## A seabed jar, for its acquired card, and the blue its flourish is thrown in.
 const JAR_ART := preload("res://assets/Level3/authored/ink_jar_0.png")
@@ -137,17 +142,13 @@ var _bangka_x := NAN
 ## How far into the sand it lies before it is dug out, and the sand heaped over its keel.
 const BURIED_SINK := 6.0
 var _sand_heap: Sprite2D
-## A Carry shape walking it down: how far ahead of the shape's middle the hull is kept.
-const PUSH_LEAD := 150.0
-## One anvil dropped behind it: how far the hull goes.
-const ANVIL_SHOVE := 320.0
-## How fast E drags it the whole way.
+## How fast it goes down the sand, dragged by E or knocked by the anvil.
 const DRAG_SPEED := 300.0
 var _anvil_lines := 0
 
 ## THE APO'S BREATH. See _breathe. Seconds of it, how fast it comes back at the surface, how deep
-## the head has to be before it is being spent, and how far out from either shore the apo may
-## swim on it before the current turns them back -- the crossing is still a drawing, not a swim.
+## the head has to be before it is being spent, and the calm water beside each shore. Beyond
+## those margins, the visible current carries non-aquatic players left.
 const AIR_SECONDS := 7.0
 const AIR_REFILL := 3.5
 const AIR_DEPTH := 30.0
@@ -155,6 +156,11 @@ const APO_SWIM_REACH := 700.0
 var _air := AIR_SECONDS
 var _air_meter: _AirMeter
 var _told_the_current := false
+var _current: CurrentClass
+var _current_strength := 0.0
+const CURRENT_ACCEL := 1900.0
+const CURRENT_SPEED := 180.0
+const CURRENT_BUILDUP := 0.7
 
 ## THE LIGHT THAT LEADS IT. See _guide_the_bakunawa. How far from the player it reaches, how close
 ## to it the creature has to be to notice it, and how near the cave counts as home.
@@ -166,6 +172,11 @@ var _lure: _Lure
 var lure_override: Variant = null
 var _cave_mouth := Vector2.ZERO
 var _cave_inside := Vector2.ZERO
+## The middle of the painted arch's opening in cave_mouth.png -- tools/build_dagat_props.py's
+## CAVE_OPENING_AT, which moves if the arch is re-cut -- and where that middle goes on the face:
+## between the mouth the creature is led to and the inside it swims into.
+const CAVE_OPENING_AT := Vector2(236.0, 312.0)
+const CAVE_OPENING_HERE := Vector2(-90.0, 10.0)
 var _lead_told := false
 
 
@@ -177,6 +188,25 @@ func level_config_path() -> String:
 
 func dialogue_path() -> String:
 	return "res://config/dialogue_l3.json"
+
+
+## THE OLD JETTY GOES as she comes down the beach: the way out that used to be there, so the open
+## water reads as hers to cross -- by the boat or by swimming -- before Lolo asks which (Kent,
+## 2026-11-01: every level's obstacles, fully away). It dissolves into the sea haze, not to white.
+func _fades_the_old_way() -> bool:
+	return true
+
+
+func _fade_paper() -> Color:
+	return Color(0.74, 0.88, 0.93)
+
+
+func _fade_wash() -> float:
+	return 0.25
+
+
+func _fade_vanish_from() -> float:
+	return 0.15
 
 
 func _dialogue_node_obstacle_id() -> String:
@@ -261,6 +291,7 @@ func _build_level_furniture() -> void:
 	_release_the_sea_creatures()
 	_scatter_the_ambience()
 	_bring_the_sea_to_life()
+	_build_the_current()
 	call_deferred("_play_the_opening")
 
 	if _bakunawa != null:
@@ -439,40 +470,18 @@ func _plant_the_cave() -> void:
 	cave.z_index = -40
 	mark.get_parent().add_child(cave)
 	cave.global_position = Vector2(face_x, mark.global_position.y)
-	# The opening: an arch of dark going back into the rock, a rim of lit stone round it, and a
-	# few stones fallen at its foot. Shapes, not a picture -- it is a hole, and holes are dark.
-	var arch := PackedVector2Array()
-	var rim := PackedVector2Array()
-	for step in range(25):
-		var t := PI * float(step) / 24.0
-		arch.append(Vector2(-190.0 * sin(t) * 0.9, -150.0 * cos(t) - 10.0) + Vector2(-8.0, 0.0))
-		rim.append(Vector2(-214.0 * sin(t) * 0.9, -172.0 * cos(t) - 10.0) + Vector2(-2.0, 0.0))
-	var stone := Polygon2D.new()
-	stone.polygon = rim
-	stone.color = Color(0.13, 0.27, 0.36, 1.0)
-	cave.add_child(stone)
-	var dark := Polygon2D.new()
-	dark.polygon = arch
-	dark.color = Color(0.01, 0.03, 0.07, 1.0)
-	# Darkest at the back, the water's own blue at the lip.
-	var shades := PackedColorArray()
-	for point in arch:
-		var back := clampf(-point.x / 170.0, 0.0, 1.0)
-		shades.append(Color(0.02, 0.07, 0.14, 1.0).lerp(Color(0.0, 0.01, 0.03, 1.0), back))
-	dark.vertex_colors = shades
-	cave.add_child(dark)
-	for pebble in [[Vector2(18.0, 236.0), 26.0], [Vector2(52.0, 242.0), 18.0],
-			[Vector2(-30.0, 240.0), 20.0]]:
-		var rock := Polygon2D.new()
-		var outline := PackedVector2Array()
-		var radius: float = pebble[1]
-		for k in range(9):
-			var a := TAU * float(k) / 9.0
-			outline.append(Vector2(cos(a) * radius * 1.3, sin(a) * radius * 0.8))
-		rock.polygon = outline
-		rock.position = pebble[0]
-		rock.color = Color(0.1, 0.22, 0.3, 1.0)
-		cave.add_child(rock)
+	# ⚠ A PICTURE, NOT SHAPES. It was a black half-disc, a one-colour rim and three oval pebbles
+	# -- the one thing in Dagat with no pixel to it, which read as a hole cut in the screen. Now
+	# it is one of the deep's own painted arches with its opening made dark
+	# (tools/build_dagat_props.py draw_cave_mouth), its opening between where the creature is
+	# led from and where it goes in.
+	var mouth := Sprite2D.new()
+	mouth.name = "Mouth"
+	mouth.texture = load(AUTHORED + "cave_mouth.png") as Texture2D
+	mouth.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	mouth.centered = false
+	mouth.position = CAVE_OPENING_HERE - CAVE_OPENING_AT
+	cave.add_child(mouth)
 	# Kelp either side of the mouth, so it is a place and not a smudge on the wall.
 	# Their feet on the bed, which is BED_Y - the cave mark's own height below it.
 	var foot := BED_Y - 4.0 - mark.global_position.y
@@ -669,8 +678,7 @@ func _scatter_the_ambience() -> void:
 	var coral := _mark("CoralMark")
 	if coral == null:
 		return
-	# Columns rise off the bed; schools drift through the middle of the column. Placed by
-	# hand rather than by random so nothing lands inside a terrace or on top of a fact.
+	# Columns rise off the bed. Place them by hand to keep them clear of the terraces and facts.
 	var bed := BED_Y
 	var placings := [
 		[AMBIENCE + "bubbles_long", Vector2(1915.0, bed - 20.0), 210.0, 3.0],
@@ -679,10 +687,6 @@ func _scatter_the_ambience() -> void:
 		[AMBIENCE + "bubbles_short", Vector2(4820.0, bed - 50.0), 140.0, 3.2],
 		[AMBIENCE + "bubbles_long", Vector2(5820.0, bed - 20.0), 200.0, 2.8],
 		[AMBIENCE + "bubbles_short", Vector2(6560.0, bed - 50.0), 135.0, 3.4],
-		[AMBIENCE + "school", Vector2(2390.0, 1180.0), 175.0, 2.2],
-		[AMBIENCE + "school", Vector2(3960.0, 1060.0), 210.0, 1.8],
-		[AMBIENCE + "school", Vector2(5360.0, 1240.0), 165.0, 2.4],
-		[AMBIENCE + "school", Vector2(4560.0, 1100.0), 195.0, 2.0],
 	]
 	for index in placings.size():
 		var row: Array = placings[index]
@@ -700,24 +704,51 @@ func _scatter_the_ambience() -> void:
 		piece.modulate = Color(1.0, 1.0, 1.0, 0.75)
 		coral.get_parent().add_child(piece)
 		piece.global_position = row[1]
-		# ⚠ A SCHOOL THAT STAYS PUT IS A PICTURE OF ONE. They patrol a stretch of the column
-		# and turn at each end; the columns of bubbles stay where they rise from.
-		if String(row[0]).ends_with("school"):
-			_patrol(piece, 150.0 + float(index % 3) * 40.0, 7.0 + float(index % 4))
+	_scatter_the_schools(coral.get_parent())
+
+
+func _scatter_the_schools(parent: Node) -> void:
+	var locations := [Vector2(2390.0, 1092.0), Vector2(3960.0, 955.0),
+		Vector2(5360.0, 1157.0), Vector2(4560.0, 1002.0)]
+	# Offset and scale each fish so the tails and silhouettes vary within the school.
+	var formation := [Vector3(-86.0, -17.0, 0.30), Vector3(-32.0, -38.0, 0.36),
+		Vector3(37.0, -25.0, 0.27), Vector3(-48.0, 16.0, 0.28),
+		Vector3(22.0, 5.0, 0.34), Vector3(75.0, 21.0, 0.25)]
+	for index in locations.size():
+		var school := Node2D.new()
+		school.name = "FishSchool%d" % (index + 1)
+		school.z_index = -20
+		school.modulate.a = 0.70
+		parent.add_child(school)
+		school.global_position = locations[index]
+		for slot in formation.size():
+			var pose: Vector3 = formation[slot]
+			var fish := AnimatedSprite2D.new()
+			fish.sprite_frames = SeaCreatureClass.BANGUS_SWIM
+			fish.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			fish.position = Vector2(pose.x, pose.y)
+			fish.scale = Vector2.ONE * pose.z
+			fish.speed_scale = 0.85 + float((index + slot) % 4) * 0.10
+			school.add_child(fish)
+			fish.play(&"swim")
+			fish.set_frame_and_progress((index + slot) % fish.sprite_frames.get_frame_count(&"swim"), 0.0)
+		_patrol_school(school, 150.0 + float(index % 3) * 40.0, 7.0 + float(index))
 
 
 ## Back and forth across `reach`, turning to face the way it swims.
-func _patrol(piece: Sprite2D, reach: float, seconds: float) -> void:
-	var home := piece.position.x
-	var loop := piece.create_tween().set_loops()
-	loop.tween_callback(func() -> void: piece.flip_h = false)
-	loop.tween_property(piece, "position:x", home + reach, seconds) \
+func _patrol_school(school: Node2D, reach: float, seconds: float) -> void:
+	var home := school.position.x
+	var face := func(left: bool) -> void:
+		for fish: AnimatedSprite2D in school.get_children():
+			fish.flip_h = left
+	var loop := school.create_tween().set_loops()
+	loop.tween_property(school, "position:x", home + reach, seconds) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	loop.tween_callback(func() -> void: piece.flip_h = true)
-	loop.tween_property(piece, "position:x", home - reach, seconds * 2.0) \
+	loop.tween_callback(face.bind(true))
+	loop.tween_property(school, "position:x", home - reach, seconds * 2.0) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	loop.tween_callback(func() -> void: piece.flip_h = false)
-	loop.tween_property(piece, "position:x", home, seconds) \
+	loop.tween_callback(face.bind(false))
+	loop.tween_property(school, "position:x", home, seconds) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
@@ -1096,6 +1127,13 @@ func _frame_the_water(anchor_position: Vector2) -> void:
 	if world_camera == null or not is_finite(_waterline_y):
 		return
 	var under := clampf((anchor_position.y - _waterline_y) / LOOK_EASE_DEPTH, 0.0, 1.0)
+	# ⚠ LEADING IT HOME, THE CAMERA LOOKS DOWN FROM THE BOAT TOO. The light goes where the pointer
+	# is, and a pointer cannot leave the screen: framed for the deck, the screen ended at y 785, so
+	# the deepest the creature could be led was 700 px over the cave mouth -- outside HOME_REACH.
+	# It never went in, and the boat + light run could not be finished (Kent, 2026-11-11). What
+	# the player is steering is under the water, so the water is what is framed.
+	if _guiding():
+		under = 1.0
 	var deep_look := clampf(BED_Y - BED_IN_VIEW - anchor_position.y, LEAST_LOOK, MOST_LOOK)
 	world_camera.target_offset.y = lerpf(SURFACE_LOOK, deep_look, under)
 
@@ -1113,7 +1151,9 @@ var _stroke := 0.0
 func _row(delta: float) -> void:
 	# Whichever boat: the bangka, or one the player drew.
 	var boat := _boat_carrying_player()
-	if boat == null:
+	# ⚠ A SUBMARINE IS NOT ROWED. Kent: "when i try to ride it, it rows". It is driven -- move to
+	# steer, down to dive -- so it gets no paddle, no stroke and no splash on a surface it is under.
+	if boat == null or boat.utility_behavior == "submarine":
 		if _paddle != null and is_instance_valid(_paddle):
 			_paddle.queue_free()
 		_paddle = null
@@ -1183,6 +1223,107 @@ func _boats() -> Array[UtilityObject]:
 	return out
 
 
+## Dagat's music (audio/music/level_3.txt): a Visayan rowing song for the surface -- the level's
+## start, the bangka, the shores, and all a player hears who never dives (Kent: "in case the
+## player just wants to not go to the ocean") -- over the waves (audio/ambience/level_3.txt).
+## LevelBase plays both when the level opens; _refresh_the_place_audio changes them at the
+## waterline.
+func _level_music() -> StringName:
+	return &"level_3"
+
+
+func _level_ambience() -> StringName:
+	return &"level_3"
+
+
+## Below the surface: the same piece heard from under the water (audio/music/level_3_deep.txt).
+## It is written to the surface's length TO THE ROW, so a dive trades the two mid-bar
+## (AudioDirector.play_music keep_position) and sounds like the world closing over her, not like
+## a new song.
+const DEEP_MUSIC := &"level_3_deep"
+## How long the trade takes: quick, since it is one piece changing.
+const WATER_FADE_S := 0.6
+## The fight coming in, or giving way: a new piece, but an event, so quicker than a change of place.
+const FIGHT_FADE_S := 1.0
+## ⚠ THE WATERLINE HAS TWO EDGES. Deeper than DEEP_IN under it the music is the deep's; shallower
+## than SURFACE_OUT it is the surface's again; between the two it stays as it was. A swimmer
+## bobbing at the surface (her breath is spent from AIR_DEPTH, 30) would otherwise flip the music
+## with every stroke.
+const DEEP_IN := 60.0
+const SURFACE_OUT := 20.0
+## Facing the Bakunawa: its own fight (audio/music/bakunawa.txt), the sea's tune turned minor
+## with the gongs and pots that drive it back in the Visayan tale. From the moment it is met until
+## it is answered, on every route (Kent, 2026-11-15) -- led home, subdued or slipped past in the
+## dark all end in director.is_solved("L3_N2"), so that one test hands the music back.
+const BAKUNAWA_MUSIC := &"bakunawa"
+## Whether she has met it: set where its arrival is said (_on_obstacle_entered), kept through a
+## lost stretch (the fight is not over), and cleared by a restore that hands back an encounter not
+## yet chosen, which puts her back before the meeting.
+var _met_the_bakunawa := false
+## Which water the music is set for ("surface" or "deep"), and the music and bed it asked for, so
+## it acts only when the answer changes. Asked every physics frame, like Piyesta's rooms: a
+## restore, the current or a rescue can move her across the waterline without a dive.
+var _water_for := "?"
+var _music_for: StringName = &""
+var _bed_for: StringName = &""
+
+
+## ⚠ AudioDirector BY PATH, never by name: an autoload's name does not compile in a --script run.
+func _refresh_the_place_audio(anchor_position: Vector2) -> void:
+	_water_for = _water_at(anchor_position)
+	var facing := _met_the_bakunawa and director != null and not director.is_solved("L3_N2")
+	var music: StringName = BAKUNAWA_MUSIC if facing else (DEEP_MUSIC if _water_for == "deep" else _level_music())
+	var bed: StringName = &"" if _water_for == "deep" else _level_ambience()
+	if music == _music_for and bed == _bed_for:
+		return
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio == null:
+		return
+	if music != _music_for:
+		# The surface and the deep are one piece, traded at its place; the fight is its own, and
+		# begins (and gives way) as a new piece does.
+		var same_piece := BAKUNAWA_MUSIC not in [music, _music_for]
+		audio.call(&"play_music", music, WATER_FADE_S if same_piece else FIGHT_FADE_S, same_piece)
+	if bed != _bed_for:
+		if bed.is_empty():
+			audio.call(&"stop_ambience")
+		else:
+			audio.call(&"play_ambience", bed)
+	_music_for = music
+	_bed_for = bed
+
+
+## In the bangka it is always the surface, whatever the hull's depth reads.
+func _water_at(anchor_position: Vector2) -> String:
+	if _boat_carrying_player() != null or not is_finite(_waterline_y):
+		return "surface"
+	if anchor_position.y > _waterline_y + DEEP_IN:
+		return "deep"
+	if anchor_position.y < _waterline_y + SURFACE_OUT or _water_for == "?":
+		return "surface"
+	return _water_for
+
+
+## LevelBase fades the level's own music as it leaves; the deep's and the fight's are this level's
+## too.
+func _exit_tree() -> void:
+	super()
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null and audio.call(&"current_music") in [DEEP_MUSIC, BAKUNAWA_MUSIC]:
+		audio.call(&"stop_music")
+
+
+## ⚠ ONLY A RESTORE THAT HAPPENED, AND ONLY TO BEFORE THE CHOICE. The encounter's own checkpoints
+## (CP3 on the commit, CP3b partway) keep its route, so a lost stretch restores into the fight and
+## the music stays; a restore to CP2 rolls the route back and puts her before the meeting. With no
+## checkpoint written nothing was restored, and the meeting stands.
+func _restore_checkpoint() -> String:
+	var restored := super()
+	if not restored.is_empty() and director != null and director.committed_route("L3_N2").is_empty():
+		_met_the_bakunawa = false
+	return restored
+
+
 ## The boat the player is sitting in, or null.
 func _boat_carrying_player() -> UtilityObject:
 	if player == null or not is_instance_valid(player):
@@ -1219,11 +1360,14 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_row(delta)
 	_frame_the_water(anchor_position)
 	_pace_the_advice(delta)
+	_refresh_the_place_audio(anchor_position)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
+	if _anchor_now() != anchor_position:
+		return
 	_guide_the_bakunawa(anchor_position)
-	_push_the_bangka(anchor_position, delta)
 	_breathe(anchor_position, delta)
+	_push_in_the_current(anchor_position, delta)
 	_fish()
 	_mind_the_creatures(anchor_position)
 	# From above the water it is a shape in the dark, not a creature. Kent: "when the player is
@@ -1411,6 +1555,16 @@ func _on_low_ink(_remaining: float, _capacity: float) -> void:
 	if tutorial != null:
 		tutorial.note("ink_low")
 	_say_why("It is nearly gone, apo.")
+	_sound(&"ink_low")
+
+
+func _tutorial_context(context: String) -> bool:
+	match context:
+		"low_ink":
+			return super("creature") and _drain != null and ink_manager.remaining_ratio() <= _drain.warning_ratio
+		"underwater":
+			return super("world") and _anchor_now().y > _waterline_y
+	return super(context)
 
 
 ## THE ZERO CASE. Revert, lose the stretch, never die. There is no death state anywhere in this
@@ -1419,6 +1573,7 @@ func _on_drain_emptied() -> void:
 	if tutorial != null:
 		tutorial.note("ink_emptied")
 	_say_why("Out of ink, apo. Hold on to me.")
+	_sound(&"ink_empty")
 	_revert_to_base_form()
 	# On the sand -- a helper dragging the bangka down, say -- changing back is all there is to
 	# it. In the sea, the apo swims for it with the ink handed back.
@@ -1472,14 +1627,15 @@ func _interact_with_level() -> bool:
 	return true
 
 
-## E over the hull says what it will do: dig it out and drag it down with a helper held, and push
-## without one -- which is what the apo would try, and E then says why it will not go.
+## E over the hull says what it will do: drag it in with a helper held -- digging it out is part of
+## that, so it is one verb -- and push without one, which is what the apo would try, and E then
+## says why it will not go.
 func _level_interact_offer() -> Dictionary:
 	if not _at_the_beached_bangka():
 		return {}
 	if not _a_helper_is_held():
 		return {"name": "Bangka", "verb": "PUSH"}
-	return {"name": "Bangka", "verb": "DRAG IN" if _bangka_dug else "DIG OUT"}
+	return {"name": "Bangka", "verb": "DRAG IN"}
 
 
 ## The anvil in the apo's hand.
@@ -1502,7 +1658,7 @@ func _judge_the_mover(entity_id: String) -> void:
 
 
 ## Dug out: the keel comes up out of the sand, the heap over it goes, and sand flies. Once.
-func _dig_out_the_bangka() -> void:
+func _dig_out_the_bangka(say_it := true) -> void:
 	if _bangka_dug or _bangka == null or not is_instance_valid(_bangka):
 		return
 	_bangka_dug = true
@@ -1518,7 +1674,8 @@ func _dig_out_the_bangka() -> void:
 	if _life != null:
 		for step in range(3):
 			_life.sparkle(_bangka.global_position + Vector2(-60.0 + 60.0 * step, 4.0), 4, 22.0)
-	_speak(script_lines.fire("L3_N1.artist.dug"))
+	if say_it:
+		_speak(script_lines.fire("L3_N1.artist.dug"))
 
 
 ## The hull moved `by` toward the sea, sand thrown up behind it. True when that took it to the
@@ -1533,39 +1690,10 @@ func _move_the_bangka(to_x: float) -> bool:
 	return _bangka.global_position.x >= stop - 0.5
 
 
-## ⚠ PUSHED, BY SOMETHING THAT CAN. A Carry shape on the landward side of the hull, walking toward
-## the water, keeps it just ahead of itself -- the hull has no collision on the sand, so this IS the
-## push: the shape walks, and the boat goes where the shape is about to be. Dug out first, if it was
-## not: walking into a half-buried hull digs it.
-func _push_the_bangka(anchor_position: Vector2, _delta: float) -> void:
-	if _bangka == null or not is_instance_valid(_bangka) or _bangka_found or _sliding:
-		return
-	if director == null or director.committed_route("L3_N1") != "artist" \
-			or director.is_solved("L3_N1") or not _a_helper_is_held():
-		return
-	var hull_x := _bangka.global_position.x
-	if absf(anchor_position.y - _bangka.global_position.y) > 180.0:
-		return
-	if anchor_position.x > hull_x - 30.0 or anchor_position.x < hull_x - PUSH_LEAD - 140.0:
-		return
-	if not Input.is_action_pressed(&"move_right"):
-		return
-	_judge_the_mover(_current_form_id)
-	if not _bangka_dug:
-		_dig_out_the_bangka()
-		return
-	var lead := anchor_position.x + PUSH_LEAD
-	if lead <= hull_x:
-		return
-	if _life != null and int(lead / 40.0) != int(hull_x / 40.0):
-		_life.sparkle(_bangka.global_position + Vector2(-90.0, 4.0), 2, 14.0)
-	if _move_the_bangka(lead):
-		_send_the_bangka_in()
-
-
-## ⚠ THE ANVIL SHOVES IT -- AND STAYS IN THE HAND. Dropped behind the hull, the weight knocks it a
-## good way down the sand: the first drop digs it out and starts it, a few more see it into the
-## water. F again is the next drop.
+## ⚠ THE ANVIL SHOVES IT -- ONCE, ALL THE WAY -- AND STAYS IN THE HAND. Dropped behind the hull,
+## the weight digs it out and knocks it down the sand into the water. It took a few drops, each
+## "do that again", which on top of the drag and a walk-it-down push left three ways to move one
+## boat and players unsure which they were doing.
 ##
 ## ⚠ NOT A REAL ANVIL ON THE SAND. It used to leave the hand as a body -- the tool's own F, a drop
 ## from above the apo -- and land on the apo: Kent, "when i use the anchor its just stuck there and i
@@ -1601,13 +1729,13 @@ func _shove_with_the_anvil() -> void:
 			_sliding = false
 			return
 		if not _bangka_dug:
-			_dig_out_the_bangka()
+			_dig_out_the_bangka(false)
 		var from_x := hull.global_position.x
-		var arrives := _move_the_bangka(from_x + ANVIL_SHOVE)
+		var arrives := _move_the_bangka(INF)
 		var to_x := hull.global_position.x
 		hull.global_position.x = from_x
 		var slide := hull.create_tween()
-		slide.tween_property(hull, "global_position:x", to_x, 0.6) \
+		slide.tween_property(hull, "global_position:x", to_x, maxf(0.6, (to_x - from_x) / DRAG_SPEED)) \
 			.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 		slide.tween_callback(func() -> void:
 			_sliding = false
@@ -1688,7 +1816,8 @@ func _helpers() -> PackedStringArray:
 ## buried and drags it the whole way down the sand and into the sea, and the shape that dragged it
 ## goes back into the ink as it goes -- its strength went into the boat, and the apo is left on the
 ## sand to get in. Changing back is free; the drain stops with it. (Walking it down is the other
-## way -- see _push_the_bangka -- and the anvil a third, _shove_with_the_anvil.)
+## way to move it is the anvil, _shove_with_the_anvil. Walking a shape into the hull no longer
+## pushes it: E was offered while the walk was told, and nobody could tell which they were doing.)
 ##
 ## ⚠ JUDGED FIRST, IF IT NEVER WAS. A helper is judged when it is drawn, but only against the
 ## beat the player is standing in -- drawn a step west of the crossing's volume it was judged
@@ -1697,7 +1826,7 @@ func _helpers() -> PackedStringArray:
 func _drag_the_bangka_in() -> void:
 	_judge_the_mover(_current_form_id)
 	if not _bangka_dug:
-		_dig_out_the_bangka()
+		_dig_out_the_bangka(false)
 	var hull := _bangka
 	var stood := _anchor_now()
 	_revert_to_base_form()
@@ -1860,8 +1989,8 @@ func _apo_can_swim() -> bool:
 
 
 ## The breath, spent while the apo's head is under and given back at the top; at nothing, they are
-## carried up -- not reset. And out past APO_SWIM_REACH a current turns them back: the crossing is
-## a drawing's to make, and an apo who could swim it would have no reason to draw anything.
+## carried up -- not reset. The strong current is separate, so it can also act on non-aquatic
+## drawings without mixing their movement into the apo's breath state.
 func _breathe(anchor_position: Vector2, delta: float) -> void:
 	var apo := player as Wanderer
 	if apo == null or not is_instance_valid(apo):
@@ -1870,10 +1999,24 @@ func _breathe(anchor_position: Vector2, delta: float) -> void:
 			_air_meter.visible = false
 		return
 	apo.can_swim = true
+	# ⚠ A PASSENGER BREATHES. Kent: "when i try to ride it ... my oxygen is affected which should
+	# not be happening". Seated in a submarine that has dived, she is in the water by every test
+	# below, and her breath ran out at seven seconds -- inside a sealed hull. Whatever she rides,
+	# the vessel holds her air; the breath is for swimming.
+	if _boat_carrying_player() != null:
+		apo.surfacing = false
+		_air = AIR_SECONDS
+		_show_the_breath(anchor_position, false)
+		return
 	var wet := bool(apo.call("is_in_water"))
 	var under := wet and anchor_position.y > _waterline_y + AIR_DEPTH
-	if apo.surfacing and (not wet or anchor_position.y <= _waterline_y + 12.0):
+	# Reaching air must give steering back at the same depth that refills the breath.
+	# A ceiling can hold her in that breathable band without reaching a shallower release line.
+	if apo.surfacing and not under:
 		apo.surfacing = false
+		# Spend the forced rise's momentum too: it otherwise launches her clear of the water,
+		# and the fall back in can exhaust the tiny breath she managed to take on the way past.
+		apo.velocity.y = maxf(apo.velocity.y, 0.0)
 	if under and not apo.surfacing:
 		_air = maxf(0.0, _air - delta)
 		if _air <= 0.0:
@@ -1881,38 +2024,51 @@ func _breathe(anchor_position: Vector2, delta: float) -> void:
 			_say_why("Out of breath — up you come, apo!")
 	elif not under:
 		_air = minf(AIR_SECONDS, _air + AIR_REFILL * delta)
-	# THE CURRENT, past where the apo may swim: it holds them -- swimming further out goes nowhere --
-	# but it does not carry them off and it never takes them back to a checkpoint (Kent: "the return
-	# to last checkpoint should not work here if it is underwater"). Toward the nearer shore they
-	# swim freely, and near a boat freely every way: stepping off the bangka out at sea is allowed
-	# now (Kent: "i should be able to exit the boat whenever"), and getting back in has to be.
-	var out := _distance_out(anchor_position)
-	# In the sea, not only wet: floating at the top the apo bobs clear of the water for a frame at
-	# a time, and that is still the open sea.
-	wet = wet or (out > 0.0 and anchor_position.y > _waterline_y - 40.0)
-	if wet and out > APO_SWIM_REACH and not _near_a_boat(anchor_position):
-		var edges := level_data_shore_edges()
-		var homeward := -1.0 if anchor_position.x - edges.x < edges.y - anchor_position.x else 1.0
-		if apo.velocity.x * homeward < 0.0:
-			# Held, not shoved: the way out is simply closed. Bobbing clear of the water the apo is
-			# on the walk's acceleration for a frame, which a force alone let them creep out on.
-			apo.velocity.x = 0.0
-			apo.apply_external_force(Vector2(homeward * 1500.0, 0.0))
-		if not _told_the_current:
-			_told_the_current = true
-			_say_why("The current is too strong out there, apo. Draw yourself something that can swim.")
 	_show_the_breath(anchor_position, under or _air < AIR_SECONDS - 0.05)
 
 
-## How near a boat the apo swims as freely as by the shore.
-const BOAT_REACH := 450.0
+## One footprint for both the visible leftward streams and the water that pushes the player.
+func _build_the_current() -> void:
+	var edges := level_data_shore_edges()
+	if edges == Vector2.ZERO or _sea == null:
+		return
+	_current = CurrentClass.new()
+	_current.name = "StrongCurrent"
+	_current.waterline_y = _waterline_y
+	_current.water_rect = Rect2(Vector2(edges.x + APO_SWIM_REACH, _waterline_y - 40.0),
+		Vector2(maxf(0.0, edges.y - edges.x - APO_SWIM_REACH * 2.0), BED_Y - _waterline_y + 40.0))
+	_current.camera = _world_camera()
+	_sea.get_parent().add_child(_current)
+	_current.global_position = Vector2.ZERO
 
 
-func _near_a_boat(at: Vector2) -> bool:
-	for boat in _boats():
-		if boat.global_position.distance_to(at) <= BOAT_REACH:
-			return true
-	return false
+## A force, not a velocity clamp: entering it builds a leftward pull, even with no key held.
+## Aquatic forms can handle it; a passenger rows with the boat. Being merely NEAR a boat no
+## longer switches the water off, and the far half of the sea still flows LEFT, not islandward.
+func _push_in_the_current(at: Vector2, delta: float) -> void:
+	if _current == null or not is_instance_valid(player) \
+			or (_restrictions != null and _restrictions.swims(_current_form_id)) \
+			or _boat_carrying_player() != null:
+		_current_strength = 0.0
+		return
+	var strength := _current.strength_at(at)
+	if strength <= 0.0:
+		_current_strength = 0.0
+		return
+	_current_strength = move_toward(_current_strength, strength, delta / CURRENT_BUILDUP)
+	var state: Dictionary = player.call("capture_morph_state") if player.has_method("capture_morph_state") else {}
+	var speed: Vector2 = state.get("linear_velocity", state.get("velocity", Vector2.ZERO))
+	# The pull eases toward a bounded drift rather than accelerating her forever. It never
+	# pushes right, including when the player is already swimming quickly with the flow.
+	var resistance := clampf(1.0 - maxf(0.0, -speed.x) / CURRENT_SPEED, 0.0, 1.0)
+	var force := Vector2(-CURRENT_ACCEL * _current_strength * resistance, 0.0)
+	if player.has_method("apply_external_force"):
+		player.call("apply_external_force", force)
+	elif player is RigidBody2D:
+		(player as RigidBody2D).apply_central_force(force * (player as RigidBody2D).mass)
+	if not _told_the_current:
+		_told_the_current = true
+		_say_why("The current pushes left, apo. Draw yourself something that can swim.")
 
 
 ## How far out into the sea from the nearer shore's edge.
@@ -2672,17 +2828,17 @@ const STEERING_ACTIONS: Array[StringName] = [
 	&"move_left", &"move_right", &"move_up", &"move_down", &"jump"]
 
 
-func _post_advice(advice: Array[Dictionary]) -> void:
-	if advice.is_empty():
+func _post_advice(advice: Array[Dictionary], while_relevant := Callable()) -> void:
+	if advice.is_empty() or (while_relevant.is_valid() and not while_relevant.call()):
 		return
 	if _advice_left > 0.0 or not _advice_waiting.is_empty():
-		_advice_waiting.append(advice)
+		_advice_waiting.append({"lines": advice, "while_relevant": while_relevant})
 		return
-	_advise_now(advice)
+	_advise_now(advice, while_relevant)
 
 
-func _advise_now(advice: Array[Dictionary]) -> void:
-	super._post_advice(advice)
+func _advise_now(advice: Array[Dictionary], while_relevant: Callable) -> void:
+	super._post_advice(advice, while_relevant)
 	var reading := 0.0
 	for line: Dictionary in advice:
 		reading += _reading_time(String(line.get("text", "")))
@@ -2707,9 +2863,12 @@ func _pace_the_advice(delta: float) -> void:
 	if _advice_left > 0.0:
 		_advice_left = maxf(0.0, _advice_left - delta)
 		return
-	if not _advice_waiting.is_empty():
-		_advise_now(_advice_waiting.pop_front())
-		return
+	while not _advice_waiting.is_empty():
+		var batch: Dictionary = _advice_waiting.pop_front()
+		var while_relevant: Callable = batch["while_relevant"]
+		if not while_relevant.is_valid() or while_relevant.call():
+			_advise_now(batch["lines"], while_relevant)
+			return
 	if _coral_waiting.is_empty():
 		return
 	var field := coral_field()
@@ -3040,6 +3199,7 @@ func _on_bakunawa_approached() -> void:
 ## said, and then the answers, as one conversation.
 func _on_obstacle_entered(obstacle_id: String) -> void:
 	if obstacle_id == "L3_N2":
+		_met_the_bakunawa = true
 		_speak_on_arrival("L3_N2.enter")
 	super._on_obstacle_entered(obstacle_id)
 
@@ -3080,6 +3240,7 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 func _on_gift_offered() -> void:
 	var at := _cave_mouth if _cave_mouth != Vector2.ZERO else _bakunawa.treasure_point()
 	var found := _uncover_the_treasure(at)
+	_sound(&"gift")
 	if _life != null and _bakunawa != null:
 		_life.sparkle(found, 8, 55.0)
 	if _lure != null and is_instance_valid(_lure):
@@ -3092,7 +3253,7 @@ func _on_gift_offered() -> void:
 		director.solve_with_item("L3_N2", "led_home")
 
 
-## A blow landed: the creature flashes red (Bakunawa2D), and the bar says how many are left.
+## A blow landed: the creature flashes red and one of its hearts goes out (Bakunawa2D).
 func _on_bakunawa_hit(hits: int, needed: int) -> void:
 	if hits < needed:
 		status_label.text = "Hit! %d more" % (needed - hits)
@@ -3110,9 +3271,11 @@ func _on_bakunawa_quiet(how: String) -> void:
 	PlayerProfile.record_bakunawa("FOUGHT")
 	script_lines.set_flag("l3_bakunawa_fought")
 	# ⚠ AND IT TAKES WHAT IT WAS LOOKING FOR WITH IT. Kent: "if we choose to fight it, it takes the
-	# treasure with them". The torn corner the light route is given goes off in its coils, seen.
+	# treasure with them". The page of her diary the light route is given goes off in its coils,
+	# seen -- and is never kept: "if the player doesn't choose to guide the bakunawa back to the
+	# cave, then there will be no diary entry".
 	if _bakunawa != null:
-		_bakunawa.carry_away(LOST_CORNER)
+		_bakunawa.carry_away(LOST_PAGE, LOST_PAGE_SCALE)
 	if director != null and not director.is_solved("L3_N2"):
 		director.solve_with_item("L3_N2", "subdued")
 	for weapon: String in _fought_with.keys():
@@ -3211,10 +3374,37 @@ func _use_equipped_utility() -> void:
 		if director.current_obstacle() == "L3_N2" and director.stage("L3_N2") == 0:
 			_judge_submission(item.entity_id, item.strokes)
 		_fought_with[item.entity_id] = true
+		var landed := _bakunawa.hits_taken() if _bakunawa != null else 0.0
 		var outcome := _equipped_utility.describe_use(player)
 		status_label.text = outcome if not outcome.is_empty() else item.display_name
+		_strike_over_the_side(item.entity_id, outcome, landed)
 		return
 	super()
+
+
+## ⚠ FROM THE DECK, A BLADE GOES OVER THE SIDE. Staged for the boat, the creature lies under the
+## hull with its back about 50 px under the water, and a sword or an axe reaches 96 px from the
+## apo's hand -- about 110 px short of it, and with the boat against its coils, behind her. Played,
+## 150 presses of F from the boat landed nothing and the fight never ended (2026-11-12); the cannon
+## and the boomerang reach it from up here, the blades never did. So a swing from the deck that
+## struck nothing is swung down into the water: it lands if the creature's back is within the
+## blade's reach of the waterline under her. Only the blades: a shot or a throw lands frames later,
+## on its own.
+const OVER_THE_SIDE := ["sword", "axe"]
+
+
+func _strike_over_the_side(weapon: String, outcome: String, landed_before: float) -> void:
+	if outcome.is_empty() or not OVER_THE_SIDE.has(weapon) or not _aboard() \
+			or _bakunawa == null or _bakunawa.hits_taken() > landed_before:
+		return
+	var reach := WeaponTable.reach(weapon)
+	var under := _anchor_now()
+	var body := _bakunawa.global_position
+	var back := body.y - BakunawaClass.BODY_DEPTH * 0.7
+	if absf(under.x - body.x) > BakunawaClass.BODY_LENGTH * 0.5 + reach \
+			or back - _waterline_y > reach:
+		return
+	_bakunawa.apply_tool_hit(weapon, 420.0, player)
 
 
 ## Being seen, and being hit, both cost the current stretch and not the approach. CP3b sits
@@ -3311,8 +3501,9 @@ func _award_the_flower() -> void:
 ## searching the dark for, and the level marked the moment with a burst of sparkles over
 ## nothing: the flower was recorded silently and no object was ever there. The design asks for
 ## "something the player recognises -- an object from Level 1's house, or a piece of the
-## painting. A generic chest wastes the beat." So it is a corner of one of her canvases, torn,
-## still in the gilt the paintings in her house hang in, with this very sea painted on it.
+## painting. A generic chest wastes the beat." It was a corner of one of her canvases; it is a
+## page of her diary now (DIARY.md), the one about the dream of something searching the dark under
+## the bangka -- which is what this creature was doing -- and it opens in her diary as it is given.
 ##
 ## And the flower comes up out of it to the apo -- "it finds a treasure, handing you a
 ## flower" -- and says which of the five it is, the way Payyo's did, because the design needs
@@ -3328,36 +3519,36 @@ func _uncover_the_treasure(where: Vector2) -> Vector2:
 		var toward := signf(where.x - anchor.x)
 		at = Vector2(anchor.x + 150.0 * (toward if toward != 0.0 else 1.0), _waterline_y + 60.0)
 	var parent := _bakunawa.get_parent()
-	var corner := Sprite2D.new()
-	corner.name = "LostCorner"
-	corner.texture = LOST_CORNER
-	corner.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	corner.z_index = 6
-	corner.rotation = -0.14
-	corner.modulate.a = 0.0
-	parent.add_child(corner)
-	corner.global_position = at + Vector2(0.0, 18.0)
-	var reveal := corner.create_tween()
-	reveal.tween_property(corner, "modulate:a", 1.0, 0.7)
-	reveal.parallel().tween_property(corner, "global_position:y", at.y, 1.1) \
+	var page := Sprite2D.new()
+	page.name = "LostPage"
+	page.texture = LOST_PAGE
+	page.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	page.z_index = 6
+	page.rotation = -0.14
+	page.scale = Vector2.ONE * LOST_PAGE_SCALE
+	page.modulate.a = 0.0
+	parent.add_child(page)
+	page.global_position = at + Vector2(0.0, 18.0)
+	var reveal := page.create_tween()
+	reveal.tween_property(page, "modulate:a", 1.0, 0.7)
+	reveal.parallel().tween_property(page, "global_position:y", at.y, 1.1) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	# ⚠ AND IT IS GIVEN, NOT LEFT LYING THERE. Kent: the things found at the bottom "should have
 	# the acquired pop up since its an acquired". It holds a moment where it was found, then
-	# comes to the apo and is theirs -- with its own card, ahead of the flower's.
+	# comes to the apo and opens in her diary -- ahead of the flower, which waits for the book to
+	# be put down (the book pauses the tree, and the flower's tween is bound to it).
 	reveal.tween_interval(0.5)
 	reveal.tween_method(func(t: float) -> void:
-		if is_instance_valid(corner):
+		if is_instance_valid(page):
 			var target := _anchor_now() + Vector2(0.0, -30.0)
-			corner.global_position = at.lerp(target, t) + Vector2(0.0, -40.0 * sin(PI * t))
-			corner.scale = Vector2.ONE * lerpf(1.0, 0.45, t), \
+			page.global_position = at.lerp(target, t) + Vector2(0.0, -40.0 * sin(PI * t))
+			page.scale = Vector2.ONE * LOST_PAGE_SCALE * lerpf(1.0, 0.45, t), \
 		0.0, 1.0, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	reveal.tween_property(corner, "modulate:a", 0.0, 0.2)
+	reveal.tween_property(page, "modulate:a", 0.0, 0.2)
 	reveal.tween_callback(func() -> void:
-		if is_instance_valid(corner):
-			corner.queue_free()
-		announce_acquisition("A Torn Corner",
-			"A piece of one of her canvases, with this sea on it. It was what the creature had lost.",
-			LOST_CORNER))
+		if is_instance_valid(page):
+			page.queue_free()
+		find_diary_page(DIARY_PAGE))
 	var flower := Sprite2D.new()
 	flower.name = "GivenFlower"
 	flower.texture = FLOWER_ART
@@ -3368,7 +3559,7 @@ func _uncover_the_treasure(where: Vector2) -> Vector2:
 	parent.add_child(flower)
 	flower.global_position = at + Vector2(0.0, -10.0)
 	var give := flower.create_tween()
-	# After the corner has been given: the two used to rise out of the same spot together.
+	# After the page has been given: the two used to rise out of the same spot together.
 	give.tween_interval(2.9)
 	give.tween_property(flower, "modulate:a", 1.0, 0.3)
 	give.parallel().tween_property(flower, "scale", Vector2.ONE * 0.9, 0.5) \
@@ -3441,18 +3632,23 @@ func _told_the_dive(anchor_position: Vector2) -> void:
 	for step in [[2100.0, "L3_DIVE.lore1"], [2900.0, "L3_DIVE.lore2"],
 			[3700.0, "L3_DIVE.lore3"], [4500.0, "L3_DIVE.lore4"], [5150.0, "L3_DIVE.light"]]:
 		if anchor_position.x >= float(step[0]):
-			_tell(String(step[1]))
+			var hook := String(step[1])
+			# The two lines that ask the player to do something belong in the water.
+			var context := Callable()
+			if hook in ["L3_DIVE.lore1", "L3_DIVE.light"]:
+				context = func() -> bool: return not _arrived and _anchor_now().y > _waterline_y
+			_tell(hook, context)
 	if _told.has("L3_DIVE.lore4"):
 		script_lines.set_flag("heard_about_lola")
 
 
 ## Once each, and remembered in the run state so a checkpoint restore does not replay the
 ## crossing from the top.
-func _tell(hook: String) -> void:
-	if _told.has(hook):
+func _tell(hook: String, advice_context := Callable()) -> void:
+	if _told.has(hook) or (advice_context.is_valid() and not advice_context.call()):
 		return
 	_told[hook] = true
-	_speak(script_lines.fire(hook))
+	_speak(script_lines.fire(hook), advice_context)
 
 
 ## THE CREATURE'S OWN SILHOUETTE, passing under the hull and going the wrong way round. The
@@ -3670,7 +3866,10 @@ func _current_objective() -> Dictionary:
 		return {}
 	if not PlayerProfile.has_new_brush():
 		return {"key": "brush", "target": _mark_position("BrushMark")}
-	if not director.is_solved("L3_N1"):
+	# ⚠ OUT AT THE CREATURE, THE CROSSING IS BEHIND HER. Only the boat or a swimmer answers it,
+	# so a player who chose and then flew out as a bird was pointed four thousand pixels back
+	# to the beach while the creature was in front of them.
+	if not director.is_solved("L3_N1") and not _out_at_the_creature():
 		# ⚠ ONCE A WAY ACROSS IS CHOSEN, THE LINE IS ABOUT DOING IT. It said "Get to the far side"
 		# to a player who had just chosen -- the only line on screen, and it named the goal of the
 		# whole level instead of the next thing to do.
@@ -3685,8 +3884,7 @@ func _current_objective() -> Dictionary:
 				if _holding_the_anvil():
 					return {"key": "drop_on_the_boat", "target": hull}
 				if _a_helper_is_held():
-					return {"key": "push_the_boat" if _bangka_dug else "drag_the_boat_now",
-						"target": hull}
+					return {"key": "drag_the_boat_now", "target": hull}
 				return {"key": "drag_the_boat", "target": hull}
 			"pragmatist":
 				return {"key": "dive_draw", "obstacle": "L3_N1",
@@ -3699,7 +3897,8 @@ func _current_objective() -> Dictionary:
 	# crossing on the beach, and the line jumped straight to the encounter: "It cannot see.
 	# Decide what you are going to do about that", shown on the sand to a player who had never
 	# seen the creature it means. Until they reach its stretch, the line is about the crossing.
-	if not director.was_entered("L3_N2") and not director.is_solved("L3_N2"):
+	if not director.was_entered("L3_N2") and not director.is_solved("L3_N2") \
+			and not _out_at_the_creature():
 		if director.committed_route("L3_N1") == "artist":
 			# Found is not aboard: the bangka goes into the water with E, and E again gets in.
 			if not _aboard():
@@ -3745,6 +3944,15 @@ func _nearest_interactable_utility() -> PhysicsShapeObject:
 	if nearest != null and nearest == _launched_boat and not _launched_boat.boards_on_interact():
 		return null
 	return nearest
+
+
+## Whether she is out where the creature is, or beyond it. By where she is rather than by what
+## was entered, so a rescue back to the beach puts the line back on the crossing.
+func _out_at_the_creature() -> bool:
+	var volume := get_node_or_null(^"EnvironmentBaseplate/GameplayPlane/Obstacles/L3_N2") \
+		as LevelObstacle2D
+	return volume != null \
+		and _anchor_now().x >= volume.global_position.x - volume.trigger_size.x * 0.5
 
 
 ## Whether the apo is sitting in the bangka.
@@ -3890,18 +4098,18 @@ func _put_back_what_the_restore_undid() -> void:
 func _float_the_bangka_again(state: Dictionary) -> void:
 	if not bool(state.get("boat_afloat", false)):
 		return
-	if _boat_afloat():
-		return
-	_launch_the_bangka()
+	if not _boat_afloat():
+		_launch_the_bangka()
 	var boat := _launched_boat
 	if boat == null or not is_instance_valid(boat) or boat.is_queued_for_deletion():
 		return
-	var at := Vector2(float(state.get("boat_x", boat.global_position.x)),
+	var landing := boat.global_transform
+	landing.origin = Vector2(float(state.get("boat_x", boat.global_position.x)),
 		float(state.get("boat_y", boat.global_position.y)))
-	PhysicsServer2D.body_set_state(boat.get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM,
-		Transform2D(0.0, at))
-	boat.global_position = at
+	PhysicsServer2D.body_set_state(boat.get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM, landing)
+	boat.global_transform = landing
 	boat.linear_velocity = Vector2.ZERO
+	boat.angular_velocity = 0.0
 	if bool(state.get("aboard", false)):
 		_seat_the_apo_again.call_deferred(boat)
 

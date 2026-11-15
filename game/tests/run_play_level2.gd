@@ -33,6 +33,12 @@ const HudOverlap = preload("res://tests/hud_overlap.gd")
 
 var failures := 0
 var _asked: Dictionary = {}
+## Pages of her diary read on the way through, every plan together: counted as the book opens,
+## not when the play loop next looks. ⚠ An unattended run puts the book down by itself after
+## DiaryOverlay.AUTO_HOLD, and a page found mid-climb (the second alley's, under the strings)
+## opened and closed again while `_climb_and_cut` was still running -- kept, read, and never
+## seen by a loop that only looked between actions.
+var _pages_read := 0
 ## Every HUD overlap seen while playing, first sighting only, with the beat it happened in.
 var _overlaps: Dictionary = {}
 var level: Node
@@ -53,6 +59,15 @@ func _run() -> void:
 	print("\n===== PIYESTA, PLAYED =====")
 	for plan: Dictionary in PLANS:
 		await _play(plan)
+	# Her diary: a page in the nave and one in each alley, lying on the way, so a run through the
+	# level finds all three -- the first plan does, and after that they are found already.
+	var profile := root.get_node("PlayerProfile")
+	var found: Array[String] = []
+	for page_id in ["piyesta_church", "piyesta_alley_1", "piyesta_alley_2"]:
+		if bool(profile.call("has_diary_page", page_id)):
+			found.append(page_id)
+	_check(found.size() == 3 and _pages_read >= 3, "her three pages are found on the way through",
+		"%d read, kept: %s" % [_pages_read, ", ".join(found)])
 	print("OBRA_PLAY_LEVEL2_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
 
@@ -63,6 +78,7 @@ func _play(plan: Dictionary) -> void:
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	(level.get("diary_overlay") as DiaryOverlay).opened.connect(_on_page_opened)
 	for _frame in range(40):
 		await physics_frame
 	var done: Dictionary = {}
@@ -121,6 +137,11 @@ func _play(plan: Dictionary) -> void:
 		await process_frame
 
 
+## A named method, not a lambda: a lambda would count into its own copy of the total.
+func _on_page_opened() -> void:
+	_pages_read += 1
+
+
 ## The screens that stop the world, answered the way a player answers them. True when one was
 ## up this frame.
 func _handle_screens(plan: Dictionary) -> bool:
@@ -139,6 +160,14 @@ func _handle_screens(plan: Dictionary) -> bool:
 				"asked at x %d" % int(player.global_position.x))
 		await _frames(20)
 		choice.call("_on_route_pressed", String(plan[asking]))
+		await _frames(10)
+		return true
+	# A page of her diary, found by walking over it: read, and put down.
+	var diary := level.get("diary_overlay") as DiaryOverlay
+	if diary != null and diary.is_open():
+		_release()
+		await _frames(20)
+		diary.close()
 		await _frames(10)
 		return true
 	var dance := level.get("dance_screen") as DanceOverlay

@@ -235,6 +235,11 @@ func _open_level(script: GDScript) -> Node:
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	for _frame in range(40):
 		await physics_frame
+	# Payyo's scene opens on its run of cards at the door, which is part of its opening, and a
+	# checkpoint reached during the opening says nothing on purpose (_on_checkpoint_area_reached).
+	var since := Time.get_ticks_msec()
+	while bool(level.get("_opening_running")) and Time.get_ticks_msec() - since < 5000:
+		await physics_frame
 	call_group(DialogueBox.GROUP, &"hide_line")
 	paused = false
 	await _frames(4)

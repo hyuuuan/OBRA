@@ -40,6 +40,16 @@ extends ModalOverlay
 ## of "what does this slot do", which depends on whether the drawing is a tool or a prop.
 signal slot_activated(slot: int)
 
+## Fires when the player takes a card they have drawn out of the bag to have it again, without
+## drawing it (Kent: "the users wont have to draw something if drawn already but it should cost
+## ink just like the same"). The level closes the screen and makes it from the page the class
+## was last drawn on, down the same path a fresh drawing takes -- see LevelBase._draw_again.
+signal drawn_again(class_id: String)
+
+## Whether a drawn card can be taken out to have again. Only where a level listens: the house has
+## this screen too, and nothing there could make it.
+var may_draw_again := false
+
 ## Named the way GameLevel names it: the key legend is read out of the LIVE InputMap, so a
 ## rebinding cannot leave this screen telling the player something untrue.
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
@@ -145,6 +155,16 @@ const STACKS := {
 ## The count, as a card writes it at the head of a sentence.
 const COUNT_WORDS := ["None", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
 
+## ⚠ WHAT A FACE-DOWN CARD SAYS: ITS NAME, SCRAMBLED, AND A LINE ABOUT IT. Kent, 2026-11-13: "it
+## should be the name now but in scrambled letters and its very short description. like for example
+## a DOG = ODG". It said what the class could DO before (its taught ability tags), because the
+## thesis's T1 and T2 hints never name a class; a scramble still spells nothing a player can read
+## off, but it is a stronger hint than any tier, so opening one stays logged as assistance
+## (`locked_card_hint`) and a later drawing of it is not counted as unaided. The lines are data,
+## one per class, in config/card_hints.json.
+const CARD_HINTS_PATH := "res://config/card_hints.json"
+static var _card_hints: Dictionary = {}
+
 ## How a creature gets about, as the card prints it.
 const MOVES := {
 	"fly": "Flies",
@@ -189,6 +209,19 @@ var _band_boxes: Dictionary = {}
 var _tab_buttons: Dictionary = {}
 var _tab_role := "active_ragdoll_morph"
 
+## THE FOURTH TAB IS HER DIARY (DIARY.md): the pages of Lola's diary found so far, as a book
+## that turns, in place of the lining's pockets and cards. It hangs under the three kinds, on the
+## same paper tabs -- Kent: "i only want the book not the tabs because i already have an
+## inventory tabs thing".
+const DIARY_TAB := "diary"
+var _body: Control
+var _diary_book: DiaryBook
+var _diary_page: Control
+var _blurb: Label
+var _footer: Label
+## How many pages the book was last filled with: when it grows, the book opens at the newest.
+var _diary_seen := -1
+
 ## The big card. `_detail_note` is what the thing IS. What it costs in ink is not shown: the
 ## gauge on the HUD says what is left, and the bag is for what you have.
 var _detail_card: PanelContainer
@@ -209,9 +242,13 @@ var _moves_value: Label
 var _note_row: HBoxContainer
 var _detail_note: Label
 var _use_button: Button
-## What is selected, as {"kind": "bag"|"found"|"drawn", "index"/"id"}.
+## What is selected, as {"kind": "bag"|"found"|"drawn"|"locked", "index"/"id"}; "locked" is a
+## card still face down.
 var _chosen: Dictionary = {}
 var _thumbnails: Dictionary = {}
+## Face-down cards whose hint has been logged since the bag was opened: one assistance event per
+## card per look, not one per time the arrows pass over it.
+var _hinted: Dictionary = {}
 
 ## ⚠ IT WAS A STILL PICTURE YOU COULD ONLY CLICK. Kent, of this screen: "i dont like how the
 ## animation is happening ... i cant scroll, drag, etc. from it". It snapped on in one frame,
@@ -288,6 +325,22 @@ func _shortcut_input(event: InputEvent) -> void:
 	close()
 
 
+## The first face-down card on show, for the lesson that has the player click one; null if none
+## is on show. The cards are rebuilt as drawings come in, so this is asked each time, not kept.
+func face_down_card() -> Control:
+	for value: Variant in _roster_buttons.values():
+		var button := value as Control
+		if button != null and is_instance_valid(button) and button.has_meta(&"face_down") \
+				and button.is_visible_in_tree():
+			return button
+	return null
+
+
+## What is chosen in the bag: {"kind": ...}. Read by the probes that click a card.
+func chosen() -> Dictionary:
+	return _chosen.duplicate()
+
+
 ## It plays its own entrance (see _on_opened); the base leaves it alone.
 func _animates_itself() -> bool:
 	return true
@@ -298,6 +351,7 @@ func _on_opened() -> void:
 	# on purpose. Same courtesy MemoryOverlay pays.
 	get_tree().call_group(DialogueBox.GROUP, &"hide_line")
 	_chosen = {}
+	_hinted = {}
 	_pan = 0.0
 	refresh()
 	_rise()
@@ -341,10 +395,10 @@ func _input(event: InputEvent) -> void:
 	var wheel := event as InputEventMouseButton
 	if wheel != null:
 		if wheel.pressed and wheel.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_RIGHT]:
-			_step(1)
+			_advance(1)
 			get_viewport().set_input_as_handled()
 		elif wheel.pressed and wheel.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT]:
-			_step(-1)
+			_advance(-1)
 			get_viewport().set_input_as_handled()
 		return
 	# A Mac trackpad does not turn a wheel: two fingers arrive as a pan, in small amounts.
@@ -357,16 +411,16 @@ func _input(event: InputEvent) -> void:
 		_last_pan_frame = Engine.get_process_frames()
 		_pan += pan.delta.y + pan.delta.x
 		while absf(_pan) >= PAN_STEP:
-			_step(1 if _pan > 0.0 else -1)
+			_advance(1 if _pan > 0.0 else -1)
 			_pan -= PAN_STEP * signf(_pan)
 		return
 	if event.is_action_pressed(&"ui_right", true) or event.is_action_pressed(&"ui_down", true):
-		_step(1)
+		_advance(1)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed(&"ui_left", true) or event.is_action_pressed(&"ui_up", true):
-		_step(-1)
+		_advance(-1)
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed(&"ui_accept") and String(_chosen.get("kind", "")) == "bag":
+	elif event.is_action_pressed(&"ui_accept") and String(_chosen.get("kind", "")) in ["bag", "drawn"]:
 		get_viewport().set_input_as_handled()
 		_use_chosen()
 
@@ -385,9 +439,18 @@ func _choices() -> Array[Dictionary]:
 	var drawn: Array = profile.call("get_drawn_classes") if profile != null else []
 	for band: Variant in BANDS:
 		for id in _ids_with_role(String((band as Dictionary)["role"])):
-			if drawn.has(id):
-				out.append({"kind": "drawn", "id": id})
+			# A face-down card is chosen too, by the arrows as by the mouse: it hints.
+			out.append({"kind": "drawn" if drawn.has(id) else "locked", "id": id})
 	return out
+
+
+## What the wheel and the arrows do: turn her pages while the diary is open, and step through
+## the bag otherwise.
+func _advance(direction: int) -> void:
+	if _tab_role == DIARY_TAB:
+		_diary_book.turn(direction)
+	else:
+		_step(direction)
 
 
 func _step(direction: int) -> void:
@@ -445,14 +508,46 @@ func _drop_on_bag(_at: Vector2, data: Variant, index: int) -> void:
 	_show_choice()
 
 
+## A card the player has drawn, carried out of the bag to have again. The same picture the card
+## shows, on the pointer.
+func _drag_from_roster(_at: Vector2, id: String) -> Variant:
+	if not _can_draw_again(id):
+		return null
+	_chosen = {"kind": "drawn", "id": id}
+	refresh()
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var art := TextureRect.new()
+	art.texture = _class_drawing(id)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.size = BAG_SLOT
+	art.position = -BAG_SLOT * 0.5
+	art.modulate = Color(1.0, 1.0, 1.0, 0.85)
+	holder.add_child(art)
+	# Only a drag the GUI started can carry a picture; asked outside one (run_draw_again_probe), the
+	# engine refuses the picture with an error, and the answer is all that was wanted.
+	if get_viewport().gui_is_dragging():
+		(_roster_buttons[id] as Control).set_drag_preview(holder)
+	else:
+		holder.free()
+	return {"drawn_class": id}
+
+
 func _can_drop_outside(_at: Vector2, data: Variant) -> bool:
-	return data is Dictionary and (data as Dictionary).has("bag_slot")
+	return data is Dictionary and ((data as Dictionary).has("bag_slot") \
+		or (data as Dictionary).has("drawn_class"))
 
 
 ## Out of the bag -- the same thing TAKE IT OUT does, so a tool goes into the hand and a thing
-## to set down goes onto the cursor, right where it was let go.
+## to set down goes onto the cursor, right where it was let go. A drawn card is had again.
 func _drop_outside(_at: Vector2, data: Variant) -> void:
-	_chosen = {"kind": "bag", "index": int((data as Dictionary)["bag_slot"])}
+	var carried := data as Dictionary
+	if carried.has("drawn_class"):
+		_chosen = {"kind": "drawn", "id": String(carried["drawn_class"])}
+	else:
+		_chosen = {"kind": "bag", "index": int(carried["bag_slot"])}
 	_use_chosen()
 
 
@@ -529,6 +624,9 @@ func _build() -> void:
 
 	var margins := MarginContainer.new()
 	margins.name = "Lining"
+	# The leather padding can be the GUI's drag target too, before the outer panel.
+	margins.set_drag_forwarding(Callable(), _can_drop_outside, _drop_outside)
+	bag.set_drag_forwarding(Callable(), _can_drop_outside, _drop_outside)
 	margins.add_theme_constant_override(&"margin_left", LINING_MARGIN)
 	margins.add_theme_constant_override(&"margin_right", LINING_MARGIN)
 	margins.add_theme_constant_override(&"margin_top", 14)
@@ -598,6 +696,9 @@ func _build() -> void:
 	_build_found(carried)
 	_build_roster(left)
 	_build_detail(body)
+	_body = body
+	_blurb = blurb
+	_build_diary(lining)
 
 	# The footer, stitched into the bottom band.
 	var footer := Label.new()
@@ -609,9 +710,8 @@ func _build() -> void:
 	footer.add_theme_color_override(&"font_color", PARCHMENT_LIT)
 	footer.add_theme_constant_override(&"outline_size", 5)
 	footer.add_theme_color_override(&"font_outline_color", BagArt.OUTLINE)
-	footer.text = "%s to close  ·  scroll to look through  ·  drag a drawing to another pocket, or out of the bag to use it" \
-		% ControlsKeys.keys_for("inventory_open")
 	column.add_child(footer)
+	_footer = footer
 
 	_build_tabs(frame)
 	_show_tab(_tab_role)
@@ -812,8 +912,11 @@ func _build_tabs(parent: Control) -> void:
 	spacer.custom_minimum_size = Vector2(0.0, BagArt.FLAP_H + 36.0)
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(spacer)
+	var roles: Array[String] = []
 	for band: Variant in BANDS:
-		var role := String((band as Dictionary)["role"])
+		roles.append(String((band as Dictionary)["role"]))
+	roles.append(DIARY_TAB)
+	for role in roles:
 		var tab := Button.new()
 		tab.name = "%sTab" % role
 		tab.focus_mode = Control.FOCUS_NONE
@@ -827,6 +930,45 @@ func _build_tabs(parent: Control) -> void:
 		tab.pressed.connect(_show_tab.bind(role))
 		column.add_child(tab)
 		_tab_buttons[role] = tab
+
+
+## Her diary, in the lining beside the pockets and cards, shown instead of them on its tab.
+##
+## ⚠ THE BAG DOES NOT CHANGE SIZE FROM TAB TO TAB (see _build_roster). The book is a few pixels
+## taller than the pockets and cards (672 against 667), so the cards are given the book's height;
+## and the book is given the cards' width when its tab opens (_show_tab).
+## ⚠ NOT MEASURED HERE: before the first layout the big card's wrapped labels stand one word to a
+## line, and the cards measured 1709 tall -- the bag came out twice the height of the screen.
+func _build_diary(lining: Control) -> void:
+	_diary_book = DiaryBook.new()
+	_diary_book.name = "DiaryBook"
+	var holder := CenterContainer.new()
+	holder.name = "Diary"
+	holder.add_child(_diary_book)
+	lining.add_child(holder)
+	_diary_page = holder
+	_body.custom_minimum_size.y = _diary_book.custom_minimum_size.y
+	holder.visible = false
+
+
+## The pages found so far, in the order she wrote them; and when there is a new one, the book
+## opens at it -- the reason to open the tab after finding one is to read it.
+func _refresh_diary() -> void:
+	var found := Diary.found()
+	_diary_book.set_entries(found)
+	if found.size() > _diary_seen and not found.is_empty():
+		var profile := get_node_or_null(^"/root/PlayerProfile")
+		var order: Array = profile.call(&"diary_pages") if profile != null else []
+		_diary_book.open_at(String(order.back()) if not order.is_empty() else String(found.back()["id"]))
+	_diary_seen = found.size()
+	var tab := _tab_buttons.get(DIARY_TAB) as Button
+	if tab != null:
+		tab.text = "DIARY\n%d / %d" % [found.size(), Diary.entries().size()]
+
+
+## The open diary's book, for a probe.
+func diary_book() -> DiaryBook:
+	return _diary_book
 
 
 
@@ -1132,7 +1274,8 @@ func _paint(button: Button, occupied: bool, chosen: bool, quiet: bool = false) -
 			box = _flat(UISkin.GILT_HI if chosen else UISkin.GILT,
 				UISkin.GILT_HI if chosen else UISkin.GILT_EDGE, 4 if chosen else 3, 4)
 		else:
-			box = _flat(UISkin.WOOD_DARK, UISkin.WOOD_EDGE, 3, 4)
+			box = _flat(UISkin.WOOD if chosen else UISkin.WOOD_DARK,
+				UISkin.GILT_HI if chosen else UISkin.WOOD_EDGE, 4 if chosen else 3, 4)
 	else:
 		# A pocket sewn into the lining -- with a sheet of the canvas's paper in it once it
 		# holds a drawing, or the dark ink vanishes into the leather.
@@ -1141,13 +1284,24 @@ func _paint(button: Button, occupied: bool, chosen: bool, quiet: bool = false) -
 	for state in [&"normal", &"hover", &"pressed", &"disabled", &"focus"]:
 		button.add_theme_stylebox_override(state, box)
 	button.modulate = Color(1.1, 1.1, 1.04) if chosen else Color.WHITE
-	button.set_meta(&"live", occupied)
+	# Every roster card can be picked now -- a face-down one for its hint -- so every one lifts.
+	button.set_meta(&"live", occupied or quiet)
 
 
 func _show_tab(role: String) -> void:
 	_tab_role = role
 	for key: String in _band_boxes:
 		(_band_boxes[key] as Control).visible = key == role
+	var reading := role == DIARY_TAB
+	if reading and _body.size.x > 0.0:
+		_diary_page.custom_minimum_size.x = _body.size.x
+	_body.visible = not reading
+	_diary_page.visible = reading
+	_blurb.text = "her diary: a page from every painting, where you find it" if reading \
+		else "what you are carrying, and every drawing you have made your own"
+	_footer.text = ("%s to close  ·  click a page, scroll or use the arrows to turn it" if reading \
+		else "%s to close  ·  scroll to look through  ·  drag a drawing to another pocket, or out of the bag to use it") \
+		% ControlsKeys.keys_for("inventory_open")
 	for key: String in _tab_buttons:
 		var tab := _tab_buttons[key] as Button
 		var is_open_tab := key == role
@@ -1174,6 +1328,7 @@ func refresh() -> void:
 	_refresh_bag()
 	_refresh_found()
 	_refresh_roster()
+	_refresh_diary()
 	_refresh_detail()
 
 
@@ -1249,8 +1404,8 @@ func _refresh_roster() -> void:
 	var built_for := [drawn.duplicate(), version]
 	if _roster_built_for is Array and (_roster_built_for as Array) == built_for:
 		for id: String in _roster_buttons:
-			var chosen := String(_chosen.get("kind", "")) == "drawn" \
-				and String(_chosen.get("id", "")) == id and drawn.has(id)
+			var chosen := String(_chosen.get("kind", "")) in ["drawn", "locked"] \
+				and String(_chosen.get("id", "")) == id
 			_paint(_roster_buttons[id] as Button, drawn.has(id), chosen, true)
 		return
 	_roster_built_for = built_for
@@ -1287,18 +1442,22 @@ func _fill_band(role: String, title: String, drawn: Array) -> void:
 		var button := _slot_button(ROSTER_SLOT)
 		button.set_meta(&"role", role)
 		var owned := drawn.has(id)
-		var chosen := String(_chosen.get("kind", "")) == "drawn" \
-			and String(_chosen.get("id", "")) == id and owned
+		var chosen := String(_chosen.get("kind", "")) in ["drawn", "locked"] \
+			and String(_chosen.get("id", "")) == id
 		grid.add_child(button)
 		_roster_buttons[id] = button
 		_paint(button, owned, chosen, true)
 		if not owned:
-			# Face down: unnamed, untooltipped, unclickable. What it says is "one more of this
-			# kind is out there", and nothing else.
+			# Face down: unnamed and untooltipped. Clicked, the big card hints at it by its name
+			# scrambled and a short line -- see CARD_HINTS_PATH.
+			button.set_meta(&"face_down", true)
+			button.pressed.connect(_choose_locked.bind(id))
 			button.add_child(_card_back())
 			continue
 		button.tooltip_text = _display_name(id)
 		button.pressed.connect(_choose_drawn.bind(id))
+		if _can_draw_again(id):
+			button.set_drag_forwarding(_drag_from_roster.bind(id), Callable(), Callable())
 		button.add_child(_card_face_art(id, role))
 		# ⚠ THE NAME IS THE CARD'S ONLY DIRECT LABEL. run_book_probe reads every Label directly
 		# under a card as a name on show, and an empty book must show none.
@@ -1428,7 +1587,14 @@ func _ids_with_role(role: String) -> Array[String]:
 
 func _refresh_detail() -> void:
 	var kind := String(_chosen.get("kind", ""))
-	_use_button.visible = kind == "bag"
+	# A drawn card's button has it again; one whose page this save never kept says why it can't.
+	# ⚠ SHORT. The button sizes the column it sits in: "DRAW IT ONCE MORE FIRST" widened it and
+	# pushed the tabs off the screen's edge. The canvas above already says to draw it again.
+	var again := kind == "drawn" and may_draw_again
+	_use_button.visible = kind == "bag" or again
+	_use_button.disabled = again and not _can_draw_again(String(_chosen.get("id", "")))
+	_use_button.text = "TAKE IT OUT" if not again \
+		else ("REDRAW FIRST" if _use_button.disabled else "USE IT AGAIN")
 	if kind.is_empty():
 		_style_detail(_palette(""))
 		_detail_number.text = ""
@@ -1479,6 +1645,9 @@ func _refresh_detail() -> void:
 		_set_rows("", "")
 		return
 	var class_id := String(_chosen.get("id", ""))
+	if kind == "locked":
+		_fill_locked_card(class_id)
+		return
 	_fill_class_card(class_id, _class_drawing(class_id))
 
 
@@ -1505,6 +1674,78 @@ func _fill_class_card(class_id: String, art: Texture2D) -> void:
 		moves = "Only on water"
 	_set_rows(moves, _role_of(class_id))
 
+
+
+## A card still face down: its kind and number, its name with the letters scrambled, and one short
+## line about it. Opening it is help, and is logged as help.
+func _fill_locked_card(class_id: String) -> void:
+	var entry: Dictionary = registry.get_entity(class_id) if registry != null else {}
+	var palette := _palette(String(entry.get("runtime_role", "")))
+	_style_detail(palette)
+	_detail_number.text = "No. %02d" % _roster_number(class_id)
+	_detail_title.text = scrambled_name(_display_name(class_id))
+	_detail_kind.text = String(palette["kind"])
+	_set_art(null, "Still face down. Draw it to turn it over.")
+	_set_ability("Hint", locked_hint(class_id))
+	# Its skills were the old hint; the scramble and the line replace them, not join them.
+	_set_skills([])
+	_set_rows("", _role_of(class_id))
+	_log_locked_hint(class_id)
+
+
+## The short line a face-down card gives about its class (config/card_hints.json).
+static func locked_hint(class_id: String) -> String:
+	if _card_hints.is_empty():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CARD_HINTS_PATH))
+		if parsed is Dictionary:
+			_card_hints = (parsed as Dictionary).get("hints", {})
+	return String(_card_hints.get(class_id, ""))
+
+
+## `display` with each word's letters shuffled: "Dog" is "ODG". The same shuffle every time for the
+## same name, so a card does not read differently each time it is opened, and never the word
+## itself -- a shuffle that lands back where it started is turned by one letter.
+static func scrambled_name(display: String) -> String:
+	var words := PackedStringArray()
+	for word in display.to_upper().split(" ", false):
+		words.append(_scrambled_word(word))
+	return " ".join(words)
+
+
+static func _scrambled_word(word: String) -> String:
+	var letters: Array[String] = []
+	var state := 7
+	for i in word.length():
+		letters.append(word[i])
+		state = (state * 31 + word.unicode_at(i)) % 2147483647
+	# Fisher-Yates on a fixed little generator, not the engine's: hash() and RandomNumberGenerator
+	# make no promise to give the same sequence on every version and machine.
+	for i in range(letters.size() - 1, 0, -1):
+		state = (state * 1103515245 + 12345) % 2147483648
+		var j := state % (i + 1)
+		var held := letters[i]
+		letters[i] = letters[j]
+		letters[j] = held
+	var shuffled := "".join(letters)
+	if shuffled == word and word.length() > 1:
+		shuffled = word.substr(1) + word.substr(0, 1)
+	return shuffled
+
+
+func _log_locked_hint(class_id: String) -> void:
+	if _hinted.has(class_id):
+		return
+	_hinted[class_id] = true
+	var telemetry := get_node_or_null(^"/root/Telemetry")
+	var levels := get_node_or_null(^"/root/LevelManager")
+	if telemetry == null:
+		return
+	telemetry.call("record_event", "locked_card_hint", {
+		"level_id": String(levels.get("current_level_id")) if levels != null else "",
+		"entity_id": class_id,
+		"shows": "scrambled_name",
+		"assisted": true,
+	})
 
 
 func _style_detail(palette: Dictionary) -> void:
@@ -1582,12 +1823,19 @@ func _choose_drawn(id: String) -> void:
 	_show_choice()
 
 
+func _choose_locked(id: String) -> void:
+	_chosen = {"kind": "locked", "id": id}
+	_follow_choice_to_tab()
+	refresh()
+	_show_choice()
+
+
 ## What is chosen -- a card, or a drawing in a pocket -- may be of a kind whose tab is not
 ## open; open it, so its card is in view beside the big one.
 func _follow_choice_to_tab() -> void:
 	var kind := String(_chosen.get("kind", ""))
 	var id := ""
-	if kind == "drawn":
+	if kind in ["drawn", "locked"]:
 		id = String(_chosen.get("id", ""))
 	elif kind == "bag" and inventory_manager != null:
 		var item := inventory_manager.peek_item(int(_chosen.get("index", -1)))
@@ -1602,11 +1850,27 @@ func _follow_choice_to_tab() -> void:
 ## Hand the slot back to the level, which decides what a slot DOES -- a tool goes into the
 ## hand and a prop goes into a placement, and that judgement already exists in one place.
 func _use_chosen() -> void:
-	if String(_chosen.get("kind", "")) != "bag":
+	var kind := String(_chosen.get("kind", ""))
+	if kind == "drawn":
+		var id := String(_chosen.get("id", ""))
+		if not _can_draw_again(id):
+			return
+		close()
+		drawn_again.emit(id)
+		return
+	if kind != "bag":
 		return
 	var slot := int(_chosen.get("index", -1))
 	close()
 	slot_activated.emit(slot)
+
+
+## Whether a drawn card can be had again here: a level is listening, and this save kept the page
+## it was drawn on -- one drawn before pages were kept has to be drawn once more first.
+func _can_draw_again(id: String) -> bool:
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	return may_draw_again and profile != null and profile.has_method("has_class_page") \
+		and bool(profile.call("has_class_page", id))
 
 
 # --- Reading -------------------------------------------------------------------------

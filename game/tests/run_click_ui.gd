@@ -61,6 +61,8 @@ func _run() -> void:
 	await _placing_click_reaches_the_world()
 	await _a_click_places_it_and_right_click_takes_it_back()
 	await _the_bag_screen_answers_the_mouse()
+	await _the_bar_drags_into_the_world()
+	await _a_drawn_card_comes_out_of_the_bag_with_a_mouse()
 	await _dialogue_choices_answer_a_click()
 	await _a_page_turn_does_not_answer_the_question()
 	await _escape_during_a_question_is_not_a_pause_menu()
@@ -78,10 +80,8 @@ func _run() -> void:
 
 ## Everything the run is about to click, actually on screen and laid out.
 ##
-## The window is checked for FOCUS too. Events go straight into the viewport now rather
-## than through the window manager, so focus is not needed to deliver them -- but an
-## unfocused window on this platform is one that has not finished being mapped, and a
-## Control laid out during that has not necessarily settled where it will end up.
+## The mouse canary proves GUI readiness directly. Window focus is not required for
+## viewport injection, and macOS may map a fully laid-out game behind another app.
 ## AN EMPTY BAG DRAWS NOTHING, so a suite that clicks a slot has to put something in it
 ## first. That is also the honest test: a player clicks a slot to place the drawing that is
 ## in it, and there is no reason to click one that is empty. Without this the canary finds
@@ -107,8 +107,8 @@ func _ready_to_click() -> bool:
 			continue
 		if draw_button.get_global_rect().get_center().x <= 0.0:
 			continue
-		if not DisplayServer.window_is_focused():
-			continue
+		# Focus is not required by viewport injection. The real GUI canary below proves
+		# mapping/input readiness directly, including when macOS opens us behind an app.
 		# Settled, then two more frames for the layout pass that follows the last one.
 		await process_frame
 		await process_frame
@@ -128,6 +128,15 @@ func _mouse_reaches_the_gui() -> bool:
 	slot.pressed.connect(probe)
 	await _click(slot)
 	slot.pressed.disconnect(probe)
+	# ⚠ THE CANARY'S CLICK STARTS A PLACEMENT: a slot holding a drawing takes it out to set down.
+	# Clicking Draw used to cancel it, and since 72aadff6 Draw neither cancels one nor takes a
+	# click while one is up -- the rotate and scale keys have its corner -- so the Draw checks
+	# below found it disabled, and their click fell through to the world and set the square
+	# down. Put back, the way a player backing out would, before anything else is clicked.
+	var placement := level.get("placement_controller") as Node
+	if placement != null and bool(placement.call("is_placing")):
+		placement.call("cancel_placement")
+		await process_frame
 	return landed[0]
 
 
@@ -171,9 +180,10 @@ func _panel_buttons_answer_a_click() -> void:
 		await _wait(0.4)
 
 	var clear := panel.get_node_or_null("PanelRoot/ClearButton") as Button
+	var undo := panel.get_node_or_null("PanelRoot/UndoButton") as Button
 	var transform := panel.get_node_or_null("PanelRoot/TransformButton") as Button
-	if clear == null or transform == null:
-		_fail("panel buttons", "the panel has no Clear or Transform button")
+	if clear == null or undo == null or transform == null:
+		_fail("panel buttons", "the panel has no Clear, Undo, or Transform button")
 		return
 
 	var cleared := [false]
@@ -196,6 +206,16 @@ func _panel_buttons_answer_a_click() -> void:
 		canvas.call("_append_point", Vector2(330.0, 380.0), true)
 		canvas.set("_current_line", null)
 		await _wait(0.3)
+
+		canvas.call("_start_stroke", Vector2(330.0, 380.0))
+		canvas.call("_append_point", Vector2(420.0, 260.0), true)
+		canvas.set("_current_line", null)
+		_check(canvas.get_strokes().size() == 2, "a second stroke is recorded",
+			"two strokes on the page")
+		await _click(undo)
+		_check(canvas.get_strokes().size() == 1, "Undo removes only the last stroke",
+			"one earlier stroke remains" if canvas.get_strokes().size() == 1
+			else "%d strokes remain" % canvas.get_strokes().size())
 
 	var transformed := [false]
 	transform.pressed.connect(func() -> void: transformed[0] = true)
@@ -679,12 +699,162 @@ func _the_bag_screen_answers_the_mouse() -> void:
 		screen.close()
 
 
+## ⚠ THE BAR DRAGS, WITH A MOUSE. Kent: "make the inventory draggable so that the users wont have
+## to draw the exact same thing". Pressed on its slot and moved, a drawing in the bar comes out on
+## the pointer; let go on open ground it is set down there, and let go back on the bar it goes back.
+## run_bag_drag_probe holds the rules in every level; this holds that a real pointer does it.
+func _the_bar_drags_into_the_world() -> void:
+	var placement := level.get("placement_controller") as PlacementController
+	var bag := level.get("inventory_manager") as InventoryManager
+	var hud := level.get("inventory_hud") as InventoryHUD
+	var body := level.get("player") as Node2D
+	if placement == null or bag == null or hud == null or body == null:
+		_fail("the bar drags", "the level did not build what this needs")
+		return
+	if placement.is_placing():
+		placement.cancel_placement()
+	# Open ground beside her, asked of the placement itself, then a bag with one ladder in it.
+	var probe := _bar_item()
+	var ground: Variant = null
+	if placement.begin_placement(probe, body, -1):
+		var anchor := body.global_position
+		if body.has_method("get_physics_anchor") and body.call("get_physics_anchor") != null:
+			anchor = (body.call("get_physics_anchor") as Node2D).global_position
+		for offset: Vector2 in [Vector2(220, -80), Vector2(-220, -80), Vector2(160, -160),
+				Vector2(-160, -160), Vector2(260, -20)]:
+			placement.update_target(anchor + offset)
+			if placement.is_valid():
+				ground = anchor + offset
+				break
+		placement.cancel_placement()
+	for slot in range(bag.capacity):
+		while bag.take_item(slot) != null:
+			pass
+	if ground == null:
+		_fail("a drawing dragged off the bar is set down", "no open ground beside her to try")
+		return
+	var ladder := _bar_item()
+	bag.add_item(ladder, 0)
+	for _frame in range(90):
+		await process_frame
+		if hud.visible and hud.modulate.a > 0.95:
+			break
+	var slots: Array = hud.get("_buttons")
+	var from := (slots[0] as Control).get_global_rect().get_center()
+	var onto := (level as Node2D).get_viewport().get_canvas_transform() * (ground as Vector2)
+	await _drag(from, onto)
+	await _wait(0.3)
+	var placed := level.get("_last_placed") as Node2D
+	_check(not placement.is_placing() and bag.count(0) == 0 and placed != null
+			and is_instance_valid(placed) and placed.get("item_data") == ladder,
+		"a drawing dragged off the bar is set down where it is let go",
+		"placed at %s" % placed.global_position.round() if placed != null
+			and placed.get("item_data") == ladder else "placing %s, slot holds %d"
+			% [placement.is_placing(), bag.count(0)])
+	# Off the bar and back onto it: put back, nothing set down.
+	var again := _bar_item()
+	bag.add_item(again, 0)
+	await _wait(0.2)
+	await _drag((slots[0] as Control).get_global_rect().get_center(),
+		(slots[3] as Control).get_global_rect().get_center())
+	await _wait(0.3)
+	_check(not placement.is_placing() and bag.count(0) == 1 and level.get("_last_placed") != null
+			and (level.get("_last_placed") as Node).get("item_data") != again,
+		"and one dragged back onto the bar goes back in", "slot holds %d" % bag.count(0))
+	if placed != null and is_instance_valid(placed):
+		placed.queue_free()
+	for slot in range(bag.capacity):
+		while bag.take_item(slot) != null:
+			pass
+
+
+## ⚠ A DRAWN CARD COMES OUT OF THE BAG, WITH A MOUSE. Kent: "the users wont have to draw something
+## if drawn already but it should cost ink just like the same". run_draw_again_probe holds the
+## costs; this holds that a real pointer does it: a card dragged off the bag is had again (a
+## ladder, onto the cursor), and USE IT AGAIN answers a click (a frog, which she becomes).
+func _a_drawn_card_comes_out_of_the_bag_with_a_mouse() -> void:
+	var placement := level.get("placement_controller") as PlacementController
+	var bag := level.get("inventory_manager") as InventoryManager
+	var profile := root.get_node_or_null("PlayerProfile")
+	var screen := level.get("inventory_screen") as InventoryScreen
+	if placement == null or bag == null or profile == null or screen == null:
+		_fail("a drawn card comes out of the bag", "the level did not build what this needs")
+		return
+	if placement.is_placing():
+		placement.cancel_placement()
+	for slot in range(bag.capacity):
+		while bag.take_item(slot) != null:
+			pass
+	var ink = level.get("ink_manager")
+	ink.set("committed", 0.0)
+	ink.call("release_attempt")
+	# Two drawings this save has made, their pages kept as the panel keeps them.
+	var page := Image.create(512, 512, false, Image.FORMAT_RGBA8)
+	page.fill(Color(0.96, 0.94, 0.88))
+	var rails: Array = []
+	for line: Array in [[Vector2(200, 120), Vector2(200, 400)], [Vector2(300, 120), Vector2(300, 400)],
+			[Vector2(200, 200), Vector2(300, 200)], [Vector2(200, 320), Vector2(300, 320)]]:
+		rails.append({"points": PackedVector2Array(line), "width": 6.0, "color": Color.BLACK})
+	for id: String in ["ladder", "frog"]:
+		profile.call("record_class_drawn", id)
+		profile.call("record_class_page", id, page, rails, 0.9)
+	screen.open()
+	screen.call("_choose_drawn", "ladder")
+	for _frame in range(120):
+		await process_frame
+		if screen.is_settled():
+			break
+	await _wait(0.3)
+	var card := (screen.get("_roster_buttons") as Dictionary).get("ladder") as Control
+	if card == null or not card.is_visible_in_tree():
+		_fail("a drawn card dragged off the bag", "the ladder's card is not on screen")
+		screen.close()
+		return
+	await _drag(card.get_global_rect().get_center(), Vector2(root.get_visible_rect().size.x * 0.5, 40.0))
+	var on_pointer: DrawnItemData = placement.get("_item")
+	_check(not screen.is_open() and placement.is_placing() and on_pointer != null
+			and on_pointer.entity_id == "ladder",
+		"a drawn card dragged off the bag is had again", "placing %s, bag %s" % [
+			on_pointer.entity_id if on_pointer != null else "nothing", "open" if screen.is_open() else "shut"])
+	if placement.is_placing():
+		placement.cancel_placement()
+	await _wait(0.2)
+	screen.open()
+	screen.call("_choose_drawn", "frog")
+	for _frame in range(120):
+		await process_frame
+		if screen.is_settled():
+			break
+	await _wait(0.3)
+	var again := screen.get("_use_button") as Button
+	await _click(again)
+	await _wait(0.3)
+	_check(not screen.is_open() and String(level.get("_current_form_id")) == "frog",
+		"and USE IT AGAIN answers a click", "form \"%s\", bag %s" % [level.get("_current_form_id"),
+			"open" if screen.is_open() else "shut"])
+	if screen.is_open():
+		screen.close()
+	level.call("_revert_to_base_form")
+	await _wait(0.3)
+
+
+func _bar_item() -> DrawnItemData:
+	var item := DrawnItemData.new()
+	item.entity_id = "ladder"
+	item.display_name = "Ladder"
+	item.ink_committed = true
+	return item
+
+
 ## Press, move in steps with the button held, let go. Each step carries how far it moved,
 ## because Godot starts a drag on the distance travelled, not on where the pointer is.
 func _drag(from: Vector2, to: Vector2) -> void:
 	_inject(_motion(from))
-	for _frame in range(4):
+	for _frame in range(30):
 		await process_frame
+		var hovered := root.gui_get_hovered_control()
+		if hovered is Button and hovered.get_global_rect().has_point(from):
+			break
 	_inject(_button(from, true))
 	await process_frame
 	var last := from
@@ -697,6 +867,10 @@ func _drag(from: Vector2, to: Vector2) -> void:
 		_inject(held)
 		await process_frame
 		await process_frame
+	for _frame in range(30):
+		await process_frame
+		if root.get_mouse_position().distance_to(to) < 2.0:
+			break
 	_inject(_button(to, false))
 	for _frame in range(4):
 		await process_frame

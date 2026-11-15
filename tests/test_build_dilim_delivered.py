@@ -64,6 +64,21 @@ def _height(frame: np.ndarray) -> int:
 
 
 class DeliveredStripsTest(unittest.TestCase):
+    def test_nuno_has_solid_faces_hats_beards_and_matches_the_collision_dome(self) -> None:
+        for name, picture in delivered.poses("nuno").items():
+            px = np.asarray(picture).astype(int)
+            opaque = px[..., 3] > 128
+            holes = delivered.ndimage.binary_fill_holes(opaque) & ~opaque
+            self.assertFalse(holes.any(), f"{name}: transparent body detail")
+            _, pieces = delivered.ndimage.label(opaque, structure=np.ones((3, 3)))
+            self.assertEqual(pieces, 1, f"{name}: stray decoration")
+            if name not in ("mound", "offering"):
+                r, g, b = (px[..., c] for c in range(3))
+                self.assertGreater(int((opaque & (r > 170) & (g > 100) & (b < 130)).sum()), 100)
+                self.assertGreater(int((opaque & (r > 160) & (g > 150) & (b > 125)).sum()), 60)
+        self.assertEqual(delivered._figure("nuno", "mound").size, (150, 34))
+        self.assertEqual(_height(_frames(self.strips["nuno_mound_idle"])[0]), 34)
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.strips = delivered.strips()
@@ -109,9 +124,148 @@ class DeliveredStripsTest(unittest.TestCase):
         # branch; the manananggal's wings wide enough to be the thing hunting from above.
         self.assertTrue(110 <= _height(_frames(self.strips["aswang_dog_idle"])[0]) <= 124)
         self.assertTrue(140 <= _height(_frames(self.strips["kapre_idle"])[0]) <= 170)
+        self.assertTrue(130 <= _height(_frames(self.strips["tikbalang_idle"])[0]) <= 150)
         wings = _frames(self.strips["manananggal_upper_idle"])[0][..., 3] > 0
         cols = np.nonzero(wings.any(axis=0))[0]
         self.assertTrue(120 <= cols.max() - cols.min() + 1 <= 160, f"wings {cols.max() - cols.min() + 1} px")
+
+    def test_tiyanak_has_a_normal_baby_a_transformation_and_a_solid_monster(self) -> None:
+        poses = delivered.poses("tiyanak")
+        for name, image in poses.items():
+            px = np.asarray(image).astype(int)
+            opaque = px[..., 3] > 128
+            holes = delivered.ndimage.binary_fill_holes(opaque) & ~opaque
+            self.assertFalse(holes[:image.height // 2].any(), f"{name}: holes in its head or face")
+        for name in ("cry1", "cry2", "cry3", "cry4"):
+            px = np.asarray(poses[name]).astype(int)
+            white = (px[..., 3] > 128) & (px[..., :3].min(axis=2) > 170)
+            red_eye = (px[..., 3] > 128) & (px[..., 0] > 190) & (px[..., 1] < 60) & (px[..., 2] < 60)
+            self.assertGreater(int(white.sum()), 2000, f"{name}: missing swaddling cloth")
+            self.assertFalse(red_eye.any(), f"{name}: the lure is already a red-eyed monster")
+        for name in ("change6", "snarl1", "crawl1", "jump1"):
+            px = np.asarray(poses[name]).astype(int)
+            red_eye = (px[..., 3] > 128) & (px[..., 0] > 190) & (px[..., 1] < 60) & (px[..., 2] < 60)
+            self.assertGreater(int(red_eye.sum()), 10, f"{name}: missing transformed red eyes")
+
+    def test_bungisngis_keeps_solid_ink_and_only_the_real_gap_between_its_legs(self) -> None:
+        for name, picture in delivered.poses("bungisngis").items():
+            px = np.asarray(picture).astype(int)
+            r, g, b, a = (px[..., c] for c in range(4))
+            opaque = a > 128
+            holes = delivered.ndimage.binary_fill_holes(opaque) & ~opaque
+            if name == "idle4":
+                # This is panel seen between its thighs, not an erased dark body detail.
+                self.assertTrue(holes.any())
+                self.assertFalse(holes[:int(picture.height * 0.8)].any())
+                self.assertLess(int(holes.sum()), 50)
+            else:
+                self.assertFalse(holes.any(), f"{name}: a transparent hole through the giant")
+            _, components = delivered.ndimage.label(opaque, structure=np.ones((3, 3)))
+            self.assertEqual(components, 1, f"{name}: stray sheet label or impact mark")
+            skin = opaque & (g > r) & (g > b + 15) & (g > 40)
+            self.assertGreater(int(skin.sum()), 2500, f"{name}: missing green skin")
+            # The raised forearm deliberately hides its face in the lift drawing.
+            if name != "lift":
+                eye = opaque & (r > 150) & (g > 70) & (g < 220) & (b < 60) & (r > g + 25)
+                self.assertGreater(int(eye.sum()), 20, f"{name}: missing golden eye")
+                self.assertGreater(np.nonzero(eye)[1].mean(), np.nonzero(skin)[1].mean(),
+                                   f"{name}: should face right, including the mirrored hurt pose")
+
+    def test_wakwak_keeps_every_blue_feather_pixel_and_its_dark_wing_outline(self) -> None:
+        def blue_ink(px: np.ndarray) -> np.ndarray:
+            r, g, b = (px[..., c] for c in range(3))
+            return (g > r + 15) & (b > g + 8) & (b > 50)
+
+        source = delivered._sheet("wakwak")
+        before = sum(int(blue_ink(source[y0:y1, x0:x1]).sum())
+                     for x0, y0, x1, y1 in (row.box for row in delivered.ROWS["wakwak"]))
+        after = 0
+        for name, picture in delivered.poses("wakwak").items():
+            px = np.asarray(picture).astype(int)
+            opaque = px[..., 3] > 128
+            after += int((blue_ink(px) & opaque).sum())
+            _, count = delivered.ndimage.label(opaque, structure=np.ones((3, 3)))
+            self.assertEqual(count, 1, f"{name}: a stray label/mark remains")
+            red = opaque & (px[..., 0] > 150) & (px[..., 1] < 70) & (px[..., 2] < 70)
+            self.assertTrue(5 <= red.sum() <= 25, f"{name}: missing eyes or leftover hurt marks")
+            if not name.startswith("hover"):
+                self.assertGreater(np.nonzero(red)[1].mean(), np.nonzero(blue_ink(px) & opaque)[1].mean(),
+                                   f"{name}: should face right, including the mirrored hurt pose")
+        self.assertEqual(after, before, "removing the panel also deleted blue feather pixels")
+        hover = np.asarray(delivered.poses("wakwak")["hover2"])
+        self.assertEqual(int(hover[4, 122, 3]), 255, "a hole through the dark upper wing outline")
+        self.assertEqual(int(hover[60, 76, 3]), 0, "the real gap between its talons was filled")
+        self.assertEqual(delivered.poses("wakwak")["fly4"].height, 87,
+                         "the black feather tips below source row 418 were trimmed as a shadow")
+
+    def test_sigbin_keeps_its_brown_body_ears_tail_and_red_eyes(self) -> None:
+        def skin(px: np.ndarray) -> np.ndarray:
+            r, g, b = (px[..., c] for c in range(3))
+            return (r > g + 15) & (g > b + 10) & (g > 40)
+
+        before = after = 0
+        for row in delivered.ROWS["sigbin"]:
+            x0, y0, x1, y1 = row.box
+            original = skin(delivered._sheet("sigbin")[y0:y1, x0:x1])
+            if row.names[0] == "ready":
+                original[:18, :10] = False  # the gold corner decoration, not brown fur
+            before += int(original.sum())
+        for name, picture in delivered.poses("sigbin").items():
+            px = np.asarray(picture).astype(int)
+            a = px[..., 3] > 128
+            body = skin(px) & a
+            after += int(body.sum())
+            holes = delivered.ndimage.binary_fill_holes(a) & ~a
+            self.assertFalse(holes[:picture.height // 2].any(), f"{name}: hole in ears/body/tail")
+            _, pieces = delivered.ndimage.label(a, structure=np.ones((3, 3)))
+            self.assertEqual(pieces, 1, f"{name}: detached label, mark or shadow")
+            red = a & (px[..., 0] > 150) & (px[..., 1] < 70) & (px[..., 2] < 70)
+            self.assertTrue(5 <= red.sum() <= 35, f"{name}: missing eye or leftover hurt marks")
+            self.assertGreater(np.nonzero(red)[1].mean(), np.nonzero(body)[1].mean(),
+                               f"{name}: should face right for the runtime animator")
+        self.assertEqual(before, after, "background removal deleted brown body pixels")
+        idle = _frames(self.strips["sigbin_idle"])[0]
+        xs = np.nonzero((idle[..., 3] > 128).any(axis=0))[0]
+        self.assertTrue(70 <= xs.max() - xs.min() + 1 <= 90, "sigbin changed size")
+
+    def test_wakwak_stays_centred_at_play_scale_with_clear_frame_edges(self) -> None:
+        for frame in _frames(self.strips["wakwak_run"]):
+            xs = np.nonzero((frame[..., 3] > 128).any(axis=0))[0]
+            self.assertTrue(70 <= xs.max() - xs.min() + 1 <= 90, "flight is the wrong size")
+        for name in ("wakwak_idle", "wakwak_run", "wakwak_windup", "wakwak_attack", "wakwak_hurt"):
+            for frame in _frames(self.strips[name]):
+                a = frame[..., 3] > 128
+                ys, xs = np.nonzero(a)
+                self.assertLess(abs(xs.mean() - frame.shape[1] / 2), 2, f"{name}: off-centre")
+                self.assertLess(abs(ys.mean() - frame.shape[0] / 2), 2, f"{name}: off-centre")
+
+    def test_bungisngis_stays_its_size_and_anchors_on_feet_instead_of_its_club(self) -> None:
+        idle = [_height(f) for f in _frames(self.strips["bungisngis_idle"])]
+        walk = [_height(f) for f in _frames(self.strips["bungisngis_run"])]
+        self.assertTrue(140 <= np.mean(idle) <= 155)
+        self.assertLess(abs(np.mean(idle) - np.mean(walk)), 5, "walking shrinks the giant")
+        for name in ("bungisngis_attack", "bungisngis_aside"):
+            for frame in _frames(self.strips[name]):
+                px = frame.astype(int)
+                r, g, b, a = (px[..., c] for c in range(4))
+                skin = (a > 128) & (g > r) & (g > b + 15) & (g > 40)
+                ys, xs = np.nonzero(skin)
+                feet = ys >= ys.max() - max(2, (ys.max() - ys.min()) // 8)
+                self.assertLess(abs(xs[feet].mean() - frame.shape[1] / 2), 2,
+                                f"{name}: the club pulls its body sideways")
+
+    def test_tiyanak_does_not_shrink_when_it_transforms_or_crawls(self) -> None:
+        # Compare the rendered bodies, not the transparent square frames. The original sheet
+        # draws the crawling form at less than half the swaddled baby's visible body area.
+        reference = np.mean([frame[..., 3].astype(float).sum()
+                             for frame in _frames(self.strips["tiyanak_idle"])])
+        for name, sheet in self.strips.items():
+            if not name.startswith("tiyanak_") or name.endswith("_death"):
+                continue
+            for index, frame in enumerate(_frames(sheet)):
+                relative = float(frame[..., 3].astype(float).sum() / reference)
+                self.assertTrue(0.85 <= relative <= 1.15,
+                                f"{name} frame {index}: body size is {relative:.0%} of the baby")
 
     def test_the_white_lady_faces_right_as_the_game_turns_her(self) -> None:
         # The strips face right and the animator mirrors them; a pose left facing left would turn
@@ -129,6 +283,61 @@ class DeliveredStripsTest(unittest.TestCase):
                 top_skin = skin[: face_rows.min() + 12]
                 sx = np.nonzero(top_skin)[1].mean()
                 self.assertGreater(sx, hx, f"{name} frame {index} faces left")
+
+    def test_the_supplied_crawler_keeps_its_tongue_and_faces_right(self) -> None:
+        # The runtime mirrors right-facing frames. The opposite-facing hurt pose on the sheet
+        # must be turned too, or a hit makes the crawler abruptly turn away from the player.
+        for name, sheet in self.strips.items():
+            if not name.startswith("aswang_pig_") or name.endswith("_death"):
+                continue
+            for index, frame in enumerate(_frames(sheet)):
+                px = frame.astype(int)
+                r, g, b, a = (px[..., c] for c in range(4))
+                red = (a > 128) & (r > 100) & (r > 2 * g) & (r > 2 * b)
+                hair = (a > 128) & (px[..., :3].max(axis=2) < 60)
+                self.assertGreater(int(red.sum()), 20, f"{name} frame {index}: missing eyes/tongue")
+                self.assertTrue(hair.any(), f"{name} frame {index}: missing dark hair/outline")
+                self.assertGreater(np.nonzero(red)[1].mean(), np.nonzero(hair)[1].mean(),
+                                   f"{name} frame {index} faces left")
+
+    def test_tikbalang_keeps_its_solid_mane_skin_and_rightward_facing(self) -> None:
+        for name, picture in delivered.poses("tikbalang").items():
+            px = np.asarray(picture).astype(int)
+            r, g, b, a = (px[..., c] for c in range(4))
+            opaque = a > 128
+            holes = delivered.ndimage.binary_fill_holes(opaque) & ~opaque
+            self.assertFalse(holes[:picture.height // 2].any(), f"{name}: holes through the mane")
+            skin = opaque & (r > g + 20) & (g > b + 10)
+            self.assertGreater(int(skin.sum()), 800, f"{name}: the key erased its brown skin")
+            eye = opaque & (r > 150) & (g < 70) & (b < 70)
+            mane = opaque & (px[..., :3].max(axis=2) < 60)
+            self.assertTrue(eye.any(), f"{name}: missing red eye")
+            self.assertGreater(np.nonzero(eye)[1].mean(), np.nonzero(mane)[1].mean(),
+                               f"{name}: faces away from the race")
+            lettering = opaque & (r > 190) & (g > 160) & (b < 130)
+            self.assertFalse(lettering[:10].any(), f"{name}: sheet heading remains on the sprite")
+        idle = np.asarray(delivered.poses("tikbalang")["idle2"])
+        self.assertEqual(int(idle[79, 46, 3]), 0, "the gap beside its arm was filled in")
+
+    def test_crawler_hair_is_solid_without_filling_the_spaces_between_limbs(self) -> None:
+        # The old key left many enclosed transparent patches across the hair in every pose.
+        # A blanket fill would hide those errors but also paint over the real arm/leg gaps.
+        for name, picture in delivered.poses("aswang").items():
+            alpha = np.asarray(picture)[..., 3] > 0
+            holes = delivered.ndimage.binary_fill_holes(alpha) & ~alpha
+            labels, count = delivered.ndimage.label(holes)
+            for label in range(1, count + 1):
+                y, _ = delivered.ndimage.center_of_mass(labels == label)
+                self.assertGreaterEqual(y, alpha.shape[0] * 0.46,
+                                        f"{name}: background shows through the hair")
+        idle = np.asarray(delivered.poses("aswang")["idle1"])
+        self.assertEqual(int(idle[28, 79, 3]), 255, "dark hair beside the face was erased")
+        self.assertEqual(int(idle[31, 59, 3]), 255, "dark hair over the shoulder was erased")
+        self.assertEqual(int(idle[77, 72, 3]), 0, "the space between the arms was filled")
+        self.assertEqual(int(idle[91, 26, 3]), 0, "the space beside the rear leg was filled")
+        walk = np.asarray(delivered.poses("aswang")["walk4"])
+        for x, y in ((69, 31), (68, 37), (66, 47)):
+            self.assertEqual(int(walk[y, x, 3]), 255, "the front hair lock has a transparent slit")
 
     def test_the_manananggal_upper_half_has_no_legs(self) -> None:
         # Its legs are what it leaves standing in the hollow, and the sheet draws them under its
@@ -165,7 +374,7 @@ class DeliveredStripsTest(unittest.TestCase):
         bark_top = -(creatures.small.PERCH + 4)
         self.assertLessEqual(abs(delivered.KAPRE_ART_AT[1] - bark_top), 2,
                              f"its feet are at {delivered.KAPRE_ART_AT[1]}, the branch's top at {bark_top}")
-        tree = np.asarray(creatures.strips()["kapre_tree_idle"])[..., 3] > 0
+        tree = np.asarray(Image.open(ROOT / "game/assets/Level4/trees/kapre_tree_idle.png"))[..., 3] > 0
         th, tw = tree.shape
         x, y = int(tw // 2 + delivered.KAPRE_ART_AT[0]), int(th + delivered.KAPRE_ART_AT[1])
         self.assertTrue(tree[y:y + 4, x - 4:x + 5].any(), "nothing of the branch under its feet")
@@ -213,7 +422,7 @@ class DeliveredStripsTest(unittest.TestCase):
         # and the kapre as the game stands them: the sky they show must be next to none, and the
         # ember itself must still show.
         light = self._lights()
-        tree = np.asarray(creatures.strips()["kapre_tree_idle"])[..., 3] > 0
+        tree = np.asarray(Image.open(ROOT / "game/assets/Level4/trees/kapre_tree_idle.png"))[..., 3] > 0
         stood = _frames(self.strips["kapre_idle"])[0][..., 3] > 0
         left, top, w, h = -200, -360, 280, 300
         drawn = np.zeros((h, w), dtype=bool)

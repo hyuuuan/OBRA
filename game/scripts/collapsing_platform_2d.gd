@@ -10,6 +10,8 @@ extends StaticBody2D
 
 signal collapsed()
 
+const EdgeArt = preload("res://scripts/terrain_edge_art.gd")
+
 @export var platform_size := Vector2(220.0, 40.0)
 ## Grace between the first footfall and the fall, so the player can read the shake and
 ## keep running.
@@ -49,8 +51,17 @@ func _ready() -> void:
 
 func _draw() -> void:
 	var rect := Rect2(-platform_size * 0.5, platform_size)
-	draw_rect(rect, Color(0.44, 0.38, 0.29))
-	draw_rect(rect, Color(0.16, 0.13, 0.1), false, 3.0)
+	var corner := EdgeArt.radius(rect, minf(12.0, platform_size.y * 0.5))
+	var outline := EdgeArt.top_edge(platform_size.x, corner)
+	outline.append_array(PackedVector2Array([
+		Vector2(platform_size.x, platform_size.y - corner * 0.5),
+		Vector2(platform_size.x - corner, platform_size.y),
+		Vector2(corner, platform_size.y), Vector2(0.0, platform_size.y - corner * 0.5)]))
+	for index in outline.size():
+		outline[index] += rect.position
+	draw_colored_polygon(outline, Color(0.44, 0.38, 0.29))
+	outline.append(outline[0])
+	draw_polyline(outline, Color(0.16, 0.13, 0.1), 3.0)
 	# Cracks, so it looks like it was going to give way before it did.
 	for step in range(1, 4):
 		var x := rect.position.x + platform_size.x * float(step) / 4.0

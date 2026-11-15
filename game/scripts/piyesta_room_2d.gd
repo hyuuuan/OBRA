@@ -12,9 +12,8 @@ extends Node2D
 ## they have left.
 ##
 ## The church and lit house use composed picture assets registered to their live doors.
-## Alley 1 overrides the dressing with its supplied sky, shop and ground plates; Alley 2
-## uses the authored interior tiles. The same shell supplies the floor, boundaries and
-## transitions; sacred images and background furniture are only pixels.
+## Both alleys override the dressing with supplied plates; Alley 2 animates its market.
+## The same shell supplies the floor, boundaries and transitions; sacred images and background furniture are only pixels.
 ##
 ## THE RULER IS THE APO, as it is in the straw room. He is 96 pixels tall and a child of
 ## about a metre thirty, so A METRE IS SEVENTY-TWO PIXELS, and every dimension here carries
@@ -750,3 +749,27 @@ func _draw_opening(rect: Rect2, open: bool) -> void:
 	draw_rect(Rect2(inner.position, Vector2(8.0, inner.size.y)), Color(0.0, 0.0, 0.0, 0.32))
 	draw_rect(Rect2(rect.position.x - 18.0, -8.0, rect.size.x + 36.0, 12.0),
 		Color(DAYLIGHT.r, DAYLIGHT.g, DAYLIGHT.b, 0.42))
+
+
+## Street exits used by the supplied alley backdrops. The live openings stay in the shell.
+func _draw_way_marker(reach: Rect2, direction: float, open: bool) -> void:
+	var x := reach.get_center().x
+	var wood := Color("70441f")
+	var edge := Color("352317")
+	var face := Color("c28b45")
+	draw_rect(Rect2(x - 3.0, -68.0, 6.0, 62.0), edge)
+	draw_rect(Rect2(x - 26.0, -84.0, 52.0, 26.0), edge)
+	draw_rect(Rect2(x - 23.0, -81.0, 46.0, 20.0), face)
+	var centre := Vector2(x, -71.0)
+	draw_line(centre - Vector2(direction * 13.0, 0.0),
+		centre + Vector2(direction * 13.0, 0.0), edge, 3.0)
+	draw_polyline(PackedVector2Array([
+		centre + Vector2(direction * 4.0, -7.0),
+		centre + Vector2(direction * 13.0, 0.0),
+		centre + Vector2(direction * 4.0, 7.0)]), edge, 3.0)
+	if not open:
+		for side in [-1.0, 1.0]:
+			draw_rect(Rect2(x + side * 31.0 - 4.0, -53.0, 8.0, 48.0), edge)
+		for y in [-48.0, -30.0, -12.0]:
+			draw_rect(Rect2(x - 38.0, y, 76.0, 10.0), edge)
+			draw_rect(Rect2(x - 36.0, y + 1.0, 72.0, 6.0), wood)

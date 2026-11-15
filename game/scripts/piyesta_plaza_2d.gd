@@ -28,6 +28,8 @@ extends Node2D
 ## How far the plaza runs. The walls stand just outside these.
 @export var from_x := 80.0
 @export var to_x := 1790.0
+## Mayon's remembered plaza continues as masonry below the wall.
+var wall_extension: Texture2D
 
 ## Like Payyo's terraces, the detailed edge keeps its native proportions and a separate
 ## repeating fill carries the ground below it. Never stretch the retaining tile to fill the
@@ -35,11 +37,13 @@ extends Node2D
 const PAVING_DEPTH := 34.0
 const WALL_DEPTH := 96.0
 const FILL_DEPTH := 36.0
+const EXTENSION_DEPTH := 1400.0
 ## The fallback is deliberate. A missing or stale Godot texture import must leave an obvious
 ## solid floor rather than exposing SkyFill below the player's feet again.
 const PAVING_FALLBACK := Color(0.86, 0.69, 0.39, 1.0)
 const WALL_FALLBACK := Color(0.16, 0.12, 0.08, 1.0)
 const FILL_FALLBACK := Color(0.13, 0.09, 0.055, 1.0)
+const WALL_MORTAR := Color("1d1a18")
 ## The colour distance goes toward here: the plaza's own sky, a little greyer. Everything
 ## below the terrace is lifted toward it rather than multiplied by it -- see _draw.
 const HAZE := Color(0.757, 0.816, 0.851, 1.0)
@@ -47,6 +51,8 @@ const HAZE := Color(0.757, 0.816, 0.851, 1.0)
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if wall_extension != null:
+		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	z_index = -90
 	queue_redraw()
 
@@ -60,11 +66,14 @@ func _draw() -> void:
 	# Draw the guaranteed floor first, then let the tiles replace it wherever they load.
 	draw_rect(paving_rect, PAVING_FALLBACK)
 	draw_rect(wall_rect, WALL_FALLBACK)
-	draw_rect(fill_band, FILL_FALLBACK)
 	PiyestaTiles.fill_varied(self, paving_rect, ["paving_a", "paving_b", "paving_c"])
 	PiyestaTiles.fill(self, wall_rect, "retaining")
+	if wall_extension != null:
+		_draw_wall_extension(wall_rect)
+		return
 	# The fill is the wall's own lower course reflected across its bottom edge. Both textures
 	# start at the same world x, so the first fill row matches the last wall row pixel-for-pixel.
+	draw_rect(fill_band, FILL_FALLBACK)
 	PiyestaTiles.fill(self, fill_band, "stone_fill")
 	# ⚠ AND THEN THE TOWN, BECAUSE THE CAMERA INSISTS. The vertical follow keeps the player
 	# near the middle of the frame, so about four hundred units below their feet is always on
@@ -97,3 +106,24 @@ func _draw() -> void:
 			draw_rect(Rect2(left, below + t * roofs.y * 1.8, width, roofs.y * 1.8),
 				Color(HAZE.r, HAZE.g, HAZE.b, 0.30 + 0.10 * t))
 		draw_rect(Rect2(left, below + roofs.y * 2.2, width, 900.0), HAZE)
+
+
+func _draw_wall_extension(wall: Rect2) -> void:
+	var tile := wall_extension.get_size()
+	var bottom := ground + EXTENSION_DEPTH
+	draw_rect(Rect2(wall.position.x, wall.end.y, wall.size.x, bottom - wall.end.y),
+		WALL_MORTAR)
+	# Let each course tuck into the mortar at the bottom of the one above it.
+	var overlap := 8.0
+	var y := wall.end.y - overlap * 0.5
+	var course := 0
+	while y < bottom:
+		var height := minf(tile.y, bottom - y)
+		# Stagger the joints from course to course. Source and destination use the same
+		# dimensions so the last repeat is clipped at the edge at its original scale.
+		var offset := fposmod(course * 193.0 + 97.0, tile.x)
+		var size := Vector2(wall.size.x, height)
+		draw_texture_rect_region(wall_extension, Rect2(Vector2(wall.position.x, y), size),
+			Rect2(Vector2(offset, 0), size), Color.WHITE, false)
+		y += tile.y - overlap
+		course += 1

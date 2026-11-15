@@ -17,7 +17,8 @@ extends Node
 ##   after the conversation it landed in.
 ##
 ##   NOTHING OVER ANYONE TALKING. A conversation, the pause menu, any modal: the lesson waits
-##   behind it. A lesson about the canvas is the one exception, because the canvas IS a modal.
+##   behind it. A lesson about the canvas, or about what is in the open bag, is the exception,
+##   because each IS a modal.
 ##
 ##   NOT WHAT THEY ALREADY DID. A lesson can wait a `delay` before it shows, and if in that
 ##   time the player presses what it would have taught, it is spent without ever appearing.
@@ -33,13 +34,40 @@ extends Node
 ## spotlight bound -- a probe with no HUD -- every lesson is taught at once through the bar,
 ## one per event, which is what the data audits measure.
 ##
+## WHAT CAN BE TAUGHT AT THE START IS, AT THE DOOR. Kent, of Payyo: "the tutorial should pop up for
+## when the moment happens but there should be tutorial that is appropriate at the start like the
+## movement, inventory, jump, etc". A level that asks (LevelBase._teaches_at_the_door) calls
+## `teach_the_door` once its opening has been said, and the lessons marked `door` -- the ones about
+## something already there: walking, jumping, the bag, the quest card, the arrow, the map, Escape --
+## play back to back, in ledger order, with no lead and no delay, lighting their `entry_anchor` (or
+## `anchor`). Every other lesson waits for its moment, as it always did. (For a day all of them
+## played at the door; it taught a canvas, a placed drawing and a creature that were not there.)
+##
+## ⚠ EACH WAITS FOR THE PLAYER TO DO IT, in a level whose block says `strict` (Payyo's). Kent: "when
+## the tutorial says press R, when i press another key, it just proceeds to the next one, it does
+## not let me experience the tutorial". A strict card (TutorialSpotlight) goes only on its own key
+## or click, with a tick -- no timeout, no other key -- or when what it lights goes. At the door,
+## walking and jumping (`entry_live`) are done for real with the world running; the rest hold the
+## world, so a stray key cannot open the canvas mid-run.
+##
 ## SPENT ONCE PER RUN, IN MEMORY. Not on the profile: a returning player skipping these is a
-## profile flag and a schema bump, deliberately -- not a side effect of a tutorial.
+## profile flag and a schema bump, deliberately -- not a side effect of a tutorial. The one thing
+## that outlives a level is the short list of lessons Level 1 could not reach for this player
+## (`_take_on_what_is_owed`), written when a level is finished.
 
 const CONFIG_PATH := "res://config/tutorial.json"
+## The level that teaches the game, and so the one whose lessons a later level can owe.
+const TUTORIAL_LEVEL := "level_1"
 ## PRELOADED, NOT NAMED. controls_overlay.gd declares no class_name, so the only way to
 ## reach its static key lookup is the script itself.
 const ControlsKeys = preload("res://scripts/controls_overlay.gd")
+
+## How long a card in the run at the entry stays up when nobody is at the keys. Every headless
+## suite opens Payyo, and thirty cards at the usual AUTO_SEC held the hint bar for over a minute.
+const ENTRY_AUTO_SEC := 0.05
+## How long the tick on a card done at the door is seen before the next card takes its place.
+## Under TutorialSpotlight.DONE_SEC, so the next card still takes over from a leaving one.
+const ENTRY_TICK_SEC := 0.45
 
 ## After a card the player answered by doing the thing, and after one they only looked at.
 const GAP_AFTER_DONE := 1.2
@@ -53,6 +81,10 @@ const PATIENCE := 8.0
 signal lesson_taught(lesson_id: String)
 ## Emitted when a lesson is spent without being shown, because the player did it first.
 signal lesson_skipped(lesson_id: String)
+## Emitted when the player skips the rest of the tutorial, with how many lessons were left.
+signal tutorial_skipped(lessons_left: int)
+## Emitted when the run begun by `teach_the_door` is over: every door card shown, or skipped.
+signal door_taught
 
 var _lessons: Array[Dictionary] = []
 ## lesson id -> "shown" or "skipped", once spent.
@@ -79,6 +111,24 @@ var _enabled := true
 ## because nothing is shown over anyone talking (_coast_is_clear).
 var _lead_speaker: Callable = Callable()
 var _led: Dictionary = {}
+## Which level's ledger is loaded, for the record a skip leaves.
+var _level_id := ""
+## The cards still to come in the run at the entry, in order, and whether one is on.
+var _entry: Array[String] = []
+var _entry_running := false
+## ⚠ DECIDED ONCE, AT THE START OF THE RUN: whether anyone is at the keys. Asked per card, a
+## suite that turned auto-dismiss off a second in -- to read one line itself -- got the next card
+## as a real one, which held the world and waited for a key nobody would press.
+var _entry_auto := false
+## Seconds before the next card of the run, while the tick on the last one is seen.
+var _entry_wait := 0.0
+## The loaded level's cards wait for the player to do what they show (`strict` on its block).
+var _strict := false
+## What the level does to set the scene for an entry card, given its anchor ("" at the end) --
+## the empty bag shown while a card about the bag is up.
+var _stage := Callable()
+## What the level opens for real when a door card with `entry_opens` is done -- the bag, on Tab.
+var _opener := Callable()
 
 
 func _ready() -> void:
@@ -88,6 +138,13 @@ func _ready() -> void:
 
 
 func load_for(level_id: String) -> bool:
+	# A new ledger ends a run on the old one, and the run's card goes with it: left up, a look card
+	# held the world and the new ledger's first lesson waited behind it.
+	if _entry_running:
+		_end_entry()
+		if _spotlight != null and _spotlight.is_open():
+			_spotlight.finish("closed")
+	_level_id = level_id
 	_lessons.clear()
 	_by_event.clear()
 	_seen.clear()
@@ -101,21 +158,62 @@ func load_for(level_id: String) -> bool:
 		push_warning("TutorialDirector: %s is not a JSON object" % CONFIG_PATH)
 		return false
 	var levels: Dictionary = (parsed as Dictionary).get("levels", {})
-	if not levels.has(level_id):
-		# A level with nothing to teach is not an error.
-		return false
-	var block: Dictionary = levels[level_id]
+	# A level with nothing to teach is not an error: most of them have no block at all.
+	var block: Dictionary = levels.get(level_id, {})
+	_strict = bool(block.get("strict", false))
 	for value: Variant in block.get("lessons", []):
+		_add_lesson(value as Dictionary)
+	_take_on_what_is_owed(levels)
+	return not _lessons.is_empty()
+
+
+func _add_lesson(lesson: Dictionary) -> void:
+	var id := String(lesson.get("id", ""))
+	var at := String(lesson.get("at", ""))
+	if id.is_empty() or at.is_empty():
+		return
+	_lessons.append(lesson)
+	var bucket: Array = _by_event.get(at, [])
+	bucket.append(id)
+	_by_event[at] = bucket
+
+
+## WHAT LEVEL 1 NEVER GOT TO TEACH THIS PLAYER. Level 1 covers the whole game, but most of its
+## lessons wait for the player to do the thing, and a run can finish it having never become
+## anything. So what is left over is owed, and a later level -- which otherwise teaches none of
+## this -- shows it once, the first time its moment comes. See `carries` in tutorial.json.
+func _take_on_what_is_owed(levels: Dictionary) -> void:
+	if _level_id == TUTORIAL_LEVEL:
+		return
+	# Not on a director an audit is holding outside the tree: it has no profile to owe anything.
+	var profile := get_node_or_null(^"/root/PlayerProfile") if is_inside_tree() else null
+	var owed: Array = profile.call("lessons_owed") if profile != null else []
+	if owed.is_empty():
+		return
+	var tutorial_level: Dictionary = levels.get(TUTORIAL_LEVEL, {})
+	for value: Variant in tutorial_level.get("lessons", []):
 		var lesson: Dictionary = value
 		var id := String(lesson.get("id", ""))
-		var at := String(lesson.get("at", ""))
-		if id.is_empty() or at.is_empty():
+		if not owed.has(id) or not bool(lesson.get("carries", false)):
+			# Spent back in Level 1, so that a lesson owed behind it (`after`) can still come.
+			_seen[id] = "earlier"
 			continue
-		_lessons.append(lesson)
-		var bucket: Array = _by_event.get(at, [])
-		bucket.append(id)
-		_by_event[at] = bucket
-	return not _lessons.is_empty()
+		# ⚠ WITHOUT ITS LEAD. Those are Lolo's, he is gone by Dilim, and "nothing speaks as him"
+		# once he has gone is a rule Mayon's probes hold. A copy: the parsed block is thrown away
+		# here, but nothing should have to know that to read this.
+		var carried := lesson.duplicate()
+		carried.erase("lead")
+		_add_lesson(carried)
+
+
+## The lessons a route could have missed and this one has, which is what the next level owes.
+func owed_ids() -> Array:
+	var out := []
+	for lesson in _lessons:
+		var id := String(lesson.get("id", ""))
+		if bool(lesson.get("carries", false)) and not _seen.has(id):
+			out.append(id)
+	return out
 
 
 func bind_hint_bar(bar: Node) -> void:
@@ -130,6 +228,8 @@ func bind_spotlight(spotlight: TutorialSpotlight, finder: Callable, context: Cal
 	_in_context = context
 	if _spotlight != null and not _spotlight.finished.is_connected(_on_card_finished):
 		_spotlight.finished.connect(_on_card_finished)
+	if _spotlight != null and not _spotlight.skip_requested.is_connected(skip_rest):
+		_spotlight.skip_requested.connect(skip_rest)
 
 
 func bind_lead(speaker: Callable) -> void:
@@ -157,8 +257,39 @@ func set_enabled(on: bool) -> void:
 	_enabled = on
 	if not on:
 		_queue.clear()
+		# Before the card goes: its going would otherwise put the next one up.
+		_end_entry()
 		if _spotlight != null and _spotlight.is_open():
 			_spotlight.finish("skipped")
+
+
+func is_enabled() -> bool:
+	return _enabled
+
+
+## SKIP TUTORIAL, from a card. Every lesson left in this level is spent unshown and nothing else
+## is taught here -- not this card's followers, not Lolo's tutorial lines on the hint bar. Cards
+## do not play on a return visit (LevelBase._play_opening), so in practice the level stays
+## skipped; the next level's lessons, which teach rules that level changes, still play.
+## Recorded locally, so a run finished without the tutorial can be told apart in the thesis data.
+func skip_rest() -> void:
+	if not _enabled:
+		return
+	var left := 0
+	for lesson in _lessons:
+		var id := String(lesson.get("id", ""))
+		if not _seen.has(id):
+			_seen[id] = "skipped"
+			left += 1
+	set_enabled(false)
+	# Skipping means it: nothing left over comes back in a later level.
+	var profile := get_node_or_null(^"/root/PlayerProfile")
+	if profile != null:
+		profile.call("set_lessons_owed", [])
+	var telemetry := get_node_or_null(^"/root/Telemetry")
+	if telemetry != null:
+		telemetry.call("record_event", "tutorial_skipped", {"level_id": _level_id, "lessons_left": left})
+	tutorial_skipped.emit(left)
 
 
 ## Spent: shown, or skipped because the player did it first.
@@ -208,7 +339,10 @@ func lesson_ids() -> Array[String]:
 ## Something happened that a lesson might be waiting on. Cheap enough to call from a physics
 ## frame: an event nobody is waiting on is one dictionary miss.
 func note(event: String) -> void:
-	if not _enabled or not _by_event.has(event):
+	# ⚠ NOT DURING THE RUN AT THE ENTRY. A moment that comes during it -- headless, where the world
+	# is not held, `level_start` comes every frame -- queued its card a second time, and _pump
+	# shows what is queued without asking whether it has been shown.
+	if not _enabled or _entry_running or not _by_event.has(event):
 		return
 	for id_value: Variant in _by_event[event]:
 		var id := String(id_value)
@@ -229,7 +363,10 @@ func note(event: String) -> void:
 
 
 func _process(delta: float) -> void:
-	if _enabled and not _queue.is_empty():
+	if _entry_running:
+		_entry_wait = maxf(0.0, _entry_wait - delta)
+		_pump_entry()
+	elif _enabled and not _queue.is_empty():
 		_pump(delta)
 	elif _gap > 0.0:
 		_gap = maxf(0.0, _gap - delta)
@@ -239,7 +376,7 @@ func _process(delta: float) -> void:
 ## has come, its card has not -- and that is one of the inputs it teaches, in the context
 ## it teaches it in, spends it unshown.
 func _input(event: InputEvent) -> void:
-	if not _enabled or _queue.is_empty():
+	if not _enabled or _entry_running or _queue.is_empty():
 		return
 	if event is InputEventMouseMotion or event.is_echo() or not event.is_pressed():
 		return
@@ -271,14 +408,18 @@ func _pump(delta: float) -> void:
 		if lesson.is_empty():
 			_queue.erase(id)
 			continue
-		if not _context_holds(lesson) or not _anchor_ready(lesson):
+		var ready := _context_holds(lesson) and _anchor_ready(lesson)
+		var can_show := ready and _gap <= 0.0 and _coast_is_clear(lesson)
+		# Optional reminders can go stale while waiting behind another line.
+		if not ready or (_mode_of(lesson) == "say" and not can_show):
 			_ready_for[id] = 0.0
-			_unready_for[id] = float(_unready_for.get(id, 0.0)) + delta
+			if not ready or not get_tree().paused:
+				_unready_for[id] = float(_unready_for.get(id, 0.0)) + delta
 			if float(_unready_for[id]) > float(lesson.get("patience", PATIENCE)):
 				_queue.erase(id)
 			continue
 		_unready_for[id] = 0.0
-		if _gap > 0.0 or not _coast_is_clear(lesson):
+		if not can_show:
 			continue
 		_ready_for[id] = float(_ready_for.get(id, 0.0)) + delta
 		if float(_ready_for[id]) < float(lesson.get("delay", 0.0)):
@@ -311,17 +452,124 @@ func _teach_at_once() -> void:
 	lesson_taught.emit(id)
 
 
+## THE DOOR'S CARDS, NOW, ONE AFTER ANOTHER. Awaitable: it returns when the last has gone or the
+## rest were skipped. Each `door` lesson this run has not spent is shown strict, in ledger order,
+## without its `lead` and lighting its `entry_anchor`; `entry_live` ones run the world under them,
+## the rest hold it. `stage` is called with each card's anchor before it shows, and with "" when
+## the run is over; `opener` with a card's `entry_opens` when she has done it.
+func teach_the_door(stage: Callable = Callable(), opener: Callable = Callable()) -> void:
+	_entry.clear()
+	if _enabled:
+		for lesson in _lessons:
+			var id := String(lesson.get("id", ""))
+			if not _seen.has(id) and bool(lesson.get("door", false)) and _mode_of(lesson) != "say":
+				_entry.append(id)
+	if _entry.is_empty():
+		return
+	# Queued for a moment that is not coming now -- shown here instead.
+	for id in _entry:
+		_queue.erase(id)
+	_stage = stage
+	_opener = opener
+	_entry_running = true
+	_entry_wait = 0.0
+	if _spotlight != null:
+		_spotlight.hold(true)
+		# It holds only for somebody at the keys.
+		_entry_auto = not _spotlight.is_holding()
+		_spotlight.set_in_run(true)
+	_pump_entry()
+	if _entry_running:
+		await door_taught
+
+
+func is_teaching_the_door() -> bool:
+	return _entry_running
+
+
+## Where a lesson points when it is shown at the entry: its own subject if that is already on
+## screen, otherwise the control that will do it.
+func entry_anchor_of(lesson: Dictionary) -> String:
+	return String(lesson.get("entry_anchor", lesson.get("anchor", "")))
+
+
+## The next card of the run, if nothing else is up; the end of it, if none is left.
+func _pump_entry() -> void:
+	if not _entry_running:
+		return
+	if _spotlight == null:
+		# No HUD: nowhere to show them. Spent as shown, which is what the data audits measure.
+		for id in _entry:
+			_seen[id] = "shown"
+			lesson_taught.emit(id)
+		_entry.clear()
+		_end_entry()
+		return
+	if _spotlight.is_showing():
+		return
+	if _entry.is_empty():
+		_end_entry()
+		return
+	if _entry_wait > 0.0:
+		return
+	var lesson := _find(_entry[0])
+	var quiet := lesson.duplicate()
+	quiet.erase("lead")
+	if not _coast_is_clear(quiet):
+		return
+	var id: String = _entry.pop_front()
+	_seen[id] = "shown"
+	var anchor := entry_anchor_of(lesson)
+	if _stage.is_valid():
+		_stage.call(anchor)
+	var card := _card_for(lesson)
+	# Done for real with the world running, or held still with the press spent on the card.
+	var live := bool(lesson.get("entry_live", false))
+	card["mode"] = "do" if live else "look"
+	card["strict"] = true
+	card["auto"] = _entry_auto
+	card["auto_seconds"] = ENTRY_AUTO_SEC
+	# Decided with the rest of the run's auto: a suite that sits down part-way must not be held.
+	_spotlight.hold(not live and not _entry_auto)
+	_present(card, anchor)
+	lesson_taught.emit(id)
+
+
+func _end_entry() -> void:
+	if not _entry_running:
+		return
+	_entry_running = false
+	_entry.clear()
+	if _stage.is_valid():
+		_stage.call("")
+	_stage = Callable()
+	_opener = Callable()
+	_entry_wait = 0.0
+	if _spotlight != null:
+		_spotlight.set_in_run(false)
+		_spotlight.hold(false)
+	door_taught.emit()
+
+
 func _show(lesson: Dictionary) -> void:
 	var id := String(lesson["id"])
 	_seen[id] = "shown"
 	if _mode_of(lesson) == "say":
-		if _hint_bar != null and _hint_bar.has_method("show_hint"):
-			_hint_bar.call("show_hint", resolve(lesson), String(lesson.get("speaker", "Lolo")),
-				float(lesson.get("seconds", 6.0)))
+		# In passing, because what it speaks over is still true: the advice comes back after him.
+		if _hint_bar != null and _hint_bar.has_method("interject"):
+			var while_relevant := Callable()
+			if lesson.has("context"):
+				while_relevant = func() -> bool: return _context_holds(lesson)
+			_hint_bar.call("interject", resolve(lesson), String(lesson.get("speaker", "Lolo")),
+				float(lesson.get("seconds", 6.0)), while_relevant)
 		_gap = GAP_AFTER
 		lesson_taught.emit(id)
 		return
-	var anchor := String(lesson.get("anchor", ""))
+	_present(_card_for(lesson), String(lesson.get("anchor", "")))
+	lesson_taught.emit(id)
+
+
+func _present(card: Dictionary, anchor: String) -> void:
 	var finder := _find_target
 	var target := func() -> Variant:
 		if anchor.is_empty() or not finder.is_valid():
@@ -330,12 +578,21 @@ func _show(lesson: Dictionary) -> void:
 	# The apo, which a card the world runs under has to keep off as she moves.
 	var apo := func() -> Variant:
 		return finder.call("player") if finder.is_valid() else Rect2()
-	_spotlight.present(_card_for(lesson), target, apo)
-	lesson_taught.emit(id)
+	_spotlight.present(card, target, apo)
 
 
-func _on_card_finished(_lesson_id: String, how: String) -> void:
+func _on_card_finished(lesson_id: String, how: String) -> void:
 	_gap = GAP_AFTER_DONE if how == "done" else GAP_AFTER
+	# DONE FOR REAL: Tab on the bag's card opens the bag, and the next card is about what is in it.
+	if _entry_running and how == "done" and _opener.is_valid():
+		var opens := String(_find(lesson_id).get("entry_opens", ""))
+		if not opens.is_empty():
+			_opener.call(opens)
+	# ⚠ WHILE THE CARD IS STILL LEAVING: the next takes its place before the dim can fade, and
+	# the hold keeps the world still in between. A card she did is given the moment its tick needs.
+	if _entry_running:
+		_entry_wait = ENTRY_TICK_SEC if how == "done" else 0.0
+		_pump_entry()
 
 
 func _context_holds(lesson: Dictionary) -> bool:
@@ -356,10 +613,14 @@ func _anchor_ready(lesson: Dictionary) -> bool:
 ## the drawing panel, for a lesson that is about the drawing panel.
 func _coast_is_clear(lesson: Dictionary) -> bool:
 	var on_canvas := String(lesson.get("context", "world")) == "canvas"
+	var in_bag := String(lesson.get("context", "world")) == "bag"
 	for node in get_tree().get_nodes_in_group(ModalOverlay.GROUP):
 		if node == _spotlight or not node.has_method(&"is_open"):
 			continue
 		if on_canvas and node is DrawPanel:
+			continue
+		# A lesson about what is in the open bag is shown over it, as the canvas's are over it.
+		if in_bag and node is InventoryScreen:
 			continue
 		if bool(node.call(&"is_open")):
 			return false
@@ -369,13 +630,22 @@ func _coast_is_clear(lesson: Dictionary) -> bool:
 			return false
 	# Nor while the letterbox is in. It frames a beat and carries its own caption -- at a
 	# checkpoint, "Checkpoint" in the lower bar -- and a card over it was two things to read.
+	#
+	# ⚠ A CARD. LOLO'S LEAD IS SAID NOW. The bars do not stop her, so "A lantern!" waited two
+	# seconds and was said 480 px past the lantern, about something behind her. The line stops
+	# the world where she stands; its card still waits for the bars.
+	var about_to_speak := not lead_of(lesson).is_empty() and not _led.has(String(lesson.get("id", "")))
 	for bars in get_tree().get_nodes_in_group(CinematicBars.GROUP):
-		if bars.has_method(&"is_playing") and bool(bars.call(&"is_playing")):
+		if not about_to_speak and bars.has_method(&"is_playing") and bool(bars.call(&"is_playing")):
 			return false
-	# Lolo's own line waits for the bar to be free: the advice about the obstacle in front of
+	# Lolo's own line waits for what is up to be read: the advice about the obstacle in front of
 	# the player outranks him remarking on the interface.
-	if _mode_of(lesson) == "say" and _hint_bar != null and _hint_bar.has_method(&"is_showing") \
-			and bool(_hint_bar.call(&"is_showing")):
+	#
+	# ⚠ READ, NOT GONE. Advice stands until its beat ends, so waiting for an empty bar meant
+	# "That bar is your ink now" was not said while the bangka's advice stood, which is the whole
+	# time she holds the shape it is about.
+	if _mode_of(lesson) == "say" and _hint_bar != null and _hint_bar.has_method(&"is_being_read") \
+			and bool(_hint_bar.call(&"is_being_read")):
 		return false
 	return true
 
@@ -401,6 +671,10 @@ func _card_for(lesson: Dictionary) -> Dictionary:
 		"seconds": float(lesson.get("seconds", 10.0)),
 		"actions": actions_for(lesson),
 		"mouse": lesson.get("mouse", []),
+		"strict": _strict,
+		"context": String(lesson.get("context", "world")),
+		# A click that counts only on what the card lights: the face-down card, not anywhere.
+		"click_on_it": bool(lesson.get("click_on_it", false)),
 	}
 
 

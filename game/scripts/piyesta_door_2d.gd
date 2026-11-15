@@ -53,28 +53,19 @@ const PORTAL := Vector2(104.0, 176.0)
 ## does not have to be pixel-perfect.
 const REACH := Vector2(120.0, 170.0)
 
-## The supplied hut is kept at source resolution and sampled from its transparent content
-## bounds. Drawing it into a world-sized rect lets this Node2D retain the exact floor anchor,
-## reach volume and open/closed state of the facade it replaces.
-const HUT_ART_PATH := "res://assets/Level2/lit_house_hut.png"
-const HUT_ART: Texture2D = preload("res://assets/Level2/lit_house_hut.png")
-const HUT_SOURCE := Rect2(71.0, 94.0, 1306.0, 902.0)
-const HUT_SIZE := Vector2(310.0, 214.0)
-## The double leaves measured on the supplied plate, expressed in the world-sized draw rect.
-const HUT_DOOR := Rect2(-34.0, -112.0, 68.0, 108.0)
+## Both cutouts are at world scale. Their offsets register the painted doors to the
+## existing reach markers and the base of each building to the plaza floor.
+const HUT_ART_PATH := "res://assets/Level2/plaza_reference/lit_house.png"
+const HUT_ART: Texture2D = preload(HUT_ART_PATH)
+const HUT_OFFSET := Vector2(-157.0, -213.0)
+const HUT_DOOR := Rect2(-29.0, -104.0, 60.0, 92.0)
 
-## The supplied church replaces the old procedural portal wholesale. The source image has
-## a few near-transparent edge pixels, so draw only its stable alpha bounds. The door centre
-## and masonry baseline are measured in source pixels; anchoring both to this Node2D keeps
-## the existing reach area, prompts and room transfer on the door the player can see.
-const CHURCH_ART_PATH := "res://assets/Level2/church_facade.png"
-const CHURCH_ART: Texture2D = preload("res://assets/Level2/church_facade.png")
-const CHURCH_SOURCE := Rect2(23.0, 13.0, 1041.0, 1412.0)
-const CHURCH_SCALE := 0.45
-const CHURCH_DOOR_SOURCE := Vector2(378.0, 1423.0)
-const CHURCH_OPEN_RADIUS := 42.0
-const CHURCH_OPEN_SPRING_Y := -126.0
-const CHURCH_OPEN_BASE_Y := -11.0
+const CHURCH_ART_PATH := "res://assets/Level2/plaza_reference/church.png"
+const CHURCH_ART: Texture2D = preload(CHURCH_ART_PATH)
+const CHURCH_OFFSET := Vector2(-165.0, -636.0)
+const CHURCH_OPEN_RADIUS := 39.0
+const CHURCH_OPEN_SPRING_Y := -107.0
+const CHURCH_OPEN_BASE_Y := -12.0
 
 ## ⚠ WALL TONE IS A LIGHT LEVEL NOW, NOT A COLOUR.
 ##
@@ -248,11 +239,11 @@ func _draw() -> void:
 # --- A house front ----------------------------------------------------------------------
 
 func _draw_hut() -> void:
-	var rect := Rect2(-HUT_SIZE.x * 0.5, -HUT_SIZE.y, HUT_SIZE.x, HUT_SIZE.y)
+	var rect := Rect2(HUT_OFFSET, HUT_ART.get_size())
 	# A contact shadow keeps the transparent plate planted on the same paving line as the
 	# interaction marker. The image itself ends at y = 0; neither art nor collision floats.
 	draw_rect(Rect2(rect.position.x + 10.0, -3.0, rect.size.x - 4.0, 9.0), SHADOW)
-	draw_texture_rect_region(HUT_ART, rect, HUT_SOURCE)
+	draw_texture(HUT_ART, HUT_OFFSET)
 	if open:
 		# Preserve the level's readable open state instead of leaving a closed painting over a
 		# doorway that gameplay says can be entered.
@@ -488,10 +479,7 @@ func _draw_lamplight(opening: Rect2) -> void:
 # --- The church facade ----------------------------------------------------------------
 
 func _draw_church() -> void:
-	var destination := Rect2(
-		(CHURCH_SOURCE.position - CHURCH_DOOR_SOURCE) * CHURCH_SCALE,
-		CHURCH_SOURCE.size * CHURCH_SCALE)
-	draw_texture_rect_region(CHURCH_ART, destination, CHURCH_SOURCE)
+	draw_texture(CHURCH_ART, CHURCH_OFFSET)
 	if open:
 		_draw_open_church_door()
 

@@ -7,7 +7,7 @@ extends Node
 ## data directory in which progression and accumulated telemetry are stored between
 ## sessions."
 ##
-## One JSON document at user://profile.json, written atomically (temp file then
+## One profile.json document, written atomically (temp file then
 ## rename) so a crash mid-write cannot corrupt the live profile. An unreadable or
 ## schema-incompatible profile is treated as a new profile, never a fatal error
 ## (thesis §3.2.8: a profile may be "absent on first launch, truncated by a power"
@@ -46,8 +46,7 @@ const SETTING_DEFAULTS := {
 	"reduce_motion": false,
 }
 
-## user://profile.json when a player runs the game; a test run's own copy otherwise, so no
-## suite can start from, or leave behind, anybody's real progress. See user_data.gd.
+## Source, exported and test runs each resolve their own location in user_data.gd.
 var profile_path: String = UserData.path("profile.json")
 ## class id -> its kept drawing (or null once looked for and not found). See class_drawing.
 var _drawings: Dictionary = {}
@@ -72,6 +71,7 @@ func _default_profile() -> Dictionary:
 		"classes_drawn_accepted": [],    # distinct classes drawn and accepted at least once
 		"acquired_objects": [],          # object/tool ids owned across levels and sessions
 		"brush_acquired": false,         # Lola's brush, taken off the stand in the house
+		"hall_position_x": null,        # where she last stood along the wall of paintings
 		"new_brush": false,              # the brush found on Dagat's shore -- ink drains, no clock
 		"lolo_present": true,            # false once he stops at the island and cannot follow
 		"l3_bakunawa": "",               # LIT | EVADED | FOUGHT -- how Dagat's encounter ended
@@ -88,6 +88,8 @@ func _default_profile() -> Dictionary:
 		"route_counts": {"artist": 0, "pragmatist": 0, "protector": 0},
 		"route_history": [],             # every route taken, oldest first
 		"collectibles": [],
+		"diary_pages": [],               # Lola's diary entries found, by config/diary.json id
+		"lessons_owed": [],              # Level 1 lessons this route missed, taught when first needed
 		"used_items": [],                # found things given up: the brass key left in the lock
 		"counts": {"submissions": 0, "declines": 0},
 		"settings": _default_settings(),
@@ -124,6 +126,21 @@ func load_profile() -> void:
 ## Persist the profile atomically. Returns true on success.
 func save_profile() -> bool:
 	return _atomic_write(profile_path, JSON.stringify(_data, "  "))
+
+
+func hall_position_x(fallback: float) -> float:
+	var saved: Variant = _data.get("hall_position_x")
+	if (saved is float or saved is int) and is_finite(float(saved)):
+		return float(saved)
+	return fallback
+
+
+## Save on leaving the hall, rather than writing the profile on every walking frame.
+func remember_hall_position(x: float) -> void:
+	if not is_finite(x) or _data.get("hall_position_x") == x:
+		return
+	_data["hall_position_x"] = x
+	save_profile()
 
 
 # --- Progression -------------------------------------------------------------
@@ -188,6 +205,138 @@ func has_class_drawing(entity_id: String) -> bool:
 
 func _drawing_path(entity_id: String) -> String:
 	return profile_path.get_base_dir().path_join("drawings").path_join("%s.png" % entity_id)
+
+
+## Keep the whole page a class was last drawn on -- the canvas as the recogniser saw it, the
+## strokes its body or shape is built from, and how sure the recogniser was -- so the bag can make
+## it again without a redraw (Kent: "the users wont have to draw something if drawn already").
+##
+## ⚠ NOT THE CARD'S PICTURE. That one is cropped to the ink with the paper knocked out, and a rig
+## built from it would be a different drawing: a creature takes its limbs from the strokes, and a
+## placeable its outline. Beside it in drawings/, overwritten the same way, wiped by New Game.
+func record_class_page(entity_id: String, page: Image, strokes: Array, confidence: float) -> void:
+	if entity_id.is_empty() or page == null or page.is_empty() or strokes.is_empty():
+		return
+	var encoded: Array = []
+	for value: Variant in strokes:
+		if not (value is Dictionary):
+			continue
+		var stroke: Dictionary = value
+		var flat: Array = []
+		for point: Vector2 in PackedVector2Array(stroke.get("points", PackedVector2Array())):
+			flat.append(point.x)
+			flat.append(point.y)
+		encoded.append({"points": flat, "width": float(stroke.get("width", 1.0)),
+			"color": Color(stroke.get("color", Color.BLACK)).to_html(true)})
+	if encoded.is_empty():
+		return
+	var base := _drawing_path(entity_id).get_basename()
+	DirAccess.make_dir_recursive_absolute(base.get_base_dir())
+	if page.save_png(base + ".page.png") != OK:
+		return
+	var file := FileAccess.open(base + ".strokes.json", FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(JSON.stringify({"version": 1, "confidence": confidence, "strokes": encoded}))
+
+
+## The page kept for a class: {image, strokes, confidence}, or {} when this save has none -- a class
+## it never drew, or one drawn before pages were kept. Read as data and checked as it is read, so a
+## damaged file gives nothing rather than a broken rig.
+func class_page(entity_id: String) -> Dictionary:
+	if not (_data["classes_drawn_accepted"] as Array).has(entity_id):
+		return {}
+	var base := _drawing_path(entity_id).get_basename()
+	if not FileAccess.file_exists(base + ".page.png") or not FileAccess.file_exists(base + ".strokes.json"):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(base + ".strokes.json"))
+	if not (parsed is Dictionary) or not ((parsed as Dictionary).get("strokes") is Array):
+		return {}
+	var strokes: Array = []
+	for value: Variant in (parsed as Dictionary)["strokes"]:
+		if not (value is Dictionary) or not ((value as Dictionary).get("points") is Array):
+			continue
+		var flat: Array = (value as Dictionary)["points"]
+		var points := PackedVector2Array()
+		for i in range(0, flat.size() - 1, 2):
+			points.append(Vector2(float(flat[i]), float(flat[i + 1])))
+		if points.is_empty():
+			continue
+		strokes.append({"points": points, "width": float((value as Dictionary).get("width", 1.0)),
+			"color": Color.from_string(String((value as Dictionary).get("color", "")), Color.BLACK)})
+	var image := Image.load_from_file(ProjectSettings.globalize_path(base + ".page.png"))
+	if strokes.is_empty() or image == null or image.is_empty():
+		return {}
+	return {"image": image, "strokes": strokes,
+		"confidence": float((parsed as Dictionary).get("confidence", 0.0))}
+
+
+## Whether a page is kept for the class, without reading it: the bag asks this of every card it
+## shows, and loading fifty pages to answer would stall the screen as it opens.
+func has_class_page(entity_id: String) -> bool:
+	var base := _drawing_path(entity_id).get_basename()
+	return (_data["classes_drawn_accepted"] as Array).has(entity_id) \
+		and FileAccess.file_exists(base + ".page.png") and FileAccess.file_exists(base + ".strokes.json")
+
+
+## The ending keeps each submitted page, even when the same class was drawn again.
+func record_gallery_drawing(strokes: Array) -> bool:
+	if not strokes.any(func(stroke: Dictionary) -> bool: return stroke["points"].size() > 1):
+		return false
+	var folder := _gallery_folder()
+	if DirAccess.make_dir_recursive_absolute(folder) != OK:
+		return false
+	var next := 1
+	for name in DirAccess.get_files_at(folder):
+		if name.begins_with("page-") and name.ends_with(".strokes"):
+			next = maxi(next, int(name.get_basename().trim_prefix("page-")) + 1)
+	if next == 1:
+		# Copy the earlier save's class pictures before a new recognition can replace them.
+		var old := _legacy_drawing_paths()
+		for index in old.size():
+			var copy := folder.path_join("legacy-%04d.png" % index)
+			if not FileAccess.file_exists(copy):
+				DirAccess.copy_absolute(old[index], copy)
+	var path := folder.path_join("page-%012d.strokes" % next)
+	var temporary := path + ".tmp"
+	var file := FileAccess.open(temporary, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_var(strokes)
+	file.flush()
+	var written := file.get_error() == OK
+	file.close()
+	if written and DirAccess.rename_absolute(temporary, path) == OK:
+		return true
+	DirAccess.remove_absolute(temporary)
+	return false
+
+
+func gallery_drawing_paths() -> PackedStringArray:
+	var folder := _gallery_folder()
+	if not DirAccess.dir_exists_absolute(folder):
+		return _legacy_drawing_paths()
+	var paths := PackedStringArray()
+	for name in DirAccess.get_files_at(folder):
+		if name.ends_with(".strokes") or name.ends_with(".png"):
+			paths.append(folder.path_join(name))
+	paths.sort()
+	return paths if not paths.is_empty() else _legacy_drawing_paths()
+
+
+func _legacy_drawing_paths() -> PackedStringArray:
+	var paths := PackedStringArray()
+	for entity_id: String in get_drawn_classes():
+		if not entity_id.is_valid_identifier():
+			continue
+		var path := _drawing_path(entity_id)
+		if FileAccess.file_exists(path):
+			paths.append(path)
+	return paths
+
+
+func _gallery_folder() -> String:
+	return profile_path.get_base_dir().path_join("drawing_gallery")
 
 
 ## Count one submission and, if it was declined by the recogniser, one decline.
@@ -302,6 +451,20 @@ func record_new_brush() -> void:
 
 func has_new_brush() -> bool:
 	return bool(_data.get("new_brush", false))
+
+
+## THE LESSONS LEVEL 1 COULD NOT REACH ON THIS ROUTE, shown once by a later level when their
+## moment comes (TutorialDirector._take_on_what_is_owed).
+##
+## No schema bump, and the default is the point of it: a save from before this has no such key
+## and owes nothing, which is right for somebody who is already past the tutorial.
+func set_lessons_owed(ids: Array) -> void:
+	_data["lessons_owed"] = ids.duplicate()
+	_commit()
+
+
+func lessons_owed() -> Array:
+	return (_data.get("lessons_owed", []) as Array).duplicate()
 
 
 ## Lolo stops at the island at the end of Dagat, because beyond it is past what he remembers.
@@ -447,19 +610,13 @@ func reset_progress() -> void:
 	var settings: Dictionary = (_data.get("settings", _default_settings()) as Dictionary).duplicate(true)
 	_data = _default_profile()
 	_data["settings"] = settings
-	var folder := profile_path.get_base_dir().path_join("drawings")
-	var dir := DirAccess.open(folder)
-	if dir != null:
-		for file in dir.get_files():
-			DirAccess.remove_absolute(folder.path_join(file))
+	var base := profile_path.get_base_dir()
+	for folder: String in [base.path_join("drawings"), _gallery_folder(), base.path_join("checkpoints")]:
+		if DirAccess.dir_exists_absolute(folder):
+			for file in DirAccess.get_files_at(folder):
+				DirAccess.remove_absolute(folder.path_join(file))
 	_drawings.clear()
 	drawings_version += 1
-	# And the checkpoints kept between visits: a new game starts every level at its start.
-	var saves := profile_path.get_base_dir().path_join("checkpoints")
-	var saves_dir := DirAccess.open(saves)
-	if saves_dir != null:
-		for file in saves_dir.get_files():
-			DirAccess.remove_absolute(saves.path_join(file))
 	_commit()
 
 
@@ -570,6 +727,26 @@ func record_collectible(collectible_id: String) -> void:
 
 func is_collectible_found(collectible_id: String) -> bool:
 	return (_data["collectibles"] as Array).has(collectible_id)
+
+
+## A page of Lola's diary, found (config/diary.json). Kept apart from the collectibles, because
+## those are counted -- flower_count reads them, and the ending reads that -- and a page is
+## not a flower. Additive, no schema bump: _merge_defaults gives an older save an empty list.
+func record_diary_page(entry_id: String) -> void:
+	if entry_id.is_empty():
+		return
+	var pages: Array = _data["diary_pages"]
+	if not pages.has(entry_id):
+		pages.append(entry_id)
+		_commit()
+
+
+func has_diary_page(entry_id: String) -> bool:
+	return (_data["diary_pages"] as Array).has(entry_id)
+
+
+func diary_pages() -> Array:
+	return (_data["diary_pages"] as Array).duplicate()
 
 
 ## A found thing that has been used up -- the brass key, left turned in the lock it opened. It
@@ -697,7 +874,7 @@ func _merge_defaults(incoming: Dictionary) -> Dictionary:
 		for route in ROUTES:  # a partial tally from an older save must still resolve
 			var counts: Dictionary = base["route_counts"]
 			counts[route] = int(counts.get(route, 0))
-	for key in ["acquired_objects", "collectibles", "used_items", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage", "route_history"]:
+	for key in ["acquired_objects", "collectibles", "diary_pages", "used_items", "classes_drawn_accepted", "levels_completed", "levels_unlocked", "unlocked_tags", "canvas_damage", "route_history"]:
 		if not (base[key] is Array):
 			base[key] = []
 	# A v2 profile has no settings block at all and simply keeps the defaults above.

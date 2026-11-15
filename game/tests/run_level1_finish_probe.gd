@@ -56,6 +56,7 @@ func _run() -> void:
 func _audit_the_found_key_opens_the_house() -> void:
 	var fresh := (load("res://game_level.tscn") as PackedScene).instantiate() as Node2D
 	(fresh.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	fresh.set("resume_enabled", true)
 	root.add_child(fresh)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _wait(1.2)
@@ -298,6 +299,9 @@ func _audit_the_canvas_goes_home() -> void:
 	if profile != null:
 		profile.call("record_brush_acquired")
 
+	fresh.call("_write_checkpoint", "CP0")
+	var save_path := String(fresh.call("_checkpoint_save_path"))
+	_check(FileAccess.file_exists(save_path), "Payyo has a checkpoint before the canvas is taken", save_path)
 	fresh.call("_into_the_bale")
 	await _wait(0.6)
 	_place(apo, canvas)
@@ -316,6 +320,7 @@ func _audit_the_canvas_goes_home() -> void:
 			break
 	_check(home, "and taking it takes Payyo home to the house",
 		"the house is loading" if home else "Payyo did not end, or ended somewhere else")
+	_check(not FileAccess.file_exists(save_path), "a Payyo replay starts without the finished run's checkpoint", save_path)
 
 
 ## Put the apo somewhere, whatever body they are currently in.

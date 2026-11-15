@@ -105,7 +105,8 @@ DEEP_RGB = np.array([1.0, 27.0, 70.0])
 ## camera ever looks. The shore band pins its pieces by this top: top_row = LAND_TOP - (-230).
 LAND_TOP, LAND_BOTTOM = 556, 1867
 SURFACE_Y = 560
-SAND_ROWS, FACE_ROWS = 34, 96
+SAND_LIP = 4
+SAND_ROWS, FACE_ROWS = 34 + SAND_LIP, 96
 ## Where in the retaining wall a course is cut: under the grass, at its first mortar line, down to
 ## the full mortar band along its foot.
 COURSE_ROWS = (10, 96)
@@ -220,7 +221,7 @@ SAND_WIDTH = 288
 
 
 def _sand_strip() -> np.ndarray:
-    """The 34 rows the feet are on: a lit lip, the plate's five sands dithered, a few ripples
+    """The sand the feet are on: a lit lip, the plate's five sands dithered, a few ripples
     and shells, damp along the foot where it meets the stones."""
     rng = np.random.default_rng(3101)
     broad = _periodic_noise(SAND_WIDTH, SAND_ROWS, 6, 3)
@@ -391,7 +392,7 @@ def draw_land(name: str, phase: int | None = None) -> Image.Image:
     out = np.zeros((height, width, 4), dtype=np.uint8)
     # Laid by WORLD x, so the strip and the stones line up with nothing that moves with them.
     columns = np.arange(left, right)
-    surface = SURFACE_Y - LAND_TOP
+    surface = SURFACE_Y - SAND_LIP - LAND_TOP
     out[surface:surface + SAND_ROWS] = sand[:, columns % sand.shape[1]]
     face_top = surface + SAND_ROWS
     out[face_top:face_top + FACE_ROWS] = wall[:, (columns + phase) % wall.shape[1]]
@@ -413,12 +414,14 @@ def draw_land(name: str, phase: int | None = None) -> Image.Image:
     else:
         out[face_top:, :near.start] = 0
 
-    # The sand ends ON the collision's edge -- at the walking row, exactly where the apo stops --
-    # rounded at the top, bulging a few pixels at its middle, wet toward the end.
+    # Roll the lip over the beach edge. The visible shoulder is above the walking row,
+    # where the sand still reaches the collision edge.
     wet = np.array([20.0, 38.0, 62.0])
     for row in range(SAND_ROWS):
         y = surface + row
         bulge = int(round(SAND_BULGE * math.sin(math.pi * min(1.0, (row + 1) / 30.0)) ** 0.8))
+        depth = max(0.0, 1.0 - row / 8.0)
+        bulge -= round(16.0 * (1.0 - math.sqrt(1.0 - depth * depth)))
         # The last column of sand facing right, the first facing left.
         stop = cut - 2 + bulge if facing_right else cut + 1 - bulge
         if facing_right:
@@ -430,12 +433,56 @@ def draw_land(name: str, phase: int | None = None) -> Image.Image:
             share = 0.18 - 0.03 * k
             out[y, x, :3] = (out[y, x, :3] * (1.0 - share) + wet * share).astype(np.uint8)
 
+    _lip_over_the_stones(out, wall, face_top, seed)
+
     # Down into the water's colour as the sea gets deep.
     start = face_top + 60
     for y in range(start, height):
         share = min(1.0, (y - start) / 520.0) ** 0.9 * 0.82
         out[y, :, :3] = (out[y, :, :3] * (1.0 - share) + DEEP_RGB * share).astype(np.uint8)
     return Image.fromarray(out, "RGBA")
+
+
+## MAYON'S LIP, ON THE SHORE (2026-11-02). The sand shades the stone under it, and the sea moss
+## along its foot hangs down over the top course in clumps, as Mayon's grass does and Payyo's and
+## Dilim's now do (tools/build_cliff_kits.py). Both stay inside the stones already there, so the
+## picture's silhouette -- what run_level3_audit holds to the collision -- does not move.
+LIP_SHADE_ROWS = 14
+## Where the wall's own moss line ends, rows under the face's top, and how far a clump hangs past it.
+MOSS_FROM, MOSS_HANG = 6, 22
+
+
+def _lip_over_the_stones(out: np.ndarray, wall: np.ndarray, face_top: int, seed: int) -> None:
+    height, width = out.shape[:2]
+    stone = out[..., 3] > 0
+    # On the stone below the moss line, not on the moss: shaded, the moss went to a dark rule.
+    for k in range(LIP_SHADE_ROWS):
+        row = face_top + MOSS_FROM + k
+        rock = stone[row] & ~(out[row, :, 1].astype(int) > out[row, :, 0].astype(int) + 6)
+        shade = 0.55 + 0.45 * k / LIP_SHADE_ROWS
+        out[row, rock, :3] = (out[row, rock, :3] * shade).astype(np.uint8)
+    # The moss's own colours, from the wall's moss line: dark to light by brightness.
+    line = wall[:MOSS_FROM + 4].reshape(-1, 4)
+    line = line[(line[:, 3] > 0) & (line[:, 1].astype(int) > line[:, 0].astype(int) + 6)][:, :3]
+    if line.size == 0:
+        return
+    light = line.astype(float) @ np.array([0.299, 0.587, 0.114])
+    steps = np.array([line[np.argmin(np.abs(light - np.percentile(light, q)))] for q in (8, 30, 55, 80, 95)])
+    rng = np.random.default_rng(seed + 7)
+    clump = np.convolve(np.concatenate([rng.random(width)] * 3), np.ones(13) / 13, "same")[width:2 * width]
+    # Spread to 0..1: a running mean of noise sits near a half, and almost nothing hung from it.
+    clump = (clump - clump.min()) / max(1e-6, clump.max() - clump.min())
+    for x in range(width):
+        hang = int(round(max(0.0, clump[x] - 0.35) / 0.65 * MOSS_HANG))
+        if hang > 1 and rng.random() < 0.3:
+            hang += int(rng.integers(1, 4))
+        for k in range(hang):
+            row = face_top + MOSS_FROM + k
+            if row >= height or not stone[row, x]:
+                break
+            t = k / max(1, hang - 1)
+            index = 0 if k == hang - 1 else int(round((1 - t) * 3 + (x + k) % 2))
+            out[row, x, :3] = steps[min(4, index)]
 
 
 def _edge_fit(name: str, image: Image.Image) -> tuple:
@@ -451,7 +498,7 @@ def _edge_fit(name: str, image: Image.Image) -> tuple:
             return int(left + solid.max() + 1 - edge)
         return int(edge - (right - width + solid.min()))
 
-    surface = SURFACE_Y - LAND_TOP
+    surface = SURFACE_Y - SAND_LIP - LAND_TOP
     face_top = surface + SAND_ROWS
     return ([reach(surface + row) for row in range(SAND_ROWS)],
             np.array([reach(row) for row in range(face_top, alpha.shape[0])]))
@@ -1213,11 +1260,11 @@ def _hull(c: Canvas, upturned: bool) -> None:
             c.px(16 + dx, row(_sheer(18) + 5), ROPE[0])
 
 
-def _outrigger(c: Canvas) -> None:
+def _outrigger(c: Canvas, float_y: int = BANGKA_WATERLINE + 7, drop: int = 0) -> None:
     """The katig, and the two booms that carry it. In profile this is the thing that says
     bangka rather than rowboat, so it is forward of the hull and a little low, with the booms
-    visible as separate members instead of a plank stuck to the keel."""
-    float_y = BANGKA_WATERLINE + 7
+    visible as separate members instead of a plank stuck to the keel. `drop` is how far the
+    hull itself was set down (the beached boat), so the booms still leave from its sheer."""
     left, right = 30, BOW + 2
     for x in range(left, right + 1):
         thin = x <= left + 1 or x >= right - 1
@@ -1226,7 +1273,7 @@ def _outrigger(c: Canvas) -> None:
         if not thin:
             c.px(x, float_y + 2, BAMBOO[0])
     for boom_x in (24, 44):
-        top = _sheer(boom_x) + 2
+        top = _sheer(boom_x) + 2 + drop
         steps = float_y - top
         for step in range(steps + 1):
             x = boom_x + int(round(step * 0.62))
@@ -1287,64 +1334,110 @@ def draw_bangka_afloat() -> Canvas:
 
 
 def draw_bangka_beached() -> Canvas:
-    """The same boat, turned over on the sand. What the apo finds and presses E at.
+    """The same boat as the one afloat, resting upright on the sand, its katig lying in front.
+    What the apo finds and presses E at.
 
-    ⚠ DRAWN, NOT REFLECTED. Mirroring the floating hull about its waterline is the honest
-    thing to do and it produced a stack of planks: upside down you see the OUTSIDE of the
-    planking and the keel, which is one smooth arc with the sheer down in the sand -- not the
-    inside of a boat with its rail in the air."""
-    import math
+    ⚠ UPRIGHT, NOT TURNED OVER. It was the hull keel-up, one smooth brown arc with a pole each
+    side, and at game scale that read as a mound of earth: players did not see a boat to move.
+    The afloat bangka -- furled sail, painted band, outrigger -- is what says bangka, so it is
+    that boat, set down until its keel meets the sand, in its own shadow. The level's sand heap
+    still covers the stern until it is dug out."""
     pixelart.PX = 3
-    c = Canvas(BANGKA_W, BANGKA_H, seed=2403)
     sand = BANGKA_WATERLINE + 9
-    left, right = STERN + 1, BOW + 1
-    for x in range(left, right + 1):
-        t = (x - left) / float(right - left)
-        # The keel, highest a little aft of amidships, and the ends lifting clear of the sand.
-        arc = 10.0 * math.sin(math.pi * min(1.0, max(0.0, t))) ** 0.7
-        keel = sand - int(round(arc))
-        lift = int(round(2.0 * (2.0 * t - 1.0) ** 2))
-        foot = sand - lift
-        if keel >= foot:
-            continue
-        for y in range(keel, foot + 1):
-            down = (y - keel) / max(1.0, float(foot - keel))
-            c.px(x, y, HULL[3] if down < 0.34 else (HULL[2] if down < 0.74 else HULL[1]))
-        c.px(x, keel, HULL[4])
-        c.px(x, foot, HULL[0])
-        # The painted band is down by the sand now, because the rail is.
-        if foot - keel >= 4:
-            c.px(x, foot - 1, TRIM[1] if (x + foot) % 3 else TRIM[2])
-    # The stems, still standing proud of the sand at both ends.
-    for x, lean in ((right, -1), (left, 1)):
-        for step in range(4):
-            at = x + lean * ((step + 1) // 2)
-            c.px(at, sand - 2 - step, HULL[3] if step % 2 else HULL[2])
-            c.px(at - lean, sand - 2 - step, HULL[1])
-    c.speckle(left + 5, sand - 8, right - left - 12, 7, HULL[1], 0.07)
-    # ⚠ ITS SHADOW, AND THE BOOM AS A POLE. The two booms it was dragged up on were two flat
-    # rows of olive under the hull, which at game scale read as a ruled stripe drawn along the
-    # sand -- the one flat thing left on the beach. The hull now sits in its own shadow, darkest
-    # under the keel and gone at the stems, and the boom is one length of bamboo lying in front
-    # of it: lit along its top, dark along its underside, a node every nine pixels, cut ends
-    # showing the pale cane, and its own shadow on the sand.
+    drop = sand - (BANGKA_WATERLINE + 3)
+    boat = Canvas(BANGKA_W, BANGKA_H, seed=2401)
+    _mast_and_sail(boat)
+    _hull(boat, False)
+    boat.speckle(STERN + 4, BANGKA_WATERLINE - 5, BOW - STERN - 8, 8, HULL[1], 0.05)
+    c = Canvas(BANGKA_W, BANGKA_H, seed=2403)
+    # Its shadow on the sand, darkest under the keel and gone at the stems.
     shade = np.array([40, 26, 10, 0], dtype=np.uint8)
+    left, right = STERN + 1, BOW + 1
     for x in range(left - 2, right + 3):
         t = (x - left) / float(right - left)
         alpha = int(120 * max(0.0, 1.0 - abs(2.0 * t - 1.0) ** 1.6))
-        if alpha > 12 and c.buf[sand + 1, x, 3] == 0:
+        if alpha > 12:
             c.buf[sand + 1, x] = shade
             c.buf[sand + 1, x, 3] = alpha
-    a, b = left + 4, right - 8
-    for x in range(a, b):
-        node = (x - a) % 9 == 0
-        c.px(x, sand + 2, BAMBOO[1] if node else BAMBOO[2])
-        c.px(x, sand + 3, BAMBOO[0])
-        c.buf[sand + 4, x] = shade
-        c.buf[sand + 4, x, 3] = 80
-    c.px(a - 1, sand + 2, BAMBOO[3])
-    c.px(b, sand + 2, BAMBOO[3])
+    # The boat, set down whole: every pixel moved, none redrawn.
+    moved = boat.buf[:BANGKA_H - drop]
+    seen = moved[..., 3] > 0
+    c.buf[drop:][seen] = moved[seen]
+    # The katig lies on the sand in front, its booms reaching up to the set-down sheer.
+    _outrigger(c, float_y=sand, drop=drop)
     return c
+
+
+# --- The bakunawa's home ---------------------------------------------------------------
+#
+# ⚠ THE CAVE WAS SHAPES, NOT PIXELS. level_3.gd drew it as three flat Polygon2Ds -- a black
+# half-disc, a slate rim of one colour, three oval pebbles -- the one thing in Dagat with no
+# pixel to it, and beside the painted reef it read as a hole cut in the screen. A procedural ring
+# of stones read as beads. It is now one of the deep's own painted arches, cut from the ruins
+# layer, with its opening made a dark hollow: the far rock framed in the arch reads as distance
+# in the backdrop, and in the beach's face it has to read as the inside of a cave.
+RUINS = ROOT / "game" / "assets" / "Level3" / "deep" / "ruins.png"
+## Measured by hand off ruins.png (1672x941): the box cut from it, and the arch's opening -- a
+## round-topped doorway given as its centre column, the crown's top row, its half width and the
+## sill row.
+CAVE_BOX = (60, 280, 300, 560)
+CAVE_OPENING = (178.0, 354.0, 40.0, 518.0)
+## Inside the opening, brighter than this is the far rock seen through the arch, not the arch.
+CAVE_FAR_LUMA = 45.0
+## Doubled with nearest-neighbour: the backdrop's own pixel size on screen.
+CAVE_SCALE = 2
+## Where the opening's middle lands in the shipped picture. level_3.gd places it by this.
+CAVE_OPENING_AT = (int((CAVE_OPENING[0] - CAVE_BOX[0]) * CAVE_SCALE),
+                   int(((CAVE_OPENING[1] + CAVE_OPENING[3]) / 2.0 - CAVE_BOX[1]) * CAVE_SCALE))
+CAVE = ramp(["#000205", "#01060e", "#030f1d", "#08192d", "#0e2840"])
+
+
+def cave_opening(width: int, height: int) -> np.ndarray:
+    """The measured doorway as a mask over the cut box."""
+    cx, top, half, bottom = CAVE_OPENING
+    x0, y0 = CAVE_BOX[0], CAVE_BOX[1]
+    yy, xx = np.mgrid[0:height, 0:width]
+    ax, ay = xx + x0, yy + y0
+    crown = ((ax - cx) / half) ** 2 + ((ay - (top + half)) / half) ** 2 <= 1.0
+    sides = (ay >= top + half) & (ay <= bottom) & (np.abs(ax - cx) <= half)
+    return crown | sides
+
+
+def draw_cave_mouth() -> Image.Image:
+    from scipy import ndimage
+    x0, y0, x1, y1 = CAVE_BOX
+    rock = np.asarray(Image.open(RUINS).convert("RGBA")).astype(float)[y0:y1, x0:x1].copy()
+    height, width = rock.shape[:2]
+    luma = 0.299 * rock[..., 0] + 0.587 * rock[..., 1] + 0.114 * rock[..., 2]
+    inside = cave_opening(width, height)
+    hollow = inside & ((luma > CAVE_FAR_LUMA) | (rock[..., 3] < 128))
+    hollow = ndimage.binary_closing(hollow, iterations=2) & inside
+    # Black at the heart, the water's own deep blue at the lip, dithered between steps.
+    depth = np.clip(len(CAVE) - 1.6 - ndimage.distance_transform_edt(hollow) / 6.0,
+                    0.0, len(CAVE) - 1.0)
+    yy, xx = np.mgrid[0:height, 0:width]
+    low = np.floor(depth).astype(int)
+    step = np.where(depth - low > pixelart.BAYER[yy % 4, xx % 4], np.minimum(low + 1, len(CAVE) - 1),
+                    low)
+    rock[hollow, :3] = np.asarray(CAVE)[step[hollow], :3]
+    rock[hollow, 3] = 255
+    # The box's own edges broken, so no ruled line shows where the rock was cut from the plate.
+    rng = np.random.default_rng(2411)
+
+    def bite(length: int) -> np.ndarray:
+        coarse = rng.random(length // 9 + 3)
+        return 2 + np.round(9 * np.interp(np.arange(length) / 9.0, np.arange(coarse.size),
+                                           coarse)).astype(int)
+
+    left, right, under, over = bite(height), bite(height), bite(width), bite(width)
+    cut = (xx < left[:, None]) | (xx >= width - right[:, None]) | (yy >= height - under[None, :]) \
+        | (yy < over[None, :])
+    rock[cut & ~hollow, 3] = 0
+    picture = Image.fromarray(np.clip(rock, 0, 255).astype(np.uint8), "RGBA")
+    return picture.resize((width * CAVE_SCALE, height * CAVE_SCALE), Image.NEAREST)
+
+
+CAVE_ART = {"cave_mouth.png": draw_cave_mouth}
 
 
 BANGKA = {"bangka_afloat.png": draw_bangka_afloat,
@@ -1496,9 +1589,74 @@ def draw_paddle() -> Canvas:
     return c
 
 
+# THE OLD JETTY: the way out to sea that used to be there, at the end of the beach. It goes as she
+# comes down the sand (level_3.gd `_fades_the_old_way`), so the open water reads as hers to cross
+# before Lolo asks how. Bamboo on the bangka's own wood and lashing, weathered, a slat gone here
+# and there and its far end broken off and hanging. It has no collision -- it is never stood on.
+#
+# The sea in front of it is the plate's, not drawn over it, so what is under the water is drawn
+# under the water: below JETTY_WATERLINE the posts take the sea's colour, and their ends dither out
+# into it rather than stopping square, which read as stilts standing on nothing.
+JETTY_W, JETTY_H = 124, 46
+JETTY_DECK = 5
+JETTY_WATERLINE = 9
+JETTY_POSTS = (2, 20, 38, 56, 74, 92)
+## Past here the deck has broken off; what is left of it hangs toward the water.
+JETTY_BROKEN = 98
+SUNK = ramp(["#0f2a36", "#173f4c", "#235a66"])
+
+
+def draw_jetty() -> Canvas:
+    pixelart.PX = 3
+    c = Canvas(JETTY_W, JETTY_H, seed=4400)
+    gone_from = JETTY_H - 14
+    for x in JETTY_POSTS:
+        # The last post leans: the sea has been at its footing longer than the rest.
+        lean = 1 if x == JETTY_POSTS[-1] else 0
+        for y in range(JETTY_DECK - 2, JETTY_H):
+            dx = (y - JETTY_DECK) // 9 * lean
+            if y <= JETTY_WATERLINE:
+                lit, mid, dark = HULL[3], HULL[2], HULL[1]
+            else:
+                lit, mid, dark = SUNK[2], SUNK[1], SUNK[0]
+            for offset, colour in enumerate((lit, mid, dark)):
+                if y < gone_from or (BAYER_AT(x + offset, y) > (y - gone_from) / 14.0):
+                    c.px(x + offset + dx, y, colour)
+        c.px(x, JETTY_DECK - 3, HULL[4])
+        c.px(x + 1, JETTY_DECK - 3, HULL[3])
+        for y in (JETTY_DECK + 3, JETTY_DECK + 4):
+            c.px(x, y, ROPE[1])
+            c.px(x + 1, y, ROPE[0])
+            c.px(x + 2, y, ROPE[0])
+    # Braces between the posts, just under the deck and above the water.
+    for left, right in zip(JETTY_POSTS[:-2], JETTY_POSTS[1:-1]):
+        for step in range(right - left - 3):
+            c.px(left + 3 + step, JETTY_DECK + 4 + (step * 3) // (right - left), HULL[1])
+    # The deck: a bamboo stringer side on, the slats' ends along it, a beam under it.
+    for x in range(JETTY_BROKEN):
+        c.px(x, JETTY_DECK, BAMBOO[3])
+        c.px(x, JETTY_DECK + 1, BAMBOO[2])
+        c.px(x, JETTY_DECK + 2, BAMBOO[1] if x % 4 else BAMBOO[0])
+        c.px(x, JETTY_DECK + 3, HULL[1])
+    # Slats gone: nobody mends it any more.
+    for gap in (29, 30, 61, 62, 63, 83):
+        c.px(gap, JETTY_DECK, BAMBOO[0])
+        c.px(gap, JETTY_DECK + 1, BAMBOO[0])
+    # The end, broken off and hanging toward the water.
+    for step in range(16):
+        x = JETTY_BROKEN + step
+        y = JETTY_DECK + step // 3
+        c.px(x, y, BAMBOO[2])
+        c.px(x, y + 1, BAMBOO[1])
+        c.px(x, y + 2, BAMBOO[0])
+    c.speckle(0, JETTY_DECK, JETTY_BROKEN, 3, BAMBOO[1], 0.06)
+    return c
+
+
 FOUND = {"painting_fragment.png": draw_painting_fragment,
          "sand_mound.png": draw_sand_mound,
-         "paddle.png": draw_paddle}
+         "paddle.png": draw_paddle,
+         "jetty.png": draw_jetty}
 
 
 def build() -> list[Path]:
@@ -1508,7 +1666,7 @@ def build() -> list[Path]:
         path = OUT / f"ink_jar_{frame}.png"
         draw(frame).save(path)
         written.append(path)
-    for table in (LAND, PALMS, SEABED_ART, BANGKA, FOUND):
+    for table in (LAND, PALMS, SEABED_ART, BANGKA, CAVE_ART, FOUND):
         for name, painter in table.items():
             path = OUT / name
             painter().save(path)
@@ -1526,6 +1684,7 @@ def _expected() -> list[Path]:
         [OUT / name for name in LAND] + [OUT / name for name in PALMS] + \
         [OUT / name for name in SEABED_ART] + \
         [OUT / name for name in BANGKA] + \
+        [OUT / name for name in CAVE_ART] + \
         [OUT / name for name in FOUND] + \
         [OUT / f"{name}_{frame}.png" for name, (_p, n) in LIFE.items() for frame in range(n)]
 

@@ -16,7 +16,7 @@ const CLEARING_X := 21900.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 7
+const CHECKS := 12
 var level: Node
 
 
@@ -29,7 +29,8 @@ func _run() -> void:
 		print("OBRA_L4_TIKTIK_FAILED=watchdog")
 		quit(2))
 	var only := " ".join(OS.get_cmdline_user_args())
-	for scenario in [_unseen_a_blow_goes_through, _ash_shows_it, _its_call_is_louder_far,
+	for scenario in [_unseen_a_blow_goes_through, _late_strike_shows_and_misses_a_dodge,
+			_ash_shows_it, _ash_catches_what_flies_in, _its_call_is_louder_far,
 			_the_level_shows_its_call, _the_lantern_leans_only_when_it_is_close, _garlic_keeps_it_out]:
 		if not only.is_empty() and not String((scenario as Callable).get_method()).contains(only):
 			continue
@@ -57,6 +58,42 @@ func _unseen_a_blow_goes_through() -> void:
 		"alpha %.1f, landed %s, hp %d of %d" % [tiktik.modulate.a, landed, tiktik.hp, hp])
 
 
+func _late_strike_shows_and_misses_a_dodge() -> void:
+	await _put(CLEARING_X, GROUND_Y)
+	var finale := _the_finale()
+	finale.elapsed = 85.0
+	await _frames(3)
+	var tiktik := finale.tiktik()
+	for foe in finale.alive():
+		if foe != tiktik:
+			foe.stun(600.0)
+	var hurtbox := level.get("player_hurtbox") as PlayerHurtbox2D
+	var health := hurtbox.health
+	var player := hurtbox.player
+	tiktik.global_position = hurtbox.middle() + Vector2(25.0, -20.0)
+	tiktik.set("_circling", 0.0)
+	await _frames(5)
+	_check(tiktik.state_name() == "WINDUP" and tiktik.telegraph.visible and tiktik.modulate.a == 1.0
+		and not tiktik.is_revealed() and not tiktik.apply_tool_hit("sword", 0.0, player),
+		"an unashed Tik-Tik shows its windup late in the night", tiktik.state_name())
+	# Move after physics has cached contact, as a dodge or a change of body can do.
+	var had_contact := tiktik.hitbox.get_overlapping_areas().has(hurtbox)
+	health.begin_at(PlayerHealth.GUTTERING)
+	health.call("_start_grace", 0.0)
+	tiktik.call("_enter", Enemy2D.State.ATTACK)
+	player.global_position.x += 120.0
+	tiktik.call("_try_to_land")
+	_check(had_contact and not bool(tiktik.get("_landed")) and health.stage == PlayerHealth.GUTTERING
+		and finale.is_running() and finale.elapsed > 85.0,
+		"a late strike cannot snuff the lamp after she leaves its hitbox", "cached contact %s" % had_contact)
+	player.global_position.x -= 120.0
+	finale.elapsed = 89.999
+	await _frames(3)
+	_check(finale.has_dawned() and health.stage == PlayerHealth.GUTTERING
+		and tiktik.process_mode == Node.PROCESS_MODE_DISABLED,
+		"dawn stops a pending strike before it can snuff the lamp", "dawned %s" % finale.has_dawned())
+
+
 func _ash_shows_it() -> void:
 	var tiktik := await _sent_beside_her(Vector2(40.0, -30.0))
 	# Let go of the helper's hold first, so a blinding seen after is the ash's.
@@ -78,6 +115,40 @@ func _ash_shows_it() -> void:
 
 
 ## The design's numbers: nothing inside 180, all of it by 1100, and louder at every step out.
+## Kent's decision: thrown as the lamp leans, with it still on its way in, the hanging cloud shows it
+## when it arrives, blinded. The real flight, at the design's 220 px and 110 px/s, not put there.
+func _ash_catches_what_flies_in() -> void:
+	var tiktik := await _sent_beside_her(Vector2(0.0, -200.0))
+	tiktik.stun(0.01)
+	tiktik.set(&"_circling", 0.0)
+	await _frames(3)
+	var apo := level.get("player") as Node2D
+	var dust := AboDust2D.new()
+	dust.position = apo.global_position
+	level.get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(dust)
+	await _frames(2)
+	var from := tiktik.global_position.distance_to(dust.global_position)
+	var at_throw := tiktik.is_revealed()
+	await _frames(int(1.3 * 60.0))
+	_check(from > dust.radius and not at_throw and tiktik.is_revealed() and tiktik.state_name() == "STUN"
+			and dust.shown_count() == 1,
+		"ash thrown as the lamp leans shows it when it flies in, and blinds it",
+		"%.0f px off of %.0f, then shown %s, %s" % [from, dust.radius, tiktik.is_revealed(), tiktik.state_name()])
+	# Reset the fixture without registering a defeat before checking an empty cloud.
+	set_meta(&"cloud_empty", false)
+	tiktik.queue_free()
+	await _frames(2)
+	var far := await _sent_beside_her(Vector2(0.0, -300.0))
+	var empty := AboDust2D.new()
+	empty.position = apo.global_position + Vector2(2000.0, 0.0)
+	empty.reached_nothing.connect(func() -> void: set_meta(&"cloud_empty", true))
+	level.get_node(^"EnvironmentBaseplate/GameplayPlane").add_child(empty)
+	await _frames(int(1.9 * 60.0))
+	_check(not far.is_revealed() and bool(get_meta(&"cloud_empty", false)),
+		"one that does not come near stays unseen, and the empty cloud says so once it has gone",
+		"shown %s, said %s" % [far.is_revealed(), get_meta(&"cloud_empty", false)])
+
+
 func _its_call_is_louder_far() -> void:
 	var steps: Array[float] = []
 	for distance in [100.0, 180.0, 300.0, 500.0, 700.0, 900.0, 1100.0, 1400.0]:

@@ -85,3 +85,9 @@ func _her_facing() -> float:
 
 func _her_x() -> float:
 	return _prey.global_position.x if _prey != null else global_position.x
+
+
+## Not by heat: a sun is the light that sends it off (the artist's way), and a burn that drove it
+## off too would answer its fight as the protector's.
+func apply_scorch(_ticks: int, _seconds: float) -> void:
+	pass

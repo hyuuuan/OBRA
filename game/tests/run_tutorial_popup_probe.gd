@@ -67,6 +67,7 @@ func _run() -> void:
 	_audit_the_ledger_matches_the_level()
 	await _audit_one_card_at_a_time()
 	await _audit_nothing_over_a_conversation()
+	await _audit_a_do_card_gives_way_to_a_story_line()
 	await _audit_a_player_who_already_did_it_is_not_told()
 	await _audit_a_do_card_ends_in_what_it_taught()
 	await _audit_a_look_card_stops_the_world()
@@ -79,6 +80,7 @@ func _run() -> void:
 	await _audit_the_first_checkpoint_explains_itself()
 	await _audit_nobody_at_the_keys()
 	await _audit_it_comes_and_goes_smoothly()
+	await _audit_the_tutorial_can_be_skipped()
 
 	print("OBRA_TUTORIAL_POPUP_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
@@ -100,6 +102,9 @@ func _fresh() -> void:
 	var seen: Dictionary = tutorial.get("_seen")
 	seen["move"] = "shown"
 	seen["jump"] = "shown"
+	# The same two kinds of thing, after a checkpoint: `moved` offers them every frame too.
+	seen["quest"] = "shown"
+	seen["become"] = "shown"
 	paused = false
 
 
@@ -129,6 +134,10 @@ func _audit_the_ledger_matches_the_level() -> void:
 		var anchor := String(lesson.get("anchor", ""))
 		if not anchor.is_empty():
 			_check(anchors.has(anchor), "'%s' lights something the level has" % id, anchor)
+		# And what it lights at the door, where Payyo shows it before its subject exists.
+		if lesson.has("entry_anchor"):
+			_check(anchors.has(String(lesson["entry_anchor"])),
+				"'%s' lights something the level has at the door" % id, String(lesson["entry_anchor"]))
 		var context := String(lesson.get("context", "world"))
 		_check(contexts.has(context), "'%s' waits for a moment the level knows" % id, context)
 
@@ -181,6 +190,131 @@ func _audit_nothing_over_a_conversation() -> void:
 	await _wait(0.3)
 	_check(spot.lesson_id() == "checkpoint", "and it is shown once the menu closes",
 		"up '%s'" % spot.lesson_id())
+
+
+## AND NO CONVERSATION UNDER A CARD. A `do` card keeps the world running, so the apo can walk
+## into a beat with one still up -- Payyo's Jump card into Ang Hagdan's first line -- and the
+## story box, five layers down, was read through the card's dim for the whole conversation. The
+## card gives way the moment a line begins.
+func _audit_a_do_card_gives_way_to_a_story_line() -> void:
+	await _fresh()
+	_auto(false)
+	var result := {"how": ""}
+	var on_finished := func(_id: String, why: String) -> void:
+		result["how"] = why
+	spot.finished.connect(on_finished)
+	_show("jump")
+	await _wait(0.5)
+	var was_up := spot.is_open() and spot.lesson_id() == "jump" and spot.lesson_mode() == "do"
+	var box := level.get("dialogue_box") as DialogueBox
+	box.speak([{"text": "Her stair is just ahead.", "speaker": "lolo"}])
+	await _wait(0.6)
+	_check(was_up and result["how"] == "talked_over" and not spot.is_open() and box.is_open(),
+		"a do card gives way when a story line begins",
+		"card was up %s, went '%s', still up %s, line up %s"
+			% [was_up, result["how"], spot.is_open(), box.is_open()])
+	spot.finished.disconnect(on_finished)
+	box.hide_line()
+	_auto(true)
+	await _wait(0.3)
+
+
+## SKIP TUTORIAL. Kent: "There should be a skip button for tutorials that the players can use".
+## Every card carries one, its key read off the InputMap; a click on it, or its key, ends the card
+## AND every lesson left in the level. And it must not swallow the clicks that are not on it: a
+## look card is still dismissed, one card at a time, by a click anywhere else.
+func _audit_the_tutorial_can_be_skipped() -> void:
+	const ControlsKeys = preload("res://scripts/controls_overlay.gd")
+	var skipped := {"left": -1}
+	var on_skip := func(left: int) -> void:
+		skipped["left"] = left
+	tutorial.tutorial_skipped.connect(on_skip)
+
+	# A click anywhere else on a look card is still just that card.
+	await _fresh()
+	tutorial.set_enabled(true)
+	_auto(false)
+	_show("checkpoint")
+	await _wait(TutorialSpotlight.LOOK_MIN_SEC + 0.2)
+	var card := spot.card_rect()
+	_click(card.position + Vector2(24.0, 24.0))
+	await _wait(0.2)
+	_check(not spot.is_open() and tutorial.is_enabled() and skipped["left"] == -1,
+		"a click elsewhere on a look card dismisses only that card",
+		"tutorial on %s, skipped %s" % [tutorial.is_enabled(), skipped["left"] != -1])
+	await _wait(0.4)
+
+	# Every card carries SKIP, inside the card, naming its key off the InputMap.
+	await _fresh()
+	tutorial.set_enabled(true)
+	_auto(false)
+	_show("jump")
+	await _wait(0.6)
+	var skip := spot.skip_rect()
+	var caps: Array[String] = []
+	for label in spot.find_child("SkipTutorial", true, false).find_children("*", "Label", true, false):
+		caps.append((label as Label).text)
+	_check(skip.has_area() and spot.card_rect().encloses(skip),
+		"every card carries a SKIP, inside the card", "skip %s in card %s" % [skip, spot.card_rect()])
+	var key := ControlsKeys.key_cap_for("skip_tutorial")
+	_check(key != "?" and caps.has(key), "and it names the skip key off the InputMap",
+		"%s (bound: %s)" % [", ".join(caps), key])
+
+	# A click on it ends this card and the rest of the level's lessons.
+	tutorial.note("level_start")
+	_click(skip.get_center())
+	await _wait(0.3)
+	tutorial.note("checkpoint")
+	await _wait(0.6)
+	_check(not tutorial.is_enabled() and tutorial.pending_ids().is_empty()
+		and spot.lesson_id() != "checkpoint" and int(skipped["left"]) > 0,
+		"a click on SKIP ends the card and every lesson left",
+		"%d lessons left unshown; nothing after it" % int(skipped["left"]) if skipped["left"] != -1
+			else "tutorial on %s, card '%s'" % [tutorial.is_enabled(), spot.lesson_id()])
+
+	# ⚠ AND ON A LOOK CARD, which spends every press on dismissing itself: there the click never
+	# reaches the button's own `pressed`, and only the card's `_input` can see it was on SKIP.
+	await _fresh()
+	tutorial.set_enabled(true)
+	skipped["left"] = -1
+	_show("checkpoint")
+	await _wait(TutorialSpotlight.LOOK_MIN_SEC + 0.2)
+	_click(spot.skip_rect().get_center())
+	await _wait(0.3)
+	_check(not paused and not tutorial.is_enabled() and int(skipped["left"]) > 0,
+		"a click on SKIP works on a look card too",
+		"paused %s, tutorial on %s, skipped %s" % [paused, tutorial.is_enabled(), skipped["left"] != -1])
+
+	# Its key does the same from a look card, and lets the world go.
+	await _fresh()
+	tutorial.set_enabled(true)
+	skipped["left"] = -1
+	_show("checkpoint")
+	await _wait(0.4)
+	var was_paused := paused
+	_press(&"skip_tutorial")
+	await _wait(0.3)
+	_check(was_paused and not paused and not tutorial.is_enabled() and int(skipped["left"]) > 0,
+		"the skip key ends it from a look card, and the world runs again",
+		"paused before %s, after %s, tutorial on %s" % [was_paused, paused, tutorial.is_enabled()])
+
+	tutorial.tutorial_skipped.disconnect(on_skip)
+	tutorial.set_enabled(true)
+	_auto(true)
+	await _wait(0.4)
+
+
+## A left click at `at`, a point on the 1600x900 canvas. Input arrives in WINDOW pixels and is
+## carried onto the canvas by the stretch transform, so it is sent from where the window has it.
+func _click(at: Vector2) -> void:
+	var window_at := root.get_final_transform() * at
+	for down in [true, false]:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = down
+		click.position = window_at
+		click.global_position = window_at
+		Input.parse_input_event(click)
 
 
 ## NOT WHAT THEY ALREADY DID. Walking waits two seconds; a player who walks in that time is
@@ -236,11 +370,16 @@ func _audit_a_look_card_stops_the_world() -> void:
 		"paused %s" % paused)
 	await _wait(TutorialSpotlight.AUTO_SEC + 0.5)
 	_check(spot.lesson_id() == "ink", "and waits for the player, not for a clock", "still up")
+	# ⚠ PAYYO'S CARDS ARE STRICT (tutorial.json `strict`): a key the card does not show leaves it up.
 	_press(&"redraw")
 	await _wait(0.2)
-	_check(not spot.is_open() and not paused, "a key lets it go, and the world back",
+	_check(spot.lesson_id() == "ink" and paused, "a key it does not show leaves it, the world held",
 		"up %s, paused %s" % [spot.is_open(), paused])
 	_check(not panel.is_open(), "and that key is spent on the card", "canvas open %s" % panel.is_open())
+	_press(&"ui_accept")
+	await _wait(0.2)
+	_check(not spot.is_open() and not paused, "Enter lets a card with nothing to press go, and the world back",
+		"up %s, paused %s" % [spot.is_open(), paused])
 	if panel.is_open():
 		panel.close_panel()
 	_auto(true)

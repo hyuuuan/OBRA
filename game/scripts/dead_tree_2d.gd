@@ -38,6 +38,8 @@ const DRAWN_Z := 0
 ## its own dead tree, drawn in the woods' bark. Empty -- Level 1's -- or a kind with no strips, it
 ## is the delivered tree above, turned on its side when it falls.
 @export var art_kind := ""
+## A level may supply its own tree artwork without replacing the shared creature strips.
+@export_dir var art_folder := "res://assets/Level4/creatures/"
 @export var blocked_hint: String = "That dead tree would reach across. Draw something with an edge — E to pick it up, F to swing."
 
 var _standing: CollisionObject2D
@@ -117,7 +119,7 @@ func _drawn_art() -> PixelStripAnimator:
 	if art_kind.is_empty():
 		return null
 	var drawn := PixelStripAnimator.new()
-	drawn.load_kind(Enemy2D.ART, art_kind, ["idle", "felled"])
+	drawn.load_kind(art_folder.trim_suffix("/") + "/", art_kind, ["idle", "felled"])
 	if not drawn.has_art():
 		drawn.free()
 		return null

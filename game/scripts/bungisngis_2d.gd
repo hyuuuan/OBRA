@@ -90,6 +90,11 @@ func laugh() -> void:
 
 
 ## Whether it still stands in the crossing.
+## Not once it has sat aside: laughing or sat down, no blow touches it, and a bar would say one could.
+func shows_health() -> bool:
+	return is_in_the_way() and super()
+
+
 func is_in_the_way() -> bool:
 	return state != State.DEAD and _laughing <= 0.0 and not _aside
 
@@ -187,3 +192,8 @@ func _draw() -> void:
 		var grip := Vector2(_facing * (body_size.x * 0.5 + 8.0), top + 70.0)
 		var club_end := grip + (Vector2(0.0, -70.0) if raised else Vector2(_facing * 40.0, 50.0))
 		draw_line(grip, club_end, CLUB, 12.0)
+
+
+## Not by heat: it is a giant, not an aswang, and its fight is a blow or a way over, never a light.
+func apply_scorch(_ticks: int, _seconds: float) -> void:
+	pass

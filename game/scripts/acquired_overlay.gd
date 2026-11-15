@@ -237,6 +237,9 @@ func _play() -> void:
 		_run.kill()
 	_reveal = 0.0
 	_holding = false
+	# EACH CARD CHIMES AS IT RISES, not the overlay as it opens: two things taken in one second
+	# are two cards, and the second rises into an overlay that is already open.
+	_sound(&"item_acquired")
 	var run := create_tween()
 	# The tree can be paused underneath this -- a pickup is usually answered with a line of
 	# story, and a story line stops the world. A tween bound to that would freeze one frame in.
@@ -294,3 +297,13 @@ func _unhandled_input(event: InputEvent) -> void:
 ## It rises and falls by its own _reveal; the base leaves it alone.
 func _animates_itself() -> bool:
 	return true
+
+
+## Its chime is the card's (`_play`), and it goes by itself after the hold, which is no moment to
+## mark: the overlay's own `ui_open` and `ui_close` would only be noise over a reward.
+func _open_sound() -> StringName:
+	return &""
+
+
+func _close_sound() -> StringName:
+	return &""

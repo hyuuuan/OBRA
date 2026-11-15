@@ -132,14 +132,14 @@
       "at": "L3_N1.artist.dug",
       "kind": "hint",
       "once": true,
-      "text": "There — it is loose. Now put your weight behind it, apo, all the way down to the water."
+      "text": "There — it is loose. Now something strong can drag it down to the water."
     },
     {
       "id": "L3_N1_011",
       "at": "L3_N1.artist.shove",
       "kind": "hint",
       "once": true,
-      "text": "Ha! It moved. Pick it up and do that again — it is a long way down to the water."
+      "text": "Ha! Down she goes, all the way to the water."
     },
     {
       "id": "L3_N2_001",

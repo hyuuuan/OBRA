@@ -180,18 +180,29 @@ func _out_of_ink_past_a_seabed_checkpoint() -> void:
 	level.call("_post_advice", waiting)
 	ink.call("drain", float(ink.call("remaining")) - 0.02)
 	var before := int(checkpoints.call("restore_count", "CP3b"))
+	# ⚠ WHERE THE APO IS WHEN THE BODY GOES, not three hundred frames later. Since 1bb2533f the
+	# open water's strong current carries anything that cannot swim left at up to
+	# CURRENT_SPEED (level_3.gd), and five seconds of it took the apo 540 px west of where the fish
+	# had been -- the current doing its job, not the rescue putting them somewhere else. The drift
+	# is run_level3_current_probe's to check; this one asks where the rescue left them.
+	var given_up := false
+	var given_up_at := Vector2.ZERO
 	for _frame in range(300):
 		await physics_frame
 		if paused:
 			await _unpause()
+		if not given_up and level.get("player") is Wanderer:
+			given_up = true
+			given_up_at = (level.get("player") as Node2D).global_position
 	var apo := level.get("player") as Node2D
 	# ⚠ NOT A RESTORE AT ALL NOW (2026-10-05) -- and so not a loop of them either. Before, the apo
 	# was put back on the seabed at CP3b and drowned again once a second; then CP3b gave back the
 	# swimmer. Now nothing is restored in the water: the apo swims up from where they were.
 	_check(int(checkpoints.call("restore_count", "CP3b")) == before,
 		"running dry there restores nothing", "no restore of CP3b")
-	_check(apo is Wanderer and absf(apo.global_position.x - 5800.0) < 300.0,
-		"and the apo is in the water where the body was", "at %s" % apo.global_position.round())
+	_check(apo is Wanderer and given_up and absf(given_up_at.x - 5800.0) < 300.0,
+		"and the apo is in the water where the body was",
+		"at %s as the body went" % given_up_at.round() if given_up else "still %s" % apo.get_class())
 	_check(float(ink.call("remaining")) >= 0.99, "with ink to draw a swimmer again",
 		"%.2f left" % float(ink.call("remaining")))
 	await _close_the_level()

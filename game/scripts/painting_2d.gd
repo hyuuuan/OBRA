@@ -38,6 +38,16 @@ signal chosen(level_id: String)
 var _playable := false
 var _art_size := Vector2(128.0, 72.0)
 var _plate: Label
+var _aligned := false
+var _nudge: Tween
+var _nudge_height := 0.0:
+	set(value):
+		_nudge_height = value
+		queue_redraw()
+var _nudge_scale := 1.0:
+	set(value):
+		_nudge_scale = value
+		queue_redraw()
 
 ## LOCKED IS A STATE OF ITS OWN, AND IT LOOKS IT. Kent, of finishing Payyo: back to the house,
 ## and "there should be an animation wherein the level gets unlocked". There was nothing to
@@ -218,7 +228,35 @@ func choose() -> void:
 	chosen.emit(level_id)
 
 
+## One upward tap on entering the painting's horizontal reach. Leaving rearms it; standing
+## beneath it never loops the motion. Draw-only transforms keep the reach and plate still.
+func set_player_aligned(aligned: bool, animate: bool = true) -> void:
+	if aligned == _aligned:
+		return
+	_aligned = aligned
+	if not aligned or not animate or Motion.reduced():
+		return
+	if _nudge != null and _nudge.is_valid():
+		_nudge.kill()
+	_nudge = create_tween().set_parallel(true)
+	_nudge.tween_property(self, "_nudge_height", 7.0, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_nudge.tween_property(self, "_nudge_scale", 1.055, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_nudge.chain().tween_property(self, "_nudge_height", 0.0, 0.30).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_nudge.parallel().tween_property(self, "_nudge_scale", 1.0, 0.30).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## The exact visible canvas and frame, including a tap still in flight. LevelManager keeps
+## this visual in screen space while the hall is replaced beneath it.
+func transition_source() -> Dictionary:
+	return {
+		"art": art, "art_size": _art_size, "moulding": moulding, "light": _light,
+		"transform": get_global_transform_with_canvas() * Transform2D(
+			0.0, Vector2.ONE * _nudge_scale, 0.0, Vector2(0.0, -_nudge_height)),
+	}
+
+
 func _draw() -> void:
+	draw_set_transform(Vector2(0.0, -_nudge_height), 0.0, Vector2.ONE * _nudge_scale)
 	var half := _art_size * 0.5
 	var picture := Rect2(-half, _art_size)
 	# The picture first, then the moulding over its edge, so the frame sits on the painting
@@ -247,7 +285,8 @@ func _draw_padlock(picture: Rect2) -> void:
 	var shake := sin(_lock_shake * TAU * 5.0) * 3.0 * (1.0 - _lock_drop)
 	var centre := Vector2(shake, picture.end.y - 4.0 + _lock_drop * 46.0)
 	var tilt := _lock_drop * 0.6
-	draw_set_transform(centre, tilt, Vector2.ONE)
+	draw_set_transform_matrix(Transform2D(0.0, Vector2.ONE * _nudge_scale, 0.0,
+		Vector2(0.0, -_nudge_height)) * Transform2D(tilt, centre))
 	var alpha := _lock_alpha
 	var iron := Color(0.16, 0.15, 0.17, alpha)
 	var brass := Color(UISkin.GILT_LIT, alpha)

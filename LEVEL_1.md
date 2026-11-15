@@ -135,8 +135,9 @@ where the painting lived before the painting moved into Ang Bale, and a playtest
 "the box is not openable". Now, standing at it holding a drawn tool that can **cut** or
 **unlock**, F reads OPEN (`GameLevel._level_use_verb`, through LevelBase's
 `_level_use_verb` / `_level_uses_the_tool` hooks). F opens it, and the tool is used up like
-every tool. Her sketchbook page is shown as a memory card (`dialogue.json` →
-`levels.level_1.chest_memory`), and the board beside it re-reads `L1_N2.chest.opened`. The
+every tool. The first page of her diary is inside (2026-11-01: `diary.json` → `payyo`, opened in
+the book and kept under the bag's DIARY tab; `DIARY.md`), and the board beside it re-reads
+`L1_N2.chest.opened`. The
 line after "Locked. Of course." says something that can **cut** would go through the hasp:
 **cut** is taught at the gorge, and **unlock** not until Ang Bale. Optional, like the cave's
 flower; the level waits on nothing in it. `run_walk_level1` → `_her_chest_opens`.
@@ -189,13 +190,64 @@ damage is. The way back is the daylight in the wall, which is the only bright th
 **The nail is out of reach, and that is the room's puzzle.** It hangs 250 above the floor;
 the apo is 96 tall and her jump apex is 94.3 (`wanderer.gd`), so she is about forty pixels
 short. Anything at all to stand on closes that — the one place in the level where the puzzle
-is height and nothing else, with no tag to satisfy and no wrong answer.
+is height and nothing else, with no tag to satisfy and no wrong answer. The hint beneath
+the nail suggests drawing a ladder or placing something to stand on.
+
+**The key is found, not stumbled on** (Kent: "make the key in the haybale standout since its
+not noticeable", then "they cant see the key so like the arrow should just point at the key").
+Measured in a 1600×900 window, the room's camera (zoom ≈2.16) sees about 370 units either side
+of her and the nail is 395 in from where she lands, so the key started just past the
+right-hand edge; on screen it was brass on same-hue straw (1.3:1), still, under the quest bar.
+- **It hangs on a dark board** by a twine loop from the nail (`StrawRoom2D.KEY_PLANK*`): about
+  5:1, held at 3:1 or better by `run_room_probe`. The board and nail stay once it is taken.
+- **One effect moves:** a near-white cross glints on the bow every 1.6 s (`GLINT_*`, stepped at
+  `Motion.PIXEL_FPS`, alpha in eighths), entirely on the board; still under reduce motion; gone
+  the moment the key is taken.
+- **The camera leans toward it** while it hangs (`camera_lead`, applied by
+  `GameLevel._lean_toward_the_key` as the camera's x offset): half the way, at most 200, so the
+  key and the apo are both in frame from the first step.
+- **The arrow is on it everywhere in the room.** The room's objective is asked before the
+  gorge's position check (the room is parked over the gorge's x, so an unanswered gorge used
+  to win in here, with no arrow), and it is `out_of_reach`, so the chevron stays while she
+  stands under the nail. `run_objective_probe` checks both.
+- **The heap stops asking.** Its FORAGE/CARRY/WEATHER advice comes down as she goes in and
+  when the key is taken, and is not given again while she is inside or once the key is in hand
+  (`GameLevel._advise_the_beat`).
+
+It says "the key, up there" and nothing about how to get up there, which is still the puzzle.
 
 > ⚠ A drawing placed in here needs the **level's** bounds. `PhysicsShapeObject` defaults to
 > `Rect2(0, −520, 3760, 1200)` and clamps itself back inside it; the room is a thousand units
 > above that, so an object put down here without `set_world_bounds` is snapped to the valley
 > floor and the room reads as a dead end. `_on_placement_confirmed` passes them — a fixture
 > that forgets to is testing the default, not the game.
+
+> ⚠ **And a drawing taller than the room is fitted to it, not put on its roof** (Kent: "when i
+> place something, it disappears"). The heap has about 312 of headroom under the thatch and
+> Ang Bale about 202, against a ladder drawn 244 tall and made bigger to reach the nail. The
+> placement climbs a ghost up out of whatever it overlaps, and with no air inside the room it
+> climbed through the thatch and set the drawing down on top of it, outside the box the camera
+> is held in. `PlacementController` now stops the climb at the top of the room and makes the
+> ghost a resize step smaller until it stands inside (`_fit_the_room`); the status line says
+> "Made smaller to fit this room". ⚠ A resize queue_frees the old collision, which counts until
+> the frame ends; the placement's shape checks skip it, or the fit shrank to half size.
+> `run_room_probe` sets a full-size ladder down in both rooms.
+>
+> ⚠ **A drawing stands where its ghost stood, and never in the doorway** (Kent: "if you place it
+> at the very bottom of the platform, it places it at the door at the bottom"). A ghost is a
+> frozen body, and the physics server moves a frozen body without updating where it measures the
+> next step's motion from, so a confirmed drawing was swept from the world's origin to its spot
+> and pushed off anything on that line. Every room is parked up and right of the origin, so the
+> line crossed the room's own floor and threw the drawing up and toward the doorway.
+> `PhysicsShapeObject._unfrozen_where_it_stands` re-seats it once it is rigid (a dropped tool too).
+> And the box a placement is held in now ends at the doorway's far jamb
+> (`LevelBase._placement_rect_for`), in every interior. `run_room_placement_probe` aims low and at
+> the doorway in the heap, Ang Bale and Piyesta's church, clicking through the input queue.
+>
+> **The heap's way out is a hole worn through it**, the mouth on the terrace seen from inside: a
+> ragged pointed arch with straw hanging across the daylight, drawn in the old doorway's footprint
+> and nowhere else. The room around it is Kent's painting (`hay_interior.png`) and is not painted
+> over.
 
 **The chain is heap → key → house → painting.** The room used to hold the hub's painting of
 Pista *and* a key that opened nothing ("finding a key that does not fit is the point"), which
@@ -238,14 +290,13 @@ you deal with the heap from outside. They are different questions and the level 
 `haybale_animation_4.png` is the widest, last airborne pose. The scene still has three
 `StrawPile2D` nodes because route state and the one entrance are authored that way, but only
 the entrance node draws the composite group. Drawing it from every node would stamp the same
-three piles over themselves. The four poses own the screen for three seconds before any
-acquisition or dialogue popup opens, then settle into a low bed of loose straw that actually
-touches the terrace. Every supplied pose has its own measured support row: the images do not
+three piles over themselves. The camera frames the four wind poses and the loose straw
+settling on the terrace in a three-second beat. Dialogue and the acquisition card wait
+until it finishes. Every supplied pose has its own measured support row: the images do not
 share a baseline, and aligning their canvas edges or their lowest stray alpha pixel leaves
-the visible piles floating. Checkpoint restores keep `SCATTERED` and do not rebuild the pile.
-The Protector choice's commit line is deferred too: the button carries the intention, all
-four wind poses and the grounded result play unobstructed, and only then may dialogue and
-the brass-key acquisition card cover the world.
+the visible piles floating. Choosing to scatter the heap closes its entrance. The wind brings
+the baul onto the terrace so its diary page stays reachable. CP2 records the solve so Continue
+restores the loose straw, closed entrance, and brass key together.
 
 **And the arrival SAYS there are two ways at it.** `L1_N2.enter` used to say only "it is in
 there, inside the straw", so a player who could not fit through the mouth concluded the key
@@ -531,8 +582,9 @@ as its own literal so a bump fails loudly until the migration is confirmed.
 ## Arrival speaks once
 
 `<obstacle>.enter` and `L1_N2.inside` play themselves the **first** time and never again.
-`DialogueScript.has_heard` tracks it per hook; `game_level._speak_on_arrival` is the only
-caller allowed to fire an arrival.
+`DialogueScript.has_heard` tracks it per hook; `LevelBase._speak_on_arrival` is the only
+caller allowed to fire an arrival. What each beat says, in what order and where, follows
+**LEVEL_TEMPLATE.md, "When the game speaks"**, which `run_line_timing_probe` walks.
 
 This is not the same as a line's authored `once`, which means "spent, never again for
 anyone" and is right for the refusal beat. Arrival lore stays **readable** — it moves to
@@ -586,12 +638,76 @@ volume. And `LevelObstacle2D.story_sign_offset` puts the board at the water's ed
 on the leading edge of a volume that starts at the spawn. `hint_sign_offset` is the same
 lever for the hint board, and Node 2 uses it — see below.
 
+**Payyo is where a run starts (2026-11-04).** Kent: "when the game is played new game it should
+automatically start to the tutorial level rather than the lobby like Start>Level 1>lobby>Get
+paint>go to level 2". NEW GAME opens this level directly (`LevelManager.start_new_game`), with
+Lola's brush already carried — the opening's own line, "I picked up her brush, and the painting
+on the wall — it moved", is how she got it — and the house comes after, when her canvas takes her
+home. So the first thing a new player sees is this level's opening, and its order now is:
+
+1. the intro conversation;
+2. **the door's cards** (2026-11-13). Kent: "the tutorial should pop up for when the moment
+   happens but there should be tutorial that is appropriate at the start like the movement,
+   inventory, jump, etc". Eight cards about what is already there play back to back, in
+   `tutorial.json` order, with no lead and no delay: Walk and Jump, done for real with the world
+   running and lighting their MOVE and JUMP chips; then the bag — Tab, its six empty slots brought
+   up to be lit, and Tab opens the real bag (`entry_opens`); over it, a card lights a face-down card
+   and waits for her to click it, which shows its hint (`context: bag`, `click_on_it`); when she
+   closes the bag, the quest card, the arrow, the map, and Escape last, lighting the keys in the
+   corner. Backspace ends them all, as it ends any card;
+3. `B0_HAGDAN.enter`, then **Draw** at the wall, led in by Lolo — and every other card in its
+   moment, as below.
+
+**Every Payyo card waits for the player to do what it shows** (`strict` on the level's block).
+Kent, of cards any key moved on: "it does not let me experience the tutorial". A card goes only on
+its own key or click, with a tick; a `look` card with nothing to press goes on a click or Enter;
+a `do` card with nothing to press (Paint) goes when what it lights goes. No other key ends a
+card, and nothing times one out. Under a `do` card the world keeps working and its press does its
+job (R opens the canvas); under a `look` card the world is held and the press is spent on it.
+
+For a day (2026-11-12) every card played at the door, and taught a canvas, a placed drawing and a
+creature that were not there yet. `run_tutorial_coverage_probe` plays the door and the moments with
+somebody at the keys; `run_opening_probe` plays them after the real intro.
+
+⚠ **Nothing goes before the first of these.** A key already held as the level appeared counted
+as the first step, so Jump's lead was said before the apo woke up and Walk was spent unshown.
+Lessons wait for the opening now (`_tutorial_context`), and the door's cards are part of it.
+
+**At the gorge the order is `L1_N1.enter`, its three ways (`kind: lore`, in the box), then the
+question.** The fork's box and the arrival's box both begin at x 2950. They used to open on one
+frame, and the key turning Lolo's pages answered the question.
+
+After the door each lesson waits for its moment (`at`, `after`, `delay`, `lead` in
+`tutorial.json`), and most only come if the player does the thing: Draw at the wall, the canvas and
+Paint on the canvas, placing on a placement, the checkpoint at Ang Hagdan's lantern; Become six
+seconds past the checkpoint, before the lake, the first place it can matter (spent unshown if she
+has already become something); E the next time its prompt is up, past the checkpoint — ⚠ a `look`
+card, because E is first offered beside the first drawing she set down, and a `do` card there would
+have her press E and pocket what she was about to climb. Fly and Swim come only to a form that can
+do them, Swim only once it is in the water. A lesson a route never reached is owed to the next
+level: AGENTS.md has the rule.
+
+⚠ **The greeting is not said on a first visit** (`_greets_on_first_visit`). It came straight
+after the intro, at the spawn — "press R and draw", the first instruction in the game, with
+nothing in front of her to draw for — and the `draw` lesson's lead says the same thing at the
+wall. Return visits still hear it.
+
+**The keys stay on screen.** Payyo turns on `_shows_movement_keys`, so MOVE (A D) and JUMP
+(Space) stand in R's row, read off the InputMap, for the player who forgot — see HUD_SKIN.md.
+
 | Obstacle | Spans | What is in it |
 |---|---|---|
 | `B0_HAGDAN` | 700 – 1240 | the bank below Ang Hagdan, and the wall itself at 1180 |
 | `L1_N1` | 2850 – 3230 | the dialogue node (3010), the dead tree (3040), the ruined bridge (3080) |
 | `L1_N2` | 3640 – 4380 | the three straw piles (3654–4368), on Terrace5 |
 | `L1_N3` | 4430 – 4810 | the bale's floor (4520–4760) and both bululs |
+
+⚠ **`L1_N3`'s arrival box is 4430–4610, not centred on the house.** Centred, it began at 4530, and
+the post stops her at 4516: "There is the house… the way up is gone" played only once she had
+climbed onto the deck. Its board stands at 4370, 60 px before it.
+
+**The bulul speak to somebody who stays** (`Bulul2D.LINGER`, 1.2 s). "Do not" used to fire on
+anyone walking up to the house, a moment after Lolo's first words about it.
 
 No two overlap now; `L1_N2` and `L1_N3` used to share 20px.
 
@@ -604,7 +720,8 @@ cloth pennant, which read as one more signboard in a level that is already full 
 signboards ("you placed a sign in the checkpoint spots"). The state is LIGHT rather than
 colour, because a change from grey cloth to gold cloth is a change you have to be looking at
 it to notice. The two decorative fence sprites are deleted outright: one of them was standing
-on CP0.
+on CP0. Its trigger starts on the upper terrace, and its authored landing there also takes
+over from older CP0 snapshots written partway up the climb.
 
 **The gorge has a BOTTOM, and the cave is a hole you can see.** `has_a_floor` lays rubble and
 silt across the foot of the shaft with a column of daylight down the middle, and `cave_at` /
@@ -627,6 +744,32 @@ and no side faces, which is what a paddy wants.
 so the only thing on screen at full contrast is the playfield. The near scenery layer was the
 offender: it scrolls at 0.72 and was drawn at almost foreground brightness, so a painted hut
 and a painted stone staircase read as things you could walk on.
+
+**The terraces are built the way Mayon's ground is, in Payyo's own stone** (2026-11-02).
+`CliffDressing` (`CliffDressing2D`, under `GameplayPlane/Terrain`) draws every terrace segment,
+the gorge's ledges and the exit shelf: a thick lip of Payyo's own grass edge tile she stands in,
+draping over the mossy river-stone retaining wall, which darkens going down and is shaded under
+the lip and under each broken layer of the darker repeats. An open end is cut straight, shaded
+and outlined, with the lip rounding over it, the corner tile's grass spilling a short way down,
+and a fern on the corner; a riser's foot is shadowed on the step below. Ferns and grass stand
+along the lips -- no flowers, so the gorge's hidden one stays something to find. The kit is cut
+from `texturemap.png` at its own resolution by `tools/build_cliff_kits.py`, whose `kit.json`
+tells the runtime its rows; the segments keep their collision and stand their own art down.
+
+⚠ Four passes were rejected on the way, all by Kent: procedural cobbles ("nothing close to level
+5"); Mayon's own boulders regraded green ("mayon has those rocks since its setting is in a volcano
+place"); the tileset enlarged 2x ("lower resolution like not hd"); and end caps of stones laid over
+the wall's own, which met them nowhere ("edges look weird"). The construction is Mayon's; the
+material is the level's, at the tileset's resolution, and nothing is ever enlarged.
+`run_cliff_dressing_probe` holds the contract.
+
+⚠ **The near plate's right edge is a straight cut, so it lives behind Ang Hagdan's wall**
+(2026-11-02). `terraces_near_background` is a hill of terraces cut off flat on the right, through
+its stone walls. At (520, 425) the cut stood at x 998, 182 short of Terrace1, and once the old
+steps faded it showed above the ground as a seam: "the background is cut off". `NearA` is at
+(720, 473) now: the cut starts behind the wall and only moves further right, behind the
+terraces, as she walks. `run_level1_backdrop_probe` walks the climb standing and at a jump's
+apex and fails if any point of the cut is in view and not behind solid terrace.
 
 **The level ENDS WITH HER PAINTING.** It used to end at the GoalMarker out on the Overlook, so
 finishing Payyo meant solving the hardest node in the level, climbing in, taking the canvas,
@@ -763,11 +906,17 @@ are not.
 **The lake before the gorge (`CentralPaddy`) is 600px, x 2280–2880** (Kent, 2026-10-03: "longer
 instead of a puddle"). It was a 300px paddy, which a 340px drawn bridge spanned; it grew west
 into the bank before it, so the gorge and everything after it did not move. A bridge no longer
-reaches across. A boat does, and so does something that swims. It is 160 deep and filled to
-the rim, so the apo cannot wade it, and going under puts her back at her last checkpoint.
-`run_walk_level1` holds the width, keeps water, bed and basin bank to bank, checks no signpost
-stands in it, and rides a boat across. It is not in `GATES.md` and has no beat or hint of its
-own: the banner says "Follow the terraces east to the gorge" all the way across it.
+reaches across. A boat does, and so does something that swims. Lolo explains the transformation
+on the west bank. The lake is 160 deep and filled to the rim, so an unboarded apo who wades in
+is rescued to a dry bank with her drawings and ink intact. Sailboats land at the waterline,
+and submarines placed in clear water wait at that depth until boarded. `run_walk_level1` checks both
+placements and rides the sailboat across.
+
+**The sky has a lid (`GameplayPlane/SkyLid`, underside y -440).** Kent: "when i try to fly up above
+in level 1, i get to go to the houses, hay". Both insides are parked over the valley (the heap at
+y -900, Ang Bale at y -1180) and a room is entered by position (`_room_holding_player`), so a bird
+flapped off the top of the painted sky and into them. The lid is world collision, and doors
+teleport past it. `run_level1_flight_ceiling_probe` flies at it with real flaps.
 
 ## What the player is told to do
 
@@ -783,6 +932,28 @@ walked past it. Do not make the objective insist on the heap.
 `run_objective_probe` walks both levels through their real state changes and checks the
 line and the marker at every step. The distance readout ("GOAL 116 m") is still there; it
 says how far, and the objective says what and which way.
+
+## The old ways fade
+
+Each of Payyo's climbs and crossings shows the way that used to be there, and it goes as she
+walks up (LevelBase `_fades_the_old_way`, group `fades_away` with `fade_at` / `fade_over`), so
+the obstacle reads as hers to draw before anyone says so. Kent (2026-11-01): fully away.
+
+| Old way | Where | Goes from | Gone by | Its near edge |
+|---|---|---|---|---|
+| `Hagdan/OldSteps` — `stair_step.png` ×2 over `stair_riser.png` | against Ang Hagdan's wall | x 450 | 762 | 796 |
+| `Gorge/RuinedBridge` | the gorge's near lip | x 2600 | 2990 | 3080 |
+| `Bale/OldLadder` — lifted off `hut.png` | against Ang Bale | x 4300 | 4612 | 4724 |
+
+- **None has collision**, and each is blank before she can reach it at a run: an old way still
+  showing at her feet looks like somewhere to stand. `run_old_way_fade_probe` asserts it.
+- **They dissolve in their own colours** (`_fade_wash` 0.25, `_fade_vanish_from` 0.15, into the
+  terraces' haze). Mayon whitens to flat paper first; that is the ash, and Payyo has none.
+- ⚠ **`drain.gdshader` reads `COLOR` as it is.** Godot 4's `COLOR` already carries the texture;
+  sampling `TEXTURE` again squared every colour (0.42 came out 0.17), so whatever wore the drain
+  drew darker than painted from the start. It once had a flag for this; now no level samples
+  twice, and `run_drain_probe` fails if the shader does. The one read it allows is `.a`: Mayon's
+  edge feather asks how far the art reaches, and no colour comes of that.
 
 ## Verify
 

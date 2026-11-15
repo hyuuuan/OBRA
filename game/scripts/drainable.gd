@@ -24,6 +24,21 @@ const BLANK := 0.999
 ## What drains: the parent, unless set.
 @export var target_path: NodePath = ^".."
 
+## What it drains toward. Mayon's paper unless a level gives its own (LevelBase._fade_paper).
+var paper := Color(0.957, 0.937, 0.894)
+## How much of the whitening it takes, and where it starts to go (drain.gdshader). Mayon's: all of
+## it, from flat paper.
+var wash := 1.0
+var vanish_from := 0.85
+## Whether it shows itself in a level's dark WHILE IT GOES, the way her drawings are seen
+## (PhysicsShapeObject.dark_reveal): an old way in Dilim's woods has to be seen to be seen going.
+## Only while it goes -- before, the woods stay as dark as Kent made them, and a reveal standing
+## open round the bungisngis's ravine showed the giant from half a screen off. Seen, never light:
+## DarknessLayer.REVEAL_GROUP, which LightField does not count, so it shows no sigbin.
+var reveals_in_dark := false
+## How much of the drain it takes to come up out of the dark, before it dissolves with the rest.
+const REVEAL_RISE := 0.15
+
 ## How far the ash has taken it: 0 painted, 0.5 white, 0.85 flat paper, 1 blank.
 var drain: float = 0.0:
 	set = set_drain
@@ -43,6 +58,9 @@ func _ready() -> void:
 		return
 	_material = ShaderMaterial.new()
 	_material.shader = SHADER
+	_material.set_shader_parameter("paper", paper)
+	_material.set_shader_parameter("wash", wash)
+	_material.set_shader_parameter("vanish_from", vanish_from)
 	_target.material = _material
 	for item in _target.find_children("*", "CanvasItem", true, false):
 		(item as CanvasItem).use_parent_material = true
@@ -82,6 +100,32 @@ func is_blank() -> bool:
 
 func target() -> CanvasItem:
 	return _target
+
+
+func dark_reveal() -> Dictionary:
+	if not reveals_in_dark or _target == null or _blank or drain <= 0.0:
+		return {}
+	var box := _extent()
+	if box.size == Vector2.ZERO:
+		return {}
+	var reach := maxf(box.size.x, box.size.y) * 0.5 * PhysicsShapeObject.DARK_REVEAL_FULL \
+		/ LightField.SOFT_EDGE + PhysicsShapeObject.DARK_REVEAL_MARGIN
+	return {"position": box.get_center(), "radius": reach,
+		"strength": PhysicsShapeObject.DARK_REVEAL_STRENGTH * minf(1.0, drain / REVEAL_RISE)
+			* (1.0 - drain)}
+
+
+## Everything drawn in it, in the world.
+func _extent() -> Rect2:
+	var sprites: Array[Node] = _target.find_children("*", "Sprite2D", true, false)
+	if _target is Sprite2D:
+		sprites.append(_target)
+	var box := Rect2()
+	for node in sprites:
+		var sprite := node as Sprite2D
+		var rect := sprite.get_global_transform() * sprite.get_rect()
+		box = rect if box.size == Vector2.ZERO else box.merge(rect)
+	return box
 
 
 func _stop() -> void:

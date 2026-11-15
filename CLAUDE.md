@@ -13,10 +13,10 @@ The thesis manuscript governs where it and the SRS disagree.
 
 ## 1. Read these before you touch anything
 
-1. **`AGENTS.md`**: the architecture contracts, notes on every level, the traps this project keeps re-learning, and the commands. It is long; read the Project Map, Stable Contracts, Building a level, your level's section, and **Traps** in full.
+1. **`AGENTS.md`**: tool routing, architecture contracts, and verification rules. Read the relevant section of **`docs/IMPLEMENTATION_NOTES.md`** when you need level history, known traps, or commands.
 2. **`LEVEL_TEMPLATE.md`**: the shape every level has, the gate rules R1–R9, the invariants to assert, the tests a level owes, and the build order.
 3. **`LEVEL_<N>.md`** for the level you are on. For Mayon that is **`LEVEL_5.md`**. Its "Decisions — do not re-litigate" table is settled; do not reopen it.
-4. As needed: `HUD_SKIN.md` (the UI look), `GATES.md`, `ART_PLACEHOLDERS.md` (every stand-in art piece, by name), `CONTENT_NEEDED.md`.
+4. As needed: `HUD_SKIN.md` (the UI look), `GATES.md`, `ART_PLACEHOLDERS.md` (every stand-in art piece, by name), `CONTENT_NEEDED.md`, `DIARY.md` (Lola's diary: a page in every level, the bag's DIARY tab).
 
 When code and docs disagree, trust the code and fix the doc in the same PR.
 
@@ -38,7 +38,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 ### Testing
 - **First, in a fresh checkout or after art changes:** `godot --headless --path game --import`. Without it, no `class_name` resolves.
 - **Run only the suites your change touches:** `tools/run_suites.sh only <suite> <suite> …`. Run the **full** suite (`tools/run_suites.sh`, 25–40 min) only when shipping, or when a change cuts across every level (an autoload, shared `LevelBase` plumbing).
-- **Run one Godot process at a time per checkout.** Each test run keeps its data in its own `user://test_runs/<pid>/` folder, but runs in one checkout still share its `.godot` import cache.
+- **Run one Godot process at a time per checkout.** Each test run has its own `user://test_runs/<pid>/` folder (`user_data.gd`). Runs can overlap across checkouts, but runs in one checkout share its `.godot` import cache. Re-run a timing failure alone to rule out CPU contention.
 - **A green suite is not a silent one.** Grep the output for `SCRIPT ERROR`, `Parse Error`, `^ERROR` and `Error calling`.
 - **Mutation-test every new check.** Break the line the check guards, run the probe, confirm that the check fails, then restore the line. A check that cannot fail is not a check, so do this for every assertion you add.
 - **Probe conventions:**
@@ -64,6 +64,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
   - The picture comes first (`LessonVisual`); the caption is 8 words or fewer and comes second.
   - One card at a time; the screen dims and the lesson's subject is lit.
   - **Never** draw a picture of one of the 50 classes in a lesson. A ladder, a square or stairs in a picture is a hint the level did not mean to give.
+  - **Level 1 teaches every control: what is already there at the door, the rest in its moment.** Once Payyo's opening has been said, its `door` cards (walking, jumping, the bag and its face-down cards, the quest card, the arrow, the map, Escape) play back to back (`_teaches_at_the_door`, `TutorialDirector.teach_the_door`); every other card comes when its moment does. **Every Level 1 card waits for the player to do what it shows** (`strict`): no other key, no timeout. A later level shows a card only for what Level 1 cannot teach (`NECESSARY_CARDS` in `run_tutorial_audit`); the rest is a `say` line on the hint bar. A Level 1 lesson a route missed is owed and shown once later (`carries` in `tutorial.json`).
 - **No dialogue or objective line names a drawable class**, in English or Filipino (*tulay, hagdan, pinto, puno* …). Audits enforce this.
 - **Gates are tags, not classes.** Every gate must resolve to at least 2 classes with held-out recall ≥ 0.70 after exclusions (BR-7, using `model/metrics.json`).
 - **`modulate` multiplies, so it can never make anything lighter.** To add light, draw a lit layer on top or use a shader.
@@ -80,24 +81,24 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - **The ink is finite, with no refills anywhere:** 6 units, and every drawing costs 1.
 - **Act One, the ascent.**
   - Two gates: SPAN, then CLIMB. Both are tag routes.
-  - What the ash settles on goes white, then blank.
+  - What the ash settles on goes white, then blank, and the apo works out why: it is Lola forgetting.
 - **Act Two, the heart.**
-  - Twelve fragments of earlier paintings drift loose and go white, and there is ink to save about four.
+  - Twelve fragments in three four-memory areas go white, and there is ink to save about four.
   - To save one, she draws something that belongs in it (1 ink). A drawing that doesn't belong is handed back free.
   - Three fragments hold Lolo, and saving one steadies him. One holds the 5th flower.
-- **Lolo goes.** Near the top she tries to draw him and the brush refuses. He vanishes mid-sentence, in one frame.
+- **Lolo goes.** Near the top she says she can fix this, tries to draw him, and the brush refuses. His last line is the run's dominant route, and he vanishes mid-sentence, in one frame.
 - **Act Three, the summit.**
   - Lola paints with her back turned, and the brush refuses twice.
   - She draws the places instead: one drawing, no recognition, no ink, so the climax cannot fail. The saved fragments bloom, and Lola turns.
   - Five flowers means the perfect ending; fewer means the standard one.
-- **The frame returns.** The real room appears, the apo tells Lola the stories she saved, and then she picks up an ordinary brush. Cut to black, then the house.
+- **Home.** Her last page is read at Lola's easel, then: "Lolo. Let's go home." -- and the house, where Lolo is painted into every painting (alive, ageing across them) and Lola is waiting; she takes the apo for him, is told he is "right here, in all your works", and walks to an empty easel at the far end: "Who are you? Will you watch me paint?" The house stays that way for the save (`HouseEpilogue`). It replaced the frame's return, a separate painted room (2026-11-01, `DIARY.md`).
 
 ### Decisions (made by the team; do not reopen)
 | Topic | Decision |
 |---|---|
-| Ending | **The summit is the ending.** Endings A–D are still computed (`EndingResolver`) and logged to telemetry; they are never shown. |
+| Ending | **The summit, then the house, is the ending** (the house replaced the frame's room, 2026-11-01). Endings A–D are still computed (`EndingResolver`) and logged to telemetry; they are never shown. |
 | Combat | **None.** |
-| Lola, the room, Lolo's fading | **Sculpted placeholders** in the delivered art's idiom, each listed in `ART_PLACEHOLDERS.md` so the art team can replace it by name. Lolo's fading is a shader over his existing sheet. |
+| Lola, the room, Lolo's fading | Dedicated generated performances and room in the delivered art's idiom, with originals, prompts, and replacement contracts listed in `ART_PLACEHOLDERS.md`. Lolo's fading is a shader over his existing sheet. |
 | Drawing the places | **One drawing blooms them.** |
 | Running out of ink | **A hidden reserve of 2 units.** Only the two gates may use it, and only when the gauge can't pay. Fragments and transformations never touch it. |
 | Saves | **Silent**: no lantern, letterbox, line or counter. |
@@ -112,7 +113,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 | Ash | `shaders/drain.gdshader` · `Drainable` · `AshFall2D` · `ScreenTremor` |
 | Fragments | `MemoryFragment2D` (`set_targeted` draws the gold rim on the fragment a drawing would go into) · `tools/build_mayon_fragments.py` |
 | Lolo | `Lolo.set_thinness` / `vanish` · `shaders/lolo_fade.gdshader` |
-| Summit and frame | `Lola2D` · `FrameReturn` · `tools/build_mayon_lola.py` |
+| Summit and the house | `Lola2D` · `HouseEpilogue` (in `hub.gd`) · `tools/build_mayon_lola.py` · `tools/build_house_lolo.py` |
 | Refusal | `DrawPanel.set_refusing` / `quietly_refused` · LevelBase `_brush_refuses_here` / `_brush_refused` |
 | Art | `tools/build_mayon.py` (originals in `LEVEL5_Mayon/`, cuts to `game/assets/Level5/`) · `MayonBackdrop2D` · `MayonTerrain2D` |
 
@@ -131,15 +132,16 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - Level probes: `run_level5_audit` · `run_level5_act_one_probe` · `run_level5_act_two_probe` · `run_level5_summit_probe` · `run_level5_frame_probe` · `run_level5_enablers_probe`
 - Shared pieces: `run_brush_refusal_probe` · `run_drain_probe` · `run_mayon_probe`
 - Art checks: `test_build_mayon(_fragments)` (Python)
-- The whole run: `run_journey_probe` (Dilim → Mayon → the frame → home)
+- The whole run: `run_journey_probe` (Dilim → Mayon → the frame → home); `run_level5_finish_walk` continuously walks Mayon through the room, with normal recognition fixtures and actual quiet/free canvas input.
 
 **Play it directly:** `godot --path game res://level_5.tscn`
 
 ### Mayon traps (each one cost time)
 - **`_camera_follows_height` alone does not free the camera.** It is read only when a room is framed. A level with no rooms frees it in `_build_level_furniture` (`world_camera.set_vertical_free(true)`, then `snap_to_target()`).
 - **`DrawPanel` processes only while the tree is paused.** Any tween it owns must use `Tween.TWEEN_PAUSE_PROCESS`, or it hangs the moment something unpauses.
-- **A fragment's reach is a straight-line distance**, so the flower on its ledge cannot be saved from the path beneath it.
-- **The summit waits for Lolo to be gone.** Otherwise the brush raised at Lola is taken by his moment.
+- **A fragment's reach is a straight-line distance**, so the flower on its ledge cannot be saved from the path beneath it. A jump from the path peaks inside that reach, so the flower also `needs_footing`.
+- **The summit waits for Lolo to be gone.** Otherwise the brush raised at Lola is taken by his moment. His portrait must disappear with his world sprite, leaving the interrupted line onscreen.
+- **A checkpoint restore clears the old camera room.** A landing before the memories must not leave the camera framing their departed cluster.
 - **The refusals must not reuse any decline feedback**, and both must look identical.
 - **The `Painting_Covers` file names lie.** "Mt Makiling Completed Look" is Dagat's storm, and Dilim's forest is "Completed Look from Mayon".
 - **`Array(arr)` returns the same array, not a copy.** Use `.duplicate()` for anything saved.
@@ -147,10 +149,10 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
 - **The delivered art is painted with checkerboards**: never key it with a threshold. Use the `checker_key` / `without_fringe` helpers from `tools/build_dilim.py`.
 
 ### Still open on Mayon
-- Visual polish: soil noise on the cone, the flat steps, and a stray ledge cube.
-- The optional dim stretch in Act One is not built (it is off the critical path).
-- The apo has no failed-draw or lowering pose; the refusal beat is silent.
-- Lola, the real room, the fragments and the summit are still placeholders (see `ART_PLACEHOLDERS.md`).
+- The landscape now uses broad generated cliffs and a continuous registered vista; inspect the actual scene after art changes.
+- The optional light gate is intentionally omitted to preserve the memory ink budget.
+- Generated Mayon performances and room need human art-direction review; originals and prompts are retained in `LEVEL5_Mayon/authored/`.
+- Generated landscape/prop art and procedural memory targets remain provisional; summit scenery reuses existing transparent art. Mayon has music now, reversing the 1 November "Mayon is silent" (Kent, 2026-11-14: music for every place, Mayon included; and 2026-11-15 ("different type of music when we are in memory lane"; "a peaceful [one] when Lola is found")): the ascent, a memory-lane piece for each earlier level, silence from the frame Lolo vanishes, Lola's kundiman from the summit, and `mayon_ending` from the bloom (`level_5.gd _music_now`; `audio/README.md`). Everything plays through `AudioDirector`; the scene has no player of its own (`run_level5_audit`). All of it is provisional until Kent has listened. Lola has no recorded voice (see the authored README).
 
 ---
 

@@ -19,6 +19,7 @@ func _run() -> void:
 	await _there_is_one_mayon_and_it_stays_in_view()
 	await _the_ground_holds_her()
 	await _the_cone_grows_no_grass()
+	await _the_ground_has_no_seams()
 	if failures == 0:
 		print("OBRA_MAYON_OK")
 		quit(0)
@@ -140,6 +141,43 @@ func _the_cone_grows_no_grass() -> void:
 		"slope grass %s, cone grass %s" % [slope.get("_grass") != null, cone.get("_grass") != null])
 	slope.queue_free()
 	cone.queue_free()
+	await process_frame
+
+
+## Every column of the real mountain is rock near the walk line. Each cliff tile is clear at its
+## ends and tapers with depth, so tiles laid edge to edge showed a dark V that read as a pit.
+func _the_ground_has_no_seams() -> void:
+	var world := (load("res://levels/level_5/level_5_environment.tscn") as PackedScene).instantiate()
+	root.add_child(world)
+	await process_frame
+	var columns := 0
+	var holes := 0
+	var first: Array[String] = []
+	for terrain: MayonTerrain2D in world.find_children("*", "MayonTerrain2D", true, false):
+		if terrain.one_way:
+			continue
+		for rect: Rect2 in terrain.platforms:
+			var cliff: Texture2D = MayonTerrain2D.CLIFFS[terrain.call("_zone", rect)]
+			var art := cliff.get_image()
+			if art.is_compressed():
+				art.decompress()
+			var pieces := terrain.tiles_across(rect, float(cliff.get_width()), 0.0)
+			var x := rect.position.x + 1.0
+			while x < rect.end.x - 1.0:
+				columns += 1
+				for row in [30, 60]:
+					var solid := false
+					for piece in pieces:
+						if x >= piece.x and x < piece.x + piece.z:
+							solid = solid or art.get_pixel(int(piece.y + x - piece.x), row).a >= 0.5
+					if not solid:
+						holes += 1
+						if first.size() < 4:
+							first.append("%s x%.0f row %d" % [terrain.name, x + terrain.global_position.x, row])
+				x += 2.0
+	_check(columns > 1000 and holes == 0, "the ground has no see-through seam along the climb",
+		"%d columns, %d holes %s" % [columns, holes, first])
+	world.queue_free()
 	await process_frame
 
 

@@ -45,6 +45,7 @@ func _run() -> void:
 	level = scene.instantiate() as Node2D
 	(level.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(level)
+	(level.get("tutorial") as TutorialDirector).set_enabled(false)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _wait(1.2)
 
@@ -55,13 +56,68 @@ func _run() -> void:
 		quit(1)
 		return
 
+	await _audit_advice_stays_with_its_obstacle()
 	await _audit_a_solved_beat_stops_talking()
 	_audit_the_strip_is_not_a_dialogue_box()
 	_audit_the_third_clue_names_a_class()
 	_audit_the_clue_reads_as_a_sentence()
+	await _audit_dive_advice_does_not_follow_the_player_ashore()
 
 	print("OBRA_HINT_PROBE_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
+
+
+func _audit_advice_stays_with_its_obstacle() -> void:
+	var bar: HintBar = level.get("hint_bar")
+	level.get("script_lines").mark_heard("L1_N2.enter")
+	director.enter_obstacle("L1_N2")
+	var first := bar.current_text()
+	_check(not first.is_empty(), "an active obstacle gives its advice", first)
+	director.exit_obstacle("L1_N2")
+	await _wait(1.6)
+	_check(not bar.is_showing(), "old advice clears when the player leaves",
+		"%s (paused %s, current %s)" % [bar.current_text(), paused, director.current_obstacle()])
+	director.enter_obstacle("L1_N2")
+	_check(bar.current_text() == first, "returning brings back relevant advice", bar.current_text())
+	director.exit_obstacle("L1_N2")
+
+
+func _audit_dive_advice_does_not_follow_the_player_ashore() -> void:
+	level.queue_free()
+	await process_frame
+	root.get_node("LevelManager").set("current_level_id", "level_3")
+	level = (load("res://level_3.tscn") as PackedScene).instantiate()
+	level.get_node("BackendSupervisor").auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await process_frame
+	level.call("_end_the_opening", true)
+	var bar: HintBar = level.get("hint_bar")
+	var tutorial: TutorialDirector = level.get("tutorial")
+	var apo: Wanderer = level.get("player")
+	var waterline: float = level.get("_waterline_y")
+	apo.apply_morph_state({"position": Vector2(1900.0, waterline + 150.0)})
+	bar.show_hint("A line being read.")
+	tutorial.note("underwater")
+	_check(tutorial.pending_ids().has("belongs_down_here"), "the dive reminder waits its turn",
+		str(tutorial.pending_ids()))
+	tutorial.note("ink_emptied")
+	tutorial.call("_pump", 1.1)
+	_check(not tutorial.is_coming("no_drowning"), "recovery advice expires while blocked",
+		str(tutorial.pending_ids()))
+	level.set("_advice_left", 3.0)
+	level.call("_told_the_dive", Vector2(2150.0, waterline + 150.0))
+	_check((level.get("_advice_waiting") as Array).size() == 1,
+		"Lolo's swim instruction queues while a line is being read", bar.current_text())
+	apo.apply_morph_state({"position": Vector2(850.0, waterline - 80.0)})
+	level.set("_advice_left", 0.0)
+	level.call("_pace_the_advice", 0.0)
+	_check(bar.current_text() == "A line being read.", "Lolo drops a queued swim instruction ashore",
+		bar.current_text())
+	bar.clear()
+	await _wait(0.25)
+	_check(not tutorial.was_shown("belongs_down_here"), "dive advice stays off the shore",
+		bar.current_text())
 
 
 ## ⚠ RE-ENTERING A SOLVED BEAT MUST SAY NOTHING. Counted through the script's own record of

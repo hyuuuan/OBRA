@@ -62,7 +62,10 @@
     "tiyanak": "Keep to the high path, show it light, or fight it.",
     "bungisngis": "Show it something silly, go over it, or fight it.",
     "manananggal": "Salt the half she left, light it, or drive her off.",
-    "dawn": "Last until morning."
+    "dawn": "Last until morning. Keep the lamp lit.",
+    "dawn_wings": "Last until morning. Step aside when they dive.",
+    "dawn_tiktik": "Last until morning. Ash shows what I cannot see.",
+    "morning": "Morning. The night is over."
   },
   "obstacles": [
     {

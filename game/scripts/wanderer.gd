@@ -48,6 +48,8 @@ const RUN_FRACTION := 0.72
 ## stepping off is deliberate rather than something that happens while aiming upward.
 const CLIMB_SPEED := 190.0
 const CLIMB_DRIFT := 0.35
+## Ease onto the ladder's centerline without teleporting through nearby terrain.
+const CLIMB_ALIGNMENT := 8.0
 ## How far from the ladder you can get before you are no longer on it.
 const CLIMB_RELEASE := 120.0
 ## How far past the top of a ladder the climb keeps working, so the player can get their
@@ -157,6 +159,16 @@ func _jump() -> void:
 	velocity.y = JUMP_VELOCITY * sqrt(maxf(jump_scale, 0.0))
 	_jump_buffered = 0.0
 	_coyote_left = 0.0
+	_sound(&"jump")
+
+
+## A sound beside what the figure shows. ⚠ Looked up, not named: a --script probe compiles this
+## class before the autoloads exist, and the identifier AudioDirector would fail to compile it.
+## The constant ones (steps, strokes, rungs, landings) are spaced in audio.json.
+func _sound(id: StringName, loudness: float = 1.0) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id, loudness)
 
 
 ## How fast you have to be coming down before a landing throws real dust, and the speed at
@@ -166,8 +178,12 @@ const LAND_DUST_FULL := 900.0
 ## How far she walks between footfalls. MEASURED IN DISTANCE, not in time: dust that arrives
 ## on a timer keeps coming while she is standing against a wall pushing into it.
 const STEP_DUST_STRIDE := 46.0
+## How far she climbs between one rung's sound and the next. The climb is one drawing, not a
+## cycle, so the rungs are heard by distance the way the steps are seen by it.
+const RUNG_STRIDE := 34.0
 
 var _stride_dust := 0.0
+var _rung_travel := 0.0
 
 
 func _ready() -> void:
@@ -196,6 +212,7 @@ func _leave_a_mark(delta: float, was_airborne: bool, fall_speed: float) -> void:
 		var force := clampf((fall_speed - LAND_DUST_FLOOR)
 			/ (LAND_DUST_FULL - LAND_DUST_FLOOR), 0.2, 1.0)
 		SceneryPuff2D.burst(host, feet, SceneryPuff2D.Kind.LAND, force)
+		_sound(&"land", force)
 		_stride_dust = 0.0
 		return
 	if not is_on_floor():
@@ -210,6 +227,8 @@ func _leave_a_mark(delta: float, was_airborne: bool, fall_speed: float) -> void:
 	var force := clampf(absf(velocity.x) / SPEED, 0.2, 1.0)
 	SceneryPuff2D.burst(host, feet - Vector2(_facing * 9.0, 0.0),
 		SceneryPuff2D.Kind.STEP, force * 0.55)
+	# With the dust, a walk softer than a run, and never so soft it is not there at all.
+	_sound(&"step", clampf(force, 0.4, 1.0))
 
 
 func _physics_process(delta: float) -> void:
@@ -242,6 +261,13 @@ func _physics_process(delta: float) -> void:
 		# locomotion would otherwise carry us straight off the deck -- which is exactly
 		# what a boat "leaving the player behind" was.
 		velocity = Vector2.ZERO
+		# ⚠ AND WHAT PUSHES HER WHILE SHE RIDES IS NOT KEPT FOR LATER. This returns before the
+		# frame spends its impulse and its pushes, so a cannon fired from the deck banked every
+		# recoil -- sixteen shots at the bakunawa came to 1650 px/s -- and paid it all out the
+		# frame she stepped ashore, throwing her off the island into the sea, where there is no
+		# way back up (Dagat, 2026-11-12). The boat carries her; nothing else moves her.
+		_impulse = Vector2.ZERO
+		_assist = Vector2.ZERO
 		if Input.is_action_just_pressed(&"jump"):
 			end_ride()
 			_jump()
@@ -249,16 +275,30 @@ func _physics_process(delta: float) -> void:
 		return
 	if _climbing():
 		# On a ladder the whole point is that gravity is not the thing deciding where
-		# you go. Up and down drive directly; sideways is throttled so stepping off is
-		# something you mean rather than something that happens while aiming upward.
-		velocity.y = Input.get_axis(&"move_up", &"move_down") * CLIMB_SPEED
-		velocity.x = direction * SPEED * CLIMB_DRIFT
+		# you go. Up/down follow its placed angle; sideways still lets you step off.
+		var down := _ladder_down(_ladder)
+		var across := Vector2(down.y, -down.x)
+		velocity = down * Input.get_axis(&"move_up", &"move_down") * CLIMB_SPEED
+		if direction == 0.0:
+			var offset := (global_position - _ladder.global_position).dot(across)
+			velocity -= across * clampf(offset * CLIMB_ALIGNMENT, -CLIMB_SPEED, CLIMB_SPEED)
+		else:
+			velocity.x += direction * SPEED * CLIMB_DRIFT
+		_rung_travel += velocity.length() * delta
+		if _rung_travel >= RUNG_STRIDE:
+			_rung_travel = 0.0
+			_sound(&"ladder")
 		if Input.is_action_just_pressed(&"jump"):
 			end_ladder()
 			_jump()
 	elif is_in_water() and can_swim:
 		velocity.x = carried_x
 		_swim(delta, direction)
+		var water := get_meta(&"water_area", null) as WaterArea2D
+		if water != null and water.swim_ceiling_depth > 0.0:
+			var ceiling := water.surface_y() + water.swim_ceiling_depth
+			var toward_limit := (ceiling - global_position.y) / delta
+			velocity.y = maxf(velocity.y, minf(toward_limit, SWIM_VERTICAL))
 	elif is_in_water():
 		# WADING, NOT WALKING. Water used to be scenery you strolled through at full
 		# speed, which made a drawn boat pointless and a swimmer morph a novelty. It
@@ -320,11 +360,11 @@ func _swim_heading() -> float:
 ## whatever is held, while `surfacing`.
 func _swim(delta: float, direction: float) -> void:
 	_jump_buffered = 0.0
+	# Even out of breath she can steer clear of a hull or an overhang on the way up.
+	velocity.x = move_toward(velocity.x, direction * SWIM_SPEED, SWIM_ACCEL * delta)
 	if surfacing:
-		velocity.x = move_toward(velocity.x, 0.0, SWIM_ACCEL * delta)
 		velocity.y = move_toward(velocity.y, SURFACING_SPEED, 1600.0 * delta)
 		return
-	velocity.x = move_toward(velocity.x, direction * SWIM_SPEED, SWIM_ACCEL * delta)
 	var vertical := Input.get_axis(&"move_up", &"move_down")
 	if Input.is_action_pressed(&"jump"):
 		vertical = -1.0
@@ -368,7 +408,11 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 		# The kick keeps time with the water covered either way: diving straight down is a stroke.
 		if previous_pose != next_pose:
 			_phase = 0.0
+		var before := _phase
 		_phase = fposmod(_phase + delta * velocity.length() / SWIM_STROKE, 1.0)
+		# A stroke is heard as its cycle comes round, once per stroke drawn.
+		if _phase < before:
+			_sound(&"swim")
 	elif next_pose in [&"swim_idle_side", &"swim_idle_front", &"swim_float"]:
 		if previous_pose != next_pose:
 			_phase = 0.0
@@ -559,6 +603,9 @@ func _riding() -> bool:
 func begin_ladder(ladder: Node2D) -> void:
 	_ladder = ladder
 	_ladder_half_height = _measure_half_height(ladder)
+	# Taking hold is the first rung.
+	_rung_travel = 0.0
+	_sound(&"ladder")
 	# You climb THROUGH a ladder, not beside it. A placed ladder freezes into a solid body,
 	# so without this the player was pressed against its face the whole way up and could
 	# never step off at the top -- which made a ladder leaned against a cliff a wall with
@@ -632,37 +679,47 @@ func _climbing() -> bool:
 	if _ladder == null or not is_instance_valid(_ladder):
 		_ladder = null
 		return false
-	# Measured HORIZONTALLY, and generously: a ladder is a tall thing whose origin sits
-	# at its middle, so a straight distance check released the player the moment they
-	# had climbed a bit of it -- which read as the ladder simply not working.
-	var ladder := _ladder as Node2D
-	if absf(global_position.x - ladder.global_position.x) > CLIMB_RELEASE:
-		end_ladder()
-		return false
-	# AND vertically, past its top. The horizontal-only check meant holding up on a ladder
-	# raised the player forever: place one anywhere, climb into the sky, walk over every
-	# gate in the level. A ladder reaches as far as a ladder reaches.
-	if global_position.y < ladder.global_position.y - _ladder_half_height - CLIMB_OVERSHOOT:
+	if not _within_ladder(_ladder, _ladder_half_height):
 		end_ladder()
 		return false
 	return true
 
 
-## The ladder's own vertical half-extent, from whatever collision it carries.
+## Both the climb offer and the HUD ask this before taking hold. A broad interaction
+## circle alone can reattach the player past the top and keep lifting them into the sky.
+func can_reach_ladder(ladder: Node2D) -> bool:
+	return ladder != null and is_instance_valid(ladder) \
+		and _within_ladder(ladder, _measure_half_height(ladder))
+
+
+func _within_ladder(ladder: Node2D, half_height: float) -> bool:
+	var down := _ladder_down(ladder)
+	var offset := global_position - ladder.global_position
+	var across := Vector2(down.y, -down.x)
+	return absf(offset.dot(across)) <= CLIMB_RELEASE \
+		and absf(offset.dot(down)) <= half_height + CLIMB_OVERSHOOT
+
+
+## Keep W pointing toward the higher end even when the object was placed upside down.
+func _ladder_down(ladder: Node2D) -> Vector2:
+	var down := ladder.global_transform.y.normalized()
+	return -down if down.y < 0.0 else down
+
+
+## Length along the ladder, measured from its actual collision in world units. Projecting
+## every shape's corners also handles rotation, resizing and stroke-built convex shapes.
 func _measure_half_height(ladder: Node2D) -> float:
 	var half := 0.0
+	var down := _ladder_down(ladder)
 	for child in ladder.get_children():
 		var collision := child as CollisionShape2D
 		if collision == null or collision.shape == null:
 			continue
-		var reach := absf(collision.position.y)
-		if collision.shape is RectangleShape2D:
-			reach += (collision.shape as RectangleShape2D).size.y * 0.5
-		elif collision.shape is CapsuleShape2D:
-			reach += (collision.shape as CapsuleShape2D).height * 0.5
-		else:
-			reach += CLIMB_RELEASE
-		half = maxf(half, reach)
+		var rect := collision.shape.get_rect()
+		for corner in [rect.position, Vector2(rect.end.x, rect.position.y),
+				Vector2(rect.position.x, rect.end.y), rect.end]:
+			var offset: Vector2 = collision.global_transform * corner - ladder.global_position
+			half = maxf(half, absf(offset.dot(down)))
 	return half if half > 0.0 else CLIMB_RELEASE
 
 

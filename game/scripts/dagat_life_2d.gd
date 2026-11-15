@@ -29,6 +29,8 @@ var jelly_spots: Array[Vector2] = []
 var player_anchor: Callable
 var player_swimming: Callable
 var boat: Callable
+## A remembered dive reuses the swimmer's bubbles without spawning the sea's wildlife.
+var player_bubbles_only := false
 ## The bakunawa, so the sea can churn where it breaks the surface.
 var creature: Node2D
 
@@ -45,12 +47,18 @@ var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	_rng.seed = 20260922
+	if player_bubbles_only:
+		return
 	_plant_the_surf()
 	_release_the_jellies()
 	_build_the_flash()
 
 
 func _process(delta: float) -> void:
+	if player_bubbles_only:
+		if not Motion.reduced():
+			_breathe(delta)
+		return
 	if camera == null or not is_instance_valid(camera):
 		return
 	var at := camera.global_position

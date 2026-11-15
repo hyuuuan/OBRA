@@ -38,6 +38,11 @@ func _on_opened() -> void:
 	_resume_button.grab_focus()
 
 
+## The ink running out is what this screen says, so it arrives with that sound, not `ui_open`.
+func _open_sound() -> StringName:
+	return &"ink_empty"
+
+
 func _on_restart() -> void:
 	close()
 	restart_pressed.emit()

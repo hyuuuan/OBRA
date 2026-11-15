@@ -41,12 +41,21 @@ extends CanvasLayer
 ## itself.
 
 signal finished(lesson_id: String, how: String)
+## The player asked to skip the rest of the tutorial, from the card's SKIP or its key. The
+## director answers it (TutorialDirector.skip_rest); the card goes either way.
+signal skip_requested
+
+## controls_overlay.gd declares no class_name; its static key lookup is reached through the script.
+const ControlsKeys = preload("res://scripts/controls_overlay.gd")
 
 const GROUP := &"tutorial_spotlight"
 const SHADER := preload("res://shaders/tutorial_spotlight.gdshader")
 ## Above the HUD (5), Lolo's box (8) and the drawing panel (10) -- a lesson about the canvas
 ## has to dim the canvas -- and below the pause menu (50), which must still open over it.
 const LAYER := 45
+## Over the bag (InventoryScreen, 56), for a card about what is in it: the bag is a modal, and a
+## card at 45 stood under it, dimming nothing it could be seen through.
+const BAG_LAYER := 57
 const DIM := 0.74
 ## From the top of the screen to the card: clear of the quest card, which sits there -- at 72
 ## the card's top edge sat on the objective's frame. Measured off the quest card's own bottom.
@@ -66,6 +75,9 @@ const GRACE_SEC := 2.0
 const PULSE_SEC := 1.3
 ## How long a card stays up when nobody is there to press anything.
 const AUTO_SEC := 2.5
+## How long a STRICT card is up before it takes a press: the press that finished the card before
+## it must not be able to finish this one too.
+const STRICT_MIN_SEC := 0.3
 const CAPTION_FONT := 26
 ## The least time between two moves of the card, so something going up and down across the
 ## line between its two places does not make it flicker from one to the other.
@@ -87,8 +99,10 @@ const SINK_TO := 0.96
 const ARROW_FADE_SEC := 0.25
 
 ## Read by UIRouter.refresh_pause through the modal_overlays group: true only while a
-## `look` lesson is up and somebody is there to dismiss it.
-var pauses_game := false
+## `look` lesson is up and somebody is there to dismiss it -- or a run of cards is held (`hold`).
+var pauses_game := false:
+	get:
+		return pauses_game or _held
 
 var _open := false
 var _lesson: Dictionary = {}
@@ -113,6 +127,20 @@ var _card_goal := Vector2.ZERO
 ## dim, and its shader compiles then: that frame's delta came in at a seventh of a second and
 ## the fade began most of the way in -- a card that popped rather than rose.
 var _first_frame := false
+## A RUN OF CARDS, HELD. Payyo teaches every card the moment it opens, one after another, and
+## the player must not be able to act between them: a card's own pause is released the moment
+## it starts to leave, so the world ran for the length of every fade. While held, this counts as
+## open -- the tree stays paused and the hint bar waits -- whether or not a card is up.
+var _held := false
+## In a run of cards (TutorialDirector.teach_the_door): a card that goes leaves the dim
+## up, so the tick on a card done can be seen without the screen flashing back between cards.
+var _in_run := false
+## The card took over from one still up or leaving, so the dim stays where it is and the hole
+## travels from where it was rather than closing in from past the screen.
+var _chained := false
+var _iris_from := Rect2()
+var _fade_from := 0.0
+var _fade := 0.0
 
 var _root: Control
 var _dim: ColorRect
@@ -124,6 +152,7 @@ var _holder: Control
 var _card: PanelContainer
 var _visual: LessonVisual
 var _caption: Label
+var _skip: Button
 
 
 func _ready() -> void:
@@ -197,11 +226,36 @@ func _build() -> void:
 	_caption.add_theme_color_override(&"font_color", UISkin.CREAM_TEXT)
 	column.add_child(_caption)
 
+	# SKIP, for a player who already knows how to play. Kent: "There should be a skip button for
+	# tutorials that the players can use". In the card's own corner, so it stands beside every
+	# lesson it would end, drawn as the HUD draws a key (ActionPromptHUD.make_key_chip) with the
+	# key read off the InputMap. It ends every lesson left in the level, not just this card.
+	var footer := HBoxContainer.new()
+	footer.name = "Footer"
+	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	footer.alignment = BoxContainer.ALIGNMENT_END
+	column.add_child(footer)
+	_skip = ActionPromptHUD.make_key_chip(&"SkipTutorial",
+		[ControlsKeys.key_cap_for("skip_tutorial")], "SKIP TUTORIAL", UISkin.MUTED)
+	# STOP so the cursor and the hover answer it; the click itself is taken in `_input`, which
+	# runs before the GUI does and would otherwise spend it on the card.
+	_skip.mouse_filter = Control.MOUSE_FILTER_STOP
+	_skip.tooltip_text = "Skip the rest of the tutorial"
+	_skip.pressed.connect(_ask_to_skip)
+	footer.add_child(_skip)
+
 
 ## Put a lesson up. `lesson` is the director's resolved form of a `tutorial.json` entry:
 ## id, mode ("do" or "look"), visual, caps, caption, seconds, actions, mouse. `target`
 ## answers where the lit box is, every frame, as a screen Rect2 -- empty for none.
+##
+## Presented while another card is up or leaving, it takes that card's place: the dim stays,
+## the hole slides from the last thing lit to this one, and the new card fades in where it
+## stands. That is what a run of cards (`hold`) looks like; a lone card is unchanged.
 func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable()) -> void:
+	_chained = _open
+	_iris_from = _hole if _chained and _hole.has_area() else _screen().grow(240.0)
+	_fade_from = _fade if _chained else 0.0
 	_lesson = lesson
 	_target = target
 	_avoid = avoid
@@ -210,11 +264,16 @@ func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable())
 	_first_frame = true
 	_closing = -1.0
 	_lost_for = 0.0
-	_auto = _nobody_at_the_keys()
+	layer = BAG_LAYER if String(lesson.get("context", "")) == "bag" else LAYER
+	# A run of cards says for itself, decided once when it began (TutorialDirector._entry_auto).
+	_auto = bool(lesson["auto"]) if lesson.has("auto") else _nobody_at_the_keys()
 	var look := _mode() == "look"
 	pauses_game = look and not _auto
+	# The little blinking mouse says "click to go on". On a strict card that is only true of one
+	# with nothing of its own to press; on the rest the picture already shows what to press.
+	var click_goes_on := look and not _auto and not (_strict() and _has_input())
 	_visual.show_kind(String(lesson.get("visual", "keys")),
-		PackedStringArray(lesson.get("caps", PackedStringArray())), look and not _auto)
+		PackedStringArray(lesson.get("caps", PackedStringArray())), click_goes_on)
 	var caption := String(lesson.get("caption", ""))
 	_caption.text = caption
 	_caption.visible = not caption.is_empty()
@@ -227,16 +286,67 @@ func present(lesson: Dictionary, target: Callable, avoid: Callable = Callable())
 	_card_scale = 1.0
 	_place = _choose_place(rect, _card.get_combined_minimum_size())
 	_card.scale = Vector2.ONE * _card_scale
-	_hole = _screen().grow(240.0)
-	_set_fade(0.0)
+	_hole = _iris_from
+	_set_fade(_fade_from)
+	_holder.modulate.a = 0.0 if _chained else 1.0
 	_refresh(rect, 0.0)
 	UIRouter.refresh_pause(get_tree())
 
 
 ## Up and asking for attention. Not while it fades: the moment it is closing it no longer
-## holds the pause or the hint bar.
+## holds the pause or the hint bar. A held run of cards is open the whole time (`hold`).
 func is_open() -> bool:
+	return is_showing() or _held
+
+
+## A card is up and not leaving -- whatever the hold says.
+func is_showing() -> bool:
 	return _open and _closing < 0.0
+
+
+## Hold the world still across a run of cards, or let it go. Not with nobody at the keys: a run
+## that stopped the world there would hang the suite exactly as a look card would.
+func hold(on: bool) -> void:
+	_held = on and not _nobody_at_the_keys()
+	UIRouter.refresh_pause(get_tree())
+
+
+func is_holding() -> bool:
+	return _held
+
+
+## A run of cards is on: a card that goes leaves the dim up for the next.
+func set_in_run(on: bool) -> void:
+	_in_run = on
+
+
+## STRICT: Kent, of Payyo's cards: "when the tutorial says press R, when i press another key, it
+## just proceeds to the next one, it does not let me experience the tutorial". A strict card goes
+## only when the player does what it shows -- its key, its click, its wheel -- or, for a `look` card
+## about something to look at, a click or Enter; or when what it lights goes. Nothing times it
+## out, no other key ends it, and SKIP TUTORIAL and Escape still work.
+func _strict() -> bool:
+	return bool(_lesson.get("strict", false))
+
+
+func _has_input() -> bool:
+	return not (_lesson.get("actions", []) as Array).is_empty() \
+		or not (_lesson.get("mouse", []) as Array).is_empty()
+
+
+## What a strict card goes on: its own input, or for a card with none, a click or Enter.
+func _does_what_it_shows(event: InputEvent) -> bool:
+	if _has_input():
+		var click_at := event as InputEventMouseButton
+		# `click_on_it`: the click counts on what is lit -- the face-down card -- and nowhere else.
+		if click_at != null and bool(_lesson.get("click_on_it", false)) \
+				and not _target_rect().has_point(click_at.position):
+			return false
+		return TutorialSpotlight.matches(_lesson, event)
+	var click := event as InputEventMouseButton
+	if click != null:
+		return click.pressed and click.button_index == MOUSE_BUTTON_LEFT
+	return event.is_action_pressed(&"ui_accept")
 
 
 ## Up at all, fading included -- what the director waits on before the next one.
@@ -262,6 +372,11 @@ func visual_kind() -> String:
 
 func card_rect() -> Rect2:
 	return _card.get_global_rect() if _open else Rect2()
+
+
+## Where the card's SKIP is on screen; empty while no card is up.
+func skip_rect() -> Rect2:
+	return _skip.get_global_rect() if is_showing() and _skip.is_visible_in_tree() else Rect2()
 
 
 func hole_rect() -> Rect2:
@@ -293,7 +408,8 @@ func close() -> void:
 
 ## Take the card down. `how` says why, for the director and for telemetry: "done" (they
 ## pressed what it showed), "seen" (a look card dismissed), "moved_on", "timeout", "gone"
-## (what it pointed at went away), "auto", "skipped".
+## (what it pointed at went away), "auto", "skipped", "talked_over" (a story line began under a
+## `do` card).
 func finish(how: String) -> void:
 	if not _open or _closing >= 0.0:
 		return
@@ -318,13 +434,29 @@ func _process(delta: float) -> void:
 	if _closing >= 0.0:
 		_closing += delta
 		var gone := _ease(clampf(_closing / _close_length, 0.0, 1.0))
-		_set_fade(1.0 - gone)
+		if _in_run:
+			# Only the card goes; the dim waits for the next one.
+			_holder.modulate.a = 1.0 - gone
+		else:
+			_set_fade(1.0 - gone)
 		_holder.scale = Vector2.ONE * lerpf(1.0, SINK_TO, gone)
 		_pointer.queue_redraw()
 		if _closing >= _close_length:
 			_teardown()
 		return
-	_set_fade(_ease_out(clampf(_age / FADE_SEC, 0.0, 1.0)))
+	var fade_in := _ease_out(clampf(_age / FADE_SEC, 0.0, 1.0))
+	_set_fade(lerpf(_fade_from, 1.0, fade_in))
+	if _chained:
+		_holder.modulate.a = fade_in
+	# ⚠ A STORY LINE TAKES THE SCREEN FROM A `do` CARD. The world runs under one, so the apo can
+	# walk into a beat with it still up -- in Payyo, the Jump card into Ang Hagdan's opening line --
+	# and the story box (layer 8) was read through this card's dim for the whole conversation.
+	# The director already keeps a card from starting over a line; this is the other direction.
+	# Not on the canvas, whose card is about a modal that is meant to be up.
+	if _mode() == "do" and String(_lesson.get("context", "world")) != "canvas" \
+			and _someone_is_talking():
+		finish("talked_over")
+		return
 	var rect := _target_rect()
 	# What it pointed at is gone -- the placement ended, the prompt went away -- so the
 	# lesson has nothing left to show. A frame or two of nothing is a layout settling.
@@ -336,9 +468,9 @@ func _process(delta: float) -> void:
 	else:
 		_lost_for = 0.0
 	_refresh(rect, delta)
-	if _auto and _age >= AUTO_SEC:
+	if _auto and _age >= float(_lesson.get("auto_seconds", AUTO_SEC)):
 		finish("auto")
-	elif _mode() == "do" and _age >= float(_lesson.get("seconds", 10.0)):
+	elif _mode() == "do" and not _strict() and _age >= float(_lesson.get("seconds", 10.0)):
 		finish("timeout")
 
 
@@ -346,6 +478,16 @@ func _input(event: InputEvent) -> void:
 	if not _open or _closing >= 0.0:
 		return
 	if event is InputEventMouseMotion or event.is_echo() or not _is_press(event):
+		return
+	# ⚠ SKIP BEFORE ANYTHING ELSE. A `look` card spends every press on dismissing itself and a
+	# `do` card hands presses on to the world, so a click on SKIP was never SKIP's: it dismissed
+	# the one card, or set a drawing down behind it.
+	if _is_skip(event):
+		get_viewport().set_input_as_handled()
+		_ask_to_skip()
+		return
+	if _strict() and not _auto:
+		_strict_input(event)
 		return
 	# Escape is the router's. The pause menu opens over a card, and the card is still there
 	# when it closes.
@@ -367,6 +509,30 @@ func _input(event: InputEvent) -> void:
 		MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
 	if _age >= LOOK_MIN_SEC and not wheel:
 		finish("seen")
+
+
+## A strict card's press. The one it shows finishes it with a tick; anything else does not.
+func _strict_input(event: InputEvent) -> void:
+	var shows := _does_what_it_shows(event)
+	# A `do` card with nothing to press -- Paint -- goes when what it lights goes (`gone`): a click
+	# is how she draws, and must not end "Done? Press Paint" before she has.
+	if _mode() == "do" and not _has_input():
+		shows = false
+	var done := _age >= STRICT_MIN_SEC and shows
+	# Escape stays the router's: on the card that teaches it, it also opens the real pause menu,
+	# which is the list of controls the card is about.
+	if event.is_action_pressed(&"pause"):
+		if done:
+			finish("done")
+		return
+	# Under a `look` card the world is held, and every press is spent on the card. A `do` card's
+	# own press goes on to do its job -- D walks, R opens the canvas. In the run at the door the
+	# other presses are spent too, so nothing opens behind a card about something else; in its
+	# moment the world goes on working under a `do` card, which only waits.
+	if _mode() == "look" or (_in_run and not done):
+		get_viewport().set_input_as_handled()
+	if done:
+		finish("done")
 
 
 ## Whether `event` is one of the inputs `lesson` teaches. Static so the director can ask the
@@ -403,6 +569,21 @@ static func matches(lesson: Dictionary, event: InputEvent) -> bool:
 				if (turning or sideways) and held:
 					return true
 	return false
+
+
+func _is_skip(event: InputEvent) -> bool:
+	if InputMap.has_action(&"skip_tutorial") and event.is_action_pressed(&"skip_tutorial"):
+		return true
+	var click := event as InputEventMouseButton
+	return click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT \
+		and skip_rect().has_point(click.position)
+
+
+func _ask_to_skip() -> void:
+	if not is_showing():
+		return
+	skip_requested.emit()
+	finish("skipped")
 
 
 func _is_press(event: InputEvent) -> bool:
@@ -499,7 +680,7 @@ func _refresh(rect: Rect2, delta: float) -> void:
 	var iris := _ease_out(clampf(_age / IRIS_SEC, 0.0, 1.0))
 	if rect.has_area():
 		var goal := rect.grow(HOLE_PAD)
-		var from := view.grow(240.0)
+		var from := _iris_from if _iris_from.has_area() else view.grow(240.0)
 		_hole = Rect2(from.position.lerp(goal.position, iris), from.size.lerp(goal.size, iris))
 	else:
 		_hole = Rect2()
@@ -571,18 +752,31 @@ func _draw_pointer() -> void:
 ## The card and arrow fade with the node's modulate; the dim is a shader writing its own
 ## colour, so it is told.
 func _set_fade(amount: float) -> void:
+	_fade = amount
 	_root.modulate.a = amount
 	_material.set_shader_parameter(&"fade", amount)
 
 
 func _teardown() -> void:
 	_open = false
+	if _in_run:
+		# The run's dim was left up for a card that did not come: put it away now.
+		_set_fade(0.0)
+	_chained = false
+	_holder.modulate.a = 1.0
 	visible = false
 	set_process(false)
 	_lesson = {}
 	_target = Callable()
 	pauses_game = false
 	UIRouter.refresh_pause(get_tree())
+
+
+func _someone_is_talking() -> bool:
+	for box in get_tree().get_nodes_in_group(DialogueBox.GROUP):
+		if box.has_method(&"is_open") and bool(box.call(&"is_open")):
+			return true
+	return false
 
 
 func _nobody_at_the_keys() -> bool:

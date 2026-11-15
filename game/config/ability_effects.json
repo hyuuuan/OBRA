@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "note": "What a ConceptNet ability DOES in play. Each key is an ability label exactly as config/abilities.json gives it (built offline from ConceptNet 5.7), so every effect traces to a real assertion about the class; a class gets an effect only if ConceptNet gives it that ability (Kent, 2026-11-16: 'ConceptNet only' -- the shark has Rough Hide, and no bite, because ConceptNet says so). Kinds: strike -- the body's F action, a blow through apply_tool_hit, numbers in config/weapons.json under `id`; grab -- the F action, holds what it catches still for `hold_seconds`; armor -- passive, the body takes a blow for her, then needs `ready_seconds` to take another; scorch -- a placed light that burns the creatures within `radius` of it, one tick every `every` seconds, for `lasts` seconds (0: for as long as it stands), and holds those that hunt by smell at its edge (UtilityObject, Enemy2D.apply_scorch). A body with more than one gets the first strike, else the first grab, as its F action. CreatureAbility reads this file; run_creature_ability_probe holds every label to abilities.json.",
+  "effects": {
+    "Sting": {"kind": "strike", "id": "sting", "verb": "STING", "burn_ticks": 2, "burn_seconds": 2.0},
+    "Venom": {"kind": "strike", "id": "venom", "verb": "BITE", "burn_ticks": 3, "burn_seconds": 3.0},
+    "Tusk Ram": {"kind": "strike", "id": "tusk_ram", "verb": "RAM"},
+    "Squeeze": {"kind": "grab", "id": "squeeze", "verb": "SQUEEZE", "reach": 80.0, "hold_seconds": 1.6},
+    "Grapple": {"kind": "grab", "id": "grapple", "verb": "GRAPPLE", "reach": 90.0, "hold_seconds": 1.6},
+    "Grip": {"kind": "grab", "id": "grip", "verb": "PINCH", "reach": 64.0, "hold_seconds": 1.2},
+    "Tongue Grab": {"kind": "grab", "id": "tongue_grab", "verb": "GRAB", "reach": 110.0, "hold_seconds": 1.0},
+    "Trunk Grab": {"kind": "grab", "id": "trunk_grab", "verb": "GRAB", "reach": 96.0, "hold_seconds": 1.4},
+    "Armor": {"kind": "armor", "ready_seconds": 3.0},
+    "Shell": {"kind": "armor", "ready_seconds": 3.0},
+    "Rough Hide": {"kind": "armor", "ready_seconds": 4.0},
+    "Scorch": {"kind": "scorch", "radius": 320.0, "every": 1.0, "lasts": 8.0},
+    "Burn": {"kind": "scorch", "radius": 150.0, "every": 1.0, "lasts": 0.0}
+  }
+}

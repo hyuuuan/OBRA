@@ -1,11 +1,15 @@
 extends Node
 ## The single owner of audio: bus volumes, and playing a sound by id.
 ##
-## There are no sound files in the project yet, and this is built so that stays a
-## content gap rather than a code one. Ids live in config/audio.json with empty
-## paths; play_sfx and play_music resolve an id to nothing and return. Every call
-## site can therefore be written now, and dropping an .ogg in beside its id makes it
-## audible with no code change anywhere.
+## Ids live in config/audio.json. An id whose path is empty resolves to nothing and returns, so a
+## call site can be written before its sound exists; the files are rendered from FamiTracker
+## modules (audio/README.md) and named beside their ids, with no code change anywhere.
+##
+## Music, and the ambience bed under it, each loop on a PAIR of players, so a change of track is a
+## crossfade rather than a cut: the outgoing fades out on one while the incoming fades in on the
+## other. One-shots share SFX_VOICES players, and an id may be spaced (audio.json `spacing`) so a
+## sound made constantly -- a footstep -- cannot take every voice from the ones that carry
+## information.
 ##
 ## Volumes are held LINEAR (0..1) because that is what a slider shows and what the
 ## profile stores. dB is derived here and never persisted -- linear_to_db(0.0) is
@@ -34,12 +38,58 @@ const SILENCE_LINEAR := 0.001
 ## clicks can never grow the node count without bound.
 const SFX_VOICES := 8
 
+## How long a change of music or ambience takes, out and in at once, between two different pieces:
+## long enough that two tempos never meet head on. Kent (2026-11-15) heard the changes as "not that
+## smooth", and the recorded tour (tests/run_audio_tour.gd) showed why: 0.6 s linear crossfades,
+## and scene changes that fell to silence between places. Two arrangements of one piece trade
+## faster; their callers pass it.
+const LOOP_FADE_S := 1.5
+## A scene change's grace. Stopped while LevelManager is changing scenes, a track is HANDED OVER:
+## it plays on through the wipe and the load, the next place's music crossfades from it, and only if
+## nothing asks for music within this long does it fade out.
+const HANDOVER_HOLD_S := 4.0
+## A fade's floor. linear_to_db(0) is -inf, which must never reach a player.
+const FADE_FLOOR := 0.001
+
+## A one-shot listed in audio.json `duck` lowers the music and the ambience under it for its own
+## length -- the level-complete jingle over the level's loop -- then brings them back. On the Music
+## bus, through an Amplify effect of its own, so it touches neither the player's slider (the bus
+## volume) nor a crossfade in progress (the players' volumes).
+const DUCK_DB := -12.0
+const DUCK_DOWN_S := 0.12
+const DUCK_UP_S := 0.6
+
+
+## A looping channel -- the music, or the ambience under it -- on a pair of players.
+class _Loop:
+	var players: Array[AudioStreamPlayer] = []
+	## Which of the pair carries the current track.
+	var active: int = 0
+	var id: StringName = &""
+	var paths: Dictionary = {}
+	## player -> the Tween fading it, so a new fade replaces an old one instead of fighting it.
+	var fades: Dictionary = {}
+	## The track handed over across a scene change (see _loop_stop), and the hold's generation, so
+	## an old hold's timer cannot stop a newer track.
+	var held_id: StringName = &""
+	var hold := 0
+
+
 var _sfx_paths: Dictionary = {}
-var _music_paths: Dictionary = {}
+## id -> the least time, in seconds, between two plays of it.
+var _sfx_spacing: Dictionary = {}
+## id -> Time.get_ticks_msec() of its last play.
+var _sfx_last_ms: Dictionary = {}
 var _sfx_players: Array[AudioStreamPlayer] = []
-var _music_player: AudioStreamPlayer = null
+## The frame the last sound effect other than the click sounded in. See _on_any_button_pressed.
+var _sounded_in := -1
 var _next_voice: int = 0
-var _music_id: StringName = &""
+var _music := _Loop.new()
+var _ambience := _Loop.new()
+## The ids that duck the music (audio.json `duck`), and the effect and tween that do it.
+var _sfx_duck: Dictionary = {}
+var _duck: AudioEffectAmplify
+var _duck_tween: Tween
 
 
 func _ready() -> void:
@@ -48,6 +98,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_catalog()
 	_build_players()
+	_build_duck()
 	var profile := get_node_or_null(^"/root/PlayerProfile")
 	if profile != null:
 		profile.settings_changed.connect(_on_setting_changed)
@@ -68,7 +119,17 @@ func _on_node_added(node: Node) -> void:
 	button.pressed.connect(_on_any_button_pressed)
 
 
+## ⚠ THE CLICK GIVES WAY. A press that makes a sound of its own -- an overlay opening, the page
+## going to be read -- is already answered, and a click on top of it was two sounds for one act:
+## Kent heard the click "for everything". So it waits for the end of the frame, and plays only if
+## nothing else sounded in it.
 func _on_any_button_pressed() -> void:
+	_click_unless_answered.call_deferred(Engine.get_process_frames())
+
+
+func _click_unless_answered(pressed_in: int) -> void:
+	if _sounded_in == pressed_in:
+		return
 	play_sfx(&"ui_click")
 
 
@@ -114,41 +175,206 @@ func bus_linear(bus: StringName) -> float:
 ## louder -- the tik-tik's call, louder the further off it is). An id with no file behind it is
 ## silence, not an error -- that is what lets the call sites exist before the sounds do -- but
 ## the request is still announced (`sfx_requested`), so a probe can hear what would have played.
-## Nothing at or under zero is played: linear_to_db(0) is -inf.
-func play_sfx(id: StringName, loudness: float = 1.0) -> void:
+## Nothing at or under zero is played: linear_to_db(0) is -inf. Returns whether it sounded: an id
+## asked for again inside its `spacing` is announced and not played.
+func play_sfx(id: StringName, loudness: float = 1.0) -> bool:
 	var level := clampf(loudness, 0.0, 1.0)
 	sfx_requested.emit(id, level)
 	var stream := _stream_for(_sfx_paths, id)
 	if stream == null or _sfx_players.is_empty() or level <= 0.0:
-		return
+		return false
+	var now := Time.get_ticks_msec()
+	var key := String(id)
+	if _sfx_last_ms.has(key) and now - int(_sfx_last_ms[key]) < float(_sfx_spacing.get(key, 0.0)) * 1000.0:
+		return false
+	_sfx_last_ms[key] = now
+	if id != &"ui_click":
+		_sounded_in = Engine.get_process_frames()
 	var player := _sfx_players[_next_voice]
 	_next_voice = (_next_voice + 1) % _sfx_players.size()
 	player.stream = stream
 	player.volume_db = linear_to_db(level)
 	player.play()
+	if _sfx_duck.has(key):
+		duck_music(stream.get_length())
+	return true
 
 
-## Start a music track, ignoring a request for whatever is already playing so a
-## scene rebuild does not restart the score.
-func play_music(id: StringName) -> void:
-	if _music_player == null or id == _music_id:
+## Lower the music and ambience for `seconds`, then bring them back. A second duck while one runs
+## starts again from where the first had got to.
+func duck_music(seconds: float) -> void:
+	if _duck == null:
 		return
-	var stream := _stream_for(_music_paths, id)
-	if stream == null:
-		return
-	_music_id = id
-	_music_player.stream = stream
-	_music_player.play()
+	if _duck_tween != null and _duck_tween.is_valid():
+		_duck_tween.kill()
+	# ⚠ PAUSE_PROCESS: the level-complete panel pauses the tree as the jingle starts.
+	_duck_tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_duck_tween.tween_property(_duck, "volume_db", DUCK_DB, DUCK_DOWN_S)
+	_duck_tween.tween_interval(maxf(0.0, seconds - DUCK_DOWN_S))
+	_duck_tween.tween_property(_duck, "volume_db", 0.0, DUCK_UP_S)
 
 
-func stop_music() -> void:
-	if _music_player == null:
+## How far the music is ducked now, in dB (0 when it is not). For probes.
+func music_duck_db() -> float:
+	return _duck.volume_db if _duck != null else 0.0
+
+
+## Start a music track, crossfading from whatever played before. A request for the track already
+## playing is ignored, so a scene rebuild does not restart the score.
+##
+## `keep_position`: the incoming track starts where the outgoing one is, not at its top. It is for
+## two ARRANGEMENTS OF ONE PIECE trading places mid-bar -- Dagat's surface and its deep, the
+## night's three waves -- so a dive or a new wave sounds like the same music changing, not a new
+## song starting. ⚠ They only line up if both are written to the same length TO THE ROW: the same
+## frames, rows and per-row speeds in famitext, so every bar falls at the same second in both.
+func play_music(id: StringName, fade: float = LOOP_FADE_S, keep_position: bool = false) -> void:
+	_loop_play(_music, id, fade, keep_position)
+
+
+## Start `id` from its top, at full, at once -- even if it is already playing -- and fade whatever
+## played before out over `fade_out`. For music that must begin on a cue: the dance's, on every
+## attempt (DanceOverlay). Stopping the old track dead for it was a hard cut out of the plaza.
+func restart_music(id: StringName, fade_out: float = 0.5) -> void:
+	var stream := _stream_for(_music.paths, id)
+	if _music.players.is_empty() or stream == null:
 		return
-	_music_id = &""
-	_music_player.stop()
+	_start(_music, id, stream, 0.0, fade_out, 0.0)
+
+
+## The id of the track playing, or &"" when none is.
+func current_music() -> StringName:
+	return _music.id
+
+
+## Fade the music out. current_music() is &"" at once; the player stops when the fade ends.
+func stop_music(fade: float = LOOP_FADE_S) -> void:
+	_loop_stop(_music, fade)
+
+
+## The player carrying the current (or last) music track. For probes.
+func music_player() -> AudioStreamPlayer:
+	return _music.players[_music.active] if not _music.players.is_empty() else null
+
+
+## The ambience bed under the music (audio.json `ambience`): the same crossfade, its own pair.
+func play_ambience(id: StringName, fade: float = LOOP_FADE_S) -> void:
+	_loop_play(_ambience, id, fade)
+
+
+func current_ambience() -> StringName:
+	return _ambience.id
+
+
+func stop_ambience(fade: float = LOOP_FADE_S) -> void:
+	_loop_stop(_ambience, fade)
+
+
+func ambience_player() -> AudioStreamPlayer:
+	return _ambience.players[_ambience.active] if not _ambience.players.is_empty() else null
 
 
 # --- internals ---------------------------------------------------------------
+
+func _loop_play(loop: _Loop, id: StringName, fade: float, keep_position := false) -> void:
+	if loop.players.is_empty() or id == loop.id:
+		return
+	if id == loop.held_id and loop.players[loop.active].playing:
+		# The next place asked for the very track the last one handed over: it plays on, unrestarted.
+		loop.held_id = &""
+		loop.hold += 1
+		loop.id = id
+		return
+	var stream := _stream_for(loop.paths, id)
+	if stream == null:
+		return
+	var outgoing := loop.players[loop.active]
+	# Read before the fade: a fade to nothing in no time stops the player, and a stopped one
+	# reads 0. Past the incoming file's end means the two were not written alike: start at the top.
+	var at := outgoing.get_playback_position() if keep_position and outgoing.playing else 0.0
+	if at >= stream.get_length():
+		at = 0.0
+	_start(loop, id, stream, fade, fade, at)
+
+
+## The outgoing track fades out over `fade_out` while the incoming comes in over `fade_in` (at once,
+## at full, when that is 0), from `at` seconds.
+func _start(loop: _Loop, id: StringName, stream: AudioStream, fade_in: float, fade_out: float,
+		at: float) -> void:
+	loop.held_id = &""
+	loop.hold += 1
+	loop.id = id
+	_fade(loop, loop.players[loop.active], 0.0, fade_out)
+	loop.active = 1 - loop.active
+	var incoming := loop.players[loop.active]
+	_kill_fade(loop, incoming)
+	incoming.stream = stream
+	incoming.volume_db = linear_to_db(FADE_FLOOR) if fade_in > 0.0 else 0.0
+	incoming.play(at)
+	_fade(loop, incoming, 1.0, fade_in)
+
+
+func _loop_stop(loop: _Loop, fade: float) -> void:
+	loop.hold += 1
+	if fade > 0.0 and _changing_scenes() and not loop.id.is_empty():
+		# ⚠ HANDED OVER, NOT STOPPED. The place that asked is leaving, but the next one has not
+		# loaded: stopped now, the music fell to silence across the wipe and the load (the tour
+		# measured -43 dB between the house and a level), then the next place's began cold.
+		loop.held_id = loop.id
+		loop.id = &""
+		var generation := loop.hold
+		get_tree().create_timer(HANDOVER_HOLD_S, true).timeout.connect(func() -> void:
+			if loop.hold == generation:
+				loop.held_id = &""
+				for player in loop.players:
+					_fade(loop, player, 0.0, fade))
+		return
+	loop.id = &""
+	loop.held_id = &""
+	for player in loop.players:
+		_fade(loop, player, 0.0, fade)
+
+
+func _changing_scenes() -> bool:
+	var manager := get_node_or_null(^"/root/LevelManager")
+	return manager != null and bool(manager.call(&"is_transitioning"))
+
+
+## Take `player` to `level` (linear) over `seconds`, and stop it there if that is silence.
+## ⚠ PAUSE_PROCESS: the menus that pause the tree are where a fade most often happens, and a
+## tween that pauses with the tree would hold the old track at half volume under them.
+func _fade(loop: _Loop, player: AudioStreamPlayer, level: float, seconds: float) -> void:
+	_kill_fade(loop, player)
+	if not player.playing:
+		return
+	if seconds <= 0.0:
+		if level <= 0.0:
+			player.stop()
+		else:
+			player.volume_db = linear_to_db(level)
+		return
+	var tween := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	loop.fades[player] = tween
+	tween.tween_method(_set_along.bind(player, db_to_linear(player.volume_db), maxf(level, FADE_FLOOR)),
+		0.0, 1.0, seconds)
+	if level <= 0.0:
+		tween.tween_callback(player.stop)
+
+
+func _kill_fade(loop: _Loop, player: AudioStreamPlayer) -> void:
+	var running: Tween = loop.fades.get(player)
+	if running != null and running.is_valid():
+		running.kill()
+	loop.fades.erase(player)
+
+
+## A fade's level at `progress` (0..1) from `from` to `to`, linear amplitudes. ⚠ EQUAL POWER, on a
+## quarter sine: rising as sin, falling as cos, so two tracks crossing hold their summed loudness. A
+## straight line dips both to half (-6 dB each, -3 dB together) at the middle, which is heard as
+## the music sagging between two places.
+func _set_along(progress: float, player: AudioStreamPlayer, from: float, to: float) -> void:
+	var shaped := sin(progress * PI * 0.5) if to > from else 1.0 - cos(progress * PI * 0.5)
+	player.volume_db = linear_to_db(maxf(from + (to - from) * shaped, FADE_FLOOR))
+
 
 func _on_setting_changed(key: String, value: Variant) -> void:
 	if BUS_FOR_SETTING.has(key):
@@ -183,7 +409,18 @@ func _load_catalog() -> void:
 		return
 	var document := parsed as Dictionary
 	_sfx_paths = _resolved_section(document.get("sfx", {}))
-	_music_paths = _resolved_section(document.get("music", {}))
+	_music.paths = _resolved_section(document.get("music", {}))
+	_ambience.paths = _resolved_section(document.get("ambience", {}))
+	var ducking: Variant = document.get("duck", [])
+	if ducking is Array:
+		for id: Variant in ducking:
+			_sfx_duck[String(id)] = true
+	var spacing: Variant = document.get("spacing", {})
+	if spacing is Dictionary:
+		for key: Variant in (spacing as Dictionary).keys():
+			var seconds: Variant = (spacing as Dictionary)[key]
+			if (seconds is float or seconds is int) and float(seconds) > 0.0:
+				_sfx_spacing[String(key)] = float(seconds)
 
 
 ## Drop paths that do not exist, once, at load. An id whose file is missing behaves
@@ -201,6 +438,15 @@ func _resolved_section(section: Variant) -> Dictionary:
 	return out
 
 
+func _build_duck() -> void:
+	var bus := AudioServer.get_bus_index(BUS_MUSIC)
+	if bus < 0:
+		return
+	_duck = AudioEffectAmplify.new()
+	_duck.volume_db = 0.0
+	AudioServer.add_bus_effect(bus, _duck)
+
+
 func _build_players() -> void:
 	for i in range(SFX_VOICES):
 		var player := AudioStreamPlayer.new()
@@ -209,8 +455,14 @@ func _build_players() -> void:
 		player.process_mode = Node.PROCESS_MODE_ALWAYS
 		add_child(player)
 		_sfx_players.append(player)
-	_music_player = AudioStreamPlayer.new()
-	_music_player.name = "MusicPlayer"
-	_music_player.bus = BUS_MUSIC
-	_music_player.process_mode = Node.PROCESS_MODE_ALWAYS
-	add_child(_music_player)
+	# The ambience is background, like the music, and carries nothing a player must hear, so it
+	# follows the Music slider rather than the Sound effects one.
+	for pair: Array in [[_music, "Music"], [_ambience, "Ambience"]]:
+		var loop: _Loop = pair[0]
+		for side in ["A", "B"]:
+			var player := AudioStreamPlayer.new()
+			player.name = "%s%s" % [pair[1], side]
+			player.bus = BUS_MUSIC
+			player.process_mode = Node.PROCESS_MODE_ALWAYS
+			add_child(player)
+			loop.players.append(player)

@@ -22,6 +22,8 @@ signal ink_exhausted
 const BUDGET := 6.0
 ## What any one chargeable thing costs. There is no other price.
 const UNIT := 1.0
+## Continuous drain can leave a floating-point remainder too small to use.
+const EMPTY_THRESHOLD := 0.0001
 
 @export var capacity: float = BUDGET
 ## The canvas one ink unit is measured against. Follows the viewport: a unit is a canvas
@@ -128,18 +130,18 @@ func release_attempt() -> float:
 func drain(amount: float) -> bool:
 	var wanted := maxf(0.0, amount)
 	if wanted <= 0.0:
-		return total_uncommitted_available() > 0.0001
+		return total_uncommitted_available() > EMPTY_THRESHOLD
 	committed = minf(capacity, committed + wanted)
 	_emit_changed()
 	_announce_if_emptied()
-	return total_uncommitted_available() > 0.0001
+	return total_uncommitted_available() > EMPTY_THRESHOLD
 
 
 ## Give ink back. The counterpart of `drain`, and the only thing that can clear the emptied
 ## latch: a refill placed on the seabed is how a route that drains continuously is survivable.
 func add_ink(amount: float) -> void:
 	committed = maxf(0.0, committed - maxf(0.0, amount))
-	if total_uncommitted_available() > 0.0001:
+	if total_uncommitted_available() > EMPTY_THRESHOLD:
 		_emptied = false
 	_emit_changed()
 
@@ -167,7 +169,7 @@ static func static_cost_for_strokes(
 
 
 func _announce_if_emptied() -> void:
-	if total_uncommitted_available() > 0.0001:
+	if total_uncommitted_available() > EMPTY_THRESHOLD:
 		return
 	if _emptied:
 		return

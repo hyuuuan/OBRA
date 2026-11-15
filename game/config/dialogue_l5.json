@@ -3,12 +3,12 @@
     "LEVEL 5 -- MAYON. Lolo climbs with her, and he should not be here: he is lola's memory of",
     "him, and the painting coming apart is him coming apart (LEVEL_5.md). Play it light at first.",
     "",
-    "⚠ NO LINE MAY NAME A DRAWABLE CLASS. Here the traps are bridge, stairs, ladder, tree, sun,",
+    "\u26a0 NO LINE MAY NAME A DRAWABLE CLASS. Here the traps are bridge, stairs, ladder, tree, sun,",
     "cloud and door -- the very things the ash takes. The check is word-boundary and",
     "case-insensitive, and run_level5_audit.gd runs it.",
     "",
-    "This is the shell's lines: the opening, the ink told plainly, the two gates. The forgetting,",
-    "the fragments, Lolo's going and the summit come with their PRs."
+    "The level's lines: opening, finite ink, the two gates, forgetting,",
+    "the fragments, Lolo's going, the summit, and the ordinary room."
   ],
   "level_id": "level_5",
   "design_level_id": "L5_MAYON",
@@ -48,7 +48,7 @@
       "at": "INTRO.ink",
       "speaker": "lolo",
       "kind": "lore",
-      "text": "Listen. The brush has what it has, and nothing on this mountain gives any back. Spend it like you mean it."
+      "text": "We have six drops of ink, apo, and nowhere to refill. Save some for the places you want to remember."
     },
     {
       "id": "L5_span_enter",
@@ -83,7 +83,7 @@
       "at": "INK.empty",
       "speaker": "lolo",
       "kind": "hint",
-      "text": "That is the last of it. Keep climbing."
+      "text": "That is the last of it. Keep going."
     },
     {
       "id": "L5_fell",
@@ -100,18 +100,39 @@
       "text": "Apo. Look. Those are ours. Those are -- I know that one. I know all of them."
     },
     {
-      "id": "L5_not_this",
-      "at": "FRAGMENT.not_this",
+      "id": "L5_preserve",
+      "at": "L5_CORRIDOR.enter",
       "speaker": "lolo",
-      "kind": "hint",
-      "text": "Not that. Something that was in it."
+      "kind": "lore",
+      "text": "Step close to a memory until it glows, apo. Open Draw and trace or sketch a few lines."
+    },
+    {
+      "id": "L5_preserve_cost",
+      "at": "L5_CORRIDOR.enter",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Press Preserve to keep it. It costs one drop of ink, and the memory will return at the summit."
+    },
+    {
+      "id": "L5_preserve_choice",
+      "at": "L5_CORRIDOR.enter",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "An unsaved memory fades if you wait too long or walk on. You can still visit the paintings at home."
     },
     {
       "id": "L5_no_ink",
       "at": "FRAGMENT.no_ink",
       "speaker": "lolo",
       "kind": "hint",
-      "text": "There is no more ink for that one."
+      "text": "You need one ink to keep a memory. You can still walk on."
+    },
+    {
+      "id": "L5_morph_no_ink",
+      "at": "MORPH.no_ink",
+      "speaker": "apo",
+      "kind": "hint",
+      "text": "Not enough ink to stay transformed."
     },
     {
       "id": "L5_flower",
@@ -149,6 +170,83 @@
       "text": "Apo, I -- what was I. I was going to say. I am sorry. I had it a moment ago."
     },
     {
+      "id": "L5_home",
+      "at": "APO.home",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Lolo. Let's go home."
+    },
+    {
+      "id": "L5_house_1",
+      "at": "HOUSE.home",
+      "speaker": "lola",
+      "kind": "lore",
+      "text": "Mahal! You look so young!"
+    },
+    {
+      "id": "L5_house_2",
+      "at": "HOUSE.home",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Lola, I'm your apo. I'm not Lolo."
+    },
+    {
+      "id": "L5_house_3",
+      "at": "HOUSE.home",
+      "speaker": "lola",
+      "kind": "lore",
+      "text": "Where is he, then?"
+    },
+    {
+      "id": "L5_house_4",
+      "at": "HOUSE.home",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "He's right here. In all your works."
+    },
+    {
+      "id": "L5_house_5",
+      "at": "HOUSE.home",
+      "speaker": "lola",
+      "kind": "lore",
+      "text": "Oh."
+    },
+    {
+      "id": "L5_house_6",
+      "at": "HOUSE.easel",
+      "speaker": "lola",
+      "kind": "lore",
+      "text": "Who are you? Will you watch me paint?"
+    },
+    {
+      "id": "L5_fix",
+      "at": "APO.fix",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Wait. Wait -- I can fix this. I'll draw you back, Lolo. Hold still."
+    },
+    {
+      "id": "L5_why_1",
+      "at": "APO.why.1",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It's going white. Not burnt, not broken. Just -- not painted any more."
+    },
+    {
+      "id": "L5_why_2",
+      "at": "APO.why.2",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "It's her. It's Lola. Whatever she can't hold on to any more, the white takes."
+    },
+    {
+      "id": "L5_why_3",
+      "at": "APO.why.3",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "All of them. She's losing all of them at once."
+    },
+    {
       "id": "L5_goes_1",
       "at": "LOLO.goes",
       "speaker": "lolo",
@@ -156,11 +254,25 @@
       "text": "No. Put it down, apo. The brush was never for that. Your lola knew."
     },
     {
-      "id": "L5_goes_2",
-      "at": "LOLO.goes",
+      "id": "L5_goes_artist",
+      "at": "LOLO.goes.artist",
       "speaker": "lolo",
       "kind": "lore",
-      "text": "That is why she painted the places instead. The fiesta, the sea, the house. That is how she kept m"
+      "text": "That is why she painted the places instead. You see them the way she did, apo, every colour. Show them to her. That is how she kept m"
+    },
+    {
+      "id": "L5_goes_pragmatist",
+      "at": "LOLO.goes.pragmatist",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "That is why she painted the places instead. You always find the way through, apo, like she did. Go on to her. That is how she kept m"
+    },
+    {
+      "id": "L5_goes_protector",
+      "at": "LOLO.goes.protector",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "That is why she painted the places instead. You kept us safe all this way, apo. Keep them safe for her. That is how she kept m"
     },
     {
       "id": "L5_forget_1",
@@ -329,118 +441,6 @@
       "speaker": "lola",
       "kind": "lore",
       "text": "Do you like it, little one? I think it is nearly finished."
-    },
-    {
-      "id": "L5_frame_open",
-      "at": "FRAME.open",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "Lola. Can I tell you about some places?"
-    },
-    {
-      "id": "L5_frame_open_lola",
-      "at": "FRAME.open",
-      "speaker": "lola",
-      "kind": "lore",
-      "text": "If you like, dear."
-    },
-    {
-      "id": "L5_frame_kubo",
-      "at": "FRAME.kubo",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "That is a bahay kubo. Someone lived there who loved you."
-    },
-    {
-      "id": "L5_frame_terraces",
-      "at": "FRAME.terraces",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There were terraces, green and gold, all the way up."
-    },
-    {
-      "id": "L5_frame_bandaritas",
-      "at": "FRAME.bandaritas",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There was a fiesta, with flags strung across the plaza."
-    },
-    {
-      "id": "L5_frame_dancers",
-      "at": "FRAME.dancers",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There were dancers, in a dress you sewed yourself."
-    },
-    {
-      "id": "L5_frame_church",
-      "at": "FRAME.church",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There was a church, and a wedding in it."
-    },
-    {
-      "id": "L5_frame_storm",
-      "at": "FRAME.storm",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There was a storm at sea. It passed."
-    },
-    {
-      "id": "L5_frame_bangka",
-      "at": "FRAME.bangka",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There was a bangka, and a man who rowed it."
-    },
-    {
-      "id": "L5_frame_coral",
-      "at": "FRAME.coral",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There was a reef, every colour there is."
-    },
-    {
-      "id": "L5_frame_bakunawa",
-      "at": "FRAME.bakunawa",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There was a sea with something in it that could not see."
-    },
-    {
-      "id": "L5_frame_forest",
-      "at": "FRAME.forest",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There was a forest at night, and it kept a child safe."
-    },
-    {
-      "id": "L5_frame_waterfall",
-      "at": "FRAME.waterfall",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "There were falls, under a balete."
-    },
-    {
-      "id": "L5_frame_flower",
-      "at": "FRAME.flower",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "And there was a flower nobody needed. You painted it anyway."
-    },
-    {
-      "id": "L5_frame_lolo",
-      "at": "FRAME.lolo",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "And there was a man, Lola. You lost him first. Let me tell you about him."
-    },
-    {
-      "id": "L5_frame_brush",
-      "at": "FRAME.brush",
-      "speaker": "apo",
-      "kind": "lore",
-      "text": "..."
     },
     {
       "id": "L5_BRUSH_001",

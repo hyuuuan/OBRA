@@ -139,5 +139,154 @@ func _run() -> void:
 	_check(inky.is_empty(), "and nothing on the bag mentions ink",
 		"none" if inky.is_empty() else ", ".join(inky))
 
+	await _a_face_down_card_hints()
+
 	print("OBRA_BOOK_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)
+
+
+## The fifty in Filipino, as run_diary_probe lists them: a hint may name none of them either.
+const FILIPINO := ["tulay", "hagdan", "hagdanan", "pinto", "puno", "susi", "ulap", "ibon", "isda",
+	"gagamba", "unggoy", "palaka", "pating", "pugita", "alimango", "kabayo", "elepante", "ahas",
+	"pagong", "langgam", "bubuyog", "baboy", "alakdan", "palakol", "espada", "kanyon", "payong",
+	"orasan", "gulong", "tinapay", "balde", "gunting", "kalaykay", "paniki", "paruparo",
+	"siga", "pamaypay", "submarino", "parasyut", "palihan", "bilog", "parisukat", "tatsulok"]
+
+
+## ⚠ A FACE-DOWN CARD HINTS BY ITS NAME SCRAMBLED, AND A SHORT LINE. Kent: "it should be the name
+## now but in scrambled letters and its very short description. like for example a DOG = ODG".
+## Clicked -- or reached with the arrows -- a card not yet drawn shows its own name with the letters
+## shuffled and one line about it; nothing on the screen spells the class or any other; and the
+## look is logged as assistance.
+func _a_face_down_card_hints() -> void:
+	var roster: Dictionary = screen.get("_roster_buttons")
+	_every_scramble_and_line_names_nothing(roster.keys())
+	var tags := root.get_node_or_null("AbilityTags")
+	var pick := ""
+	for id: String in roster:
+		if not profile_drawn().has(id) and not (tags.call("tags_for_class", id) as Array).is_empty():
+			pick = id
+			break
+	if pick.is_empty():
+		_check(false, "a face-down card exists to try", "none found")
+		return
+	# Taught one thing it does, the way a level teaches it at its first gate: the skills the card
+	# used to list would show now, so the check that they are gone can fail.
+	tags.call("unlock", String((tags.call("tags_for_class", pick) as Array)[0]))
+	var log_before := _telemetry_lines()
+	(roster[pick] as Button).pressed.emit()
+	await _wait(0.2)
+	var chosen: Dictionary = screen.get("_chosen")
+	var title := (screen.get("_detail_title") as Label).text
+	var hint := (screen.get("_ability_text") as Label).text
+	var real := String((screen.get("registry") as Node).call("get_entity", pick).get("display_name", ""))
+	_check(String(chosen.get("kind", "")) == "locked" and title == InventoryScreen.scrambled_name(real)
+		and title != real.to_upper() and _letters(title) == _letters(real),
+		"a face-down card can be picked, and shows its name scrambled",
+		"chosen %s, title \"%s\"" % [str(chosen), title])
+	_check(not hint.is_empty() and hint == InventoryScreen.locked_hint(pick),
+		"and says its one short line", "\"%s\"" % hint)
+	var chips := (screen.get("_skills_flow") as Node).find_children("*", "Label", true, false)
+	var shown_chips := chips.filter(func(chip: Node) -> bool: return (chip as Label).is_visible_in_tree())
+	_check(shown_chips.is_empty(), "and no longer lists its skills", "%d chips" % shown_chips.size())
+	# Every word the hint puts up -- the big card and its plaques, its skill chips -- and on the
+	# face-down card itself. (Drawn cards elsewhere on the screen are named, as they should be.)
+	var said: Array[String] = []
+	for field in ["_detail_title", "_detail_kind", "_detail_number", "_ability_verb", "_ability_text",
+			"_detail_blank", "_detail_note", "_moves_value"]:
+		var label := screen.get(field) as Label
+		if label != null and label.is_visible_in_tree():
+			said.append(label.text.to_lower())
+	for chip in (screen.get("_skills_flow") as Node).find_children("*", "Label", true, false):
+		said.append((chip as Label).text.to_lower())
+	var card := roster[pick] as Button
+	said.append(card.tooltip_text.to_lower())
+	for label in card.find_children("*", "Label", true, false):
+		said.append((label as Label).text.to_lower())
+	var spoken := " ".join(said)
+	var named := _names_in(spoken)
+	_check(named.is_empty(), "and nothing on the screen names its class",
+		"names nothing" if named.is_empty() else "NAMES: %s" % ", ".join(named))
+	_check(not spoken.contains("ink"), "and nothing on it mentions ink",
+		"none" if not spoken.contains("ink") else "SAYS: %s" % spoken)
+	var logged := false
+	for line: String in _telemetry_lines().slice(log_before.size()):
+		var event: Variant = JSON.parse_string(line)
+		if event is Dictionary and String(event.get("type", "")) == "locked_card_hint" \
+				and String(event.get("entity_id", "")) == pick and bool(event.get("assisted", false)):
+			logged = true
+	_check(logged, "and the look is logged as assistance", "locked_card_hint, assisted")
+	# And the arrows reach a face-down card, as the mouse does.
+	var choices: Array = screen.call("_choices")
+	var face_down := 0
+	for choice: Variant in choices:
+		if String((choice as Dictionary).get("kind", "")) == "locked":
+			face_down += 1
+	_check(face_down == 50 - profile_drawn().size(), "and the arrows can reach every face-down card",
+		"%d of %d" % [face_down, 50 - profile_drawn().size()])
+
+
+## Every class's scramble and line, not just the one clicked: each line is there, short, names none
+## of the fifty and says nothing of ink; each scramble is its own letters, is not its own name, and
+## spells no class.
+func _every_scramble_and_line_names_nothing(ids: Array) -> void:
+	var registry := screen.get("registry") as Node
+	var bad_lines: Array[String] = []
+	var bad_scrambles: Array[String] = []
+	for id_value: Variant in ids:
+		var id := String(id_value)
+		var line := InventoryScreen.locked_hint(id)
+		if line.is_empty() or line.split(" ", false).size() > 7 or not _names_in(line.to_lower()).is_empty() \
+				or line.to_lower().contains("ink"):
+			bad_lines.append("%s: \"%s\"" % [id, line])
+		var real := String(registry.call("get_entity", id).get("display_name", ""))
+		var scrambled := InventoryScreen.scrambled_name(real)
+		if scrambled == real.to_upper() or _letters(scrambled) != _letters(real) \
+				or scrambled != InventoryScreen.scrambled_name(real) \
+				or not _names_in(scrambled.to_lower()).is_empty():
+			bad_scrambles.append("%s: %s" % [id, scrambled])
+	_check(ids.size() == 50 and bad_lines.is_empty(),
+		"every card's line is short and names nothing", "%d cards; %s" % [ids.size(),
+		"all fine" if bad_lines.is_empty() else "BAD " + "; ".join(bad_lines)])
+	_check(bad_scrambles.is_empty(), "every scramble is its own letters, and spells no class",
+		"all fine" if bad_scrambles.is_empty() else "BAD " + "; ".join(bad_scrambles))
+
+
+## A name's letters, sorted, without its spaces: two names with the same are anagrams.
+func _letters(text: String) -> String:
+	var letters := Array(text.to_upper().replace(" ", "").split(""))
+	letters.sort()
+	return "".join(PackedStringArray(letters))
+
+
+func profile_drawn() -> Array:
+	return root.get_node("PlayerProfile").call("get_drawn_classes")
+
+
+## Which classes, in English or Filipino, `text` names as a whole word.
+func _names_in(text: String) -> Array[String]:
+	var words: Array[String] = []
+	var manifest: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://config/entities.json"))
+	var entities: Array = (manifest as Dictionary).get("entities", []) if manifest is Dictionary else manifest
+	for entry: Variant in entities:
+		var e := entry as Dictionary
+		for term: String in [String(e.get("id", "")).replace("_", " "), String(e.get("display_name", ""))]:
+			if not term.is_empty():
+				words.append(term.to_lower())
+	words.append_array(FILIPINO)
+	var found: Array[String] = []
+	var regex := RegEx.new()
+	for word in words:
+		regex.compile("\\b%s\\b" % word)
+		if regex.search(text) != null and not found.has(word):
+			found.append(word)
+	return found
+
+
+func _telemetry_lines() -> Array:
+	var telemetry := root.get_node_or_null("Telemetry")
+	var file: Variant = telemetry.get("_file") if telemetry != null else null
+	if not (file is FileAccess):
+		return []
+	var text := FileAccess.get_file_as_string((file as FileAccess).get_path_absolute())
+	return Array(text.split("\n", false))

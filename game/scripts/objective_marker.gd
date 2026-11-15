@@ -2,7 +2,7 @@ class_name ObjectiveMarker
 extends Control
 ## WHERE THE OBJECTIVE IS, drawn over the world.
 ##
-## The banner says what to do; this says where. A bobbing gold chevron over the thing itself
+## The banner says what to do; this says where. A bobbing gold arrow over the thing itself
 ## while it is on screen, and an arrow at the edge of the frame pointing toward it while it is
 ## not. Payyo had a distance in the corner -- "GOAL 141 m" -- which says how far and not which
 ## way, and counts down to a house the level does not end at. Piyesta had nothing at all, in a
@@ -23,11 +23,23 @@ const BOTTOM_BAND := 104.0
 ## across the room.
 const ARRIVED := Vector2(80.0, 300.0)
 
-const OUTLINE := Color(0.027, 0.035, 0.024, 0.9)
+## Both polygons point right, with the gold tip at the local origin.
+static var _arrow := PackedVector2Array([
+	Vector2.ZERO, Vector2(-27, 24), Vector2(-27, 10), Vector2(-49, 10),
+	Vector2(-49, -10), Vector2(-27, -10), Vector2(-27, -24),
+])
+static var _arrow_outline := PackedVector2Array([
+	Vector2(6, 0), Vector2(-31, 33), Vector2(-31, 14), Vector2(-53, 14),
+	Vector2(-53, -14), Vector2(-31, -14), Vector2(-31, -33),
+])
 
 var _target := Vector2.INF
 var _player: Node2D = null
 var _time := 0.0
+## The target is above her reach, so being under it is not being there and the chevron stays.
+## Payyo's key hangs 250 over the floor: inside ARRIVED's 300, so the chevron went out exactly
+## when she stood beneath the thing she had to work out how to get up to.
+var _out_of_reach := false
 
 
 func _init() -> void:
@@ -35,9 +47,10 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
-func point_at(world: Vector2, player: Node2D) -> void:
+func point_at(world: Vector2, player: Node2D, out_of_reach: bool = false) -> void:
 	_target = world
 	_player = player
+	_out_of_reach = out_of_reach
 
 
 func clear() -> void:
@@ -61,7 +74,7 @@ func screen_point() -> Vector2:
 	return get_viewport().get_canvas_transform() * _target
 
 
-## True while the target is inside the part of the frame an on-screen chevron may use.
+## True while the target is inside the part of the frame an on-screen arrow may use.
 func on_screen() -> bool:
 	return _inner().has_point(screen_point())
 
@@ -72,6 +85,26 @@ func showing() -> bool:
 	return has_target() and not _arrived()
 
 
+## Where the arrow is drawn, as a box on the screen -- what a lesson about it lights. Empty while
+## nothing is drawn. The same placement `_draw` uses, without the bob, grown by the bob.
+func arrow_rect() -> Rect2:
+	if not showing():
+		return Rect2()
+	var at := screen_point()
+	var inner := _inner()
+	var tip := at + Vector2(0.0, -20.0)
+	var toward := Vector2.DOWN
+	var size := 0.85
+	if not inner.has_point(at):
+		var centre := inner.get_center()
+		toward = (at - centre).normalized()
+		tip = _edge_of(inner, centre, toward)
+		size = 1.0
+	# The outline reaches 53 back from its tip and 33 to either side.
+	var box := Rect2(tip, Vector2.ZERO).expand(tip - toward * 53.0 * size)
+	return box.grow(33.0 * size + 6.0).abs()
+
+
 func _process(delta: float) -> void:
 	_time += delta
 	if has_target():
@@ -79,7 +112,7 @@ func _process(delta: float) -> void:
 
 
 func _arrived() -> bool:
-	if _player == null or not is_instance_valid(_player):
+	if _out_of_reach or _player == null or not is_instance_valid(_player):
 		return false
 	var apart := _player.global_position - _target
 	return absf(apart.x) < ARRIVED.x and absf(apart.y) < ARRIVED.y
@@ -97,11 +130,11 @@ func _draw() -> void:
 	var inner := _inner()
 	var bob := sin(_time * 4.2) * 5.0
 	if inner.has_point(at):
-		_draw_arrow(at + Vector2(0.0, -16.0 + bob), Vector2.DOWN, 20.0)
+		_draw_arrow(at + Vector2(0.0, -20.0 + bob), Vector2.DOWN, 0.85)
 		return
 	var centre := inner.get_center()
 	var toward := (at - centre).normalized()
-	_draw_arrow(_edge_of(inner, centre, toward) + toward * bob * 0.6, toward, 21.0)
+	_draw_arrow(_edge_of(inner, centre, toward) + toward * bob * 0.6, toward, 1.0)
 
 
 ## Where a ray from the middle of the frame leaves the inner rect.
@@ -120,13 +153,8 @@ func _edge_of(rect: Rect2, from: Vector2, toward: Vector2) -> Vector2:
 	return from + toward * (best if best != INF else 0.0)
 
 
-## A gold arrowhead with a dark keyline, so it reads on sky, on plaster and on shadow alike.
-func _draw_arrow(tip: Vector2, toward: Vector2, size: float) -> void:
-	var across := Vector2(-toward.y, toward.x)
-	var back := tip - toward * size * 1.2
-	var points := PackedVector2Array([tip, back + across * size, back - across * size])
-	var outline := PackedVector2Array([tip + toward * 3.0,
-		back + across * (size + 3.5) - toward * 2.0, back - across * (size + 3.5) - toward * 2.0])
-	draw_colored_polygon(outline, OUTLINE)
-	draw_colored_polygon(points, UISkin.GOLD)
-	draw_line(tip, back + across * size, Color(1.0, 0.92, 0.66, 1.0), 2.0)
+func _draw_arrow(tip: Vector2, toward: Vector2, marker_scale: float) -> void:
+	draw_set_transform(tip, toward.angle(), Vector2.ONE * marker_scale)
+	draw_colored_polygon(_arrow_outline, UISkin.INK)
+	draw_colored_polygon(_arrow, UISkin.PENDING)
+	draw_line(Vector2(-24, -17), Vector2(-7, -2), UISkin.GOLD_PALE, 3.0, true)

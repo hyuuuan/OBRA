@@ -9,6 +9,8 @@ extends SceneTree
 ## every one of those passes every assertion about the lesson's text.
 
 const OUTPUT_DIR := "/tmp"
+## Somewhere else for the frames, when a session has its own scratch folder.
+const OUTPUT_DIR_ENV := "OBRA_CAPTURE_DIR"
 const BRIDGE := [Vector2(10, 40), Vector2(54, 40)]
 
 var level: Node2D
@@ -36,8 +38,9 @@ func _run() -> void:
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	await _capture("none")
 
-	for id in ["move", "jump", "draw", "requirement", "checkpoint", "ink"]:
-		await _card(id)
+	for id in ["move", "jump", "draw", "requirement", "checkpoint", "quest", "become", "ink"]:
+		# Becoming is a story in three beats, so one frame cannot show whether it reads.
+		await _card(id, id == "become")
 
 	# Something in the bag, for the bag's two lessons.
 	_draw("bridge", "Bridge")
@@ -62,6 +65,11 @@ func _run() -> void:
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	await _wait(0.4)
 	await _card("undo")
+	# Beside what she set down, for the prompt the E lesson lights.
+	player = level.get("player") as Node2D
+	player.global_position = (level.get("_last_placed") as Node2D).global_position + Vector2(-44.0, -30.0)
+	await _wait(0.6)
+	await _card("interact")
 
 	# A drawing worn: the change-back key and the clock.
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
@@ -70,6 +78,14 @@ func _run() -> void:
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
 	await _card("revert")
 	await _card("clock")
+	await _card("swim")
+
+	# Something with wings, for the flap. The strokes are only there to have something to wear.
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	_draw("bird", "Bird")
+	await _wait(1.0)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", false)
+	await _card("fly", true)
 
 	# And the canvas: the page while it is empty, the button once there is ink on it.
 	var panel = level.get("draw_panel")
@@ -109,7 +125,9 @@ func _draw(entity: String, display: String) -> void:
 func _capture(label: String) -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png("%s/obra_tut_%s.png" % [OUTPUT_DIR, label])
+	var folder := OS.get_environment(OUTPUT_DIR_ENV)
+	root.get_texture().get_image().save_png("%s/obra_tut_%s.png" % [
+		OUTPUT_DIR if folder.is_empty() else folder, label])
 
 
 func _wait(seconds: float) -> void:

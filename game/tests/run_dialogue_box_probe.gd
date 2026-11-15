@@ -75,6 +75,21 @@ func _run() -> void:
 	await _frames(20)
 	_check(not bool(box.call("is_open")) and not paused, "and it can be read to the end",
 		"closed after %d presses, paused %s" % [presses, paused])
+	box.call("speak", [{"text":"One speaker.","speaker":"Lolo"}])
+	await create_timer(.04, true).timeout
+	box.call("hide_line")
+	box.call("speak", [{"text":"The next speaker.","speaker":"Apo"}])
+	await create_timer(.25, true).timeout
+	var portrait := box.get_node("Portrait") as CanvasItem
+	_check(portrait.visible and portrait.modulate.a > .9,
+		"an outgoing portrait cannot hide the next speaker", "visible %s" % portrait.visible)
+	box.call("hide_speaker")
+	_check(not portrait.visible and bool(box.call("is_open")),
+		"a speaker can disappear while the line remains", "portrait %s, line %s" % [portrait.visible,box.call("is_open")])
+	box.call("hide_line")
+	level.queue_free()
+	level = null
+	for frame in range(5): await process_frame
 
 	print("OBRA_DIALOGUE_BOX_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
 	quit(1 if failures > 0 else 0)

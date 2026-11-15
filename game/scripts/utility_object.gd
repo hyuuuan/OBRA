@@ -59,6 +59,24 @@ static func reach_of(behaviour: String) -> float:
 	return float(BEHAVIOUR_REACH.get(behaviour, TOOL_REACH))
 ## Continuous per-frame accelerations (px/s^2) the tools push the player with.
 const FAN_PUSH := 620.0
+## A fan's wind rises this much as it goes: it pushes along (facing, -FAN_LIFT), and its gusts
+## are drawn along that same line (FanWind2D).
+const FAN_LIFT := 0.35
+## How much a fan's stream widens per px out from its blades. One number for the gusts drawn and
+## the bodies pushed (in_the_wind), so what moves is what the wind on screen reaches.
+const WIND_SPREAD := 0.4
+## A drawn fan's blades turning while it blows (FanBlades): up to a turn a second, run up and
+## coasted down rather than switched, the way a motor does.
+const SPIN_TOP := TAU * 1.1
+const SPIN_UP_SECONDS := 0.4
+## Coasting down it never crawls slower than this, and it stops where it was drawn: the coast is
+## timed to land on a whole turn, at least COAST_SHORTEST away, so stopping is never a jolt.
+const COAST_SLOWEST := 3.0
+const COAST_SHORTEST := PI * 0.5
+## A fan with no blades to find (a hand fan, one stroke) flutters whole instead: this far either
+## way about its foot, this many times a second.
+const FLUTTER := 0.1
+const FLUTTER_HZ := 3.0
 const BALLOON_LIFT := -1180.0
 const PARACHUTE_DRAG := -820.0
 const PARACHUTE_FALL_LIMIT := 120.0
@@ -133,6 +151,24 @@ static var _cone_texture: ImageTexture = null
 var _point_light: PointLight2D
 var _interaction_area: Area2D
 var _vehicle_joint: PinJoint2D
+## How far a fan's wind goes from its hub, world px. A level may carry it further for a frame
+## (Dilim carries it to the kapre's smoke) and puts it back.
+var wind_reach := WEATHER_RADIUS
+## Which way the fan in her hand is blowing, 1 or -1; set as it pushes.
+var _wind_facing := 1.0
+var _wind: FanWind2D
+## FanBlades.find on this drawing: {} when it has no blades to turn, and it flutters instead.
+var _rotor: Dictionary = {}
+## The turn the drawing is at (radians), how fast it is going, and the coast it is on.
+var _turn := 0.0
+var _turn_speed := 0.0
+var _coast_to := -1.0
+var _coast_slowing := 0.0
+var _flutter_clock := 0.0
+## The turn on screen: _turn held at Motion.PIXEL_FPS.
+var _shown_turn := 0.0
+var _turn_clock := 0.0
+var _turn_frame := -1
 
 
 func _ready() -> void:
@@ -148,6 +184,14 @@ func _ready() -> void:
 		_set_light_active(true)
 	elif utility_behavior == "sun":
 		add_to_group(LightField.GROUP)
+	# Only a fan has anything to show per frame (its wind and its turn); nothing else pays for it.
+	set_process(utility_behavior == "fan")
+	if utility_behavior == "fan":
+		var skin := _get_skin()
+		if skin != null and skin.has_signal(&"rig_built"):
+			skin.connect(&"rig_built", _find_the_blades)
+		# The drawing may have been applied before it entered the tree, rig_built and all.
+		_find_the_blades(true)
 	add_to_group("drawn_utilities")
 	if utility_behavior in ["sailboat", "submarine"]:
 		# Hulls do their own buoyancy in _integrate_forces. Without this the pool lifts
@@ -280,6 +324,8 @@ func drop_to_world(world_root: Node2D, at: Vector2) -> void:
 	reparent(world_root, true)
 	global_position = at
 	freeze = false
+	# Held, it was frozen and carried: the same stale motion a ghost has (see the base).
+	_unfrozen_where_it_stands()
 	gravity_scale = 1.0
 	collision_layer = 1
 	collision_mask = 1
@@ -417,6 +463,7 @@ func restore_utility_state(state: Dictionary) -> void:
 func _physics_process(delta: float) -> void:
 	if is_preview:
 		return
+	_tend_scorch(delta)
 	if _beam_material != null and _active:
 		_update_beam_effects(delta)
 	if not is_held_tool() and utility_behavior not in ["sailboat", "submarine"] and not freeze:
@@ -467,13 +514,174 @@ func _apply_held_effects(_delta: float) -> void:
 			_push_actor(_equipped_actor, Vector2(0.0, BALLOON_LIFT))
 		"fan":
 			# Wind: it pushes the world, not the holder -- so it moves what is in front
-			# of you rather than shoving you backwards.
-			var facing := _facing_of(_equipped_actor)
-			for target in _reachable_targets(WEATHER_RADIUS):
+			# of you rather than shoving you backwards. Only what is in the stream drawn out
+			# of it (in_the_wind): it used to push everything within WEATHER_RADIUS, behind
+			# her too, which no wind on screen could account for.
+			_wind_facing = _facing_of(_equipped_actor)
+			var push := Vector2(_wind_facing, -FAN_LIFT) * FAN_PUSH
+			for target in _reachable_targets(wind_reach + _wind_base() + _target_size().length() * 0.5):
 				var body := target as RigidBody2D
-				if body == null or body == self or body.freeze or _is_player_body(body):
+				if body == null or body == self or body.freeze or _is_player_body(body) \
+						or not in_the_wind(body.global_position):
 					continue
-				body.apply_central_force(Vector2(facing * FAN_PUSH, -FAN_PUSH * 0.35) * body.mass)
+				body.apply_central_force(push * body.mass)
+
+
+## Whether this is a fan that is on in her hand -- the state it pushes in, so the state its
+## wind and its turning are shown in. On but put down, it does nothing, and shows nothing.
+func is_blowing() -> bool:
+	return utility_behavior == "fan" and _active and not is_preview \
+		and _equipped_actor != null and is_instance_valid(_equipped_actor)
+
+
+## Which way its wind goes: the way she faces, rising a little (FAN_LIFT). Unit length.
+func wind_axis() -> Vector2:
+	return Vector2(_wind_facing, -FAN_LIFT).normalized()
+
+
+## Where its wind starts: the hub its blades turn on, or the middle of the drawing.
+func wind_origin() -> Vector2:
+	var skin := _inked_skin()
+	if skin == null:
+		return global_position
+	var at: Vector2 = _rotor["hub"] if not _rotor.is_empty() else skin.get_stroke_bounds().get_center()
+	return skin.stroke_space() * at
+
+
+## Is `point` (world) in the stream its wind blows along: ahead of the hub, inside its reach,
+## inside the cone that widens out from the blades? The gusts are drawn over exactly this.
+func in_the_wind(point: Vector2) -> bool:
+	var axis := wind_axis()
+	var offset := point - wind_origin()
+	var along := offset.dot(axis)
+	if along < 0.0 or along > wind_reach:
+		return false
+	return absf(offset.cross(axis)) <= _wind_base() + along * WIND_SPREAD
+
+
+## Whether this drawing has blades to turn (FanBlades), rather than fluttering whole.
+func turns_its_blades() -> bool:
+	return not _rotor.is_empty()
+
+
+## The strokes that turn as it blows, and the hub they turn on (stroke space); {} if it flutters.
+func blades() -> Dictionary:
+	return _rotor.duplicate()
+
+
+## How far the drawing is turned on screen right now, radians: its blades, or the whole of it.
+func blade_turn() -> float:
+	return _shown_turn
+
+
+## The wind drawn out of it, made the first time it blows; null before that.
+func wind() -> FanWind2D:
+	return _wind
+
+
+func _process(delta: float) -> void:
+	var blowing := is_blowing()
+	_turn_the_fan(delta, blowing)
+	if blowing and _wind == null:
+		_wind = FanWind2D.make_for(self)
+	if _wind != null:
+		_wind.advance(delta, blowing, wind_origin(), wind_axis(), _wind_front(), wind_reach,
+			_wind_base(), WIND_SPREAD)
+
+
+## Its blades turn while it blows, run up to speed, and coast round to where they were drawn
+## when it stops. With no blades the whole drawing flutters about its foot. Reduced motion: it
+## stays as drawn (the wind still shows it is on).
+func _turn_the_fan(delta: float, blowing: bool) -> void:
+	if Motion.reduced() or (not blowing and _rotor.is_empty()):
+		_turn = 0.0
+		_turn_speed = 0.0
+		_coast_to = -1.0
+		_flutter_clock = 0.0
+	elif blowing and _rotor.is_empty():
+		_flutter_clock += delta
+		_turn = sin(_flutter_clock * TAU * FLUTTER_HZ) * FLUTTER
+	elif blowing:
+		_coast_to = -1.0
+		_turn_speed = move_toward(_turn_speed, SPIN_TOP, SPIN_TOP / SPIN_UP_SECONDS * delta)
+		_turn = fposmod(_turn + _turn_speed * delta, TAU)
+	elif _turn != 0.0:
+		if _coast_to < 0.0:
+			# Timed so it slows evenly and lands on a whole turn: v^2 = 2 a d.
+			var left := TAU - fposmod(_turn, TAU)
+			if left < COAST_SHORTEST:
+				left += TAU
+			_turn_speed = maxf(_turn_speed, COAST_SLOWEST)
+			_coast_to = _turn + left
+			_coast_slowing = _turn_speed * _turn_speed / (2.0 * left)
+		_turn_speed = maxf(COAST_SLOWEST * 0.25, _turn_speed - _coast_slowing * delta)
+		_turn += _turn_speed * delta
+		if _turn >= _coast_to:
+			_turn = 0.0
+			_turn_speed = 0.0
+			_coast_to = -1.0
+	_turn_clock += delta
+	var frame := floori(_turn_clock * Motion.PIXEL_FPS)
+	# Held at PIXEL_FPS like every other move, except that coming to rest is shown at once.
+	if frame == _turn_frame and _turn != 0.0:
+		return
+	_turn_frame = frame
+	if _turn != _shown_turn:
+		_shown_turn = _turn
+		_show_the_turn()
+
+
+func _show_the_turn() -> void:
+	var skin := _inked_skin()
+	if skin == null:
+		return
+	if not _rotor.is_empty():
+		skin.turn_strokes(_rotor["blades"], _rotor["hub"], _shown_turn)
+		return
+	var every := PackedInt32Array()
+	for index in range(skin.get_vector_strokes().size()):
+		every.append(index)
+	var box := skin.get_stroke_bounds()
+	skin.turn_strokes(every, Vector2(box.get_center().x, box.end.y), _shown_turn)
+
+
+## Read once per drawing (and again if it is rebuilt -- resized), when the strokes are in place.
+func _find_the_blades(_built: bool) -> void:
+	var skin := _inked_skin()
+	_rotor = FanBlades.find(skin.get_vector_strokes()) if skin != null else {}
+	_turn = 0.0
+	_turn_speed = 0.0
+	_coast_to = -1.0
+	_shown_turn = 0.0
+
+
+## The skin, when it is drawing the player's strokes (not a bitmap stand-in with nothing to turn).
+func _inked_skin() -> RuntimeRig2D:
+	var skin := _get_skin() as RuntimeRig2D
+	return skin if skin != null and skin.debug_skin_active() else null
+
+
+## From its hub to the front of the drawing, world px: where the gusts start.
+func _wind_front() -> float:
+	var skin := _inked_skin()
+	if skin == null:
+		return _target_size().x * 0.5
+	var scale_by := absf(skin.stroke_space().get_scale().x)
+	if not _rotor.is_empty():
+		return float(_rotor["radius"]) * scale_by
+	return skin.get_stroke_bounds().size.x * 0.5 * scale_by
+
+
+## Half the stream's width at the blades, world px.
+func _wind_base() -> float:
+	var skin := _inked_skin()
+	if skin == null:
+		return _target_size().y * 0.25
+	var scale_by := absf(skin.stroke_space().get_scale().y)
+	if not _rotor.is_empty():
+		return float(_rotor["radius"]) * scale_by
+	var box := skin.get_stroke_bounds()
+	return minf(box.size.x, box.size.y) * 0.25 * scale_by
 
 
 ## Props act by being where they were left. Nothing here needs the player to be
@@ -521,6 +729,8 @@ func _offer_the_climb() -> void:
 		var actor := _player_of(target)
 		if actor == null or not actor.has_method("begin_ladder"):
 			continue
+		if actor.has_method("can_reach_ladder") and not bool(actor.call("can_reach_ladder", self)):
+			continue
 		if actor.has_method("is_using_ladder") and bool(actor.call("is_using_ladder", self)):
 			return
 		actor.call("begin_ladder", self)
@@ -543,6 +753,8 @@ func _climb_reach() -> float:
 ## asks, answered by the object that owns the answer.
 func climb_reaches(actor: Node2D) -> bool:
 	if actor == null or not can_be_climbed():
+		return false
+	if actor.has_method("can_reach_ladder") and not bool(actor.call("can_reach_ladder", self)):
 		return false
 	for target in _reachable_targets(_climb_reach()):
 		if _player_of(target) == actor:
@@ -602,7 +814,10 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# level entirely instead of being stopped at its edge. It sets _grounded too, so
 	# there is nothing left here to repeat.
 	super._integrate_forces(state)
-	if utility_behavior not in ["sailboat", "submarine"] or not _is_in_water():
+	if utility_behavior not in ["sailboat", "submarine"]:
+		return
+	if not _is_in_water():
+		gravity_scale = 1.0
 		return
 	# The submarine was left out of this entirely, so the one vessel whose whole job is
 	# to sit in water had no buoyancy and no drag at all.
@@ -611,7 +826,10 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# out of the water; letting the pool do it INSTEAD is the tidier design but it is not
 	# a swap to make while the vehicles are still unreliable, so the hull keeps the
 	# behaviour its own test documents.
-	gravity_scale = 0.18 if utility_behavior == "sailboat" else 0.62
+	# An empty submarine waits at the placed depth. Remove the initial fall speed
+	# too, since water overlap is reported a tick after placement.
+	var waiting := utility_behavior == "submarine" and not is_instance_valid(_boarded_actor)
+	gravity_scale = 0.0 if waiting else (0.18 if utility_behavior == "sailboat" else 0.62)
 	var velocity := state.linear_velocity
 	state.apply_central_force(-state.total_gravity * mass * 0.82)
 	state.apply_central_force(-velocity * mass * 2.4)
@@ -640,11 +858,27 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	# after the cap had supposedly been moved into the physics callback.
 	state.linear_velocity = Vector2(
 		clampf(state.linear_velocity.x, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED),
-		clampf(state.linear_velocity.y, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED))
+		0.0 if waiting else clampf(state.linear_velocity.y, -VEHICLE_TOP_SPEED, VEHICLE_TOP_SPEED))
 
 
 ## How far below the body's origin its lowest point is, in its own frame: the keel a hull floats
 ## by. Read off the collision the drawing was built into, so it is the hull that was drawn.
+## The placement preview uses the same waterline as the sailboat's physics.
+func water_placement_y() -> float:
+	if utility_behavior not in ["sailboat", "submarine"]:
+		return INF
+	var keel := _keel()
+	for node in get_tree().get_nodes_in_group(&"water_medium"):
+		var pool := node as WaterArea2D
+		if pool == null or absf(global_position.x - pool.global_position.x) >= pool.surface_size.x * 0.5:
+			continue
+		var surface := pool.surface_y()
+		if global_position.y + keel < surface or global_position.y >= surface + pool.surface_size.y:
+			continue
+		return surface + HULL_DRAFT - keel if utility_behavior == "sailboat" else global_position.y
+	return INF
+
+
 func _keel() -> float:
 	var keel := -INF
 	for child in get_children():
@@ -692,11 +926,21 @@ func _swing_blade(actor: Node2D) -> String:
 	var swing := create_tween()
 	swing.tween_property(self, "rotation", deg_to_rad(72.0 * facing), 0.11).set_trans(Tween.TRANS_QUAD)
 	swing.tween_property(self, "rotation", 0.0, 0.16).set_trans(Tween.TRANS_BACK)
+	# With the arc, hit or miss: what it struck is heard from the target (foe_hit).
+	_sound(&"swing")
 	if struck > 0:
 		return "%s cut through %d" % [_display_name(), struck]
 	if shoved > 0:
 		return "%s knocked %d loose" % [_display_name(), shoved]
 	return "%s swings — nothing in reach" % _display_name()
+
+
+## ⚠ LOOKED UP, NOT NAMED. A probe run with --script compiles this class before the autoloads
+## exist, and the identifier AudioDirector would fail to compile it -- and every probe with it.
+func _sound(id: StringName) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id)
 
 
 ## Whether a swing facing `facing` from `origin` reaches `target`: the half of the world
@@ -722,21 +966,8 @@ func _is_in_front(target: Node, origin: Vector2, facing: float, arc: float = 180
 ## Blast: a heavy shot that carries its own damage to whatever it lands on. Spawned
 ## rather than raycast so the player can see where the force went.
 func _fire_cannon(actor: Node2D) -> String:
-	var shot := RigidBody2D.new()
-	shot.mass = 4.0
-	shot.gravity_scale = 0.85
-	shot.continuous_cd = RigidBody2D.CCD_MODE_CAST_SHAPE
-	shot.contact_monitor = true
-	shot.max_contacts_reported = 4
-	var ball := CollisionShape2D.new()
-	var circle := CircleShape2D.new()
-	circle.radius = 11.0
-	ball.shape = circle
-	shot.add_child(ball)
-	var ink := Polygon2D.new()
-	ink.polygon = _circle_points(11.0)
-	ink.color = Color(0.1, 0.1, 0.12)
-	shot.add_child(ink)
+	# Seen in every level: a pale ball with a trail, a flash and a burst -- see CannonShot2D.
+	var shot := CannonShot2D.new()
 	var facing := _facing_of(actor)
 	var world := _world_root()
 	if world == null:
@@ -749,6 +980,8 @@ func _fire_cannon(actor: Node2D) -> String:
 	shot.position = world.to_local(muzzle) if world is Node2D else muzzle
 	world.add_child(shot)
 	shot.global_position = muzzle
+	CannonShot2D.burst(world, muzzle, CannonShot2D.Burst.MUZZLE)
+	_sound(&"cannon")
 	shot.linear_velocity = Vector2(facing * 980.0, -190.0)
 	if _aimed_from(shot.global_position) != Vector2.ZERO:
 		# At what was clicked, and a little over it by what the shot falls on the way, so it goes
@@ -803,8 +1036,13 @@ func _on_shot_landed(shot: RigidBody2D, hit: Node, actor: Node2D) -> void:
 		return
 	shot.set_meta(&"landed", true)
 	var target := _tool_target(hit)
+	var struck := false
 	if target != null and target.has_method("apply_tool_hit"):
-		target.call("apply_tool_hit", "cannon", 900.0, actor)
+		var answered: Variant = target.call("apply_tool_hit", "cannon", 900.0, actor)
+		struck = answered is bool and answered
+	# Where it landed, and whether it did anything there: a hit and a miss must not look alike.
+	CannonShot2D.burst(shot.get_parent(), shot.global_position,
+		CannonShot2D.Burst.STRUCK if struck else CannonShot2D.Burst.LANDED)
 	shot.queue_free()
 
 
@@ -843,6 +1081,7 @@ func _throw_boomerang(actor: Node2D) -> String:
 		0.0, 1.0, 1.1
 	)
 	flight.tween_callback(func() -> void: _catch_boomerang(actor))
+	_sound(&"throw")
 	return "Boomerang thrown"
 
 
@@ -1386,6 +1625,144 @@ func _update_beam_effects(delta: float) -> void:
 const CAMPFIRE_GLOW := 300.0
 const CAMPFIRE_LIFT := 18.0
 const SUN_GLOW := 640.0
+
+
+## ⚠ A SUN BURNS WHAT STANDS IN ITS HEAT, AND A FIRE WHAT STANDS CLOSE (Kent's decision, 2026-11-16).
+## The sun's ConceptNet abilities are Evaporate, Illuminate, Heat and Scorch, and a campfire's Burn,
+## Warm and Cook; in Dilim both lit the dark and hurt nothing. Scorch and Burn, from
+## config/ability_effects.json: once it stands in the world, the creatures within its radius take a
+## burn tick every so often (Enemy2D.apply_scorch -- a creature whose fight a light answers is not
+## burned, so a sun stays the light it is), for as long as its heat lasts (a sun's runs out; a
+## fire's lasts while it stands). While hot it is an Enemy2D ward, so those that hunt by smell are
+## held at its edge -- which is inside its reach, so held there they still burn. A ring at its
+## reach says how far, and sweeps away like a clock as the heat runs out.
+const SCORCH_EDGE := 24.0
+var _scorch: Dictionary = {}
+## Seconds of heat left: -1 before it has begun, INF for a fire, 0 when spent or never had.
+var _scorch_left := -1.0
+var _scorch_lasts := 0.0
+var _scorch_clock := 0.0
+var _scorch_ring: Node2D
+var _scorch_ring_frame := -1
+
+
+## The heat this drawing has, from its ConceptNet abilities, or {}.
+func _scorch_effect() -> Dictionary:
+	var id := item_data.entity_id if item_data != null else utility_behavior
+	for label in CreatureAbility.labels_of(id):
+		var effect := CreatureAbility.effect_of(label)
+		if String(effect.get("kind", "")) == "scorch":
+			return effect.merged({"label": label})
+	return {}
+
+
+func scorch_radius() -> float:
+	return float(_scorch.get("radius", 0.0)) if is_scorching() else 0.0
+
+
+func is_scorching() -> bool:
+	return _scorch_left > 0.0
+
+
+## How far a creature that hunts by smell is held off: its heat, while it lasts (Enemy2D.WARDS).
+func reach() -> float:
+	return scorch_radius()
+
+
+func _scorch_centre() -> Vector2:
+	return global_position + (Vector2(0.0, -CAMPFIRE_LIFT) if utility_behavior == "campfire" else Vector2.ZERO)
+
+
+func _tend_scorch(delta: float) -> void:
+	if _scorch_left == -1.0:
+		# Begun once it stands in the world: not in a hand, not a ghost still being placed.
+		if _equipped_actor != null or not is_inside_tree():
+			return
+		# ⚠ ONLY WHERE SOMETHING FIGHTS. Nothing outside Dilim can burn, and a heat ring round a sun
+		# in Terraces or Mayon would promise a harm that is not there.
+		if get_tree().get_nodes_in_group(Enemy2D.FOES).is_empty():
+			_scorch_left = 0.0
+			return
+		_scorch = _scorch_effect()
+		if _scorch.is_empty():
+			_scorch_left = 0.0
+			return
+		_scorch_lasts = float(_scorch.get("lasts", 0.0))
+		_scorch_left = _scorch_lasts if _scorch_lasts > 0.0 else INF
+		add_to_group(Enemy2D.WARDS)
+		_make_scorch_ring()
+	if not is_scorching():
+		return
+	_scorch_left -= delta
+	_draw_scorch_ring_if_due()
+	if not is_scorching():
+		_end_scorch()
+		return
+	_scorch_clock += delta
+	var every := maxf(0.1, float(_scorch.get("every", 1.0)))
+	if _scorch_clock < every:
+		return
+	_scorch_clock -= every
+	var burned := 0
+	var centre := _scorch_centre()
+	var radius := scorch_radius() + SCORCH_EDGE
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead() or foe.global_position.distance_to(centre) > radius:
+			continue
+		foe.apply_scorch(1, every * 0.5)
+		burned += 1
+	if burned > 0:
+		var telemetry := get_node_or_null(^"/root/Telemetry")
+		if telemetry != null:
+			telemetry.call("record_event", "object_ability_used", {
+				"entity_id": item_data.entity_id if item_data != null else utility_behavior,
+				"ability": String(_scorch.get("label", "")),
+				"burned": burned,
+			})
+
+
+func _end_scorch() -> void:
+	_scorch_left = 0.0
+	remove_from_group(Enemy2D.WARDS)
+	if _scorch_ring != null and is_instance_valid(_scorch_ring):
+		_scorch_ring.queue_free()
+	_scorch_ring = null
+
+
+## Over the world but not the HUD, where the heat reaches -- it stands inside the light the sun or
+## fire already opens in the dark, so it is seen.
+func _make_scorch_ring() -> void:
+	_scorch_ring = Node2D.new()
+	_scorch_ring.name = "ScorchRing"
+	_scorch_ring.top_level = true
+	_scorch_ring.z_index = 4
+	add_child(_scorch_ring)
+	# ⚠ BOUND TO THE RING ITSELF: a redraw already queued can come after the heat ends and the
+	# field is cleared, and drawing on the field then was drawing on nothing.
+	_scorch_ring.draw.connect(_draw_scorch_ring.bind(_scorch_ring))
+	_draw_scorch_ring_if_due()
+
+
+func _draw_scorch_ring_if_due() -> void:
+	if _scorch_ring == null or not is_instance_valid(_scorch_ring):
+		return
+	_scorch_ring.global_position = _scorch_centre().round()
+	var frame := 0 if Motion.reduced() else int(Time.get_ticks_msec() / (1000.0 / Motion.PIXEL_FPS))
+	if frame != _scorch_ring_frame:
+		_scorch_ring_frame = frame
+		_scorch_ring.queue_redraw()
+
+
+## ⚠ AT ITS TRUE REACH. A ring that shrank as the heat ran out drew the burn reaching less far than
+## it does; it stays where the heat reaches and the arc sweeps away, a clock of what is left.
+func _draw_scorch_ring(ring: Node2D) -> void:
+	if not is_scorching():
+		return
+	var left := 1.0 if _scorch_lasts <= 0.0 else clampf(_scorch_left / _scorch_lasts, 0.0, 1.0)
+	var sweep := TAU * (ceilf(left * 32.0) / 32.0)
+	ring.draw_arc(Vector2.ZERO, scorch_radius(), -PI * 0.5, -PI * 0.5 + sweep, 64,
+		Color(UISkin.GILT_HI, 0.75), 3.0)
 
 
 ## The light this drawing gives, for the dark and for anything asking how lit a place is

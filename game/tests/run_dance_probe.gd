@@ -79,17 +79,20 @@ func _reach_the_screen(fresh: Node) -> DanceOverlay:
 	return await _wait_for_screen(fresh)
 
 
-## Finish a stroke at `at` seconds into the attempt, waiting the clock out rather than
-## poking the model directly -- the whole point is that the screen's own clock is what the
-## verdict comes from.
-func _stroke_at(screen: DanceOverlay, at: float) -> String:
+func _wait_for_beat(screen: DanceOverlay, at: float) -> void:
 	for _frame in range(900):
-		if screen.clock() >= at:
-			break
-		if not screen.is_open():
-			return "closed"
+		if screen.clock() >= at or not screen.is_open():
+			return
 		await physics_frame
-	return screen.perform_stroke()
+
+
+func _space(pressed: bool, echo: bool = false) -> void:
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_SPACE
+	key.pressed = pressed
+	key.echo = echo
+	Input.parse_input_event(key)
+	await process_frame
 
 
 func _audit_the_route_opens_the_screen() -> void:
@@ -149,14 +152,21 @@ func _audit_dancing_well_earns_the_flower() -> void:
 		return
 	var dance := fresh.get("dance") as DanceMinigame
 	var track := dance.track()
-	var perfect := 0
-	for index in range(track.size()):
-		var verdict := await _stroke_at(screen, track[index])
-		if verdict == "perfect":
-			perfect += 1
-	_check(perfect >= DanceMinigame.CUES_TO_CLEAR,
-		"a stroke on the beat is judged perfect",
-		"%d of %d on the nose" % [perfect, track.size()])
+	await _wait_for_beat(screen, track[0])
+	_check(screen.perform_stroke() == "perfect", "a stroke on the beat is judged perfect", "stroke")
+	var space_hits := 0
+	for index in range(1, track.size()):
+		await _wait_for_beat(screen, track[index])
+		var before := dance.perfect_count()
+		if index == 2:
+			await _space(true, true)
+			_check(dance.perfect_count() == before, "holding Space does not hit the next cue", "echo ignored")
+		await _space(false)
+		await _space(true)
+		space_hits += dance.perfect_count() - before
+	await _space(false)
+	_check(space_hits == track.size() - 1, "Space hits each remaining cue on the beat",
+		"%d perfect keyboard hits" % space_hits)
 	# The screen holds the result up for a moment before it closes, and the level solves
 	# the beat off its `run_finished`.
 	for _frame in range(420):

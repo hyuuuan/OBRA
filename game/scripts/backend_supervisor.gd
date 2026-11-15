@@ -99,11 +99,14 @@ func ensure_backend() -> void:
 	_gave_up = false
 	_said_slow = false
 	_said_stuck = false
-	# A server another supervisor started, still coming up or already up, is the one to ask.
-	# Otherwise this one's own port.
-	if not owned_backend_running():
-		_port = backend_port
 	_deadline_msec = Time.get_ticks_msec() + int(startup_timeout_sec * 1000.0)
+	# A server another supervisor started, still coming up or already up, is the one to ask.
+	# Exports own their recogniser so its telemetry goes into this copy's session folder.
+	if not owned_backend_running():
+		if _UserData.is_exported_build() and auto_start_backend:
+			_start_backend()
+			return
+		_port = backend_port
 	_request_health()
 
 
@@ -111,7 +114,10 @@ func ensure_backend() -> void:
 static func url(path: String = "/") -> String:
 	if not path.begins_with("/"):
 		path = "/" + path
-	return "http://127.0.0.1:%d%s" % [_port if _port > 0 else 8000, path]
+	var port := _port
+	if port <= 0 and not _UserData.is_exported_build():
+		port = 8000
+	return "http://127.0.0.1:%d%s" % [maxi(port, 0), path]
 
 
 ## The server the game started is running and has not answered yet: give it time.
@@ -250,8 +256,6 @@ func _handle_health_failure(reason: String) -> void:
 		return
 	if not _started_process and auto_start_backend:
 		_start_backend()
-		if _backend_pid > 0:
-			_retry_timer.start(poll_interval_sec)
 		return
 
 	if Time.get_ticks_msec() >= _deadline_msec:
@@ -269,8 +273,10 @@ func _start_backend() -> void:
 	_status = ""
 	_port = _choose_port()
 	if _port <= 0:
-		_port = backend_port
-		_reason = "No free port for the drawing recogniser (tried %d and 8765-8774)." % backend_port
+		_reason = "No free port for the drawing recogniser."
+		if not _UserData.is_exported_build():
+			_port = backend_port
+			_reason = "No free port for the drawing recogniser (tried %d and 8765-8774)." % backend_port
 		_fail(_reason)
 		return
 	backend_starting.emit("Starting the drawing recogniser...")
@@ -309,11 +315,20 @@ func _start_backend() -> void:
 		_reason = "Python could not be started (%s). Install Python 3.10 or newer from " \
 			% python[0] + "python.org, then start the game again."
 		_fail(_reason)
+		return
+	_retry_timer.start(poll_interval_sec)
 
 
-## The asked-for port if it can be listened on, else the first spare that can. Asked by
-## actually listening, because that is the only answer Windows' reserved ranges give.
+## Exports use an OS-assigned port so each copy can launch its own server. Source runs try
+## the requested port and then the spares, since Windows can reserve whole port ranges.
 func _choose_port() -> int:
+	if _UserData.is_exported_build():
+		var server := TCPServer.new()
+		if server.listen(0, backend_host) != OK:
+			return -1
+		var port := server.get_local_port()
+		server.stop()
+		return port
 	for port: int in [backend_port] + SPARE_PORTS:
 		if port_is_free(port):
 			return port
@@ -485,5 +500,7 @@ static func python_in(venv_dir: String, windows: bool) -> String:
 
 
 func _repo_root() -> String:
-	var game_dir := ProjectSettings.globalize_path("res://").simplify_path()
+	if _UserData.is_exported_build():
+		return _UserData.export_package_root()
+	var game_dir := ProjectSettings.globalize_path("res://").simplify_path().trim_suffix("/")
 	return game_dir.path_join("..").simplify_path()

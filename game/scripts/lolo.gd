@@ -130,6 +130,8 @@ func follow(target: Node2D) -> void:
 func say(text: String, seconds: float = 0.0) -> void:
 	if text.is_empty():
 		hush()
+		if _hints != null:
+			_hints.clear()
 		return
 	if _hints != null:
 		_hints.show_hint(text, SPEAKER, seconds)
@@ -160,14 +162,15 @@ func set_hint_bar(bar: HintBar) -> void:
 	_hints = bar
 
 
+## He stops gesturing. ⚠ THE BAR IS NOT HIS TO CLEAR. It carries everybody's words, and every fork
+## calls this before it asks: Piyesta's two rules of the plaza were thrown away by the question,
+## though the bar stands itself down under one and comes back after it.
 func hush() -> void:
 	var was_talking := _speech_time != 0.0 or bool(_figure.get("talking"))
 	_speech_time = 0.0
 	_figure.set("talking", false)
 	if was_talking:
 		_begin_turn_back()
-	if _hints != null:
-		_hints.clear()
 
 
 func is_speaking() -> bool:

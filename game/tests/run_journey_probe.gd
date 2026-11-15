@@ -3,8 +3,8 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_journey_probe.gd
 ##
 ## Every other suite opens one scene and stays in it. Nothing followed a player from the title
-## screen through the scene changes that make up a run -- PLAY into the house, the brush off its
-## stand, a painting into Payyo, her canvas home to the house where Piyesta's frame is unlocked in
+## screen through the scene changes that make up a run -- NEW GAME straight into Payyo with the
+## brush in her hand, her canvas home to the house where Piyesta's frame is unlocked in
 ## front of her, Piyesta's painting into Piyesta, the painting's last
 ## piece back to the house, Dagat's painting, the island back to the house, Dilim's painting,
 ## and Dilim's dawn into the ending -- and those
@@ -17,6 +17,8 @@ extends SceneTree
 ##
 ## The profile it writes is the test run's own (user_data.gd), so it starts from nothing and
 ## leaves nobody's save behind.
+
+const TutorialDoor = preload("res://tests/tutorial_door.gd")
 
 var failures := 0
 
@@ -38,8 +40,7 @@ func _run() -> void:
 	var manager := root.get_node("LevelManager")
 	manager.set("transition_step_seconds", 0.0)
 
-	await _title_to_house(manager)
-	await _brush_and_payyo(manager)
+	await _new_game_to_payyo(manager)
 	await _restart_payyo_from_pause(manager)
 	await _payyo_to_piyesta(manager, profile)
 	await _piyesta_to_house(manager, profile)
@@ -94,70 +95,33 @@ func _scene_name() -> String:
 ## A scene has just been walked into: is the world running, and is the scene the one expected?
 func _arrived(manager: Node, expected: String, what: String) -> void:
 	_check(_scene_name() == expected, "%s -- the scene is %s" % [what, expected], _scene_name())
+	await _read_the_cards()
 	_check(not paused, "%s -- and nothing is left paused" % what,
 		"running" if not paused else "THE TREE IS PAUSED -- the player arrives frozen")
 	_check(not bool(manager.call("is_transitioning")), "%s -- and the wipe has finished" % what,
 		"clear")
 
 
-func _title_to_house(manager: Node) -> void:
+## NEW GAME, on a fresh save, opens Payyo itself -- not the house. Kent: "Start>Level 1>lobby>Get
+## paint>go to level 2". The house comes after Payyo, and the brush the door asks for comes with
+## her (LevelManager.start_new_game); the stand that hands it over is run_hub_audit's.
+func _new_game_to_payyo(manager: Node) -> void:
 	change_scene_to_file("res://ui/main_menu.tscn")
 	await _settle(manager)
 	var menu := current_scene
 	_check(menu != null and menu.get("play_button") != null, "the title screen comes up", _scene_name())
-	(menu.get("play_button") as Button).pressed.emit()
-	await _wait_for_scene(manager, "hub.tscn")
-	await _arrived(manager, "hub.tscn", "PLAY")
-
-
-func _brush_and_payyo(manager: Node) -> void:
-	var hub := current_scene
-	var stand := hub.get("_stand") as Node2D
-	var apo := hub.get("_player") as Node2D
-	_check(stand != null and apo != null, "the house has a stand and an apo", "-")
-	if stand == null or apo == null:
-		return
-	# A painting refuses without the brush, and says so.
-	var paintings := get_nodes_in_group(&"paintings")
-	var payyo: Node2D = null
-	for node in paintings:
-		if String(node.get("level_id")) == "level_1":
-			payyo = node as Node2D
-	hub.call("_on_painting_chosen", "level_1")
-	await _settle(manager, 5)
-	_check(_scene_name() == "hub.tscn", "Payyo will not open without the brush", _scene_name())
-
-	apo.global_position = Vector2(stand.global_position.x, apo.global_position.y)
-	for _i in range(20):
-		await process_frame
-	_press(&"interact")
-	for _i in range(40):
-		await process_frame
-	_check(bool(root.get_node("PlayerProfile").call("has_brush")), "E at the stand takes the brush",
-		"carried")
-	# The card that says so takes the next key, whatever it is -- including an E pressed at a
-	# painting -- so the walk waits for it the way the player's does: the stand is at the far end
-	# of the hall and the card has gone by the time anyone reaches a picture.
-	var card := hub.get_node_or_null(^"AcquiredOverlay")
-	for _i in range(600):
-		if card == null or not bool(card.call("is_busy")):
-			break
-		await process_frame
-	_check(card == null or not bool(card.call("is_busy")), "and the card for it goes by itself",
-		"gone")
-
-	if payyo != null:
-		apo.global_position = Vector2(payyo.global_position.x, apo.global_position.y)
-	for _i in range(20):
-		await process_frame
-	_press(&"interact")
+	var play := menu.get("play_button") as Button
+	_check(play.text == "NEW GAME", "and a fresh save offers NEW GAME", play.text)
+	play.pressed.emit()
 	await _wait_for_scene(manager, "game_level.tscn")
-	await _arrived(manager, "game_level.tscn", "E at Payyo's painting")
+	await _arrived(manager, "game_level.tscn", "NEW GAME")
 	_check(String(manager.get("current_level_id")) == "level_1", "and the run knows it is in Payyo",
 		String(manager.get("current_level_id")))
+	_check(bool(root.get_node("PlayerProfile").call("has_brush")), "with Lola's brush in her hand",
+		"carried")
 	var level := current_scene
 	var badge := level.get("level_badge") as Label
-	_check(badge != null and badge.text.contains("PAYYO"), "and the badge says so",
+	_check(badge != null and badge.text.contains("TERRACES"), "and the badge says so",
 		badge.text if badge != null else "-")
 
 
@@ -294,12 +258,11 @@ func _house_to(manager: Node, level_id: String, title: String) -> void:
 	# E until it is done (#138: "painting selection waits until the unlock reveal finishes").
 	# Pressed twenty frames in, E fell into the reveal and Dagat, Dilim and Mayon all stayed in
 	# the house. A player waits for it, so the walker waits; one that never ends still fails.
-	var waited := 0.0
-	while waited < 8.0 and bool(hub.call("is_revealing")):
-		await create_timer(0.1).timeout
-		waited += 0.1
+	var started := Time.get_ticks_msec()
+	while bool(hub.call("is_revealing")) and Time.get_ticks_msec() - started < 8000:
+		await create_timer(0.05, true, false, true).timeout
 	_check(not bool(hub.call("is_revealing")), "and the house has finished opening it",
-		"%.1f s" % waited)
+		"%.1f s" % (float(Time.get_ticks_msec() - started) / 1000.0))
 	apo.global_position = Vector2(painting.global_position.x, apo.global_position.y)
 	for _i in range(20):
 		await process_frame
@@ -383,7 +346,22 @@ func _mayon_to_house(manager: Node) -> void:
 				box.call("skip_all")
 		await create_timer(0.1, true, false, true).timeout
 		waited += 0.1
-	await _arrived(manager, "hub.tscn", "the frame's return, after Mayon")
+	# THE HOUSE PLAYS LOLA'S SCENE, ONCE (HouseEpilogue), and her lines stop the tree while they are
+	# up -- that is the scene, not a frozen arrival. Read through it as a player does, then judge
+	# the arrival.
+	var hub := current_scene
+	waited = 0.0
+	while waited < 60.0 and hub != null and hub.has_method("epilogue") \
+			and (hub.call("epilogue") == null or bool(hub.call("is_revealing"))):
+		for box in get_nodes_in_group(DialogueBox.GROUP):
+			if bool(box.call("is_open")):
+				box.call("skip_all")
+		await create_timer(0.1, true, false, true).timeout
+		waited += 0.1
+	_check(hub != null and hub.has_method("epilogue") and hub.call("epilogue") != null
+			and HouseEpilogue.has_played(),
+		"and in the house Lola's scene plays, once", "played %s" % HouseEpilogue.has_played())
+	await _arrived(manager, "hub.tscn", "the house, after Mayon (\"Lolo. Let's go home.\")")
 	_check(String(manager.get("current_level_id")).is_empty(), "and the run is back in no level",
 		"'%s'" % String(manager.get("current_level_id")))
 
@@ -421,3 +399,24 @@ func _press(action: StringName) -> void:
 		up.pressed = false
 		Input.parse_input_event(up)
 		return
+
+
+## PAYYO OPENS ON ITS CARDS, holding the world until each is done -- on purpose. Do them as a
+## player does, so "nothing is left paused" asks about what is left after them.
+func _read_the_cards() -> void:
+	var tutorial = current_scene.get("tutorial") if current_scene != null else null
+	var spot = current_scene.get("tutorial_spotlight") if current_scene != null else null
+	if tutorial == null or spot == null:
+		return
+	var since := Time.get_ticks_msec()
+	while bool(tutorial.call("is_teaching_the_door")) and Time.get_ticks_msec() - since < 60000:
+		await process_frame
+		# Each with what it shows -- a card at the door goes on nothing else -- and the bag Tab
+		# opened put away once its card is done.
+		TutorialDoor.close_the_bag(current_scene, spot as TutorialSpotlight)
+		var up := TutorialDoor.do_the_card(spot as TutorialSpotlight, root)
+		while not up.is_empty() and bool(spot.call("is_showing")) and String(spot.call("lesson_id")) == up \
+				and Time.get_ticks_msec() - since < 60000:
+			await process_frame
+	for _i in range(5):
+		await process_frame

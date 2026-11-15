@@ -11,7 +11,6 @@
 [ext_resource type="Texture2D" path="res://assets/Level1/terraces_2.png" id="9_terraces"]
 [ext_resource type="Texture2D" path="res://assets/Level1/terraces_near_background.png" id="10_near"]
 [ext_resource type="Texture2D" path="res://assets/Level1/texturemap.png" id="11_map"]
-[ext_resource type="Texture2D" path="res://assets/Level1/flowering_bush.png" id="11_bush"]
 [ext_resource type="Shader" path="res://shaders/parallax_feather.gdshader" id="27_feather"]
 [ext_resource type="Script" path="res://scripts/paddy_basin_2d.gd" id="28_paddy"]
 [ext_resource type="Script" path="res://scripts/ruined_bridge_2d.gd" id="12_bridge"]
@@ -31,6 +30,10 @@
 [ext_resource type="Script" path="res://scripts/bale_interior_2d.gd" id="24_baleroom"]
 [ext_resource type="Script" path="res://scripts/bale_2d.gd" id="25_owbyo"]
 [ext_resource type="Script" path="res://scripts/bulul_2d.gd" id="26_jto6m"]
+[ext_resource type="Texture2D" path="res://assets/Level1/props/stair_step.png" id="29_oldsteps"]
+[ext_resource type="Texture2D" path="res://assets/Level1/props/stair_riser.png" id="29_oldriser"]
+[ext_resource type="Texture2D" path="res://assets/Level1/props/hut_ladder.png" id="29_oldladder"]
+[ext_resource type="Script" path="res://scripts/cliff_dressing_2d.gd" id="30_cliff"]
 
 [sub_resource type="AtlasTexture" id="Atlas_sky"]
 atlas = ExtResource("6_sky")
@@ -91,7 +94,8 @@ points = PackedVector2Array(0, 0, 30, 36, 0, 36)
 
 [sub_resource type="AtlasTexture" id="Atlas_rock"]
 atlas = ExtResource("11_map")
-region = Rect2(739, 742, 77, 61)
+; Only the complete rock: the wider crop included two fern bases above it and a second rock.
+region = Rect2(739, 770, 56, 32)
 
 [sub_resource type="AtlasTexture" id="Atlas_stool"]
 atlas = ExtResource("11_map")
@@ -110,6 +114,9 @@ size = Vector2(3760, 48)
 
 [sub_resource type="RectangleShape2D" id="Rectangle_wall"]
 size = Vector2(48, 1200)
+
+[sub_resource type="RectangleShape2D" id="Rectangle_sky_lid"]
+size = Vector2(5240, 160)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_y6bxt"]
 size = Vector2(700, 300)
@@ -236,9 +243,15 @@ depth = 1.0
 scroll_scale = 0.72
 z_index_base = -15
 
+; ⚠ THE PLATE'S RIGHT EDGE IS A STRAIGHT CUT through its stone terraces (columns opaque from
+; source row 268 down), and nothing in the painting hides it. At (520, 425) it stood at x 998,
+; 182 short of Ang Hagdan's wall: once the old steps faded, the cut showed in the gap above the
+; ground. It is now just past the wall (1198 at the spawn camera) and moves only further right,
+; behind the terraces, as she walks on; 48 lower keeps its top under Terrace1's grass while she
+; jumps there. run_level1_backdrop_probe walks the climb and checks the cut is never in view.
 [node name="NearA" type="Sprite2D" parent="NearSceneryLayer" unique_id=2109191667]
 use_parent_material = true
-position = Vector2(520, 425)
+position = Vector2(720, 473)
 scale = Vector2(0.57, 0.57)
 texture = SubResource("Atlas_near")
 
@@ -306,6 +319,18 @@ script = ExtResource("5_terrace")
 segment_size = Vector2(780, 600)
 surface_style = 3
 
+; MAYON'S CONSTRUCTION, PAYYO'S GROUND (tools/build_cliff_kits.py, recipe "payyo"): the mossy
+; river-stone terrace wall of texturemap.png under a thick lip of its own grass, darker going down,
+; and on every open end a straight shaded side, the grass overhanging and spilling down it, a fern. Draws every
+; terrace segment above, the gorge's ledges and the exit shelf as MayonTerrain2D draws Mayon. The
+; segments keep their collision and stand their own art down (TerraceSegment2D.dressed_ground).
+; Behind the bodies, in front of the gorge's inside (-6).
+[node name="CliffDressing" type="Node2D" parent="GameplayPlane/Terrain"]
+z_index = -5
+script = ExtResource("30_cliff")
+kit = "res://assets/Level1/cliff"
+ground_group = &"terrace_ground"
+
 [node name="Transitions" type="Node2D" parent="GameplayPlane" unique_id=345990059]
 
 [node name="Rise3" type="StaticBody2D" parent="GameplayPlane/Transitions" unique_id=216567244]
@@ -356,10 +381,12 @@ has_a_floor = true
 cave_at = Vector2(250, 392)
 cave_size = Vector2(190, 104)
 
-[node name="RuinedBridge" type="Node2D" parent="GameplayPlane/Gorge" unique_id=1288469916]
+[node name="RuinedBridge" type="Node2D" parent="GameplayPlane/Gorge" unique_id=1288469916 groups=["fades_away"]]
 z_index = 6
 position = Vector2(3080, 240)
 script = ExtResource("12_bridge")
+metadata/fade_at = 2600.0
+metadata/fade_over = 1.5
 
 [node name="DialogueNode" type="Area2D" parent="GameplayPlane/Gorge" unique_id=1784507671]
 position = Vector2(3010, 240)
@@ -448,17 +475,10 @@ platform_size = Vector2(140, 34)
 z_index = 5
 
 [node name="RockA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1234385817]
-position = Vector2(1630, 250)
+position = Vector2(1630, 280)
 texture = SubResource("Atlas_rock")
-
-[node name="FloweringBushA" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1363963344]
-position = Vector2(2190, 218)
-texture = ExtResource("11_bush")
-
-[node name="FloweringBushB" type="Sprite2D" parent="GameplayPlane/Decor" unique_id=1430528708]
-position = Vector2(3588, 218)
-texture = ExtResource("11_bush")
-flip_h = true
+centered = false
+offset = Vector2(-28, -32)
 
 [node name="Floor" type="StaticBody2D" parent="GameplayPlane" unique_id=1952527368]
 position = Vector2(2560, 656)
@@ -477,6 +497,17 @@ position = Vector2(4780, 80)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/RightWall" unique_id=1719693980]
 shape = SubResource("Rectangle_wall")
+
+; ⚠ THE LID ON THE VALLEY. Both insides are parked in this sky (the heap at y -900, Ang Bale at
+; y -1180) and a room is "entered" by position, so a bird flapping up past the top of the painted
+; sky flew off screen and into them. Its underside (y -440) keeps a flier in frame and clear of
+; the HUD's top band; its top (y -600) is under the reach of the heap (y -750). Thick, so nothing
+; quick tunnels it. Doors teleport past it. run_level1_flight_ceiling_probe flies at it.
+[node name="SkyLid" type="StaticBody2D" parent="GameplayPlane"]
+position = Vector2(2560, -520)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/SkyLid"]
+shape = SubResource("Rectangle_sky_lid")
 
 [node name="Obstacles" type="Node2D" parent="GameplayPlane" unique_id=89777346]
 
@@ -526,7 +557,7 @@ script = ExtResource("19_j5wv8")
 obstacle_id = "L1_N3"
 trigger_size = Vector2(380, 320)
 announce_size = Vector2(180, 320)
-announce_offset = 0.0
+announce_offset = -100.0
 story_sign_offset = -60.0
 hint_sign_offset = -250.0
 checkpoint_mark_offset = 100.0
@@ -536,14 +567,47 @@ shape = SubResource("RectangleShape2D_aty4c")
 
 [node name="Hagdan" type="Node2D" parent="GameplayPlane" unique_id=1689954354]
 
+; THE OLD STEPS (group fades_away, game_level.gd _fades_the_old_way): Ang Hagdan as it was, Payyo's
+; own stone stair against the wall, gone before she reaches it -- the way up is hers to draw. No
+; collision anywhere in it, and it is blank by x ~760, before its foot at 796: a stair that still
+; showed when she got there would invite a jump through it.
+[node name="OldSteps" type="Node2D" parent="GameplayPlane/Hagdan" groups=["fades_away"]]
+z_index = -1
+metadata/fade_at = 450.0
+metadata/fade_over = 1.2
+
+[node name="Riser" type="Sprite2D" parent="GameplayPlane/Hagdan/OldSteps"]
+texture_filter = 1
+position = Vector2(988, 440)
+scale = Vector2(2, 2)
+texture = ExtResource("29_oldriser")
+centered = false
+
+[node name="Upper" type="Sprite2D" parent="GameplayPlane/Hagdan/OldSteps"]
+texture_filter = 1
+position = Vector2(988, 340)
+scale = Vector2(4, 4)
+texture = ExtResource("29_oldsteps")
+centered = false
+
+[node name="Lower" type="Sprite2D" parent="GameplayPlane/Hagdan/OldSteps"]
+texture_filter = 1
+position = Vector2(796, 448)
+scale = Vector2(4, 4)
+texture = ExtResource("29_oldsteps")
+centered = false
+
 [node name="CP0" type="Area2D" parent="GameplayPlane/Hagdan" unique_id=2079276445]
-position = Vector2(1250, 290)
+position = Vector2(1295, 270)
 script = ExtResource("20_y6bxt")
 checkpoint_id = "CP0"
 trigger_size = Vector2(150, 140)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GameplayPlane/Hagdan/CP0" unique_id=318478695]
 shape = SubResource("RectangleShape2D_3uax6")
+
+[node name="Landing" type="Marker2D" parent="GameplayPlane/Hagdan/CP0"]
+position = Vector2(0, 66)
 
 [node name="Dayami" type="Node2D" parent="GameplayPlane" unique_id=291343289]
 
@@ -591,6 +655,18 @@ script = ExtResource("24_strawroom")
 [node name="House" type="Node2D" parent="GameplayPlane/Bale" unique_id=1120996384]
 position = Vector2(4650, 80)
 script = ExtResource("25_owbyo")
+
+; THE OLD LADDER (group fades_away): the one painted against the house, which never held anyone,
+; lifted off it (tools/build_payyo_ladder.py) so it can go as she comes up the Overlook -- the way
+; up is hers to draw. At the house's art origin (House - Bale2D.ART_ORIGIN) plus the ladder's
+; corner in hut.png, (256, 217); gone by x ~4610, before its near edge at 4724.
+[node name="OldLadder" type="Sprite2D" parent="GameplayPlane/Bale" groups=["fades_away"]]
+texture_filter = 1
+position = Vector2(4724, -36)
+texture = ExtResource("29_oldladder")
+centered = false
+metadata/fade_at = 4300.0
+metadata/fade_over = 1.2
 
 [node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
 position = Vector2(4592, 80)

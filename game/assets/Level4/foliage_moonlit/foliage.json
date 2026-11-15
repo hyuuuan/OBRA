@@ -1,0 +1,10 @@
+{
+  "plant_gap": [
+    420,
+    860
+  ],
+  "plant_margin": 140,
+  "plants": 4,
+  "vine_offset": 22,
+  "vines": 2
+}

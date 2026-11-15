@@ -5,7 +5,7 @@ extends Node2D
 ##
 ## It goes white once she first comes within SIGHT of it -- slowly, as if there were time -- and
 ## all at once when she has gone PASSED_BY on beyond it: there is no going back down. White, then
-## blank: at blank it is lost. Drawing something that belongs in it, while she is near, saves it:
+## blank: at blank it is lost. Sketching the memory while she is near saves it:
 ## the colour comes back and stays, and her lines are inked into it.
 ##
 ## Nothing about it says what it is worth: no value, no cost, no count (the design: the player
@@ -18,7 +18,7 @@ const FOLDER := "res://assets/Level5/fragments/"
 ## How near she must come before it begins to go.
 const SIGHT := 700.0
 ## How long it takes to go to paper on its own, from when she first sees it.
-const FADE_SECONDS := 45.0
+const FADE_SECONDS := 90.0
 ## Gone this far past it, it goes in PASSED_SECONDS.
 const PASSED_BY := 600.0
 const PASSED_SECONDS := 4.0
@@ -29,19 +29,93 @@ const RECOVER_SECONDS := 1.2
 ## The drift and the bob, in px and per second.
 const BOB := 6.0
 const INK := Color(0.12, 0.1, 0.09, 0.95)
-## The rim on the fragment a drawing would go into: the interface's gold, soft-cornered, breathing.
-## It sits behind the picture and outside it, so the drain never whitens it.
-const RIM_MARGIN := 7.0
-const RIM_BREATH := 2.4
+## Draw the glow outside the picture in world pixels, independent of its texture size.
+const GLOW_SHADER := preload("res://shaders/mayon_memory_glow.gdshader")
+const GLOW_RADIUS := 12.0
 
 @export var fragment_id: String = ""
-## The classes that belong in it: drawing one, near it, saves it.
-@export var accepts: PackedStringArray = []
+## Live landmarks use the same preservation ledger and summit contract as legacy fragments.
+@export var landmark_mode := false
+@export var landmark_art := ""
+@export var landmark_width := 400.0
+var vignette_id := ""
+var _dance_frames: Array[Texture2D] = []
+var _landmark_frames: Array[Texture2D] = []
+var _landmark_frame_seconds := .18
 ## Whether lolo is in it: saving it steadies him for a while.
 @export var holds_lolo := false
 ## How near she must stand for a drawing to go into it. The flower's is short: it is saved from
 ## its ledge, off the path, not from the path beneath.
 @export var reach := 320.0
+## Only in reach while she stands. A jump from the path beneath peaks 94px nearer, which put
+## the flower in reach of the very path its ledge exists to keep it off.
+@export var needs_footing := false
+## Cluster-managed fragments start together, rather than reacting to x through a wall.
+var cluster_managed := false
+var cluster_id := ""
+var summit_texture: Texture2D
+var bloom_width := 800.0
+var bloom_elevation := 0.0
+var bloom_tint := Color.WHITE
+## "sky" hangs across the top of the summit's frame behind the places on the ground (the storm,
+## the fiesta flags); "ground" stands on the summit floor.
+var bloom_layer := "ground"
+
+
+func configure_memory(entry: Dictionary) -> void:
+	holds_lolo = bool(entry.get("holds_lolo", false))
+	cluster_id = String(entry.get("cluster", ""))
+	vignette_id = String(entry.get("vignette", ""))
+	cluster_managed = not cluster_id.is_empty() or not vignette_id.is_empty()
+	reach = float(entry.get("reach", reach))
+	needs_footing = bool(entry.get("needs_footing", needs_footing))
+	var landmark_tint: Array = entry.get("landmark_tint", [1,1,1,1])
+	_landmark_frames.clear()
+	for path: String in entry.get("landmark_frames",[]):
+		_landmark_frames.append(load(path) as Texture2D)
+	_landmark_frame_seconds = float(entry.get("landmark_frame_seconds",.18))
+	if landmark_mode and _sprite != null:
+		var offset: Array = entry.get("landmark_offset", [0,0])
+		_sprite.position = Vector2(float(offset[0]),float(offset[1])-_sprite.texture.get_height()*_sprite.scale.y*.5)
+		_sprite.self_modulate = Color(float(landmark_tint[0]),float(landmark_tint[1]),float(landmark_tint[2]),float(landmark_tint[3]))
+		var feather := float(entry.get("landmark_feather", 0.0))
+		if feather > 0.0:
+			var material := _sprite.material as ShaderMaterial
+			material.set_shader_parameter(&"edge_feather_uv",
+				Vector2.ONE * feather / (_sprite.texture.get_size() * _sprite.scale))
+	summit_texture = load(String(entry.get("summit_art", FOLDER + fragment_id + ".png"))) as Texture2D
+	bloom_width = float(entry.get("bloom_width", 800.0))
+	bloom_elevation = float(entry.get("bloom_elevation", 0.0))
+	bloom_layer = String(entry.get("bloom_layer", "ground"))
+	var shade: Array = entry.get("bloom_tint", [1,1,1,1])
+	bloom_tint = Color(float(shade[0]),float(shade[1]),float(shade[2]),float(shade[3]))
+
+
+func begin_whitening() -> void:
+	if _state == "whole":
+		_state = "draining"
+		_drainable.drain_to(PAPER, FADE_SECONDS * (1.0 - drain() / PAPER))
+
+
+func leave_behind() -> void:
+	if is_open():
+		_state = "passing"
+		set_targeted(false)
+		_drainable.drain_to(1.0, PASSED_SECONDS)
+
+
+func snapshot() -> Dictionary:
+	return {"state": _state, "strokes": _strokes.duplicate(true), "drain": drain()}
+
+
+func restore_snapshot(entry: Dictionary) -> void:
+	restore_to(String(entry.get("state", "whole")), entry.get("strokes", []))
+	if _state not in ["whole", "saved", "lost"]:
+		_drainable.drain_to(float(entry.get("drain", 0.0)), 0.0)
+		if _state == "passing":
+			_drainable.drain_to(1.0, PASSED_SECONDS * (1.0 - drain()))
+		else:
+			_drainable.drain_to(PAPER, FADE_SECONDS * (1.0 - drain() / PAPER))
 
 var _state := "whole"
 var _sprite: Sprite2D
@@ -52,7 +126,7 @@ var _time := 0.0
 var _phase := 0.0
 var _targeted := false
 var _rim: Node2D
-var _rim_style: StyleBoxFlat
+var _rim_material: ShaderMaterial
 
 
 func _ready() -> void:
@@ -61,16 +135,20 @@ func _ready() -> void:
 	_rim = Node2D.new()
 	_rim.name = "Rim"
 	_rim.visible = false
+	_rim_material = ShaderMaterial.new()
+	_rim_material.shader = GLOW_SHADER
+	_rim.material = _rim_material
 	_rim.draw.connect(_draw_rim)
 	add_child(_rim)
-	_rim_style = StyleBoxFlat.new()
-	_rim_style.bg_color = Color(UISkin.GOLD_PALE, 0.22)
-	_rim_style.border_color = UISkin.GOLD
-	_rim_style.set_border_width_all(3)
-	_rim_style.set_corner_radius_all(8)
 	_sprite = Sprite2D.new()
 	_sprite.name = "Picture"
-	_sprite.texture = load(FOLDER + fragment_id + ".png") as Texture2D
+	_sprite.texture = load(landmark_art if landmark_mode else FOLDER + fragment_id + ".png") as Texture2D
+	if landmark_mode and _sprite.texture != null:
+		_sprite.scale = Vector2.ONE * landmark_width / _sprite.texture.get_width()
+		_sprite.position.y = -_sprite.texture.get_height() * _sprite.scale.y * 0.5
+		if fragment_id == "dancers":
+			for frame in range(1, 4):
+				_dance_frames.append(load("res://assets/Level2/dancers/dance_frame_%02d.png" % frame))
 	add_child(_sprite)
 	_ink = Node2D.new()
 	_ink.name = "Ink"
@@ -99,14 +177,13 @@ func set_targeted(on: bool) -> void:
 		return
 	_targeted = lit
 	_rim.visible = lit
+	if lit:
+		_rim.position = _sprite.position
+		_rim.queue_redraw()
 
 
 func is_targeted() -> bool:
 	return _targeted
-
-
-func belongs(entity_id: String) -> bool:
-	return accepts.has(entity_id)
 
 
 func drain() -> float:
@@ -119,7 +196,7 @@ func strokes() -> Array:
 
 ## Called by the level every physics frame with where she is.
 func notice(her_x: float) -> void:
-	if not is_open():
+	if cluster_managed or not is_open():
 		return
 	var ahead := global_position.x - her_x
 	if _state == "whole" and absf(ahead) <= SIGHT:
@@ -127,6 +204,7 @@ func notice(her_x: float) -> void:
 		_drainable.drain_to(PAPER, FADE_SECONDS * (1.0 - drain() / PAPER))
 	if _state == "draining" and -ahead >= PASSED_BY:
 		_state = "passing"
+		set_targeted(false)
 		_drainable.drain_to(1.0, PASSED_SECONDS * (1.0 - drain()))
 
 
@@ -144,6 +222,7 @@ func save(strokes: Array) -> void:
 
 ## For a checkpoint: as it was when the checkpoint was written.
 func restore_to(state_name: String, plain_strokes: Array = []) -> void:
+	set_targeted(false)
 	_strokes = plain_strokes.duplicate(true)
 	_ink.queue_redraw()
 	_drainable.restore()
@@ -154,6 +233,8 @@ func restore_to(state_name: String, plain_strokes: Array = []) -> void:
 		"lost":
 			_state = "lost"
 			_drainable.drain_to(1.0, 0.0)
+		"draining", "passing":
+			_state = state_name
 		_:
 			_state = "whole"
 
@@ -176,25 +257,35 @@ func _on_blanked() -> void:
 	if _state == "saved":
 		return
 	_state = "lost"
+	set_targeted(false)
 	lost.emit(fragment_id)
 
 
 func _process(delta: float) -> void:
 	_time += delta
 	# Loose: it bobs and drifts a little, never quite still.
-	_sprite.position = Vector2(sin(_time * 0.37 + _phase) * BOB * 1.5,
-		sin(_time * 0.9 + _phase) * BOB).round()
+	if landmark_mode:
+		var previous_frame := _sprite.texture
+		if not _dance_frames.is_empty():
+			_sprite.texture = _dance_frames[[0, 1, 2, 1][int(_time / 0.24) % 4] if not Motion.reduced() else 0]
+		elif not _landmark_frames.is_empty():
+			_sprite.texture = _landmark_frames[int(_time/_landmark_frame_seconds)%_landmark_frames.size() if not Motion.reduced() else 0]
+		if _targeted and _sprite.texture != previous_frame:
+			_rim.queue_redraw()
+		return
+	_sprite.position = Vector2.ZERO if Motion.reduced() else Vector2(
+		sin(_time * 0.37 + _phase) * BOB * 1.5, sin(_time * 0.9 + _phase) * BOB).round()
 	if _targeted:
 		_rim.position = _sprite.position
-		_rim.modulate.a = 0.7 + 0.3 * sin(_time * TAU / RIM_BREATH)
-		_rim.queue_redraw()
 
 
 func _draw_rim() -> void:
 	if _sprite == null or _sprite.texture == null:
 		return
-	var size := _sprite.texture.get_size() + Vector2.ONE * RIM_MARGIN * 2.0
-	_rim.draw_style_box(_rim_style, Rect2(-size * 0.5, size))
+	var size := _sprite.texture.get_size() * _sprite.scale
+	_rim_material.set_shader_parameter(&"landmark_alpha", _sprite.texture)
+	_rim_material.set_shader_parameter(&"padding_uv", Vector2.ONE * GLOW_RADIUS / size)
+	_rim.draw_texture_rect(_sprite.texture, Rect2(-size * 0.5, size).grow(GLOW_RADIUS), false)
 
 
 ## Her lines, fitted into the middle of the picture, in the ink she drew them in.

@@ -2,12 +2,13 @@ extends SceneTree
 ## Mayon's Act One, played: the ash takes the old bridge before she can reach it and the steps
 ## before she is at the wall; it thickens as she climbs and is gone at the summit; the eruption
 ## rumbles and the ash surges with it, and never at the summit; lolo forgets three times, once
-## each; a fall gives back what the ash had not yet taken.
+## each; the apo works out why it is all going white, once each; a fall gives back what the ash
+## had not yet taken.
 ##
 ##   godot --headless --path game --script res://tests/run_level5_act_one_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 5
+const CHECKS := 7
 ## The apo's running speed (Wanderer), to time the bridge against.
 const RUN := 260.0
 
@@ -22,11 +23,13 @@ func _initialize() -> void:
 
 func _run() -> void:
 	level = await _open_level()
+	await _walk_and_jump_stand_beside_draw()
 	await _a_fall_gives_back_what_the_ash_had_not_taken()
 	await _the_bridge_is_gone_before_she_can_reach_it()
 	_the_ash_thickens_as_she_climbs()
 	await _the_eruption_rumbles_and_the_ash_surges()
 	await _lolo_forgets_three_times_once_each()
+	await _she_works_out_why_it_is_going_white()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -71,8 +74,8 @@ func _the_bridge_is_gone_before_she_can_reach_it() -> void:
 func _the_ash_thickens_as_she_climbs() -> void:
 	var foot: float = level.call("ash_at", 500.0)
 	var slope: float = level.call("ash_at", 3000.0)
-	var corridor: float = level.call("ash_at", 8000.0)
-	var summit: float = level.call("ash_at", 14000.0)
+	var corridor: float = level.call("ash_at", 4800.0)
+	var summit: float = level.call("ash_at", 30000.0)
 	_check(foot < slope and slope < corridor and is_zero_approx(summit),
 		"the ash thickens as she climbs and is gone at the summit",
 		"foot %.1f, slope %.1f, corridor %.1f, summit %.1f" % [foot, slope, corridor, summit])
@@ -84,7 +87,7 @@ func _the_eruption_rumbles_and_the_ash_surges() -> void:
 	tremor.tremble(1.0)
 	await _frames(2)
 	var surged := ash.pulse_left() > 0.0
-	await _put(14000.0, -400.0)
+	await _put(21810.0, 98.0)
 	_check(surged and not tremor.enabled,
 		"the eruption rumbles and the ash surges with it, and the summit is still",
 		"surged %s, rumbling at the summit %s" % [surged, tremor.enabled])
@@ -100,9 +103,48 @@ func _lolo_forgets_three_times_once_each() -> void:
 		"after each stop: %s" % [counts])
 
 
+## Kent, 2026-11-01: "the apo should have dialogue on why everything is disappearing". Once the
+## first thing has gone white, once she has heard him lose a word, and in the corridor among every
+## painting of hers: once each, in order, and never before she has seen it happen.
+func _she_works_out_why_it_is_going_white() -> void:
+	# On a mountain of its own: a line once heard stays heard, and the checks above walked her past
+	# every place these are said (and walking up first would take the bridge before theirs).
+	level.queue_free()
+	await _frames(2)
+	level = await _open_level()
+	var lines: Object = level.get("script_lines")
+	var heard: Array[String] = []
+	for x: float in [1700.0, 2200.0, 3600.0, 6200.0, 2200.0]:
+		await _put(x, 0.0)
+		var now := "%d%d%d" % [int(lines.call("has_heard", "APO.why.1")), int(lines.call("has_heard", "APO.why.2")),
+			int(lines.call("has_heard", "APO.why.3"))]
+		heard.append("%s/%d" % [now, int(level.get("_wondered"))])
+	_check(heard == ["000/0", "100/1", "110/2", "111/2", "111/2"],
+		"the apo works out why it is going white, in order, once each",
+		"after each stop (why 1,2,3 / counted): %s" % [heard])
+
+
+## Kent, 2026-11-05: "the r draw at the bottom right is alone, i want to include there the
+## movements key". On the climb, walk and jump stand beside R in its corner, as in Payyo.
+func _walk_and_jump_stand_beside_draw() -> void:
+	await _frames(20)
+	var prompts := level.get("action_prompts") as Control
+	var draw := level.get("draw_button") as Button
+	var move := prompts.get("_move") as Control
+	var jump := prompts.get("_jump") as Control
+	var shown := move.is_visible_in_tree() and jump.is_visible_in_tree() and draw.is_visible_in_tree()
+	var one_row := absf(move.get_global_rect().end.y - draw.get_global_rect().end.y) < 2.0 \
+		and absf(jump.get_global_rect().end.y - draw.get_global_rect().end.y) < 2.0 \
+		and move.get_global_rect().end.x <= jump.position.x + 0.5 \
+		and jump.get_global_rect().end.x <= draw.get_global_rect().position.x + 0.5
+	_check(bool(prompts.call("movement_keys_shown")) and shown and one_row,
+		"on the climb, walk and jump stand beside R DRAW in its corner",
+		"wanted %s, all shown %s, one row left to right %s" % [prompts.call("movement_keys_shown"), shown, one_row])
+
+
 func _put(x: float, y: float) -> void:
 	var player := level.get("player") as Node2D
-	player.call("apply_morph_state", {"position": Vector2(x, y), "linear_velocity": Vector2.ZERO})
+	preload("res://tests/level5_journey_fixture.gd").prepare(level,Vector2(x,y))
 	await _frames(30)
 	call_group(DialogueBox.GROUP, &"hide_line")
 	paused = false

@@ -1,0 +1,294 @@
+extends SceneTree
+## The actual summit state machine for both endings and all three voices, including no memories.
+const CHECKS := 14
+var checked := 0
+var failures := 0
+
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+
+func _run() -> void:
+	for perfect in [false, true]:
+		for route in ["artist", "pragmatist", "protector"]:
+			await _ending(perfect, route)
+	await _every_place_blooms_inside_the_frame()
+	await _the_places_she_saved_stand_apart(["terraces", "church", "storm", "bangka"])
+	await _the_places_she_saved_stand_apart(["kubo", "bandaritas", "coral", "forest"])
+	print("OBRA_LEVEL5_ENDINGS_%s (%d/%d)" % ["OK" if failures == 0 and checked == CHECKS else "FAILED", checked, CHECKS])
+	quit(0 if failures == 0 and checked == CHECKS else 1)
+
+
+func _ending(perfect: bool, route: String) -> void:
+	var profile := root.get_node("PlayerProfile")
+	profile.call("reset_progress")
+	profile.call("record_route", "level_1", route)
+	if perfect:
+		for flower in ["flower_1", "L2_HF", "L3_HF", "L4_HF", "L5_HF"]:
+			profile.call("record_collectible", flower)
+	# Keep the frame transition out of this test, and record what real summit logic says.
+	var script := GDScript.new()
+	script.source_code = 'extends "res://scripts/level_5.gd"\nvar said: Array = []\n' \
+		+ 'func _speak_and_wait(lines: Array) -> void:\n\tfor line in lines:\n\t\tsaid.append(line.get("id", ""))\n\tawait get_tree().process_frame\n' \
+		+ 'func _play_own_ending() -> void:\n\tpass\n'
+	if script.reload() != OK:
+		_check(false, "ending harness compiles")
+		return
+	var level: Node = (load("res://level_5.tscn") as PackedScene).instantiate()
+	level.set_script(script)
+	level.get_node("BackendSupervisor").auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, "set_auto_dismiss", true)
+	await create_timer(.3).timeout
+	(level.get("lolo") as Lolo).vanish()
+	level.set("_lolo_moment", "gone")
+	preload("res://tests/level5_journey_fixture.gd").summit(level)
+	if perfect:
+		for id in ["church", "kubo"]:
+			(level.call("_fragment", id) as MemoryFragment2D).restore_to("saved", [[2.0, 3.0, 11.0, 17.0]])
+			(level.get("_save_order") as Array).append(id)
+	level.get("player").call("apply_morph_state", {"position": level.call("_anchor", "summit_speak") + Vector2(50,0), "linear_velocity": Vector2.ZERO})
+	level.set("_summit", "places")
+	if not perfect:
+		level.get("ink_manager").committed = level.get("ink_manager").capacity
+	var before_ink: float = level.get("ink_manager").remaining()
+	var before_classes: int = profile.call("class_diversity")
+	level.call("_free_paint_completed", [{"points": PackedVector2Array([Vector2(3, 8), Vector2(19, 51)]), "width": 8.0, "color": Color.BLACK}])
+	level.call("_focus_camera_for", "lola")
+	var wide: bool = not level.call("_world_camera").is_focused()
+	var redraw := InputEventAction.new()
+	redraw.action = &"redraw"
+	redraw.pressed = true
+	var sealed_input: bool = level.call("_handle_level_input", redraw)
+	var offered_right := not perfect
+	var end := Time.get_ticks_msec() + 9000
+	while String(level.call("summit_state")) != "done" and Time.get_ticks_msec() < end:
+		var pose = level.get("_performance")
+		if is_instance_valid(pose) and pose.visible and pose.flip_h:
+			offered_right = offered_right or level.get("player").global_position.distance_to(level.call("_lola").global_position) < 100.0
+		await create_timer(.05).timeout
+	var said: Array = level.get("said")
+	var expected_voice := "L5_voice_" + route
+	var end_id := "L5_end_perfect_2" if perfect else "L5_end_standard_1"
+	var lola: Lola2D = level.call("_lola")
+	var handed_nearby: bool = not perfect or (offered_right and level.get("player").global_position.distance_to(lola.global_position) < 100.0)
+	_check(wide and sealed_input and String(level.call("summit_state")) == "done" and expected_voice in said and end_id in said
+		and not lola.is_turned() and lola.has_flowers() == perfect
+		and is_equal_approx(before_ink, level.get("ink_manager").remaining())
+		and int(profile.call("class_diversity")) == before_classes
+		and int(level.call("bloomed")) == (2 if perfect else 0) and handed_nearby,
+		"%s voice, %s ending: places, temporary recognition, and no model/ink cost" % [route, "perfect" if perfect else "standard"])
+	if perfect and route == "protector":
+		var widths_hold := true
+		var targets: Array = level.call("bloom_targets")
+		var scenery: Array = level.get("_bloomed")
+		for i in range(scenery.size()):
+			# The width the summit's layout gave it (bloom_layout), which the fade must not undo.
+			widths_hold = widths_hold and is_equal_approx(scenery[i].scale.x, float(scenery[i].get("world_scale"))) \
+				and scenery[i].texture.get_width()*scenery[i].scale.x <= targets[i].bloom_width + 0.5
+		_check(widths_hold and scenery.size() == 2, "restored scenery keeps its laid-out width through the fade")
+		# Her saved lines sign each place at a signature's size; they do not span the landscape.
+		var signed := scenery.size() == 2
+		var sizes: Array[float] = []
+		var deepest_place := -INF
+		for picture: Sprite2D in scenery:
+			deepest_place = maxf(deepest_place, picture.z_index)
+		for picture: Sprite2D in scenery:
+			var mark: Rect2 = picture.call("signature_rect")
+			var on_screen := maxf(mark.size.x, mark.size.y) * picture.scale.x
+			sizes.append(snappedf(on_screen, 0.1))
+			# Drawn above every place, which overlap, and below the pair standing in front of them.
+			var layer := picture.get_node_or_null(^"Signature") as Node2D
+			signed = signed and absf(on_screen - 140.0) < 1.0 \
+				and Rect2(-picture.texture.get_size() * 0.5, picture.texture.get_size()).encloses(mark) \
+				and layer != null and not layer.z_as_relative and layer.z_index > deepest_place \
+				and layer.z_index < (level.get("player") as Node2D).z_index
+		_check(signed, "saved lines sign each restored place at 140px, inside it, above the places: %s" % [sizes])
+		var state: Dictionary = level.call("_level_run_state")
+		state.erase("layout_version")
+		level.get("checkpoints").call("write", "CP2", {"position": Vector2(15000, -100), "level": state})
+		var landing: Vector2 = level.call("_checkpoint_landing", {"position": Vector2(15000, -100), "level": state})
+		_check(landing == level.call("_anchor", "summit") + Vector2(-100,0) and String(level.get("_lolo_moment")) == "gone",
+			"a legacy summit save lands safely and keeps Lolo gone")
+		var ink: InkManager = level.get("ink_manager")
+		ink.committed = 6.0
+		ink.hidden_reserve = 0.0
+		level.call("_give_back_what_cannot_come_back", {"bag_paid": 1.0, "placed": [{"paid": 1.0}]})
+		_check(is_zero_approx(ink.remaining()) and is_zero_approx(ink.hidden_reserve),
+			"resuming cannot convert spent gate reserve into memory ink")
+	level.queue_free()
+	for i in range(5):
+		await process_frame
+
+
+## EVERYTHING SHE SAVED BLOOMS WHERE SHE CAN SEE IT. The summit holds its own camera room, and the
+## places stand in it at their authored elevations. A saved sky -- the storm, the fiesta flags --
+## came up mostly above the top of that frame: the storm was a dark band along the edge of the
+## screen while she said "The storm, and how it ended." All twelve are bloomed here, through the
+## real summit, and each one's painted rows are measured against what the camera shows.
+func _every_place_blooms_inside_the_frame() -> void:
+	root.get_node("PlayerProfile").call("reset_progress")
+	var script := GDScript.new()
+	script.source_code = 'extends "res://scripts/level_5.gd"\n' \
+		+ 'func _speak_and_wait(_lines: Array) -> void:\n\tawait get_tree().process_frame\n' \
+		+ 'func _play_own_ending() -> void:\n\tpass\n'
+	if script.reload() != OK:
+		_check(false, "framing harness compiles")
+		return
+	var level: Node = (load("res://level_5.tscn") as PackedScene).instantiate()
+	level.set_script(script)
+	level.get_node("BackendSupervisor").auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, "set_auto_dismiss", true)
+	await create_timer(.3).timeout
+	(level.get("lolo") as Lolo).vanish()
+	level.set("_lolo_moment", "gone")
+	for fragment: MemoryFragment2D in level.get("_fragments"):
+		fragment.restore_to("saved", [[2.0, 3.0, 11.0, 17.0]])
+		(level.get("_save_order") as Array).append(fragment.fragment_id)
+	# Up onto the summit the way she arrives, so its camera room is the one that frames it.
+	preload("res://tests/level5_journey_fixture.gd").summit(level)
+	level.get("player").call("apply_morph_state", {"position": level.call("_anchor","summit")+Vector2(100,0), "linear_velocity": Vector2.ZERO})
+	await create_timer(2.0).timeout
+	var camera := level.call("_world_camera") as Camera2D
+	var half := camera.get_viewport_rect().size / camera.zoom * 0.5
+	var view := Rect2(camera.get_screen_center_position() - half, half * 2.0)
+	var arrived := String(level.call("summit_state")) == "quiet"
+	# Where the dialogue box's top edge falls in the world, under this camera.
+	var box := get_first_node_in_group(DialogueBox.GROUP) as DialogueBox
+	var box_top := view.position.y + box.frame_rect().position.y / camera.zoom.y
+	level.set("_summit", "places")
+	# Left untouched, the places page plays on with no lines, and the places still bloom (Kent,
+	# 2026-11-05: the summit "takes soo long i dont know what to do").
+	level.call("_free_paint_completed", [])
+	var everything := (level.get("_fragments") as Array).size()
+	var end := Time.get_ticks_msec() + 15000
+	while int(level.call("bloomed")) < everything and Time.get_ticks_msec() < end:
+		await create_timer(.1).timeout
+	var outside: Array[String] = []
+	var targets: Array = level.call("bloom_targets")
+	var scenery: Array = level.get("_bloomed")
+	for index in range(scenery.size()):
+		var picture := scenery[index] as Sprite2D
+		var rows := _painted_rows(picture.texture.get_image())
+		var top := picture.global_position.y + (rows.x - picture.texture.get_height() * 0.5) * picture.global_scale.y
+		var bottom := picture.global_position.y + (rows.y - picture.texture.get_height() * 0.5) * picture.global_scale.y
+		if top < view.position.y or bottom > box_top:
+			outside.append("%s %.0f..%.0f" % [targets[index].fragment_id, top, bottom])
+	_check(arrived and scenery.size() == everything and outside.is_empty(),
+		"every place she could save blooms inside the summit's frame, over the dialogue box (y %.0f..%.0f); outside: %s" % [
+			view.position.y, box_top, outside])
+	# Kent, 2026-11-05: "do something about it so that it wont hide both figures". Nearly every
+	# moment up here has a line on screen; the two of them stand above its top edge.
+	var lola := level.call("_lola") as Node2D
+	var feet := maxf(lola.global_position.y, (level.get("player") as Node2D).global_position.y)
+	_check(arrived and feet < box_top,
+		"at the summit both of them stand above the dialogue box (their feet at y %.0f, its top edge at %.0f)" % [
+			feet, box_top])
+	level.queue_free()
+	for i in range(5):
+		await process_frame
+
+
+## Kent, 2026-11-05: where Lola paints, "stuff do not make sense like it is not pleasing to the eye".
+## The places were set at fixed points whatever their sizes: the terraces buried the church and the
+## bangka ran off the frame. A run saves four at most (six units, two gates); each must stand inside
+## the frame, and none on the ground may be more than half hidden behind one in front of it.
+func _the_places_she_saved_stand_apart(ids: Array) -> void:
+	root.get_node("PlayerProfile").call("reset_progress")
+	var script := GDScript.new()
+	script.source_code = 'extends "res://scripts/level_5.gd"\n' \
+		+ 'func _speak_and_wait(_lines: Array) -> void:\n\tawait get_tree().process_frame\n' \
+		+ 'func _play_own_ending() -> void:\n\tpass\n'
+	if script.reload() != OK:
+		_check(false, "layout harness compiles")
+		return
+	var level: Node = (load("res://level_5.tscn") as PackedScene).instantiate()
+	level.set_script(script)
+	level.get_node("BackendSupervisor").auto_start_backend = false
+	root.add_child(level)
+	call_group(DialogueBox.GROUP, "set_auto_dismiss", true)
+	await create_timer(.3).timeout
+	(level.get("lolo") as Lolo).vanish()
+	level.set("_lolo_moment", "gone")
+	for id: String in ids:
+		(level.call("_fragment", id) as MemoryFragment2D).restore_to("saved", [[2.0, 3.0, 11.0, 17.0]])
+		(level.get("_save_order") as Array).append(id)
+	preload("res://tests/level5_journey_fixture.gd").summit(level)
+	level.get("player").call("apply_morph_state", {"position": level.call("_anchor","summit")+Vector2(100,0), "linear_velocity": Vector2.ZERO})
+	await create_timer(2.0).timeout
+	var camera := level.call("_world_camera") as Camera2D
+	var half := camera.get_viewport_rect().size / camera.zoom * 0.5
+	var view := Rect2(camera.get_screen_center_position() - half, half * 2.0)
+	level.set("_summit", "places")
+	level.call("_free_paint_completed", [])
+	var end := Time.get_ticks_msec() + 15000
+	while int(level.call("bloomed")) < ids.size() and Time.get_ticks_msec() < end:
+		await create_timer(.1).timeout
+	var targets: Array = level.call("bloom_targets")
+	var scenery: Array = level.get("_bloomed")
+	var rects: Array[Rect2] = []
+	for picture: Sprite2D in scenery:
+		var painted := _painted_rect(picture.texture.get_image())
+		var size := picture.texture.get_size()
+		rects.append(Rect2(picture.global_position + (painted.position - size * 0.5) * picture.global_scale.y,
+			painted.size * picture.global_scale.y))
+	var faults: Array[String] = []
+	for index in range(scenery.size()):
+		var id := String(targets[index].fragment_id)
+		if rects[index].position.x < view.position.x - 1.0 or rects[index].end.x > view.end.x + 1.0:
+			faults.append("%s runs off the frame" % id)
+		if String(targets[index].bloom_layer) == "sky":
+			continue
+		var hidden := 0.0
+		for other in range(scenery.size()):
+			if other == index or String(targets[other].bloom_layer) == "sky" \
+					or (scenery[other] as Sprite2D).z_index <= (scenery[index] as Sprite2D).z_index:
+				continue
+			hidden = maxf(hidden, rects[index].intersection(rects[other]).get_area() / maxf(1.0, rects[index].get_area()))
+		if hidden > 0.5:
+			faults.append("%s %d%% hidden" % [id, int(hidden * 100.0)])
+	_check(scenery.size() == ids.size() and faults.is_empty(),
+		"the places she saved (%s) stand inside the frame, none buried behind another: %s" % [", ".join(ids), faults])
+	level.queue_free()
+	for i in range(5):
+		await process_frame
+
+
+## Where an image holds paint -- opaque, and not paper white -- in its own pixels.
+func _painted_rect(image: Image) -> Rect2:
+	var rows := _painted_rows(image)
+	var first := image.get_width()
+	var last := 0
+	for x in range(0, image.get_width(), 2):
+		for y in range(int(rows.x), int(rows.y) + 1, 4):
+			var colour := image.get_pixel(x, y)
+			if colour.a > 0.5 and not (colour.r > 0.9 and colour.g > 0.9 and colour.b > 0.9):
+				first = mini(first, x)
+				last = maxi(last, x)
+				break
+	return Rect2(first, rows.x, maxi(1, last - first), maxf(1.0, rows.y - rows.x))
+
+
+## The first and last rows holding paint: opaque, and not paper white.
+func _painted_rows(image: Image) -> Vector2:
+	var first := -1
+	var last := -1
+	for y in range(0, image.get_height(), 2):
+		var count := 0
+		for x in range(0, image.get_width(), 4):
+			var colour := image.get_pixel(x, y)
+			if colour.a > 0.5 and not (colour.r > 0.9 and colour.g > 0.9 and colour.b > 0.9):
+				count += 1
+		if count >= 3:
+			if first < 0:
+				first = y
+			last = y
+	return Vector2(maxi(first, 0), maxi(last, 0))
+
+
+func _check(ok: bool, what: String) -> void:
+	checked += 1
+	failures += int(not ok)
+	print("  %s\t%s" % ["OK" if ok else "FAIL", what])

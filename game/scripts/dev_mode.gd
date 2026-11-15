@@ -8,7 +8,7 @@ var _indicator: Label
 var _normal_window_title := ""
 var enabled := false:
 	set(value):
-		enabled = value and OS.has_feature("debug")
+		enabled = value and OS.has_feature("editor")
 		if _indicator != null:
 			_update_identity()
 

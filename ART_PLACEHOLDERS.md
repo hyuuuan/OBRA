@@ -145,7 +145,12 @@ columns and read as a shaded dome with scratches on it.
 | **Collision** | **None**, deliberately — a solid heap would wall off the only route out of the level. |
 | **Must read as** | **Cut straw, never harvested grain.** A build constraint, not a preference: the Protector route scatters it across the terrace, and scattering somebody's *tinawon* harvest is not a neutral image to stage. |
 
-### Inside the heap · `game/scripts/straw_room_2d.gd` · 1 at (1900, −900)
+### Inside the heap · `game/scripts/straw_room_2d.gd` · 1 at (2580, −900)
+
+**NOW KENT'S PAINTING.** `Level1/hay_interior.png` is the whole room, one panorama fitted to the
+room's ruler (`_draw_backdrop`); the way out, the key's board, the nail and the ants are drawn
+over it, and nothing else is. The rows below describe the built room it replaced, except
+**The way out**, which is current.
 
 **BUILT, NOT PAINTED — and it took three goes.** A cutaway of the heap read as a close-up of
 a haystack. Kent's delivered interior, tiled across the room, read as "a mere drawing". What
@@ -160,7 +165,7 @@ the same argument in straw.
 | **The wall** | **Thatch on a frame.** A first cut stacked bound *bales* in a running bond, and however much the tone and grain varied, the eye found the boxes before the material — crisp rectangles are right for timber and wrong for straw. So: vertical straw in **clumps** (a run of strands shares a tone and a length), held by horizontal **split-bamboo binding poles** at four heights plus a sill, with nodes and lashings. The structure comes from the frame; the material stays soft. |
 | **Lit from the door** | The straw falls a value darker past 62% of the room's length. It is the only thing in here saying the far end is further away — there is nowhere else for light to come from inside a heap. |
 | **The floor** | Trodden earth in courses, the way the boards in the house are: bands a shade apart, a hairline joint, grit and wisps of straw walked into it, and the doorway's light spilling across it. |
-| **The way out** | An opening with a **pole lintel** over it — a hole with nothing over it reads as damage, not a door — and the valley beyond as three bands: sky, the terrace behind, the earth she is standing on. |
+| **The way out** | **A hole worn through the heap**, the terrace mouth (`haybale.png`) seen from inside: a ragged pointed arch in a collar of straw, the straw over it hanging dark across the daylight with lit ends, and the terrace through it (sky, far ridge, two terrace lips, earth), pale and dithered where bands meet. Drawn in code, once, into its own texture (`_build_way_out`), inside the old doorway's footprint only: Kent turned down a first cut that darkened the end of the room and copied floor under the hole. It replaced a framed rectangle with a pole lintel that read as a picture hung on the bales. A drawn or painted doorway from Kent can replace it in place. |
 | **Drawn 480 units past the walls she can reach** | The camera sees 400 either side at this zoom and she can walk to the end wall, so a room drawn only as far as it is walkable puts its own edge on screen with the level's sky behind it. Safe to be generous **because the room is not drawn at all while she is somewhere else** — left switched on it painted the whole valley, which is what "the map in the overworld is still black at some parts" was. |
 | **In it** | The **baul** at (2076, −900), a **brass key on a nail** at local (−40, −250) — out of reach on purpose, which is the room's whole puzzle — and the **ants**. ⚠ Lola's canvas is NOT in here and has not been since the chain became heap → key → house → painting; it hangs in Ang Bale's interior. |
 
@@ -214,6 +219,13 @@ eaves the Artist route rather than one of two ways in.
 Still a developer's: the four **halipan** discs, which have no source anywhere in the atlas
 and are flat trapezoids. They carry the whole reason "climb the post" is not an answer, so
 they are the piece of this building most worth drawing properly.
+
+**The painted ladder is its own layer (2026-11-01).** The house draws `hut_house.png`, which is
+`hut.png` with its ladder lifted off and the wall and deck behind it put back; the ladder is
+`props/hut_ladder.png`, the level's `OldLadder` sprite, so it can fade as Payyo's old way up.
+Both are cut from `hut.png` by `tools/build_payyo_ladder.py` (`--check` verifies them). A
+redelivered hut is re-split by that one command, and the ladder's corner it prints must match
+the `OldLadder` position in `level_1_environment.tscn`.
 
 ### The bulul · `game/scripts/bulul_2d.gd` · 2 at (3452, 200) and (3496, 200)
 
@@ -275,6 +287,12 @@ row: `DagatBackdrop2D.SEABED_TOP_ROW + SEABED_WALK` must land on the collision's
 set with the same prefixes and frame counts drops straight in, since `DagatLife2D` and
 `DagatProp2D` find frames by prefix.
 
+**And the old jetty (1 November)**, same tool: `jetty.png`, a bamboo pier on the bangka's own
+wood and lashing, slats gone and its far end broken off. It is the old way out to sea that fades
+as she comes down the beach (`OldJetty`, see LEVEL_3.md). Under its waterline row its posts take
+the sea's colour and dither out, because the sea plate is behind it, not over it. Replaceable by
+name; a redraw keeps its waterline at row 9 of 46 (×3), which the scene pins to the surface.
+
 **And the bangka (23 September)**, same tool: `bangka_afloat.png` and `bangka_beached.png`.
 It is **the one object in the game that is found rather than drawn**, so it is the one that
 cannot get its picture from the player's ink — it wore the engine's bare outline, a white
@@ -295,7 +313,7 @@ the design listed without naming it, are authored in the same tool and idiom:
 
 | What | Where | How it is drawn | What it has to say |
 |---|---|---|---|
-| **What the bakunawa had lost** | Where the light leads it, on the Artist route | `painting_fragment.png`: a torn corner of one of Lola's canvases in the house's own gilt, with this sea painted on it -- sampled from `assets/hub/paintings/level_3.png`, so it is recognisably one of hers. Rises out of the sand on the dive; from the boat it comes up beside the bow, where the apo can see it | Something the player recognises -- the design asks for "an object from Level 1's house, or a piece of the painting", never a chest. The flower comes up out of it to the apo, and the card says which of the five it is |
+| **What the bakunawa had lost** | Where the light leads it, on the Artist route | A page of Lola's diary (2026-11-01, `DIARY.md`): the loose page, `game/assets/hud/diary_page.png`, drawn at 3×. Rises out of the sand on the dive; from the boat it comes up beside the bow, where the apo can see it; fought, it goes off in the creature's coils. (`painting_fragment.png`, the torn canvas corner it replaced, is still built and no longer shown.) | Something the player recognises -- the design asks for "an object from Level 1's house, or a piece of the painting", never a chest. The flower comes up out of it to the apo, and the card says which of the five it is |
 | **The next painting** | The island, where the landing sparkles | `NextPainting2D`: the house's own painting for the next level, in the house's gilt -- `Painting2D.draw_gilt` is the one moulding for both -- standing in `sand_mound.png`, glinting on the gold | The thing they crossed the sea for. Scenery, not a door: the level ends on the arrival and the next level is chosen from the house |
 | **Lolo's farewell** | The island, after his last line | His own `wave` pose (the design: "reuse the existing wave pose rather than authoring a new one"), then he lifts and thins out -- `Lolo.farewell()`. The level ends only once he has gone | He stops here. Painting first, farewell second, then cut |
 | **The paddle** | In the apo's hands, aboard the bangka | `paddle.png`, the hull's own wood. It strokes -- forward, in with a splash, back along the hull, lifted round -- while the boat moves, and rests across the lap when it does not | The apo is rowing. The sheet has no seated pose, and a boat sliding under a figure standing with its arms at its sides reads as a boat being dragged |
@@ -312,11 +330,13 @@ one they learn by being put back. Art may restyle it; it may not replace it with
 
 ## Dilim — what is painted, what is authored, and what is drawn in code
 
-**Updated 22 October.** Level 4's delivery (`Mt Makiling Level 4.zip`) is forest plates and a
+**Updated 4 November.** Level 4's delivery (`Mt Makiling Level 4.zip`) is forest plates and a
 labelled tileset and no creature art. The art team has since sent three creatures
-(`Creatures.zip`): **the kapre, the manananggal and a white lady**, who is the lean aswang. Every
-other creature is a developer's: sculpted pixel strips, not code-drawn bodies, but still stand-ins
-for an artist's. **See them all at once:**
+(`Creatures.zip`): **the kapre, the manananggal and a white lady**, who is the lean aswang.
+Three more sheets supplied on 1 November replace the old/hulking aswang (`aswang_pig`),
+the tikbalang and the tiyanak. The repaired-arm bungisngis, wakwak, sigbin and nuno sheets followed on 4 November.
+Every other creature is a developer's: sculpted pixel strips, not code-drawn
+bodies, but still stand-ins for an artist's. **See them all at once:**
 `godot -t --resolution 1600x900 --path game --script res://tests/run_visual_dilim_creatures.gd`
 writes each one beside her, in her light at play framing, to `/tmp/obra_dilim_*.png` and a sheet.
 That is the right way to judge them -- Dilim is dark, and a body that reads on a grey background
@@ -325,18 +345,18 @@ can vanish in the level.
 **Painted (delivered):** the six Makiling plates and four seamless tiles, cut by
 `tools/build_dilim.py` (`CONTENT_NEEDED.md` §3 has what is not cut yet).
 
-**Drawn by the art team (delivered):** three character sheets kept as sent in
-`LEVEL4_Creatures/ASWANG/` (`kapre.png`, `manananggal.png`, `whitelady.png`), cut by
+**Supplied character art:** ten character sheets kept as sent in
+`LEVEL4_Creatures/ASWANG/` (`kapre.png`, `manananggal.png`, `whitelady.png`, `aswang.png`, `tikbalang.png`, `tiyanak.png`, `bungisngis.png`, `wakwak.png`, `sigbin.png`, `nuno.png`), cut by
 `tools/build_dilim_delivered.py` into the strips below of the same names: the poses keyed off their
 panel, their shadows, labels and the manananggal's legs taken off, each creature scaled once, the
 left-facing poses mirrored. No sheet draws a death, so a death is its pose fading out. The white
-lady is `aswang_dog_*`; `aswang_pig_*` stays sculpted.
+lady is `aswang_dog_*`; the supplied crawling aswang is `aswang_pig_*`.
 
 **Authored in the project's idiom** (replaceable by name, no code change):
 
 | What | Tool | Files | The contract |
 |---|---|---|---|
-| Every creature but the three delivered, the kapre's balete, smoke and cigar, and the finale's dead tree | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_aswang.py`, `dilim_beasts.py`, `dilim_giants.py`, `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`; the dead tree in `dilim_props.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
+| Every creature but the ten supplied, the kapre's balete, smoke and cigar, and the finale's dead tree | `tools/build_dilim_creatures.py`, on `tools/creature_sculpt.py` (the bodies in `dilim_kapre.py`, `dilim_fliers.py`, `dilim_small.py`; the dead tree in `dilim_props.py`) | `assets/Level4/creatures/<kind>_<anim>.png` | A row of square frames, as tall as wide; a strip whose width is not a whole number of its height is one picture (the mound, the tree). Ground kinds stand on the bottom row, fliers are centred -- that point is the creature's position. Chibi like the apo, cel-lit from the upper left, each part edged in a darker tone of its own colour, never black. Each script's own `_draw()` stays as the fallback while a strip is missing |
 | Lola's six things | `tools/build_dilim_props.py` | `assets/Level4/props/<id>.png` | 32-px icons, each on a leaf, each told apart by its brightest colour: salt, ash, garlic, candle, lamp oil, the stingray-tail whip. The quick slots and the pickups load them by id |
 
 **The creatures' strips, and what each has to say** -- a delivered strip of the same name replaces
@@ -344,18 +364,18 @@ one with no code change:
 
 | Kind | Strips | What it has to say |
 |---|---|---|
-| Aswang, the lean one and the old one | `aswang_dog_*`, `aswang_pig_*` (the names they had as a dog and a pig): `idle` `run` `windup` `attack` `hurt` `death` | **The lean one is delivered:** the art team's white lady -- long black hair over a pale face, red eyes, a white kimono bloodied at the hem and sleeves -- idle and floating, gliding on her walk cycle, her hair flung out wide in the windup, reaching to strike, her head thrown back when hit. The old one, sculpted: the night form crawling on all fours, hulking and humped, elbows and knees jutting up, long matted hair streaked grey over its face, bloodshot eyes through it, needle teeth, the long thin tongue. Both read inside her light (#93) |
+| Aswang, the lean one and the old one | `aswang_dog_*`, `aswang_pig_*` (the names they had as a dog and a pig): `idle` `run` `windup` `attack` `hurt` `death` | **The lean one is delivered:** the art team's white lady -- long black hair over a pale face, red eyes, a white kimono bloodied at the hem and sleeves -- idle and floating, gliding on her walk cycle, her hair flung out wide in the windup, reaching to strike, her head thrown back when hit. The crawler is also supplied (`aswang.png`, 1 November): pale skin, long black hair, red eyes, a long red tongue and dark waist rags. Its four breathing poses, six rightward walk frames, claw anticipation and three strike poses, and two hurt poses are cut from the sheet; the left-facing hurt is mirrored, and death fades a hurt pose. The animator mirrors all animations to face the player. Both read inside her light (#93) |
 | Santelmo | `santelmo_idle`, `santelmo_hot` | A flame that wants her: brighter while it is coming |
-| The nuno's mound | `nuno_mound_idle` (one picture) | An earth mound with something left for the nuno -- a thing to be respectful round, never a target |
-| Sigbin | `sigbin_*`: the six states | Goat-like, long ears hanging, walking backwards. It shows only as much as the light on it, so in the dark it is a glint -- the windup's glint is its tell, and must stay |
-| Tikbalang | `tikbalang_idle`, `tikbalang_run` | A tall, lanky figure, horse-headed, a mane with three golden hairs, eyes catching the light |
-| Kapre | **Delivered:** `kapre_idle`, `kapre_knocked`, `kapre_falling`, `kapre_walk`. Sculpted: its tree `kapre_tree_idle`, `kapre_tree_felled` (one picture each); `kapre_smoke_idle`; `kapre_cigar_idle` (one picture) | The art team's kapre: small, green-skinned, long grey hair and beard, a hide over one shoulder -- its sheet's "small in form, but still strangely imposing", stood half again her height -- standing on a branch of a balete (a strangler fig, its trunk a lattice of roots) beside the trunk, facing her, its cigar seen end on in its teeth and its face lit by the ember; angry when the cigar is knocked from its mouth, startled looking up as its tree goes under it, then walking off. Drawn in the tree's own frame: the strip's feet stand at `Kapre2D.ART_AT`; the drawn cigar's tip is `CIGAR_TIP`, where its hit area and the ember's own light are; its lips are `FACE_LIGHT_FROM`, where the light on its face starts -- a redrawn kapre keeps all three, or moves them with it (`tools/build_dilim_delivered.py` `KAPRE_*`; `tests/test_build_dilim_delivered.py` holds them together, checks its feet are on the branch, and measures how much of the backdrop's sky the lights show over the drawn tree and kapre). The smoke is six puffs, `PUFF` px square: four billows, a middling and a small one. The cigar alone is the one that falls when it is knocked. The tree lies felled once it is chopped down |
-| Tiyanak | `tiyanak_idle`, `tiyanak_true`, `tiyanak_run`; its undergrowth `tiyanak_undergrowth_idle` (one picture, the 480-px span plus 4 px at the sides and top, and 200 px under the ground over the drop, `Tiyanak2D.ART_BELOW`) | A swaddled bundle that cries -- and, lit, what it is: small, hunched, red-eyed. Its undergrowth -- leaf masses, broad leaves and arching fronds over a ground cover solid the whole way, and over the drop a thicket hanging 200 px down past the rim, fading into the dark, so in her light the drop is more bushes and not a hole -- stirs when it cries, and thins once a light has shown what is under it |
-| Bungisngis | `bungisngis_*`: the six states, `laugh`, `aside` | A one-eyed giant with a club, always grinning, standing in the crossing like a wall; laughing helpless; sat aside |
+| Nuno sa punso | **Supplied:** `nuno_mound_idle`, `nuno_offering_idle`, `nuno_spirit_*`: `idle`, `greet`, `point`, `angry`, `bless` | Supplied elder, mound and rice (4 November). Emerges on approach, greets permission, blesses a respectful crossing and looks angry when stepped on; restore hides him. Mound art fits its unchanged 150 x 34 dome. No hurtbox or combat route |
+| Sigbin | **Supplied:** `sigbin_*`: the six states | Brown, long-eared beast with red eyes and a curled dark tail (4 November). Four breathing poses, five walking frames, bite anticipation, lunge and hurt poses; death fades a hurt pose. Brown body pixels and dark toe outlines are preserved while floor shadows and hurt marks are removed. Its shadow visibility stays: in the dark it is a glint, and the windup glint remains its tell |
+| Tikbalang | **Supplied:** `tikbalang_idle`, `tikbalang_run`, cut from `tikbalang.png` (1 November) | Horse-headed, brown-skinned, long black mane, red eye, black waist cloth and hooves. Four breathing poses while it waits and four running poses during the race. Original colours and dark mane are preserved; spaces between its limbs remain transparent. Stands about 140 px tall, matching its previous scale. |
+| Kapre | **Delivered:** `kapre_idle`, `kapre_knocked`, `kapre_falling`, `kapre_walk`. Supplied tree (5 November): `trees/kapre_tree_idle`, `trees/kapre_tree_felled` (one picture each; `build_dilim_trees.gd`). Sculpted: `kapre_smoke_idle`; `kapre_cigar_idle` (one picture) | The art team's kapre: small, green-skinned, long grey hair and beard, a hide over one shoulder -- its sheet's "small in form, but still strangely imposing", stood half again her height -- standing on a branch of a balete (a strangler fig, its trunk a lattice of roots) beside the trunk, facing her, its cigar seen end on in its teeth and its face lit by the ember; angry when the cigar is knocked from its mouth, startled looking up as its tree goes under it, then walking off. Drawn in the tree's own frame: the strip's feet stand at `Kapre2D.ART_AT`; the drawn cigar's tip is `CIGAR_TIP`, where its hit area and the ember's own light are; its lips are `FACE_LIGHT_FROM`, where the light on its face starts -- a redrawn kapre keeps all three, or moves them with it (`tools/build_dilim_delivered.py` `KAPRE_*`; `tests/test_build_dilim_delivered.py` holds them together, checks its feet are on the branch, and measures how much of the backdrop's sky the lights show over the drawn tree and kapre). The smoke is six puffs, `PUFF` px square: four billows, a middling and a small one. The cigar alone is the one that falls when it is knocked. The tree lies felled once it is chopped down |
+| Tiyanak | **Supplied:** `tiyanak_idle`, `tiyanak_transform`, `tiyanak_true`, `tiyanak_run`, `tiyanak_leap`, `tiyanak_windup`, `tiyanak_attack`, `tiyanak_hurt`, `tiyanak_death`; its sculpted undergrowth `tiyanak_undergrowth_idle` (one picture, the 480-px span plus 4 px at the sides and top, and 200 px under the ground over the drop, `Tiyanak2D.ART_BELOW`) | The supplied crying infant waits visibly in its white swaddling. A close approach on the ground plays all six transformation poses, then the tan, black-haired, red-eyed monster jumps out, crawls, snarls and attacks. Showing it light instead exposes it and sends it away. Its undergrowth -- leaf masses, broad leaves and arching fronds over a ground cover solid the whole way, and over the drop a thicket hanging 200 px down past the rim, fading into the dark, so in her light the drop is more bushes and not a hole -- stirs when it cries, and parts once it unmasks |
+| Bungisngis | **Supplied:** `bungisngis_*`: the six states, `laugh`, `aside` | The repaired-arm sheet (4 November): green skin, one golden eye, brown hair, red loincloth and wooden club. Four breathing and five walk poses, club lift and overhead windup, downward slam, two hurt poses, four laughs, and crouched aside; death fades a hurt pose. Labels and impact marks are masked explicitly, preserving the solid dark outline and body while leaving the real leg gap clear. Walking matches standing height; feet stay anchored independently of the lowered club. The crossing, fight and absurd-drawing resolution keep their existing behavior |
 | Manananggal | **Delivered:** `manananggal_upper_*`: the six states; `manananggal_lower_idle`, `manananggal_lower_death` | The art team's: a pale, rosy-cheeked girl's upper body in purple, long grey hair, on wide red bat wings -- flapping as it hunts from above, arms out to menace in its windup, diving with a slash of red, recoiling when hit -- severed at the waist, a drip of blood under it; and its legs, purple and white-booted, left standing apart in a hollow |
-| Wakwak | `wakwak_*`: the six states | A great dark bird, wings wide, a hooked beak |
+| Wakwak | **Supplied:** `wakwak_*`: the six states | The blue-black bird sheet (4 November): red eyes, hooked gold beak and gold talons. Four front-hover poses, five rightward flight poses, raised-wing windup, two diving talon attacks and two hurt poses (the left-facing one mirrored); death fades and drops a hurt pose. Background, labels and hurt marks are removed explicitly. Every blue feather pixel is retained, its dark upper-wing pocket is restored with original RGB, and the black feather tips stay intact. Real wing/talon gaps stay clear; finale spawning and combat behavior are unchanged |
 | Tik-tik | `tiktik_*`: the six states | A small dark long-beaked bird -- seen only with ash on it, so it carries the ash's grey |
-| The finale's dead tree | `dead_tree_idle` (260 x 336), `dead_tree_felled` (380 x 140), one picture each; `DeadTree2D.art_kind = "dead_tree"` in the last clearing | Dead long since, in the balete's bark bleached grey: strands twisted round a dark heart, bark torn off, a hollow at its foot, bare crooked limbs. Felled, a log the length of the 280-px span with its root plate torn up at the west end, its top along the log's 64 px. Drawn among the creatures (`DeadTree2D.DRAWN_Z`), so the walkers meeting it at its root plate are in front of it, not hidden in it. Level 1's dead tree is the delivered one and is untouched |
+| The finale's dead tree | **Supplied 5 November:** `trees/dead_tree_idle` (260 x 336), `trees/dead_tree_felled` (380 x 140), one picture each; `DeadTree2D.art_folder` selects the supplied art | The user's second tree: warm brown bark, bare crooked limbs and a dark hollow. The same image replaces the repeating scenery trees. Felled, its supplied trunk lies along the existing 280 x 64 span. Drawn among the creatures (`DeadTree2D.DRAWN_Z`), so walkers remain in front. Sources and rebuild notes: `LEVEL4_Mt.Makiling/authored/trees/`. Level 1's tree is untouched |
 
 **Drawn in code** -- each its script's own `_draw()`, marked `PLACEHOLDER` there:
 
@@ -370,6 +390,19 @@ one with no code change:
 visual, and how a player who cannot hear plays the level -- and the glint is the fair warning
 before every strike. Like Dagat's sweep cone, art may restyle them; it may not take them away.
 The darkness itself (`DarknessLayer`) is gameplay too: `LightField` decides what is lit.
+
+## Lola's diary (every level)
+
+| | Now | Where | Replace with |
+|---|---|---|---|
+| **A loose page of her diary** | A 14 × 18 folded sheet with her lines on it, drawn pixel by pixel in the diary book's own five colours, shown at 2×, a little askew and bobbing. It has to say: *a page of a diary, dropped here, worth picking up*. | `game/assets/hud/diary_page.png` (`tools/build_diary_book.py`, `PAGE`), `game/scripts/diary_page_2d.gd` | A hand-drawn loose page of the same book; keep its foot at the bottom edge. |
+
+| **Lolo in her paintings** | Kent's own sheets of him alive (`game/assets/characters/lolo/source/LOLO1-5.png`, not imported), the FRONT pose cut and brought down to 18 px, standing in each painting's foreground -- young in Payyo, old in Mayon. At that size his eyes are lost. | `game/assets/hub/paintings/level_N_lolo.png` (`tools/build_house_lolo.py`), hung by `HouseEpilogue` once Mayon is done | A painter's figure of him drawn into each picture at its scale; keep it on the same foreground spot (`SPOTS`). |
+| **Lola walking** | Supplied six-frame walk cycle (5 November), mirrored leftward with a shared baseline. | `Lola2D.walk_to`, `people/lola_walk.png` | Done; replacement contract in the Mayon authored README. |
+| **The empty easel** | Drawn in code: three legs and a bare canvas at the house's scale (96 × 56). | `HouseEpilogue._draw_easel` | An easel sprite, its canvas bare; she paints at its left. |
+
+The book itself (`game/assets/hud/diary_book.png`) is not a placeholder: it is the delivered page
+turn from `HUD-assets-ideas/Book-Inventory-Animation.gif`, with its tabs keyed out.
 
 ## Where to start
 
@@ -392,10 +425,57 @@ include.
 
 | | Now | Where | Replace with |
 |---|---|---|---|
-| **Lola** | The apo's turnaround recoloured: grey hair, baro, saya. Back and front only. | `game/assets/Level5/people/lola_back.png`, `lola_front.png` (`tools/build_mayon_lola.py`) | Lola painting with her back turned, turning, taking the flowers, looking at the painting; seated (frame). A portrait. |
-| **The real room** | Drawn in code: a wall, a window onto the sky plate, the easel, the two of them standing. | `game/scripts/frame_return.gd` | The room: lola's chair, a window, a canvas; the apo and lola seated. |
-| **The apo's failed drawing, lowering the brush** | Not posed: the page itself refuses (the lines fade) and the beat is silent. | `DrawPanel` quiet mode, `level_5.gd` summit | The design calls the failed attempt the most important animation in the game. |
+| **Lola** | Latest supplied board (5 November): turnaround, walk, two six-frame painting loops, six idle variations and large portrait. 108px world height. Front/back bouquet poses are generated adaptations of that design. | `game/assets/Level5/people/lola_*.png` (`tools/build_mayon_performance.py`) | Supplied character integrated; bouquet adaptations remain generated. Same-name replacements preserve foot registration. |
+| **The real room** | **Removed** (2026-11-01): the run ends in the house (`HouseEpilogue`), and `frame_return.gd` went with #182. The room, and Lola's and the apo's seated and pickup poses, are no longer cut into the game; the generated original stays in `LEVEL5_Mayon/authored/frame_room.png`. | -- | Nothing, unless the room comes back. |
+| **The apo's performance** | Generated raise, paint, failed, lower and offer poses. Quiet strokes fade over the actual scene. | `game/assets/Level5/people/apo_*.png`, `level_5.gd` | Art-directed poses or animation preserving actor scale and feet. |
 | **Memory fragments** | Torn boxes of the finished paintings; the flower's is a scrap of path tile with Payyo's hidden flower. | `game/assets/Level5/fragments/` (`tools/build_mayon_fragments.py`) | Hand-torn fragments; the flower's should look like nothing. |
-| **The summit** | The cone's ground, graded to ash; the backdrop drained to paper. | `level_5_environment.tscn`, `drain.gdshader` | A near-blank white summit that fragments can bloom into. |
-| **The old bridge, the old steps** | Path and masonry tiles, drawn flat. | `level_5_environment.tscn` `AshTakes` | Drawn props, each with a white and a blank state if the drain shader is not wanted. |
+| **The summit** | Near-white cone and ground; transparent scenery from earlier levels blooms in save order with the player's actual strokes. | `game/assets/Level5/restoration/`, `level_5.gd`, `memory_bloom_2d.gd` | Twelve purpose-drawn, ground-registered restored landscapes. |
+| **The old bridge, the old steps** | Dedicated generated rope bridge and eroded basalt stairs, with shader white/blank states. | `game/assets/Level5/props/old_crossing.png`, `old_steps.png` | Art-directed same-size sprites, preserving their walk-line registration. |
+| **Sound** | None: Mayon is silent (the synthesized audio was removed 2026-11-01). No recorded Lola voice. | `game/config/audio.json` hooks `mayon_brush`, `mayon_ending` (no file) | Directed recordings or instrumentation, if sound is wanted again; the audit then needs its silence check changed. |
 
+
+### Mayon overhaul 31 October 2026
+
+Lola is no longer an apo recolour, the room is a painted backdrop, and the apo now raises, attempts, lowers, offers, sits,
+and picks up the ordinary brush. Their generated original atlases, prompts, runtime cuts, and
+replacement contracts are catalogued in `LEVEL5_Mayon/authored/README.md`.
+
+**Still provisional:** the generated Lola/apo performances, Lola portrait, and room await human
+art-direction review, along with the upper-slope plate, three cliff materials, crossing, steps,
+column and arch; memory targets are procedural torn crops, and summit scenery reuses earlier
+levels' transparent art; weather, brush, and ending audio are synthesized;
+there is no recorded Lola voice. No missing artwork prevents finishing the level.
+
+Mayon visual repair (31 October, after user review): restored the earlier detailed grass/cliff
+opening treatment; removed the flat polygon backing and straight grass outline. The stacked
+memory walls were removed in favour of a shallow climb with overhead fragments. The flower
+retains detached one-way rocks. This pass adds no new provisional image or audio sources.
+
+Mayon dedicated edge artwork (31 October): `LEVEL5_Mayon/authored/cliff_edges.png` adds three
+new generated end-cap textures, cut into `game/assets/Level5/terrain/edge_meadow.png`,
+`edge_basalt.png`, and `edge_ash.png`. These replace the procedural cap outlines and warped
+join meshes. They are integrated, preserve alpha, and follow the terrain's whitening/tint.
+They join the generated-art review inventory; provenance, prompt, and replacement registration
+are in `LEVEL5_Mayon/authored/README.md` and `cliff_edges.prompt.txt`.
+
+Mayon scenery (1 November): generated broadleaf trees, coconut pair and bare snag, plus two
+transparent foothill/forest panoramas. Originals are `LEVEL5_Mayon/authored/foothill_trees.png`
+and `parallax_ridges.png`; runtime cuts live under `game/assets/Level5/props/` and `backdrop/`.
+These join the generated-art review inventory. Exact prompts and replacement registrations
+are in `scenery.prompts.json` and the authored README. The scene adds twelve decorative tree
+placements; the existing vista owns the new parallax, treeline fade, and summit whitening.
+
+Mayon wind (1 November): `LEVEL5_Mayon/authored/wind_streaks.png` supplies three generated
+pixel-art gusts, four frames each. The logical atlas is
+`game/assets/Level5/weather/wind_streaks.png`; the full generation/revision prompts and
+replacement registration are in the authored README and `wind_streaks.prompts.json`.
+These are generated provisional sprites, with no glow or softened pixel edges.
+A drawn fan's wind (`FanWind2D`, every level) reuses this same sheet, so replacing it
+replaces both.
+
+Mayon upper-slope dressing (1 November): `LEVEL5_Mayon/authored/upper_ruins.png` adds six
+generated pixel-art props: broken wall, pillar, fallen masonry, boulder, loose rubble and
+basalt spires. Runtime cuts are under `game/assets/Level5/props/`, with twenty decorative
+placements behind the path. The group whitens at the summit. These join the generated-art
+review inventory; the exact prompt and replacement contract are in `upper_ruins.prompt.json`
+and the authored README.

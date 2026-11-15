@@ -144,6 +144,18 @@ class SheetTest(unittest.TestCase):
             _, count = ndimage.label(alpha, structure=np.ones((3, 3), bool))
             self.assertEqual(count, 1, f"{name} is {count} pieces")
 
+    def test_each_ruin_cut_is_one_thing(self) -> None:
+        # build_mayon_landscape's boxes overlap, and the old steps' caught the old crossing's far
+        # post: a bar beside the steps, dark when painted, stark white once the ash took it. Faint
+        # haze is the art's own; nothing over the cut's alpha line may stand apart from the prop.
+        from PIL import Image
+        from scipy import ndimage
+        for name in ("old_crossing", "old_steps", "basalt_column", "broken_arch"):
+            with Image.open(mayon.OUT / "props" / f"{name}.png") as picture:
+                alpha = np.asarray(picture.convert("RGBA"))[..., 3] > 24
+            _, count = ndimage.label(alpha, structure=np.ones((3, 3), bool))
+            self.assertEqual(count, 1, f"{name} is {count} pieces")
+
 
 if __name__ == "__main__":
     unittest.main()
