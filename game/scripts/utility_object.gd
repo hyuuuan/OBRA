@@ -463,6 +463,7 @@ func restore_utility_state(state: Dictionary) -> void:
 func _physics_process(delta: float) -> void:
 	if is_preview:
 		return
+	_tend_scorch(delta)
 	if _beam_material != null and _active:
 		_update_beam_effects(delta)
 	if not is_held_tool() and utility_behavior not in ["sailboat", "submarine"] and not freeze:
@@ -1624,6 +1625,144 @@ func _update_beam_effects(delta: float) -> void:
 const CAMPFIRE_GLOW := 300.0
 const CAMPFIRE_LIFT := 18.0
 const SUN_GLOW := 640.0
+
+
+## ⚠ A SUN BURNS WHAT STANDS IN ITS HEAT, AND A FIRE WHAT STANDS CLOSE (Kent's decision, 2026-11-16).
+## The sun's ConceptNet abilities are Evaporate, Illuminate, Heat and Scorch, and a campfire's Burn,
+## Warm and Cook; in Dilim both lit the dark and hurt nothing. Scorch and Burn, from
+## config/ability_effects.json: once it stands in the world, the creatures within its radius take a
+## burn tick every so often (Enemy2D.apply_scorch -- a creature whose fight a light answers is not
+## burned, so a sun stays the light it is), for as long as its heat lasts (a sun's runs out; a
+## fire's lasts while it stands). While hot it is an Enemy2D ward, so those that hunt by smell are
+## held at its edge -- which is inside its reach, so held there they still burn. A ring at its
+## reach says how far, and sweeps away like a clock as the heat runs out.
+const SCORCH_EDGE := 24.0
+var _scorch: Dictionary = {}
+## Seconds of heat left: -1 before it has begun, INF for a fire, 0 when spent or never had.
+var _scorch_left := -1.0
+var _scorch_lasts := 0.0
+var _scorch_clock := 0.0
+var _scorch_ring: Node2D
+var _scorch_ring_frame := -1
+
+
+## The heat this drawing has, from its ConceptNet abilities, or {}.
+func _scorch_effect() -> Dictionary:
+	var id := item_data.entity_id if item_data != null else utility_behavior
+	for label in CreatureAbility.labels_of(id):
+		var effect := CreatureAbility.effect_of(label)
+		if String(effect.get("kind", "")) == "scorch":
+			return effect.merged({"label": label})
+	return {}
+
+
+func scorch_radius() -> float:
+	return float(_scorch.get("radius", 0.0)) if is_scorching() else 0.0
+
+
+func is_scorching() -> bool:
+	return _scorch_left > 0.0
+
+
+## How far a creature that hunts by smell is held off: its heat, while it lasts (Enemy2D.WARDS).
+func reach() -> float:
+	return scorch_radius()
+
+
+func _scorch_centre() -> Vector2:
+	return global_position + (Vector2(0.0, -CAMPFIRE_LIFT) if utility_behavior == "campfire" else Vector2.ZERO)
+
+
+func _tend_scorch(delta: float) -> void:
+	if _scorch_left == -1.0:
+		# Begun once it stands in the world: not in a hand, not a ghost still being placed.
+		if _equipped_actor != null or not is_inside_tree():
+			return
+		# ⚠ ONLY WHERE SOMETHING FIGHTS. Nothing outside Dilim can burn, and a heat ring round a sun
+		# in Terraces or Mayon would promise a harm that is not there.
+		if get_tree().get_nodes_in_group(Enemy2D.FOES).is_empty():
+			_scorch_left = 0.0
+			return
+		_scorch = _scorch_effect()
+		if _scorch.is_empty():
+			_scorch_left = 0.0
+			return
+		_scorch_lasts = float(_scorch.get("lasts", 0.0))
+		_scorch_left = _scorch_lasts if _scorch_lasts > 0.0 else INF
+		add_to_group(Enemy2D.WARDS)
+		_make_scorch_ring()
+	if not is_scorching():
+		return
+	_scorch_left -= delta
+	_draw_scorch_ring_if_due()
+	if not is_scorching():
+		_end_scorch()
+		return
+	_scorch_clock += delta
+	var every := maxf(0.1, float(_scorch.get("every", 1.0)))
+	if _scorch_clock < every:
+		return
+	_scorch_clock -= every
+	var burned := 0
+	var centre := _scorch_centre()
+	var radius := scorch_radius() + SCORCH_EDGE
+	for node in get_tree().get_nodes_in_group(Enemy2D.FOES):
+		var foe := node as Enemy2D
+		if foe == null or foe.is_dead() or foe.global_position.distance_to(centre) > radius:
+			continue
+		foe.apply_scorch(1, every * 0.5)
+		burned += 1
+	if burned > 0:
+		var telemetry := get_node_or_null(^"/root/Telemetry")
+		if telemetry != null:
+			telemetry.call("record_event", "object_ability_used", {
+				"entity_id": item_data.entity_id if item_data != null else utility_behavior,
+				"ability": String(_scorch.get("label", "")),
+				"burned": burned,
+			})
+
+
+func _end_scorch() -> void:
+	_scorch_left = 0.0
+	remove_from_group(Enemy2D.WARDS)
+	if _scorch_ring != null and is_instance_valid(_scorch_ring):
+		_scorch_ring.queue_free()
+	_scorch_ring = null
+
+
+## Over the world but not the HUD, where the heat reaches -- it stands inside the light the sun or
+## fire already opens in the dark, so it is seen.
+func _make_scorch_ring() -> void:
+	_scorch_ring = Node2D.new()
+	_scorch_ring.name = "ScorchRing"
+	_scorch_ring.top_level = true
+	_scorch_ring.z_index = 4
+	add_child(_scorch_ring)
+	# ⚠ BOUND TO THE RING ITSELF: a redraw already queued can come after the heat ends and the
+	# field is cleared, and drawing on the field then was drawing on nothing.
+	_scorch_ring.draw.connect(_draw_scorch_ring.bind(_scorch_ring))
+	_draw_scorch_ring_if_due()
+
+
+func _draw_scorch_ring_if_due() -> void:
+	if _scorch_ring == null or not is_instance_valid(_scorch_ring):
+		return
+	_scorch_ring.global_position = _scorch_centre().round()
+	var frame := 0 if Motion.reduced() else int(Time.get_ticks_msec() / (1000.0 / Motion.PIXEL_FPS))
+	if frame != _scorch_ring_frame:
+		_scorch_ring_frame = frame
+		_scorch_ring.queue_redraw()
+
+
+## ⚠ AT ITS TRUE REACH. A ring that shrank as the heat ran out drew the burn reaching less far than
+## it does; it stays where the heat reaches and the arc sweeps away, a clock of what is left.
+func _draw_scorch_ring(ring: Node2D) -> void:
+	if not is_scorching():
+		return
+	var left := 1.0 if _scorch_lasts <= 0.0 else clampf(_scorch_left / _scorch_lasts, 0.0, 1.0)
+	var sweep := TAU * (ceilf(left * 32.0) / 32.0)
+	ring.draw_arc(Vector2.ZERO, scorch_radius(), -PI * 0.5, -PI * 0.5 + sweep, 64,
+		Color(UISkin.GILT_HI, 0.75), 3.0)
 
 
 ## The light this drawing gives, for the dark and for anything asking how lit a place is
