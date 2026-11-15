@@ -8,7 +8,9 @@ extends SceneTree
 ## their own: the boot loading screen starts the title's loop and the menu carries it on, and
 ## the house plays its loop and fades it when she leaves. And the levels that have opted in: each
 ## plays its music and ambience when it opens and fades both when it closes, Piyesta changes them
-## by room, and Dagat trades its surface music for its deep one at the waterline.
+## by room, Dagat trades its surface music for its deep one at the waterline and has its fight,
+## Dilim races and survives its night to its own, Mayon climbs, remembers and finds her, the
+## jingle ducks the music, and the ending goes home.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -57,7 +59,7 @@ const LOOP_FADE_PROBE_S := 0.6
 
 var failures := 0
 var checked := 0
-const CHECKS := 37
+const CHECKS := 40
 var director: Node
 
 
@@ -101,6 +103,10 @@ func _run() -> void:
 	await _dilim_races_to_its_own_music()
 	await _dilims_night_builds_wave_by_wave_and_breaks_off_at_dawn()
 	await _mayon_climbs_remembers_and_finds_her()
+	await _the_jingle_lowers_the_music_for_its_own_length()
+	await _the_ending_screen_plays_the_ending()
+	# Last: it finishes Mayon on the profile, and takes the tree to the house.
+	await _the_ending_goes_home_with_her()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -745,6 +751,65 @@ func _mayon_climbs_remembers_and_finds_her() -> void:
 		"fragment '%s', heard %s, line shown %s" % [fragment_id, _brush_heard, shown])
 	director.call(&"stop_music", 0.0)
 	director.call(&"stop_ambience", 0.0)
+
+
+## The level-complete jingle lowers the music and ambience for its own length and brings them back,
+## on the Music bus: the music player's own level (a fade's) is left alone.
+func _the_jingle_lowers_the_music_for_its_own_length() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var track := director.call(&"music_player") as AudioStreamPlayer
+	director.call(&"play_sfx", &"level_complete")
+	var jingle := (load(String((director.get(&"_sfx_paths") as Dictionary)["level_complete"])) as AudioStream).get_length()
+	await create_timer(0.5).timeout
+	var under := float(director.call(&"music_duck_db"))
+	var still := float(director.call(&"music_duck_db"))
+	await create_timer(maxf(0.0, jingle - 0.9)).timeout
+	still = float(director.call(&"music_duck_db"))
+	await create_timer(1.5).timeout
+	var back := float(director.call(&"music_duck_db"))
+	_check(under < -10.0 and still < -10.0 and absf(back) < 0.1 and absf(track.volume_db) < 0.1 and track.playing,
+		"the level-complete jingle lowers the music for its own length (%.1f s), then brings it back" % jingle,
+		"%.1f dB under it, %.1f dB near its end, %.1f dB after; the track's own level %.1f dB"
+		% [under, still, back, track.volume_db])
+	director.call(&"stop_music", 0.0)
+
+
+## The run's ending screen plays the ending's music.
+func _the_ending_screen_plays_the_ending() -> void:
+	director.call(&"stop_music", 0.0)
+	var screen := (load("res://ui/ending_screen.tscn") as PackedScene).instantiate()
+	root.add_child(screen)
+	await _frames(3)
+	var playing := String(director.call(&"current_music"))
+	screen.queue_free()
+	await _frames(3)
+	_check(playing == "mayon_ending", "the ending screen plays Mayon's ending", "playing '%s'" % playing)
+	director.call(&"stop_music", 0.0)
+
+
+## Mayon's ending goes home with her: from the bloom's music, _play_own_ending takes her to the
+## house, and the house after the run plays the same track on, unrestarted -- the same player,
+## still sounding, still Mayon's ending.
+func _the_ending_goes_home_with_her() -> void:
+	var profile := root.get_node(^"PlayerProfile")
+	profile.call(&"mark_level_completed", "level_5")
+	var scene := await _open("res://level_5.tscn")
+	scene.set_physics_process(false)
+	director.call(&"play_music", &"mayon_ending", 0.0)
+	var bloom := director.call(&"music_player") as AudioStreamPlayer
+	scene.call(&"_play_own_ending")
+	var home := await _until(func() -> bool:
+		return current_scene != null and current_scene.scene_file_path.ends_with("hub.tscn"), 20.0)
+	await _frames(10)
+	var playing := String(director.call(&"current_music"))
+	var same: bool = director.call(&"music_player") == bloom and bloom.playing and absf(bloom.volume_db) < 0.1
+	if is_instance_valid(scene):
+		scene.queue_free()
+	_check(home and playing == "mayon_ending" and same,
+		"Mayon's ending goes home with her, unrestarted, and is the house's music after the run",
+		"home %s, playing '%s', the same track sounding on %s" % [home, playing, same])
+	director.call(&"stop_music", 0.0)
+	profile.call(&"reset_progress")
 
 
 ## "music/ambience", what AudioDirector is playing now.

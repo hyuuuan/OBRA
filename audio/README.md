@@ -96,6 +96,11 @@ over the same file. Then render it here with `build_music.py`. Keep to the subse
   entry in `audio.json` → `spacing` (id → least seconds between plays). Inside that spacing it is
   announced on `sfx_requested` but not played, so it cannot take the voices from the sounds that
   carry information.
+- **The level-complete jingle ducks the music.** An id in `audio.json` → `duck` lowers the music
+  and ambience 12 dB for its own length (its WAV's), then brings them back, through an Amplify
+  effect on the Music bus: the slider and any crossfade are left alone.
+- **Mayon's ending goes home.** `mayon_ending` plays from the bloom, carries on unrestarted into
+  the house (which after the run takes it as its own music) and is the ending screen's.
 - **Settings has three sliders:** Master, Music (which carries the ambience too) and Sound
   effects. The profile keeps them.
 
@@ -131,7 +136,7 @@ information, so it needs none.
 | `music.memory_dagat` | `music/memory_dagat.txt` | The sea vignettes: Dagat's rowing song half remembered (~80 BPM, 3/4), soft strum, waves an octave down; Lola's motif, which is the shape of Dagat's own opening, on the flute, then the song's first phrase. A 18 s loop. **Provisional.** |
 | `music.memory_dilim` | `music/memory_dilim.txt` | The forest vignettes: Dilim's drone and its motif, warmer and an octave up, answered by Lola's motif in E minor on a clarinet, a far bell. A 27 s loop. **Provisional.** |
 | `music.lola` | `music/lola.txt` | Mayon's summit, from the moment it opens (Lola found): a kundiman for rondalla like her house's, slower (~75 BPM, 3/4, E major) and patient, no drums -- her motif on the bandurria's tremolo (a stroke on every row, as the house's), the laud's broken chord, the guitar on two and three, a soft sparkle. It holds while she paints and the brush refuses twice. A 29 s loop. **Provisional.** |
-| `mayon_ending` | `music/mayon_ending.txt` | From the bloom on: Lola's motif whole again, warm, on the title's band in its key (D major, ~90 BPM) -- bamboo flute with its echo, rondalla broken chords, kulintang, agung, a soft dabakan. "Lolo. Let's go home." A 32 s loop. **Provisional.** |
+| `mayon_ending` | `music/mayon_ending.txt` | From the bloom on: Lola's motif whole again, warm, on the title's band in its key (D major, ~90 BPM) -- bamboo flute with its echo, rondalla broken chords, kulintang, agung, a soft dabakan. "Lolo. Let's go home." It carries on into the house, which after the run plays it as its own, and is the ending screen's music (Kent's answer, 2026-11-15). A 32 s loop. **Provisional.** |
 | `ambience.level_1` | `ambience/level_1.txt` | Terraces' wind: low noise in uneven swells over a faint hiss, a 13 s loop about 13 dB under the music. Dark on purpose. **Provisional.** |
 | `ambience.level_2` | `ambience/level_2.txt` | Piyesta's street: a soft chip hubbub (Kent chose it over the syllable babble, which he heard as "distorted, hazy"). Four low VRC7 flute hums, each struck once and gliding between nearby pitches, never re-struck; no noise. Quiet (-33 dBFS) and dark. Silent in the church. Provisional. |
 | `ambience.level_3` | `ambience/level_3.txt` | Dagat's waves, at the surface only: long dark swells of low noise at uneven gaps (3.7, 3.3, 3.1, 2.7 s), each rising for a second and running back for two, a faint wash between. -33 dBFS. Silent under the water. **Provisional.** |
