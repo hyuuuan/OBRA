@@ -1,7 +1,8 @@
 extends SceneTree
 ## The audio files, headless: each id with a file resolves, music and ambience loop where Godot
 ## plays them, no sound effect loops, and every file has something that plays it. And the plumbing
-## that plays them: a change of track crossfades, the ambience is its own channel, a spaced sound
+## that plays them: a change of track crossfades (and can keep its place, for two arrangements of
+## one piece), the ambience is its own channel, a spaced sound
 ## effect is not repeated inside its spacing, the Music slider moves the Music bus, and a level that
 ## has not opted in (LevelBase._level_music) leaves the music as it found it. The places that play
 ## their own: the boot loading screen starts the title's loop and the menu carries it on, and
@@ -47,10 +48,15 @@ const CODE_FOLDERS := ["res://scripts", "res://ui", "res://levels", "res://objec
 const FADE_WAIT_S := 2.0
 ## A spacing set for the probe's own id, long enough that two plays a frame apart fall inside it.
 const PROBE_SPACING_S := 0.4
+## keep_position: where the outgoing track is sought to (well past the menu's 7.5 s intro), how
+## far apart the two may be (a mix chunk and a frame), and the crossfade used.
+const SOUGHT_S := 12.0
+const SAME_PLACE_S := 0.05
+const LOOP_FADE_PROBE_S := 0.6
 
 var failures := 0
 var checked := 0
-const CHECKS := 20
+const CHECKS := 22
 var director: Node
 
 
@@ -81,6 +87,7 @@ func _run() -> void:
 	await _the_loading_screen_starts_the_title_music_and_the_menu_carries_it()
 	await _the_house_plays_its_music_and_fades_it_when_she_leaves()
 	await _a_new_track_crossfades(music)
+	await _an_arrangement_takes_over_where_the_other_is(music)
 	await _the_ambience_is_its_own_channel(music)
 	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
 	_the_music_slider_moves_the_music_bus()
@@ -264,6 +271,33 @@ func _a_new_track_crossfades(music: Dictionary) -> void:
 		"%s; then old stopped %s, new %.1f dB" % [mid, done, second.volume_db])
 	director.call(&"stop_music", 0.0)
 	_music_paths().erase("_probe_second")
+
+
+## Two arrangements of one piece trade places mid-bar (keep_position): the incoming track starts
+## where the outgoing one is, within a mix chunk. And a plain change still starts at the top. The
+## twin is the menu's own file under a probe id, with the menu sought well into its loop.
+func _an_arrangement_takes_over_where_the_other_is(music: Dictionary) -> void:
+	_music_paths()["_probe_twin"] = music.get("menu", "")
+	_music_paths()["_probe_new"] = music.get("menu", "")
+	for keep: bool in [true, false]:
+		director.call(&"stop_music", 0.0)
+		director.call(&"play_music", &"menu", 0.0)
+		var first := director.call(&"music_player") as AudioStreamPlayer
+		first.seek(SOUGHT_S)
+		await _frames(3)
+		director.call(&"play_music", &"_probe_twin" if keep else &"_probe_new", LOOP_FADE_PROBE_S, keep)
+		var second := director.call(&"music_player") as AudioStreamPlayer
+		var apart := absf(second.get_playback_position() - first.get_playback_position())
+		var detail := "outgoing %.3f s, incoming %.3f s" % [first.get_playback_position(), second.get_playback_position()]
+		if keep:
+			_check(first != second and first.playing and apart < SAME_PLACE_S,
+				"keep_position: the incoming arrangement starts where the outgoing one is", detail)
+		else:
+			_check(first != second and second.get_playback_position() < SAME_PLACE_S,
+				"without keep_position a new track starts at its top", detail)
+	director.call(&"stop_music", 0.0)
+	_music_paths().erase("_probe_twin")
+	_music_paths().erase("_probe_new")
 
 
 ## The ambience plays on players of its own, so starting and stopping it leaves the music as it
