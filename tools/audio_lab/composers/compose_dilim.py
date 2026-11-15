@@ -1,151 +1,185 @@
-"""Write Dilim's forest theme, race music, and forest ambience.
+"""Write the forest, Tikbalang race, and ambience FamiTracker modules.
 
     compose_dilim.py TOOLS_DIR FOREST.txt RACE.txt AMBIENCE.txt
-
-The forest theme layers two low FM swells and occasional noise. The race
-keeps the original Phrygian gallop and the ambience supplies low frog calls.
-tests/test_dilim_calls_read.py checks that the music and ambience leave room
-for the tik-tik's call and tiyanak's cry.
 """
-import random
 import sys
 from pathlib import Path
 
 sys.path.insert(0, sys.argv[1])
 from famitext import Song, transpose  # noqa: E402
 
-# ⚠ The VRC7 has ONE custom patch; the race's is the tambol, as in Piyesta and the Bakunawa.
-TAMBOL = (0x01, 0x01, 0x18, 0x04, 0xF8, 0xF5, 0xF8, 0x36)
+# A struck, damped wooden sound. The modulator decays faster than the carrier.
+# Use a single custom VRC7 patch per module.
+KNOCK = (0x03, 0x01, 0x2A, 0x00, 0xF6, 0xF4, 0x76, 0x47)
+MOTIF = ("E", "F", "E", "B")
 
-# The motif, the forest's and the night's hook: E, F (a minor second up), E, and down to B.
-MOTIF = [("E3", 1), ("F3", 3), ("E3", 1), ("B2", 1)]
+
+def strike(song, channel, frame, row, note, instrument, volume, gate):
+    song.put(channel, frame, row, note, instrument, volume)
+    song.put(channel, frame, row + gate, "===")
 
 
-# --- the forest --------------------------------------------------------------------------------
+# The four strikes of each bar. The cadence keeps turning away from E. The
+# deeper registers answer only after the first statement of the ostinato.
+FOREST_BARS = (
+    ("E2", "B2", "F2", "E2"), ("E2", "G2", "F2", "D2"),
+    ("E2", "B2", "F2", "E2"), ("C2", "G2", "F#2", None),
+    ("E2", "B2", "F2", "E2"), ("E2", "G2", "F2", "D2"),
+    ("E2", "B2", "F2", "E2"), ("C2", "G2", "F#2", None),
+    ("A2", "C3", "G2", "A2"), ("A#2", "F2", "A2", "E2"),
+    ("A2", "C3", "G2", "A2"), ("B1", "F#2", "C3", None),
+    ("E2", "B2", "F2", "E2"), ("E2", "G2", "F2", "D2"),
+    ("E2", "B2", "F2", "E2"), ("C2", "G2", "F#2", "B1"),
+    ("C2", "G2", "C3", "F#2"), ("A2", "E2", "A#2", "F2"),
+    ("C2", "G2", "C3", "F#2"), ("B1", "F#2", "C3", None),
+    ("E2", "B2", "F2", "E2"), ("E2", "G2", "F2", "D2"),
+    ("F2", "B2", "E2", "F2"), ("B1", "C3", None, None),
+)
+FOREST_BASS = ("E", "E", "E", "C", "E", "E", "E", "C",
+               "A", "A#", "A", "B", "E", "E", "E", "C",
+               "C", "A", "C", "B", "E", "E", "F", "B")
+
+# Row, pitch, gate in sixteenths, volume. Long tones frame the short calls.
+FOREST_LEAD = {
+    2: ((10, "B3", 4, 6),),
+    4: ((2, "E4", 3, 9), (7, "F4", 1, 8), (9, "E4", 3, 9), (14, "B3", 5, 7)),
+    6: ((5, "G4", 4, 9), (11, "F4", 2, 8), (14, "D4", 5, 7)),
+    8: ((2, "A3", 5, 8), (9, "C4", 2, 9), (13, "B3", 4, 8)),
+    10: ((4, "E4", 4, 8), (10, "D4", 2, 8), (13, "C4", 5, 7)),
+    12: ((2, "E4", 3, 9), (7, "F4", 1, 9), (9, "E4", 3, 8), (14, "B3", 5, 7)),
+    14: ((3, "E4", 2, 8), (8, "G4", 3, 9), (13, "F#4", 4, 8)),
+    16: ((2, "G4", 4, 8), (8, "C5", 3, 9), (13, "B4", 4, 8)),
+    18: ((1, "F#4", 4, 8), (9, "G4", 2, 9), (12, "C5", 4, 9)),
+    19: ((4, "B4", 3, 9), (8, "F4", 2, 8), (11, "D#4", 3, 7)),
+    20: ((3, "E4", 3, 9), (8, "F4", 1, 9), (10, "E4", 3, 8), (15, "B3", 4, 7)),
+    22: ((4, "F4", 4, 8), (10, "E4", 4, 7)),
+    23: ((4, "C4", 4, 7), (11, "B3", 2, 6)),
+}
+
 
 def forest() -> Song:
-    song = Song("Dilim - The Dark Between Trees", frames=4, rows=64, speed=11, comments=(
-        "Original horror ambience for Dilim.",
-        "Low A and E swells on FM1 and FM2, with occasional noise.",
+    song = Song("Dilim - The Unseen Path", frames=6, rows=64, speed=8, loop_to=1, comments=(
+        "A low wooden ostinato, an uneven answer on the square, and soft agung accents.",
+        "Four bars alone, then twenty bars with a bass pedal. 109 BPM.",
     ))
+    wood = song.inst_vrc7("damped wood", patch=0, regs=KNOCK)
+    bass = song.inst_vrc7("low pedal", patch=13)
+    agung = song.inst_vrc7("distant agung", patch=9)
+    answer = song.inst_vrc7("bamboo flute", patch=4)
+    square = song.inst_2a03("lantern motif",
+                            volume=[11, 11, 10, 10, 9, 9, 7, 7, 6, 6, 5, 5, 4, 4, 2, 2, 1], duty=[1])
+    echo = song.inst_2a03("short square echo", volume=[4, 4, 3, 3, 2, 2, 1, 0], duty=[1])
 
-    DRONE = song.inst_vrc7("Slow FM swell", patch=0,
-                           regs=(0x21, 0x21, 0x1C, 0x02, 0x73, 0x83, 0x47, 0x37))
-    HUSH = song.inst_2a03("Noise swell", volume=[1] * 12 + [2] * 18 + [1] * 16 + [0], duty=[0])
+    for index, knocks in enumerate(FOREST_BARS):
+        frame, row = index // 4, (index % 4) * 16
+        for step in (3, 7, 11, 15):
+            song.put("dpcm", frame, row + step, fx="F09")
+            song.put("dpcm", frame, row + step + 1, fx="F08")
+        for beat, (note, volume) in enumerate(zip(knocks, (15, 11, 14, 12), strict=True)):
+            if note is not None:
+                strike(song, "fm1", frame, row + beat * 4, note, wood, volume, 3)
 
-
-    # Leave gaps in all of the pitched voices before the second and final orders.
-    floor = (
-        ((0, "A2", 21, 13), (31, "E2", 19, 11)),
-        ((4, "A2", 25, 12), (36, "A2", 18, 13)),
-        ((0, "A2", 35, 14), (44, "E2", 13, 12)),
-        ((5, "A2", 29, 13), (39, "A2", 12, 11)),
-    )
-    # Stagger the second voice within each swell while keeping the gaps between orders.
-    # The two brief B-flats are the tension already in the drone.
-    under = (
-        ((5, "E3", 14, 11), (35, "A2", 13, 10)),
-        ((9, "E3", 16, 11), (40, "A#2", 9, 8)),
-        ((3, "E3", 8, 9), (12, "A#2", 21, 10), (46, "A2", 10, 10)),
-        ((9, "E3", 22, 11), (42, "E3", 8, 9)),
-    )
-    for frame, (low, layer) in enumerate(zip(floor, under, strict=True)):
-        for channel, events in (("fm1", low), ("fm2", layer)):
-            for row, note, length, volume in events:
-                song.put(channel, frame, row, note, DRONE, volume)
-                song.put(channel, frame, row + length, "===")
-
-    song.put("noise", 1, 30, "0-#", HUSH, 10)
-    song.put("noise", 2, 8, "1-#", HUSH, 11)
-    song.put("noise", 3, 41, "0-#", HUSH, 9)
+        root = FOREST_BASS[index]
+        if index >= 4:
+            strike(song, "fm2", frame, row, root + "1", bass, 14 if index in (4, 12, 20) else 13, 9)
+            if index % 4 < 3:
+                strike(song, "fm2", frame, row + 11, root + "1", bass, 11, 4)
+        if index in (4, 8, 12, 16, 18, 20, 23):
+            strike(song, "fm3", frame, row + 2, root + "3", agung, 10, 6)
+        for step, pitch, gate, volume in FOREST_LEAD.get(index, ()):
+            if 16 <= index <= 19:
+                strike(song, "fm4", frame, row + step, pitch, answer, volume + 2, gate)
+            else:
+                strike(song, "pulse1", frame, row + step, pitch, square, volume, gate)
+                if gate >= 3 and index in (4, 6, 12, 20):
+                    strike(song, "pulse2", frame, row + step + 3, pitch, echo, 9, 2)
     return song
 
 
+RACE_BARS = (
+    ("E", "B2", "F2"), ("E", "G2", "D2"), ("E", "B2", "F2"), ("C", "G2", "F#2"),
+    ("A", "E2", "A#2"), ("A", "C3", "G2"), ("B", "F#2", "C3"), ("B", "F2", "D#2"),
+    ("E", "B2", "F2"), ("E", "G2", "D2"), ("C", "G2", "F#2"), ("B", "F#2", "C3"),
+    ("F", "C3", "B2"), ("F", "A2", "E2"), ("B", "F#2", "C3"), ("B", "F2", "D#2"),
+)
+
+RACE_CALLS = (
+    ((0, "E4", 2), (3, "F4", 1), (5, "E4", 2), (9, "B3", 4)),
+    ((4, "G4", 2), (7, "F4", 1), (9, "D4", 2)),
+    ((0, "E4", 2), (3, "F4", 1), (5, "E4", 2), (9, "B3", 4)),
+    ((3, "C4", 2), (6, "F#4", 2), (10, "E4", 1)),
+    ((0, "A3", 2), (3, "C4", 2), (8, "A#3", 1), (10, "A3", 2)),
+    ((4, "E4", 2), (7, "C4", 4)),
+    ((0, "B3", 2), (3, "C4", 1), (5, "B3", 2), (9, "F#4", 2)),
+    ((6, "F4", 1), (8, "D#4", 2)),
+    ((0, "E4", 2), (3, "F4", 1), (5, "E4", 2), (9, "B3", 4)),
+    ((4, "G4", 2), (7, "F4", 1), (9, "D4", 2)),
+    ((2, "C4", 2), (5, "G4", 2), (9, "F#4", 2)),
+    ((0, "F#4", 2), (3, "C5", 2), (7, "B4", 1), (9, "F4", 2)),
+    ((0, "F4", 2), (3, "G4", 1), (5, "F4", 2), (9, "B3", 3)),
+    ((2, "A4", 2), (6, "G4", 1), (9, "E4", 2)),
+    ((0, "F#4", 2), (3, "F4", 1), (5, "D#4", 2), (9, "C4", 2)),
+    ((0, "B3", 4), (8, "D#4", 2)),
+)
+
+
 def race() -> Song:
-    bar = 12                                  # triplet eighths: three to a beat
-    speeds = (8, 7, 8)                        # 23 ticks a beat, ~157 BPM
-    s = Song("Dilim race", frames=4, rows=4 * bar, speed=speeds[0], loop_to=0, comments=(
-        "The tikbalang's race: Dilim's motif galloping in triplets, the tambol's hooves, a driving",
-        "bass, low brass, climbing a whole tone every four bars. Under 500 Hz. Original. ~157 BPM.",
+    bar = 12
+    song = Song("Dilim - Hooves in the Dark", frames=4, rows=4 * bar, speed=8, comments=(
+        "The forest's wood becomes a gallop. The reed shortens the lantern motif.",
+        "Triplet eighths at 150 BPM.",
     ))
-    for frame in range(4):
-        for row in range(4 * bar):
-            s._set(frame, row, "dpcm", 3, f"F{speeds[row % 3]:02X}")
-    boom = s.inst_vrc7("tambol", patch=0, regs=TAMBOL)
-    bass = s.inst_vrc7("bass", patch=13)
-    # ⚠ The motif is on the clarinet, not the trumpet: the trumpet's upper partials filled the
-    # tiyanak's band (500 Hz-1 kHz) to within 4 dB of her cry.
-    brass = s.inst_vrc7("low reed", patch=5)
-    horn = s.inst_vrc7("low horn", patch=5)
-    gong = s.inst_vrc7("gong", patch=9)
+    wood = song.inst_vrc7("hoof", patch=0, regs=KNOCK)
+    bass = song.inst_vrc7("low pedal", patch=13)
+    reed = song.inst_vrc7("low reed", patch=5)
+    agung = song.inst_vrc7("distant agung", patch=9)
+    thud = song.inst_2a03("low dust", volume=[9, 7, 5, 3, 1, 0], duty=[0])
 
-    # Every four bars a whole tone higher -- E, F#, G#, A# -- and the top never arrives.
-    for index in range(16):
+    for index, ((root, answer, tension), calls) in enumerate(zip(RACE_BARS, RACE_CALLS, strict=True)):
         frame, row = index // 4, (index % 4) * bar
-        lift = 2 * (index // 4)
-        root = transpose("E2", lift)
-        # The hooves: "da . da" on every beat, all three on the fourth.
-        for beat in range(4):
-            for step in ((0, 2) if beat < 3 else (0, 1, 2)):
-                s.put("fm6", frame, row + 3 * beat + step, "A2" if step == 0 else "G2", boom,
-                      15 if step == 0 else 12, "S03" if step else None)
-        # The bass: the drone driven, E E (octave) | E F E | ... the flat second pulling at it.
-        for step, semis in ((0, 0), (1, 0), (2, 7), (3, 0), (4, 1), (5, 0), (6, 0), (7, 0), (8, 7),
-                            (9, 1), (10, 0), (11, -1)):
-            s.put("fm5", frame, row + step, transpose(root, semis), bass, 12 if step % 3 == 0 else 10)
-        # A gong on every bar's top, damped on the beat.
-        s.put("fm4", frame, row, root, gong, 9)
-        s.put("fm4", frame, row + 3, "===")
-        # Low brass stabs on the offbeats (the style's syncopation), the minor second in them.
-        for step in (4, 10):
-            s.put("fm2", frame, row + step, transpose("B2", lift), horn, 11)
-            s.put("fm3", frame, row + step, transpose("C3", lift), horn, 11)
-            s.put("fm2", frame, row + step + 1, "===")
-            s.put("fm3", frame, row + step + 1, "===")
-        # The motif on low brass, galloping, then a bend up into the next bar.
-        motif = [("E3", 1), ("F3", 2), ("E3", 1), ("B2", 2), ("E3", 1), ("F3", 1), ("G3", 1),
-                 ("F3", 3, "Q21")] if index % 2 == 0 else \
-                [("E3", 2), ("F3", 1), ("A3", 3), ("G3", 1), ("F3", 1), ("E3", 1), ("r", 3)]
-        assert sum(n[1] for n in motif) == bar
-        r = row
-        for item in motif:
-            note, length = item[0], item[1]
-            if note == "r":
-                s.put("fm1", frame, r, "===")
-            else:
-                s.put("fm1", frame, r, transpose(note, lift), brass, 12, item[2] if len(item) > 2 else None)
-            r += length
-    return s
+        for step in (0, 2, 3, 5, 6, 8, 9, 11):
+            if index in (7, 15) and step in (6, 8):
+                continue
+            pitch = root + "2" if step % 3 == 0 else (tension if step >= 8 else answer)
+            song.put("fm1", frame, row + step, pitch, wood, 15 if step % 3 == 0 else 10, "S05")
+        for step, volume in ((0, 15), (5, 11), (9, 13)):
+            strike(song, "fm2", frame, row + step, root + "1", bass, volume, 2)
+        if index % 4 == 0:
+            strike(song, "fm3", frame, row, root + "2", agung, 10, 5)
+        for step in ((3, 9) if index % 4 != 3 else (3, 8, 10)):
+            song.put("noise", frame, row + step, "2-#", thud, 10)
+        for step, pitch, gate in calls:
+            # Keep the reed's strongest overtones below the tiyanak's cry.
+            strike(song, "fm4", frame, row + step, transpose(pitch, -12), reed, 12 if step % 3 == 0 else 10, gate)
+    return song
 
-
-# --- the night bed -----------------------------------------------------------------------------
 
 def night_bed() -> Song:
-    rng = random.Random(20261115)
-    rows = 128
-    s = Song("Dilim night", frames=1, rows=rows, speed=6, loop_to=0, comments=(
-        "Dilim's night: frogs croaking low at uneven gaps over the slowest, darkest breath. Under",
-        "the creatures' band.",
+    song = Song("Dilim - Forest Air", frames=2, rows=128, speed=6, comments=(
+        "Two frogs answer at irregular intervals. Low noise moves in separate gusts.",
     ))
-    frog = s.inst_vrc7("frog", patch=13)
-    breath = s.inst_2a03("breath", volume=[1] * 40 + [2] * 60 + [1] * 60, duty=[0])
-    s.put("noise", 0, 0, "0-#", breath, 15)
-    s.put("noise", 0, 64, "1-#", breath, 15)
-    # A croak: struck, sliding down a semitone, released two rows on, so the frogs never drone.
-    # Two frogs, near and far, at uneven gaps.
-    row = 3
-    while row < rows - 4:
-        channel = "fm1" if rng.random() < 0.6 else "fm2"
-        s.put(channel, 0, row, rng.choice(["C3", "D3", "A2", "B2"]), frog,
-              rng.choice([10, 11, 12]) if channel == "fm1" else 9, "R51")
-        s.put(channel, 0, row + 2, "===")
-        row += rng.choice([7, 9, 11, 14, 19])
-    return s
+    frog = song.inst_vrc7("frog", patch=13)
+    breath = song.inst_2a03("wind", volume=[1] * 16 + [2] * 24 + [1] * 44 + [0], duty=[0])
+    for frame, (gusts, calls) in enumerate((
+        ((0, 74), ((11, "A2", 9), (27, "E2", 11), (31, "E2", 9),
+                   (65, "G2", 8), (90, "A2", 10), (115, "E2", 11))),
+        ((29, 94), ((6, "E2", 9), (39, "A2", 10), (43, "A2", 8),
+                    (78, "G2", 8), (105, "E2", 11), (123, "A2", 8))),
+    )):
+        for row in gusts:
+            song.put("noise", frame, row, "0-#", breath, 15)
+        for row, pitch, volume in calls:
+            song.put("fm1", frame, row, pitch, frog, volume, "R51")
+            song.put("fm1", frame, row + 2, "===")
+    return song
 
 
-# FamiStudio requires the standard text header when importing the forest score.
-_, _, forest_module = forest().text().partition("\n")
-Path(sys.argv[2]).write_text("# FamiTracker text export 0.4.2\n" + forest_module, encoding="utf-8")
-Path(sys.argv[3]).write_text(race().text())
-Path(sys.argv[4]).write_text(night_bed().text())
-print("wrote", *sys.argv[2:5])
+def write_module(song: Song, path: str) -> None:
+    # FamiStudio's importer recognizes the standard text export header.
+    _, _, module = song.text().partition("\n")
+    Path(path).write_text("# FamiTracker text export 0.4.2\n" + module, encoding="utf-8")
+
+
+if __name__ == "__main__":
+    for score, output in zip((forest(), race(), night_bed()), sys.argv[2:], strict=True):
+        write_module(score, output)

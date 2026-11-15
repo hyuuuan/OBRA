@@ -25,13 +25,9 @@ func dialogue_path() -> String:
 	return "res://config/dialogue_l4.json"
 
 
-## Dilim's music (audio/music/level_4.txt): scary and unknown (Kent, 2026-11-15) -- a beating drone,
-## a low motif that never resolves, far bells, a knock in the trees -- over the night's frogs
-## (audio/ambience/level_4.txt). The whole level: the forest is as dark under the canopy by day
-## (Kent's answer to the plan's question 9). LevelBase plays both when the level opens;
-## _refresh_the_place_audio changes the music for the race.
-## ⚠ THE CREATURES ARE GAMEPLAY. Everything in the music and the bed sits under 500 Hz, out of the
-## tik-tik's and the tiyanak's bands; tests/test_dilim_calls_read.py holds them to it.
+## LevelBase starts the forest score and ambience. The race and night waves use
+## faster arrangements of the forest motif. Keep the creature calls audible
+## over them as checked by tests/test_dilim_calls_read.py.
 func _level_music() -> StringName:
 	return &"level_4"
 
@@ -42,10 +38,8 @@ func _level_ambience() -> StringName:
 
 ## The tikbalang's race: the forest's motif made thrilling (audio/music/level_4_race.txt).
 const RACE_MUSIC := &"level_4_race"
-## Surviving the night (Kent: "as thrilling as possible"): one piece in three arrangements, one per
-## wave of DilimFinale2D.WAVES, each fuller (audio/music/dilim_night_1..3.txt). ⚠ They are written
-## to one length TO THE ROW, so a new wave trades them mid-bar (keep_position) and the night
-## builds rather than restarting.
+## Three arrangements share the same row timing and loop bounds so a new wave
+## crossfades at the current playhead.
 const NIGHT_MUSIC: Array[StringName] = [&"dilim_night_1", &"dilim_night_2", &"dilim_night_3"]
 const NIGHT_FADE_S := 0.6
 ## The race or the night coming in (or the forest coming back): a new piece, but an event, so
