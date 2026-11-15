@@ -57,7 +57,7 @@ const LOOP_FADE_PROBE_S := 0.6
 
 var failures := 0
 var checked := 0
-const CHECKS := 27
+const CHECKS := 29
 var director: Node
 
 
@@ -98,6 +98,7 @@ func _run() -> void:
 	await _piyestas_church_has_its_own_music_and_no_street()
 	await _dagat_trades_its_music_at_the_waterline()
 	await _the_bakunawa_has_its_own_music_until_it_is_answered()
+	await _dilim_races_to_its_own_music()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -366,10 +367,10 @@ func _the_music_slider_moves_the_music_bus() -> void:
 
 
 ## Levels opt in to music (LevelBase._level_music, off by default): one that has not, opened and
-## closed, leaves the music that was playing as it was. Dilim, until its own loop is written.
+## closed, leaves the music that was playing as it was. Mayon, until its own music is wired.
 func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
 	director.call(&"play_music", &"menu", 0.0)
-	var scene := (load("res://level_4.tscn") as PackedScene).instantiate()
+	var scene := (load("res://level_5.tscn") as PackedScene).instantiate()
 	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(scene)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
@@ -565,6 +566,50 @@ func _the_bakunawa_has_its_own_music_until_it_is_answered() -> void:
 	_check(restored == "CP3" and lost == "bakunawa" and met == "bakunawa" and before == "level_3",
 		"a lost stretch keeps the Bakunawa's music; a restore from before the meeting hands it back",
 		"after the lost stretch (restored %s) '%s'; met '%s', restored to before it '%s'" % [restored, lost, met, before])
+	director.call(&"stop_music", 0.0)
+	director.call(&"stop_ambience", 0.0)
+
+
+## Dilim: its forest and its night as it opens; while the tikbalang races, the race's own music,
+## and the forest's when the race is over. A checkpoint restore mid-race (which resets the
+## tikbalang, Enemy2D.GROUP) puts the forest's back, and leaving mid-race takes the race's music.
+func _dilim_races_to_its_own_music() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := await _open("res://level_4.tscn")
+	scene.set_physics_process(false)
+	var opened := _now_playing()
+	var files := "%s, %s" % [(director.call(&"music_player") as AudioStreamPlayer).stream.resource_path.get_file(),
+		(director.call(&"ambience_player") as AudioStreamPlayer).stream.resource_path.get_file()]
+	var tikbalang := scene.get(&"_tikbalang") as Node
+	tikbalang.call(&"start_race")
+	scene.call(&"_refresh_the_place_audio")
+	var racing := _now_playing()
+	# Off the line, then lost -- so it stays to race again: a race won answers it, and it steps off
+	# the path for good. (Ended in its countdown, the countdown would still be running.)
+	var off := await _until(func() -> bool: return bool(tikbalang.get(&"_racing")), 6.0)
+	tikbalang.call(&"_end_race", false)
+	scene.call(&"_refresh_the_place_audio")
+	var won := _now_playing()
+	_check(opened == "level_4/level_4" and files == "level_4.wav, level_4.wav" and racing == "level_4_race/level_4"
+		and off and won == "level_4/level_4",
+		"Dilim: its forest and night as it opens; the race's own music while the tikbalang races, the forest's after",
+		"opened '%s' (%s), racing '%s', off the line %s, after it '%s'" % [opened, files, racing, off, won])
+	tikbalang.call(&"start_race")
+	scene.call(&"_refresh_the_place_audio")
+	scene.call(&"_restore_checkpoint")
+	scene.call(&"_refresh_the_place_audio")
+	var restored := _now_playing()
+	tikbalang.call(&"start_race")
+	scene.call(&"_refresh_the_place_audio")
+	var left_from := _now_playing()
+	var player := director.call(&"music_player") as AudioStreamPlayer
+	scene.queue_free()
+	await _frames(5)
+	var after := _now_playing()
+	var stopped := await _until(func() -> bool: return not player.playing, FADE_WAIT_S)
+	_check(restored == "level_4/level_4" and left_from == "level_4_race/level_4" and after == "/" and stopped,
+		"Dilim: a restore mid-race puts the forest's music back, and leaving mid-race takes the race's",
+		"restored '%s', left from '%s', after '%s', stopped %s" % [restored, left_from, after, stopped])
 	director.call(&"stop_music", 0.0)
 	director.call(&"stop_ambience", 0.0)
 

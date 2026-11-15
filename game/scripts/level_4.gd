@@ -25,6 +25,55 @@ func dialogue_path() -> String:
 	return "res://config/dialogue_l4.json"
 
 
+## Dilim's music (audio/music/level_4.txt): scary and unknown (Kent, 2026-11-15) -- a beating drone,
+## a low motif that never resolves, far bells, a knock in the trees -- over the night's frogs
+## (audio/ambience/level_4.txt). The whole level: the forest is as dark under the canopy by day
+## (Kent's answer to the plan's question 9). LevelBase plays both when the level opens;
+## _refresh_the_place_audio changes the music for the race.
+## ⚠ THE CREATURES ARE GAMEPLAY. Everything in the music and the bed sits under 500 Hz, out of the
+## tik-tik's and the tiyanak's bands; tests/test_dilim_calls_read.py holds them to it.
+func _level_music() -> StringName:
+	return &"level_4"
+
+
+func _level_ambience() -> StringName:
+	return &"level_4"
+
+
+## The tikbalang's race: the forest's motif made thrilling (audio/music/level_4_race.txt).
+const RACE_MUSIC := &"level_4_race"
+## The music asked for, so it changes only when the answer does. Worked out every physics frame
+## from the race itself, not set on its start and finish: a checkpoint restore mid-race stops the
+## race without either, and must not leave its music on.
+var _music_for: StringName = &""
+
+
+## AudioDirector by path, as LevelBase reaches it.
+func _refresh_the_place_audio() -> void:
+	var music := _music_now()
+	if music == _music_for:
+		return
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio == null:
+		return
+	_music_for = music
+	audio.call(&"play_music", music)
+
+
+func _music_now() -> StringName:
+	if _tikbalang != null and is_instance_valid(_tikbalang) and _tikbalang.is_racing():
+		return RACE_MUSIC
+	return _level_music()
+
+
+## LevelBase fades the level's own music as it leaves; the race's is this level's too.
+func _exit_tree() -> void:
+	super()
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null and audio.call(&"current_music") == RACE_MUSIC:
+		audio.call(&"stop_music")
+
+
 ## Past what Lolo remembers: she goes on alone.
 func _has_companion() -> bool:
 	return false
@@ -184,6 +233,7 @@ const FALL_BELOW := 300.0
 
 
 func _level_physics(anchor_position: Vector2) -> void:
+	_refresh_the_place_audio()
 	if anchor_position.y > FOREST_FLOOR + FALL_BELOW:
 		_knockout()
 		return
