@@ -189,9 +189,12 @@ func _begin() -> void:
 	_clock = -LEAD_IN
 	if not music_id.is_empty():
 		# From its top, at once, every attempt: a fade or a carried-on loop would put the beat
-		# somewhere the cues are not.
-		AudioDirector.stop_music(0.0)
-		AudioDirector.play_music(music_id, 0.0)
+		# somewhere the cues are not. ⚠ By path, as play_sfx is below: an autoload's name does
+		# not compile in a --script run, and probes preload this overlay.
+		var audio := get_node_or_null(^"/root/AudioDirector")
+		if audio != null:
+			audio.call(&"stop_music", 0.0)
+			audio.call(&"play_music", music_id, 0.0)
 	_stroke = PackedVector2Array()
 	_drawing = false
 	_flash = ""

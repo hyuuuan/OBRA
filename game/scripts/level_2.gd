@@ -1635,14 +1635,11 @@ func _on_ceiling_crossed(entity_id: String, height_over: float) -> void:
 	})
 
 
-## THE CEILING IS PER SCENE, NOT ONE NUMBER. Whatever Y the bandaritas are strung at in the
-## room the player is standing in, the cap sits just under it -- so the boundary is always
-## something visible and always in the same place as the thing that draws it.
-##
-## Asked every frame and acted on only when the answer changes, which is the shape
-## `_refresh_room_framing` already uses: a checkpoint restore, a fall or an expiry can move
-## the player between scenes without going through a doorway, and every one of those would
-## otherwise leave the cap set for the room they used to be in.
+## The church has its hymn and no street; everywhere else has the plaza and the street. Asked
+## every frame and acted on only when the answer changes, like the ceiling below: a restore or
+## a fall can move the player between rooms without a doorway. The dance keeps its own music.
+## ⚠ AudioDirector BY PATH, never by name: an autoload's name does not compile in a --script
+## run, and that broke every probe that loads this level.
 func _refresh_the_place_audio() -> void:
 	if _dancing:
 		return
@@ -1651,22 +1648,34 @@ func _refresh_the_place_audio() -> void:
 	if where == _music_for:
 		return
 	_music_for = where
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio == null:
+		return
 	if where == "church":
-		AudioDirector.play_music(CHURCH_MUSIC)
-		AudioDirector.stop_ambience()
+		audio.call(&"play_music", CHURCH_MUSIC)
+		audio.call(&"stop_ambience")
 	else:
-		AudioDirector.play_music(_level_music())
-		AudioDirector.play_ambience(_level_ambience())
+		audio.call(&"play_music", _level_music())
+		audio.call(&"play_ambience", _level_ambience())
 
 
 ## LevelBase fades the level's own music as it leaves; the church's and the dance's are this
 ## level's too, and leave with it.
 func _exit_tree() -> void:
 	super()
-	if AudioDirector.current_music() in [CHURCH_MUSIC, DANCE_MUSIC]:
-		AudioDirector.stop_music()
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null and audio.call(&"current_music") in [CHURCH_MUSIC, DANCE_MUSIC]:
+		audio.call(&"stop_music")
 
 
+## THE CEILING IS PER SCENE, NOT ONE NUMBER. Whatever Y the bandaritas are strung at in the
+## room the player is standing in, the cap sits just under it -- so the boundary is always
+## something visible and always in the same place as the thing that draws it.
+##
+## Asked every frame and acted on only when the answer changes, which is the shape
+## `_refresh_room_framing` already uses: a checkpoint restore, a fall or an expiry can move
+## the player between scenes without going through a doorway, and every one of those would
+## otherwise leave the cap set for the room they used to be in.
 func _refresh_the_ceiling() -> void:
 	if restrictions == null:
 		return
