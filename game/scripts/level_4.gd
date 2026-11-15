@@ -48,6 +48,9 @@ const RACE_MUSIC := &"level_4_race"
 ## builds rather than restarting.
 const NIGHT_MUSIC: Array[StringName] = [&"dilim_night_1", &"dilim_night_2", &"dilim_night_3"]
 const NIGHT_FADE_S := 0.6
+## The race or the night coming in (or the forest coming back): a new piece, but an event, so
+## quicker than AudioDirector's change of place.
+const EVENT_FADE_S := 1.0
 ## The music asked for, so it changes only when the answer does. Worked out every physics frame
 ## from the race itself, not set on its start and finish: a checkpoint restore mid-race stops the
 ## race without either, and must not leave its music on.
@@ -69,7 +72,7 @@ func _refresh_the_place_audio() -> void:
 		# sound and the light are what follow.
 		audio.call(&"stop_music", 0.0)
 	else:
-		audio.call(&"play_music", music, NIGHT_FADE_S, a_new_wave)
+		audio.call(&"play_music", music, NIGHT_FADE_S if a_new_wave else EVENT_FADE_S, a_new_wave)
 
 
 ## The music for now. A retried night (DilimFinale2D.reset_for_restore) is not running, so it

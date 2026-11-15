@@ -87,8 +87,18 @@ over the same file. Then render it here with `build_music.py`. Keep to the subse
 
 `AudioDirector` (an autoload) plays every sound by id:
 
-- **Music and ambience** each loop on a pair of players. A change of track **crossfades** over
-  0.6 s, and `stop_music` / `stop_ambience` fade out. The fades run while the tree is paused.
+- **Music and ambience** each loop on a pair of players. A change of track **crossfades at equal
+  power** (rising as a quarter sine, falling as its cosine, so the two never sag together), over
+  1.5 s between two pieces by default; a level passes 1 s for an event (the Bakunawa, the race,
+  the night beginning) and 0.6 s for one piece trading arrangements (the dive, the night's waves).
+  `stop_music` / `stop_ambience` fade out. The fades run while the tree is paused.
+- **A scene change hands the music over.** A stop asked for while LevelManager is changing scenes
+  keeps the track playing through the wipe and the load; the next place's music crossfades from
+  it, or, if it asks for the same track, it plays on unrestarted. Nothing asking within 4 s, it
+  fades. Before this (Kent, 2026-11-15: the changes "are not that smooth") the music fell to
+  -43 dB between the house and a level, and the next place's began cold.
+- **Music on a cue** (`restart_music`) starts at once from its top and fades what played before out
+  under it over half a second: the dance's every attempt, which used to stop the plaza dead.
 - **A place names its own.** A level overrides LevelBase `_level_music()` and
   `_level_ambience()` (both `&""`, none, by default). It plays them when it opens and fades them
   out when it leaves, if they are still its own. The main menu plays `music.menu` itself.

@@ -62,6 +62,8 @@ var _clock := 0.0
 ## beat and the cues share one clock: it starts as the clock does, at -LEAD_IN. &"" is none. The
 ## level that owns the dance sets it; the music must be written to fall on the track's cues.
 var music_id: StringName = &""
+## How long the music before the dance takes to fade out under the dance's first beat.
+const MUSIC_HANDOVER_S := 0.5
 var _running := false
 ## The stroke being drawn right now, in the stage's own coordinates. Kept so the player can
 ## see what their hand is doing; never looked at afterwards.
@@ -193,8 +195,9 @@ func _begin() -> void:
 		# not compile in a --script run, and probes preload this overlay.
 		var audio := get_node_or_null(^"/root/AudioDirector")
 		if audio != null:
-			audio.call(&"stop_music", 0.0)
-			audio.call(&"play_music", music_id, 0.0)
+			# The cue's music at once, from its top; whatever played (the plaza, the last attempt)
+			# fades out under it rather than stopping dead.
+			audio.call(&"restart_music", music_id, MUSIC_HANDOVER_S)
 	_stroke = PackedVector2Array()
 	_drawing = false
 	_flash = ""

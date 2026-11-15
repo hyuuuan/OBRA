@@ -38,8 +38,16 @@ const SILENCE_LINEAR := 0.001
 ## clicks can never grow the node count without bound.
 const SFX_VOICES := 8
 
-## How long a change of music or ambience takes, out and in at once.
-const LOOP_FADE_S := 0.6
+## How long a change of music or ambience takes, out and in at once, between two different pieces:
+## long enough that two tempos never meet head on. Kent (2026-11-15) heard the changes as "not that
+## smooth", and the recorded tour (tests/run_audio_tour.gd) showed why: 0.6 s linear crossfades,
+## and scene changes that fell to silence between places. Two arrangements of one piece trade
+## faster; their callers pass it.
+const LOOP_FADE_S := 1.5
+## A scene change's grace. Stopped while LevelManager is changing scenes, a track is HANDED OVER:
+## it plays on through the wipe and the load, the next place's music crossfades from it, and only if
+## nothing asks for music within this long does it fade out.
+const HANDOVER_HOLD_S := 4.0
 ## A fade's floor. linear_to_db(0) is -inf, which must never reach a player.
 const FADE_FLOOR := 0.001
 
@@ -61,6 +69,10 @@ class _Loop:
 	var paths: Dictionary = {}
 	## player -> the Tween fading it, so a new fade replaces an old one instead of fighting it.
 	var fades: Dictionary = {}
+	## The track handed over across a scene change (see _loop_stop), and the hold's generation, so
+	## an old hold's timer cannot stop a newer track.
+	var held_id: StringName = &""
+	var hold := 0
 
 
 var _sfx_paths: Dictionary = {}
@@ -205,6 +217,16 @@ func play_music(id: StringName, fade: float = LOOP_FADE_S, keep_position: bool =
 	_loop_play(_music, id, fade, keep_position)
 
 
+## Start `id` from its top, at full, at once -- even if it is already playing -- and fade whatever
+## played before out over `fade_out`. For music that must begin on a cue: the dance's, on every
+## attempt (DanceOverlay). Stopping the old track dead for it was a hard cut out of the plaza.
+func restart_music(id: StringName, fade_out: float = 0.5) -> void:
+	var stream := _stream_for(_music.paths, id)
+	if _music.players.is_empty() or stream == null:
+		return
+	_start(_music, id, stream, 0.0, fade_out, 0.0)
+
+
 ## The id of the track playing, or &"" when none is.
 func current_music() -> StringName:
 	return _music.id
@@ -242,30 +264,65 @@ func ambience_player() -> AudioStreamPlayer:
 func _loop_play(loop: _Loop, id: StringName, fade: float, keep_position := false) -> void:
 	if loop.players.is_empty() or id == loop.id:
 		return
+	if id == loop.held_id and loop.players[loop.active].playing:
+		# The next place asked for the very track the last one handed over: it plays on, unrestarted.
+		loop.held_id = &""
+		loop.hold += 1
+		loop.id = id
+		return
 	var stream := _stream_for(loop.paths, id)
 	if stream == null:
 		return
-	loop.id = id
 	var outgoing := loop.players[loop.active]
 	# Read before the fade: a fade to nothing in no time stops the player, and a stopped one
 	# reads 0. Past the incoming file's end means the two were not written alike: start at the top.
 	var at := outgoing.get_playback_position() if keep_position and outgoing.playing else 0.0
 	if at >= stream.get_length():
 		at = 0.0
-	_fade(loop, outgoing, 0.0, fade)
+	_start(loop, id, stream, fade, fade, at)
+
+
+## The outgoing track fades out over `fade_out` while the incoming comes in over `fade_in` (at once,
+## at full, when that is 0), from `at` seconds.
+func _start(loop: _Loop, id: StringName, stream: AudioStream, fade_in: float, fade_out: float,
+		at: float) -> void:
+	loop.held_id = &""
+	loop.hold += 1
+	loop.id = id
+	_fade(loop, loop.players[loop.active], 0.0, fade_out)
 	loop.active = 1 - loop.active
 	var incoming := loop.players[loop.active]
 	_kill_fade(loop, incoming)
 	incoming.stream = stream
-	incoming.volume_db = linear_to_db(FADE_FLOOR) if fade > 0.0 else 0.0
+	incoming.volume_db = linear_to_db(FADE_FLOOR) if fade_in > 0.0 else 0.0
 	incoming.play(at)
-	_fade(loop, incoming, 1.0, fade)
+	_fade(loop, incoming, 1.0, fade_in)
 
 
 func _loop_stop(loop: _Loop, fade: float) -> void:
+	loop.hold += 1
+	if fade > 0.0 and _changing_scenes() and not loop.id.is_empty():
+		# ⚠ HANDED OVER, NOT STOPPED. The place that asked is leaving, but the next one has not
+		# loaded: stopped now, the music fell to silence across the wipe and the load (the tour
+		# measured -43 dB between the house and a level), then the next place's began cold.
+		loop.held_id = loop.id
+		loop.id = &""
+		var generation := loop.hold
+		get_tree().create_timer(HANDOVER_HOLD_S, true).timeout.connect(func() -> void:
+			if loop.hold == generation:
+				loop.held_id = &""
+				for player in loop.players:
+					_fade(loop, player, 0.0, fade))
+		return
 	loop.id = &""
+	loop.held_id = &""
 	for player in loop.players:
 		_fade(loop, player, 0.0, fade)
+
+
+func _changing_scenes() -> bool:
+	var manager := get_node_or_null(^"/root/LevelManager")
+	return manager != null and bool(manager.call(&"is_transitioning"))
 
 
 ## Take `player` to `level` (linear) over `seconds`, and stop it there if that is silence.
@@ -283,7 +340,8 @@ func _fade(loop: _Loop, player: AudioStreamPlayer, level: float, seconds: float)
 		return
 	var tween := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	loop.fades[player] = tween
-	tween.tween_method(_set_level.bind(player), db_to_linear(player.volume_db), maxf(level, FADE_FLOOR), seconds)
+	tween.tween_method(_set_along.bind(player, db_to_linear(player.volume_db), maxf(level, FADE_FLOOR)),
+		0.0, 1.0, seconds)
 	if level <= 0.0:
 		tween.tween_callback(player.stop)
 
@@ -295,8 +353,13 @@ func _kill_fade(loop: _Loop, player: AudioStreamPlayer) -> void:
 	loop.fades.erase(player)
 
 
-func _set_level(level: float, player: AudioStreamPlayer) -> void:
-	player.volume_db = linear_to_db(maxf(level, FADE_FLOOR))
+## A fade's level at `progress` (0..1) from `from` to `to`, linear amplitudes. ⚠ EQUAL POWER, on a
+## quarter sine: rising as sin, falling as cos, so two tracks crossing hold their summed loudness. A
+## straight line dips both to half (-6 dB each, -3 dB together) at the middle, which is heard as
+## the music sagging between two places.
+func _set_along(progress: float, player: AudioStreamPlayer, from: float, to: float) -> void:
+	var shaped := sin(progress * PI * 0.5) if to > from else 1.0 - cos(progress * PI * 0.5)
+	player.volume_db = linear_to_db(maxf(from + (to - from) * shaped, FADE_FLOOR))
 
 
 func _on_setting_changed(key: String, value: Variant) -> void:
