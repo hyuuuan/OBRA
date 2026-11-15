@@ -57,7 +57,7 @@ const LOOP_FADE_PROBE_S := 0.6
 
 var failures := 0
 var checked := 0
-const CHECKS := 25
+const CHECKS := 27
 var director: Node
 
 
@@ -97,6 +97,7 @@ func _run() -> void:
 	await _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time()
 	await _piyestas_church_has_its_own_music_and_no_street()
 	await _dagat_trades_its_music_at_the_waterline()
+	await _the_bakunawa_has_its_own_music_until_it_is_answered()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -496,6 +497,74 @@ func _dagat_trades_its_music_at_the_waterline() -> void:
 	_check(left_from == "level_3_deep/" and after == "/" and stopped,
 		"Dagat: leaving from below the surface takes the deep's music with it",
 		"left from '%s', after '%s', stopped %s" % [left_from, after, stopped])
+	director.call(&"stop_music", 0.0)
+	director.call(&"stop_ambience", 0.0)
+
+
+## The Bakunawa's fight plays from the moment it is met until it is answered, on each of its three
+## routes -- led home (_on_gift_offered), subdued (_on_bakunawa_quiet) and slipped past in the dark
+## (the solve the level makes when she is through) -- and the sea's music comes back after. A lost
+## stretch, restoring the encounter's own checkpoint, keeps it; a restore from before the meeting
+## hands it back. Through the level's own handlers, with its physics off.
+func _the_bakunawa_has_its_own_music_until_it_is_answered() -> void:
+	var heard: Array[String] = []
+	for route: String in ["artist", "protector", "pragmatist"]:
+		var scene := await _open("res://level_3.tscn")
+		scene.set_physics_process(false)
+		var at := Vector2((scene.get(&"player") as Node2D).global_position.x, float(scene.get(&"_waterline_y")) - 40.0)
+		scene.call(&"_on_obstacle_entered", "L3_N2")
+		scene.call(&"_refresh_the_place_audio", at)
+		var met := String(director.call(&"current_music"))
+		scene.call(&"_on_route_committed_here", "L3_N2", route)
+		await _frames(2)
+		var level_director := scene.get(&"director") as Node
+		match route:
+			"artist":
+				scene.call(&"_on_gift_offered")
+			"protector":
+				scene.call(&"_on_bakunawa_quiet", "FOUGHT")
+			"pragmatist":
+				level_director.call(&"solve_with_item", "L3_N2", "the dark")
+		scene.call(&"_refresh_the_place_audio", at)
+		heard.append("%s: %s, then %s" % [route, met, director.call(&"current_music")])
+		scene.queue_free()
+		await _frames(5)
+	_check(heard == ["artist: bakunawa, then level_3", "protector: bakunawa, then level_3",
+		"pragmatist: bakunawa, then level_3"],
+		"the Bakunawa's own music from the moment it is met until it is answered, on each route",
+		"; ".join(heard))
+	# Inside the fight: a lost stretch restores the encounter's own checkpoint, written on the
+	# commit, and the fight goes on.
+	var scene := await _open("res://level_3.tscn")
+	scene.set_physics_process(false)
+	var at := Vector2((scene.get(&"player") as Node2D).global_position.x, float(scene.get(&"_waterline_y")) - 40.0)
+	scene.call(&"_on_obstacle_entered", "L3_N2")
+	# Through the director, as the choice does: the level answers its signal.
+	(scene.get(&"director") as Node).call(&"commit_route", "L3_N2", "protector")
+	# The checkpoint the commit writes (level_03.json: L3_N2 "checkpoint_on_commit": "CP3").
+	scene.call(&"_write_checkpoint", "CP3")
+	await _frames(2)
+	scene.call(&"_lose_the_stretch", "hit")
+	var restored := String((scene.get(&"checkpoints") as Node).call(&"latest_id"))
+	scene.call(&"_refresh_the_place_audio", at)
+	var lost := String(director.call(&"current_music"))
+	scene.queue_free()
+	await _frames(5)
+	# Before it: a checkpoint written before the meeting, then the meeting, then that restore.
+	scene = await _open("res://level_3.tscn")
+	scene.set_physics_process(false)
+	scene.call(&"_write_checkpoint", "CP2")
+	scene.call(&"_on_obstacle_entered", "L3_N2")
+	scene.call(&"_refresh_the_place_audio", at)
+	var met := String(director.call(&"current_music"))
+	scene.call(&"_restore_checkpoint")
+	scene.call(&"_refresh_the_place_audio", at)
+	var before := String(director.call(&"current_music"))
+	scene.queue_free()
+	await _frames(5)
+	_check(restored == "CP3" and lost == "bakunawa" and met == "bakunawa" and before == "level_3",
+		"a lost stretch keeps the Bakunawa's music; a restore from before the meeting hands it back",
+		"after the lost stretch (restored %s) '%s'; met '%s', restored to before it '%s'" % [restored, lost, met, before])
 	director.call(&"stop_music", 0.0)
 	director.call(&"stop_ambience", 0.0)
 
