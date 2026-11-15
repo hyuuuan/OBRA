@@ -25,6 +25,15 @@ func dialogue_path() -> String:
 	return "res://config/dialogue_l4.json"
 
 
+## Dilim's music (audio/music/level_4.txt): scary and unknown (Kent, 2026-11-15) -- a beating drone,
+## a low motif that never resolves, far bells, a knock in the trees. The whole level: the forest is as dark under the canopy by day
+## (Kent's answer to the plan's question 9). LevelBase plays it when the level opens.
+## ⚠ THE CREATURES ARE GAMEPLAY. Everything in the music and the bed sits under 500 Hz, out of the
+## tik-tik's and the tiyanak's bands; tests/test_dilim_calls_read.py holds them to it.
+func _level_music() -> StringName:
+	return &"level_4"
+
+
 ## Past what Lolo remembers: she goes on alone.
 func _has_companion() -> bool:
 	return false
