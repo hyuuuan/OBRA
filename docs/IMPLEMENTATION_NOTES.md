@@ -521,6 +521,19 @@ Traps it has sprung, kept so they are not sprung again:
   the finale takes its own foes out of it. `Enemy2D.FOES` (`dilim_foes`) is every enemy, never
   left -- it is what ash and salt look up. Looking up GROUP for "every enemy" missed the whole
   night once.
+- **A drawn body does what ConceptNet says it can** (Kent, 2026-11-16). The study takes its
+  abilities from ConceptNet, and a body only ever moved: a bird flew, but nothing stung, rammed
+  or held. `config/ability_effects.json` maps an ability label, exactly as
+  `config/abilities.json` has it, to what it does; a class gets an effect only if ConceptNet
+  gives it that ability (ConceptNet only, his decision). `CreatureAbility` gives a body its F
+  action -- its first strike (Sting, Venom, Tusk Ram: a blow through `apply_tool_hit`, numbers in
+  `config/weapons.json` under `sting`/`venom`/`tusk_ram`), else its first grab (Squeeze, Grapple,
+  Grip, Tongue Grab, Trunk Grab: `stun`) -- and its armor (Armor, Shell, Rough Hide), which
+  `PlayerHurtbox2D.guard` asks before a blow lands. The F prompt names the ability. ⚠ No ability
+  tag is borrowed: Dilim answers fights by deeds (driven off, felled), so a sting that drives off
+  the sigbin answers it, while drawing a bee does not. Dagat's bakunawa and sea creatures take a
+  strike as they take a blade, but a weapon still starts the bakunawa's fight. Each use is logged
+  (`form_ability_used`). `run_creature_ability_probe`.
 - **A creature in a fight shows its health** (Kent: "show the like hp/life of the creatures in
   Dilim level"). `FoeHealthBars` (`LevelBase._shows_foe_health`, on in Dilim only) draws a pip a
   blow over each foe's head, on layer 4: ⚠ over the dark (3), since a bar drawn in the world was
