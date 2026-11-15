@@ -57,7 +57,7 @@ const LOOP_FADE_PROBE_S := 0.6
 
 var failures := 0
 var checked := 0
-const CHECKS := 29
+const CHECKS := 32
 var director: Node
 
 
@@ -99,6 +99,7 @@ func _run() -> void:
 	await _dagat_trades_its_music_at_the_waterline()
 	await _the_bakunawa_has_its_own_music_until_it_is_answered()
 	await _dilim_races_to_its_own_music()
+	await _dilims_night_builds_wave_by_wave_and_breaks_off_at_dawn()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -610,6 +611,71 @@ func _dilim_races_to_its_own_music() -> void:
 	_check(restored == "level_4/level_4" and left_from == "level_4_race/level_4" and after == "/" and stopped,
 		"Dilim: a restore mid-race puts the forest's music back, and leaving mid-race takes the race's",
 		"restored '%s', left from '%s', after '%s', stopped %s" % [restored, left_from, after, stopped])
+	director.call(&"stop_music", 0.0)
+	director.call(&"stop_ambience", 0.0)
+
+
+## Dilim's night: its first arrangement as the night begins, each wave the next at the same place
+## in the bar, and at dawn nothing -- stopped in that frame, beside the dawn's own sound. A retried
+## night (DilimFinale2D.reset_for_restore) goes back to the forest's music. Through the finale's
+## own clock (its elapsed time and _open_waves) and the level's own _on_dawn.
+var _dawn_heard_at := -1
+
+
+func _dilims_night_builds_wave_by_wave_and_breaks_off_at_dawn() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := await _open("res://level_4.tscn")
+	scene.set_physics_process(false)
+	var finale := scene.get(&"_finale") as Node
+	finale.call(&"_begin")
+	scene.call(&"_refresh_the_place_audio")
+	var began := String(director.call(&"current_music"))
+	var heard: Array[String] = []
+	var apart: Array[String] = []
+	for wave: int in [1, 2]:
+		var before := director.call(&"music_player") as AudioStreamPlayer
+		before.seek(SOUGHT_S + wave)
+		await _frames(2)
+		finale.set(&"elapsed", float((finale.get(&"WAVES") as Array)[wave]["at"]))
+		finale.call(&"_open_waves")
+		scene.call(&"_refresh_the_place_audio")
+		var after := director.call(&"music_player") as AudioStreamPlayer
+		heard.append(String(director.call(&"current_music")))
+		apart.append("%.3f" % absf(after.get_playback_position() - before.get_playback_position()))
+	_check(began == "dilim_night_1" and heard == ["dilim_night_2", "dilim_night_3"]
+		and apart.all(func(s: String) -> bool: return float(s) < SAME_PLACE_S),
+		"Dilim's night: the first arrangement as it begins, each wave the next at the same place in the bar",
+		"began '%s', then %s, apart %s s" % [began, heard, apart])
+	var last := director.call(&"music_player") as AudioStreamPlayer
+	_dawn_heard_at = -1
+	var listen := func(id: StringName, _loudness: float) -> void:
+		if id == &"dawn":
+			_dawn_heard_at = Engine.get_process_frames()
+	director.connect(&"sfx_requested", listen)
+	var frame := Engine.get_process_frames()
+	scene.call(&"_on_dawn")
+	var at_dawn := String(director.call(&"current_music"))
+	var cut := not last.playing
+	director.disconnect(&"sfx_requested", listen)
+	_check(at_dawn == "" and cut and _dawn_heard_at == frame,
+		"Dilim's night breaks off at dawn in the frame the dawn's sound plays",
+		"music '%s', stopped at once %s, dawn heard in that frame %s" % [at_dawn, cut, _dawn_heard_at == frame])
+	scene.queue_free()
+	await _frames(5)
+	scene = await _open("res://level_4.tscn")
+	scene.set_physics_process(false)
+	finale = scene.get(&"_finale") as Node
+	finale.call(&"_begin")
+	scene.call(&"_refresh_the_place_audio")
+	var night := String(director.call(&"current_music"))
+	finale.call(&"reset_for_restore")
+	scene.call(&"_refresh_the_place_audio")
+	var retried := String(director.call(&"current_music"))
+	scene.queue_free()
+	await _frames(5)
+	_check(night == "dilim_night_1" and retried == "level_4",
+		"a retried night goes back to the forest's music until it begins again",
+		"night '%s', retried '%s'" % [night, retried])
 	director.call(&"stop_music", 0.0)
 	director.call(&"stop_ambience", 0.0)
 
