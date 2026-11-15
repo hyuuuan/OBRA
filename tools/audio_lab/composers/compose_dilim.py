@@ -1,28 +1,11 @@
-"""Scaffolding: Dilim, the forest at night (Kent, 2026-11-15: "scary / unknown vibe type of music",
-and "for racing, there should be thrilling version for that music").
+"""Write Dilim's forest theme, race music, and forest ambience.
 
-⚠ DILIM'S CREATURES ARE GAMEPLAY. The tik-tik's call is strongest at 2-8 kHz and the tiyanak's cry
-at 500 Hz-2 kHz (tools/audio_lab/ref/bands.py on their WAVs). Everything here lives UNDER 500 Hz:
-low voices, no noise, no pulse, so a call always reads over the music.
-tests/test_dilim_calls_read.py holds every Dilim piece to it.
+    compose_dilim.py TOOLS_DIR FOREST.txt RACE.txt AMBIENCE.txt
 
-- **The forest** (`music.level_4`), take 2: E Phrygian, ~72 BPM. A heartbeat on the tambol, slow
-  then quickening; a drone on E struck every bar so it never dies, a low flute a minor second above
-  it, beating; a figure stalking chromatically (E, F, E, D#); the motif -- E, F, E, down to B --
-  then climbing whole tones to an A# it cannot leave; a drop to silence in the last half bar and a
-  stinger (the heart, a low gong, the drone) as it comes round. Take 1 was sparse and decayed to
-  near-silence between strikes: Kent heard it as "not that suspenseful".
-- **The race** (`music.level_4_race`): the same motif made thrilling for the tikbalang's race,
-  ~157 BPM in triplets: the hooves galloping on the tambol, the drone turned into a driving bass,
-  low brass stabs on the offbeats, and the motif climbing a whole tone every four bars, never
-  arriving -- until the race is won and the forest's music comes back.
-- **The night** (`ambience.level_4`): frogs (a low FM croak, two notes sliding down) at uneven
-  gaps over the slowest, darkest breath of noise. Not the old brief's high chirps: Kent dislikes
-  thin high pulses, and they would sit in the tik-tik's band.
-
-Original.
-
-    compose_dilim.py TOOLS_DIR FOREST.txt RACE.txt NIGHT_BED.txt
+The forest theme uses low flute and picked strings in E Dorian. The race
+keeps the original Phrygian gallop and the ambience supplies low frog calls.
+tests/test_dilim_calls_read.py checks that the music and ambience leave room
+for the tik-tik's call and tiyanak's cry.
 """
 import random
 import sys
@@ -41,87 +24,75 @@ MOTIF = [("E3", 1), ("F3", 3), ("E3", 1), ("B2", 1)]
 # --- the forest --------------------------------------------------------------------------------
 
 def forest() -> Song:
-    """Take 2 (Kent, 2026-11-15: "not that suspenseful"). Take 1 was sparse and its drone decayed
-    to -40 dB between strikes, so it read as empty rather than tense. Suspense needs something that
-    keeps going and something that does not resolve: a heartbeat, a drone that never dies, a figure
-    stalking chromatically, the motif climbing to a note it cannot leave, then a drop to silence and
-    a stinger as it comes round."""
-    bar = 16                                  # sixteenths
-    s = Song("Dilim", frames=2, rows=4 * bar, speed=13, loop_to=0, comments=(
-        "Dilim, the forest at night: a heartbeat, a drone that never dies, a stalking figure, a",
-        "motif that climbs and will not resolve, a drop and a stinger. Under 500 Hz. Original.",
+    bar = 6  # Eighth notes in 6/8, about 71 dotted-quarter beats per minute.
+    s = Song("Dilim - A Light Through the Trees", frames=8, rows=4 * bar, speed=17, comments=(
+        "An original night walk for Dilim, in E Dorian and gently rocking 6/8.",
+        "Soft flute and picked strings keep the creature calls clear.",
     ))
-    for frame in range(2):
-        for row in range(4 * bar):
-            s._set(frame, row, "dpcm", 3, "F0D" if row % 2 == 0 else "F0C")   # 25 ticks an eighth: ~72 BPM
-    heart = s.inst_vrc7("heartbeat", patch=0, regs=TAMBOL)
-    drone = s.inst_vrc7("drone", patch=13)
-    shadow = s.inst_vrc7("minor second", patch=4)
-    stalker = s.inst_vrc7("stalker", patch=5)
-    flute = s.inst_vrc7("low flute", patch=4)
-    bell = s.inst_vrc7("far bell", patch=9)
-    DROP = 7 * bar + 8                        # the last half bar: everything gone
+    # Low modulation keeps the flute clear of the tiyanak's strongest octave.
+    flute = s.inst_vrc7("Bamboo flute", patch=0,
+                        regs=(0x21, 0x21, 0x2A, 0x00, 0xB4, 0xB4, 0x26, 0x28))
+    strings = s.inst_vrc7("Picked strings", patch=2)
+    bass = s.inst_vrc7("Soft bass", patch=13)
 
-    def at(index: int, row: int = 0) -> tuple[int, int]:
-        return index // 4, (index % 4) * bar + row
+    # Bass note and two plucked voices, spaced below the flute.
+    voicings = {
+        "Em7":    ("E2",  "D3",  "G3"),
+        "G6":     ("G2",  "E3",  "B3"),
+        "D/F#":   ("F#2", "D3",  "A3"),
+        "Aadd9":  ("A2",  "C#3", "E3"),
+        "Bm7":    ("B2",  "D3",  "A3"),
+        "Emadd9": ("E2",  "G3",  "B3"),
+        "A/E":    ("E2",  "C#3", "A3"),
+        "Esus2":  ("E2",  "B2",  "F#3"),
+    }
+    verse = ("Em7", "G6", "D/F#", "Em7", "Bm7", "G6", "Aadd9")
+    bridge = ("G6", "G6", "D/F#", "D/F#", "Bm7", "Aadd9", "Emadd9", "A/E")
+    chords = (*verse, "Esus2", *verse, "Em7", *bridge, *verse, "Esus2")
 
-    # The drone, struck every bar so it never dies away; F under the seventh bar (Phrygian's flat
-    # second), and cut for the drop.
-    for index in range(8):
-        s.put("fm5", *at(index), "F2" if index == 6 else "E2", drone, 14 if index != 0 else 15)
-    s.put("fm5", *divmod(DROP, 4 * bar), "===")
-    # The minor second above it, beating, held from the second bar to the drop.
-    s.put("fm6", *at(1), "F2", shadow, 12)
-    s.put("fm6", *at(4), "F2", shadow, 13)
-    s.put("fm6", *divmod(DROP, 4 * bar), "===")
+    # (eighth, note, duration). The old E–F–E–B contour takes a whole step and resolves.
+    hook = (
+        ((1, "E3", 1), (2, "F#3", 1), (3, "E3", 2)),
+        ((0, "B2", 2), (3, "E3", 2)),
+        ((0, "F#3", 2), (2, "A3", 1), (3, "F#3", 2)),
+        ((0, "G3", 4),),
+        ((1, "F#3", 1), (2, "A3", 1), (3, "B3", 2)),
+        ((0, "D4", 3), (4, "B3", 2)),
+        ((0, "A3", 2), (3, "F#3", 2)),
+    )
+    clearing = (
+        ((0, "B3", 4),),
+        ((0, "A3", 2), (3, "G3", 2)),
+        ((0, "F#3", 4),),
+        ((1, "A3", 2), (3, "B3", 2)),
+        ((0, "D4", 4),),
+        ((0, "B3", 2), (3, "A3", 2)),
+        ((0, "G3", 2), (3, "F#3", 2)),
+        ((0, "E3", 4),),
+    )
+    melody = (
+        *hook, ((0, "E3", 4),),
+        *hook, ((0, "E3", 2), (3, "G3", 2)),
+        *clearing,
+        *hook, ((0, "E3", 4),),
+    )
 
-    # The heartbeat: lub-dub every other beat, then every beat from the fifth bar, a little harder;
-    # none in the drop. ⚠ The tambol is the piece's one custom patch.
-    for index in range(8):
-        beats = (0, 8) if index < 4 else (0, 4, 8, 12)
-        for beat in beats:
-            if index == 7 and beat >= 8:
-                continue
-            hard = 13 if index < 4 else 14
-            s.put("fm3", *at(index, beat), "E2", heart, hard, "S03")
-            s.put("fm3", *at(index, beat + 1), "E2", heart, hard - 3, "S03")
-    # The stinger as the loop comes round: the heart, a low gong and the drone all at once.
-    s.put("fm3", *at(0), "A2", heart, 15)
-    s.put("fm4", *at(0), "E2", bell, 13)
-    s.put("fm4", *at(0, 6), "===")
-
-    # The stalking figure, from the fifth bar: E, F, E, D#, an eighth each, cut short.
-    for index in range(4, 8):
-        for step, note in enumerate(("E2", "F2", "E2", "D#2")):
-            row = step * 4
-            if index == 7 and row >= 8:
-                break
-            s.put("fm2", *at(index, row), note, stalker, 12)
-            s.put("fm2", *at(index, row + 2), "===")
-
-    # The motif, then the climb that will not resolve: E F E B; E F G A#, and A# held into the drop.
-    def phrase(index: int, notes) -> None:
-        frame, row = at(index)
-        for note, length in notes:
-            if note == "r":
-                s.put("fm1", frame, row, "===")
-            else:
-                s.put("fm1", frame, row, note, flute, 13)
-            row += length
-
-    phrase(1, [("r", 4), ("E3", 2), ("F3", 6), ("E3", 2), ("B2", 2)])
-    phrase(3, [("r", 4), ("E3", 2), ("F3", 4), ("G3", 2), ("F3", 2), ("E3", 2)])
-    phrase(5, [("r", 4), ("E3", 2), ("F3", 2), ("G3", 2), ("A3", 2), ("A#3", 4)])
-    phrase(6, [("A#3", 16)])
-    s.put("fm1", *divmod(DROP, 4 * bar), "===")
-    # Two far bells, a minor second apart, where the heart is slow.
-    for index, note in ((2, "B3"), (3, "C4")):
-        s.put("fm4", *at(index, 6), note, bell, 9)
-        s.put("fm4", *at(index, 9), "===")
+    for index, (chord, phrase) in enumerate(zip(chords, melody, strict=True)):
+        frame, start = s.at(0, index * bar)
+        root, low, high = voicings[chord]
+        s.put("fm4", frame, start, root, bass, 12)
+        s.put("fm4", frame, start + 4, "===")
+        # The plucks outline the two beats with one quiet answer between them.
+        s.put("fm2", frame, start + 1, low, strings, 12)
+        s.put("fm2", frame, start + 3, "===")
+        reply = 4 if index % 2 == 0 else 3
+        s.put("fm3", frame, start + reply, high, strings, 12)
+        s.put("fm3", frame, start + 5, "===")
+        for step, note, duration in phrase:
+            s.put("fm1", frame, start + step, note, flute, 15 if duration >= 2 else 13)
+            s.put("fm1", frame, start + step + duration, "===")
     return s
 
-
-# --- the race ----------------------------------------------------------------------------------
 
 def race() -> Song:
     bar = 12                                  # triplet eighths: three to a beat
@@ -205,7 +176,9 @@ def night_bed() -> Song:
     return s
 
 
-Path(sys.argv[2]).write_text(forest().text())
+# FamiStudio requires the standard text header when importing the forest score.
+_, _, forest_module = forest().text().partition("\n")
+Path(sys.argv[2]).write_text("# FamiTracker text export 0.4.2\n" + forest_module, encoding="utf-8")
 Path(sys.argv[3]).write_text(race().text())
 Path(sys.argv[4]).write_text(night_bed().text())
 print("wrote", *sys.argv[2:5])
