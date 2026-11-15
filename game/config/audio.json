@@ -52,6 +52,7 @@
     "jump": "res://assets/audio/sfx/jump.wav",
     "land": "res://assets/audio/sfx/land.wav",
     "swim": "res://assets/audio/sfx/swim.wav",
+    "splash": "res://assets/audio/sfx/splash.wav",
     "ladder": "res://assets/audio/sfx/ladder.wav"
   },
   "music": {
@@ -65,6 +66,7 @@
     "land": 0.15,
     "swim": 0.25,
     "ladder": 0.12,
+    "splash": 0.3,
     "jump": 0.1
   }
 }
