@@ -250,6 +250,13 @@ func apply_burn(ticks: int, seconds: float) -> void:
 	_burn_clock = _burn_every
 
 
+## HEAT, NOT SALT (a sun's Scorch, a fire's Burn -- UtilityObject): burned as salt burns, by
+## default. A creature whose fight a light already answers -- or whose burn means salt -- says no
+## in its own script, so a sun is the light it is and never a second, hidden blow.
+func apply_scorch(ticks: int, seconds: float) -> void:
+	apply_burn(ticks, seconds)
+
+
 func is_burning() -> bool:
 	return _burn_ticks > 0
 
