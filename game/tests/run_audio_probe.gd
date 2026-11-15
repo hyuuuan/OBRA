@@ -327,10 +327,10 @@ func _the_music_slider_moves_the_music_bus() -> void:
 
 
 ## Levels opt in to music (LevelBase._level_music, off by default): one that has not, opened and
-## closed, leaves the music that was playing as it was. Piyesta, until its own loop is written.
+## closed, leaves the music that was playing as it was. Dagat, until its own loop is written.
 func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
 	director.call(&"play_music", &"menu", 0.0)
-	var scene := (load("res://level_2.tscn") as PackedScene).instantiate()
+	var scene := (load("res://level_3.tscn") as PackedScene).instantiate()
 	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(scene)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
