@@ -1249,6 +1249,15 @@ const WATER_FADE_S := 0.6
 ## with every stroke.
 const DEEP_IN := 60.0
 const SURFACE_OUT := 20.0
+## Facing the Bakunawa: its own fight (audio/music/bakunawa.txt), the sea's tune turned minor
+## with the gongs and pots that drive it back in the Visayan tale. From the moment it is met until
+## it is answered, on every route (Kent, 2026-11-15) -- led home, subdued or slipped past in the
+## dark all end in director.is_solved("L3_N2"), so that one test hands the music back.
+const BAKUNAWA_MUSIC := &"bakunawa"
+## Whether she has met it: set where its arrival is said (_on_obstacle_entered), kept through a
+## lost stretch (the fight is not over), and cleared by a restore that hands back an encounter not
+## yet chosen, which puts her back before the meeting.
+var _met_the_bakunawa := false
 ## Which water the music is set for ("surface" or "deep"), and the music and bed it asked for, so
 ## it acts only when the answer changes. Asked every physics frame, like Piyesta's rooms: a
 ## restore, the current or a rescue can move her across the waterline without a dive.
@@ -1260,7 +1269,8 @@ var _bed_for: StringName = &""
 ## ⚠ AudioDirector BY PATH, never by name: an autoload's name does not compile in a --script run.
 func _refresh_the_place_audio(anchor_position: Vector2) -> void:
 	_water_for = _water_at(anchor_position)
-	var music: StringName = DEEP_MUSIC if _water_for == "deep" else _level_music()
+	var facing := _met_the_bakunawa and director != null and not director.is_solved("L3_N2")
+	var music: StringName = BAKUNAWA_MUSIC if facing else (DEEP_MUSIC if _water_for == "deep" else _level_music())
 	var bed: StringName = &"" if _water_for == "deep" else _level_ambience()
 	if music == _music_for and bed == _bed_for:
 		return
@@ -1268,7 +1278,10 @@ func _refresh_the_place_audio(anchor_position: Vector2) -> void:
 	if audio == null:
 		return
 	if music != _music_for:
-		audio.call(&"play_music", music, WATER_FADE_S, true)
+		# The surface and the deep are one piece, traded at its place; the fight is its own, and
+		# begins (and gives way) as a new piece does.
+		var same_piece := BAKUNAWA_MUSIC not in [music, _music_for]
+		audio.call(&"play_music", music, WATER_FADE_S, same_piece)
 	if bed != _bed_for:
 		if bed.is_empty():
 			audio.call(&"stop_ambience")
@@ -1289,12 +1302,24 @@ func _water_at(anchor_position: Vector2) -> String:
 	return _water_for
 
 
-## LevelBase fades the level's own music as it leaves; the deep's is this level's too.
+## LevelBase fades the level's own music as it leaves; the deep's and the fight's are this level's
+## too.
 func _exit_tree() -> void:
 	super()
 	var audio := get_node_or_null(^"/root/AudioDirector")
-	if audio != null and audio.call(&"current_music") == DEEP_MUSIC:
+	if audio != null and audio.call(&"current_music") in [DEEP_MUSIC, BAKUNAWA_MUSIC]:
 		audio.call(&"stop_music")
+
+
+## ⚠ ONLY A RESTORE THAT HAPPENED, AND ONLY TO BEFORE THE CHOICE. The encounter's own checkpoints
+## (CP3 on the commit, CP3b partway) keep its route, so a lost stretch restores into the fight and
+## the music stays; a restore to CP2 rolls the route back and puts her before the meeting. With no
+## checkpoint written nothing was restored, and the meeting stands.
+func _restore_checkpoint() -> String:
+	var restored := super()
+	if not restored.is_empty() and director != null and director.committed_route("L3_N2").is_empty():
+		_met_the_bakunawa = false
+	return restored
 
 
 ## The boat the player is sitting in, or null.
@@ -3172,6 +3197,7 @@ func _on_bakunawa_approached() -> void:
 ## said, and then the answers, as one conversation.
 func _on_obstacle_entered(obstacle_id: String) -> void:
 	if obstacle_id == "L3_N2":
+		_met_the_bakunawa = true
 		_speak_on_arrival("L3_N2.enter")
 	super._on_obstacle_entered(obstacle_id)
 
