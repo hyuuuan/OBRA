@@ -47,7 +47,8 @@
     "cast": "res://assets/audio/sfx/cast.wav",
     "reel": "res://assets/audio/sfx/reel.wav",
     "gift": "res://assets/audio/sfx/gift.wav",
-    "painting": "res://assets/audio/sfx/painting.wav"
+    "painting": "res://assets/audio/sfx/painting.wav",
+    "jump": "res://assets/audio/sfx/jump.wav"
   },
   "music": {
     "menu": "res://assets/audio/music/menu.wav",
@@ -55,5 +56,7 @@
     "mayon_ending": ""
   },
   "ambience": {},
-  "spacing": {}
+  "spacing": {
+    "jump": 0.1
+  }
 }

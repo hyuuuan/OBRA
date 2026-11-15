@@ -159,6 +159,16 @@ func _jump() -> void:
 	velocity.y = JUMP_VELOCITY * sqrt(maxf(jump_scale, 0.0))
 	_jump_buffered = 0.0
 	_coyote_left = 0.0
+	_sound(&"jump")
+
+
+## A sound beside what the figure shows. ⚠ Looked up, not named: a --script probe compiles this
+## class before the autoloads exist, and the identifier AudioDirector would fail to compile it.
+## The constant ones (steps, strokes, rungs, landings) are spaced in audio.json.
+func _sound(id: StringName, loudness: float = 1.0) -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", id, loudness)
 
 
 ## How fast you have to be coming down before a landing throws real dust, and the speed at
