@@ -1,6 +1,9 @@
 extends SceneTree
-## The audio files, headless: each id with a file resolves, music loops where Godot plays it,
-## no sound effect loops, and every file has something that plays it.
+## The audio files, headless: each id with a file resolves, music and ambience loop where Godot
+## plays them, no sound effect loops, and every file has something that plays it. And the plumbing
+## that plays them: a change of track crossfades, the ambience is its own channel, a spaced sound
+## effect is not repeated inside its spacing, the Music slider moves the Music bus, and a level that
+## has not opted in (LevelBase._level_music) leaves the music as it found it.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -28,9 +31,14 @@ const RESAMPLER_REACH := 8
 const CODE_FOLDERS := ["res://scripts", "res://ui", "res://levels", "res://objects",
 	"res://creatures", "res://environment"]
 
+## A fade's length and then some: how long a probe waits for one to finish.
+const FADE_WAIT_S := 2.0
+## A spacing set for the probe's own id, long enough that two plays a frame apart fall inside it.
+const PROBE_SPACING_S := 0.4
+
 var failures := 0
 var checked := 0
-const CHECKS := 10
+const CHECKS := 15
 var director: Node
 
 
@@ -39,18 +47,30 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	create_timer(120.0).timeout.connect(func() -> void:
+	create_timer(240.0).timeout.connect(func() -> void:
 		print("OBRA_AUDIO_FAILED=watchdog")
 		quit(2))
 	director = root.get_node(^"AudioDirector")
 	var catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(CATALOG))
 	var music: Dictionary = _voiced(catalog.get("music", {}))
+	var ambience: Dictionary = _voiced(catalog.get("ambience", {}))
 	var sfx: Dictionary = _voiced(catalog.get("sfx", {}))
-	_every_voiced_id_resolves(music, sfx)
-	_music_loops(music)
+	# Music and ambience loop alike; labelled by section, since an id may be in both.
+	var loops := {}
+	for id: String in music:
+		loops["music." + id] = music[id]
+	for id: String in ambience:
+		loops["ambience." + id] = ambience[id]
+	_every_voiced_id_resolves(loops, sfx)
+	_music_loops(loops)
 	_no_sound_effect_loops(sfx)
-	_every_voiced_id_has_a_caller(music, sfx)
+	_every_voiced_id_has_a_caller(music, ambience, sfx)
 	await _the_menu_plays_its_music()
+	await _a_new_track_crossfades(music)
+	await _the_ambience_is_its_own_channel(music)
+	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
+	_the_music_slider_moves_the_music_bus()
+	await _a_level_that_has_not_opted_in_leaves_the_music_alone()
 	if checked != CHECKS:
 		failures += 1
 		print("  FAIL\tevery check ran\t%d of %d" % [checked, CHECKS])
@@ -71,11 +91,12 @@ func _voiced(section: Dictionary) -> Dictionary:
 	return out
 
 
-func _every_voiced_id_resolves(music: Dictionary, sfx: Dictionary) -> void:
+func _every_voiced_id_resolves(loops: Dictionary, sfx: Dictionary) -> void:
 	# ⚠ Without this the rest passes on an empty catalogue: nothing voiced, nothing wrong.
-	_check(music.size() + sfx.size() > 0, "at least one id has a file", "%d music, %d sfx" % [music.size(), sfx.size()])
+	_check(loops.size() + sfx.size() > 0, "at least one id has a file",
+		"%d music or ambience, %d sfx" % [loops.size(), sfx.size()])
 	var broken: Array[String] = []
-	for section: Dictionary in [music, sfx]:
+	for section: Dictionary in [loops, sfx]:
 		for id: String in section:
 			if not (ResourceLoader.exists(section[id]) and load(section[id]) is AudioStream):
 				broken.append("%s -> %s" % [id, section[id]])
@@ -127,12 +148,12 @@ func _no_sound_effect_loops(sfx: Dictionary) -> void:
 
 
 ## A file nothing asks for is a sound nobody hears. The literal &"<id>" must be in the code.
-func _every_voiced_id_has_a_caller(music: Dictionary, sfx: Dictionary) -> void:
+func _every_voiced_id_has_a_caller(music: Dictionary, ambience: Dictionary, sfx: Dictionary) -> void:
 	var code := ""
 	for folder: String in CODE_FOLDERS:
 		code += _read_scripts(folder)
 	var orphans: Array[String] = []
-	for section: Dictionary in [music, sfx]:
+	for section: Dictionary in [music, ambience, sfx]:
 		for id: String in section:
 			if not code.contains("&\"%s\"" % id):
 				orphans.append(id)
@@ -145,7 +166,7 @@ func _the_menu_plays_its_music() -> void:
 	var menu := (load("res://ui/main_menu.tscn") as PackedScene).instantiate()
 	root.add_child(menu)
 	await _frames(10)
-	var player := director.get_node(^"MusicPlayer") as AudioStreamPlayer
+	var player := director.call(&"music_player") as AudioStreamPlayer
 	var playing := director.call(&"current_music") as StringName
 	_check(playing == &"menu", "the main menu plays music.menu", "playing '%s'" % playing)
 	var path := player.stream.resource_path if player.stream != null else ""
@@ -154,8 +175,112 @@ func _the_menu_plays_its_music() -> void:
 	menu.queue_free()
 	await _frames(3)
 	playing = director.call(&"current_music") as StringName
-	_check(playing == &"" and not player.playing, "leaving the menu stops its music",
-		"playing '%s', player %s" % [playing, player.playing])
+	var faded := await _until(func() -> bool: return not player.playing, FADE_WAIT_S)
+	_check(playing == &"" and faded, "leaving the menu fades its music out and stops it",
+		"playing '%s', player stopped %s" % [playing, faded])
+
+
+## Two tracks overlap for the fade, the old falling and the new rising, and then only the new one
+## plays, at full. The second track is the menu's own file under a probe id: what is checked is the
+## crossfade, not a second piece of music.
+func _a_new_track_crossfades(music: Dictionary) -> void:
+	_music_paths()["_probe_second"] = music.get("menu", "")
+	director.call(&"play_music", &"menu", 0.0)
+	var first := director.call(&"music_player") as AudioStreamPlayer
+	director.call(&"play_music", &"_probe_second")
+	var second := director.call(&"music_player") as AudioStreamPlayer
+	await create_timer(0.25).timeout
+	var both := first != second and first.playing and second.playing
+	var crossing := first.volume_db < -0.5 and second.volume_db < -0.5 and second.volume_db > -60.0
+	var mid := "old %.1f dB, new %.1f dB" % [first.volume_db, second.volume_db]
+	var done := await _until(func() -> bool: return not first.playing, FADE_WAIT_S)
+	_check(both and crossing and done and second.playing and absf(second.volume_db) < 0.1,
+		"a new track crossfades: both sound for the fade, then the new one alone at full",
+		"%s; then old stopped %s, new %.1f dB" % [mid, done, second.volume_db])
+	director.call(&"stop_music", 0.0)
+	_music_paths().erase("_probe_second")
+
+
+## The ambience plays on players of its own, so starting and stopping it leaves the music as it
+## was. Its file here is the menu's, under a probe id.
+func _the_ambience_is_its_own_channel(music: Dictionary) -> void:
+	(director.get(&"_ambience").get(&"paths") as Dictionary)["_probe_bed"] = music.get("menu", "")
+	director.call(&"play_music", &"menu", 0.0)
+	director.call(&"play_ambience", &"_probe_bed")
+	var bed := director.call(&"ambience_player") as AudioStreamPlayer
+	var track := director.call(&"music_player") as AudioStreamPlayer
+	await _frames(3)
+	var together := bed != null and bed.playing and track.playing and bed != track
+	director.call(&"stop_ambience")
+	var gone := await _until(func() -> bool: return not bed.playing, FADE_WAIT_S)
+	var music_on: bool = track.playing and director.call(&"current_music") == &"menu"
+	_check(together and gone and music_on and director.call(&"current_ambience") == &"",
+		"the ambience is its own channel: it starts and stops under the music without touching it",
+		"together %s, faded %s, music still on %s" % [together, gone, music_on])
+	director.call(&"stop_music", 0.0)
+	(director.get(&"_ambience").get(&"paths") as Dictionary).erase("_probe_bed")
+
+
+## Asked for again inside its spacing, a sound is announced but not played; after it, it plays.
+func _a_spaced_sound_is_not_repeated_inside_its_spacing(music: Dictionary) -> void:
+	var paths := director.get(&"_sfx_paths") as Dictionary
+	var spacing := director.get(&"_sfx_spacing") as Dictionary
+	paths["_probe_tick"] = music.get("menu", "")
+	spacing["_probe_tick"] = PROBE_SPACING_S
+	var announced := [0]
+	var count := func(id: StringName, _loudness: float) -> void:
+		if id == &"_probe_tick":
+			announced[0] += 1
+	director.connect(&"sfx_requested", count)
+	var first := bool(director.call(&"play_sfx", &"_probe_tick"))
+	var again := bool(director.call(&"play_sfx", &"_probe_tick"))
+	(director.get(&"_sfx_last_ms") as Dictionary)["_probe_tick"] = Time.get_ticks_msec() - int(PROBE_SPACING_S * 1000.0) - 1
+	var later := bool(director.call(&"play_sfx", &"_probe_tick"))
+	director.disconnect(&"sfx_requested", count)
+	for voice in director.get_children():
+		if voice is AudioStreamPlayer and String(voice.name).begins_with("SfxVoice"):
+			(voice as AudioStreamPlayer).stop()
+	paths.erase("_probe_tick")
+	spacing.erase("_probe_tick")
+	_check(first and not again and later and announced[0] == 3,
+		"a spaced sound effect is not repeated inside its spacing, but is still announced",
+		"first %s, again %s, after the spacing %s, announced %d" % [first, again, later, announced[0]])
+
+
+## Dragged, the Music slider is heard at once: the Music bus follows it live.
+func _the_music_slider_moves_the_music_bus() -> void:
+	var settings := (load("res://ui/settings_overlay.tscn") as PackedScene).instantiate()
+	root.add_child(settings)
+	var bus := AudioServer.get_bus_index(&"Music")
+	var before := AudioServer.get_bus_volume_db(bus)
+	var slider := settings.get_node(^"Root/Center/Panel/VBox/MusicRow/Slider") as HSlider
+	slider.value = 0.5
+	var heard := AudioServer.get_bus_volume_db(bus)
+	var readout := (settings.get_node(^"Root/Center/Panel/VBox/MusicRow/Value") as Label).text
+	director.call(&"set_bus_linear", &"Music", db_to_linear(before))
+	settings.free()
+	_check(absf(heard - linear_to_db(0.5)) < 0.1 and readout == "50%",
+		"the Music slider moves the Music bus as it is dragged", "%.1f dB, reads %s" % [heard, readout])
+
+
+## Levels opt in to music (LevelBase._level_music, off by default): one that has not, opened and
+## closed, leaves the music that was playing as it was.
+func _a_level_that_has_not_opted_in_leaves_the_music_alone() -> void:
+	director.call(&"play_music", &"menu", 0.0)
+	var scene := (load("res://game_level.tscn") as PackedScene).instantiate()
+	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
+	root.add_child(scene)
+	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
+	await _frames(20)
+	var during := director.call(&"current_music") as StringName
+	scene.queue_free()
+	await _frames(5)
+	var after := director.call(&"current_music") as StringName
+	var player := director.call(&"music_player") as AudioStreamPlayer
+	_check(during == &"menu" and after == &"menu" and player.playing,
+		"a level that has not opted in leaves the music alone, in and out",
+		"in it '%s', after it '%s', sounding %s" % [during, after, player.playing])
+	director.call(&"stop_music", 0.0)
 
 
 # --- helpers ---------------------------------------------------------------------------------
@@ -206,6 +331,20 @@ func _read_scripts(folder: String) -> String:
 	for sub in dir.get_directories():
 		text += _read_scripts(folder.path_join(sub))
 	return text
+
+
+func _music_paths() -> Dictionary:
+	return director.get(&"_music").get(&"paths") as Dictionary
+
+
+## Poll `condition` each frame for up to `seconds`; whether it came true.
+func _until(condition: Callable, seconds: float) -> bool:
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if condition.call():
+			return true
+		await process_frame
+	return bool(condition.call())
 
 
 func _frames(count: int) -> void:

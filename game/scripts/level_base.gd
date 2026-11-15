@@ -166,6 +166,18 @@ func _saves_silently() -> bool:
 	return false
 
 
+## THE PLACE'S MUSIC, and the ambience bed under it: audio.json ids (`music`, `ambience`), played
+## from the moment the level opens -- crossfading from whatever played before -- and faded out when
+## it leaves, if still its own. &"" is none, and every level's default: a level stays as it was
+## until it opts in with a loop written for it (audio/README.md, AUDIO_PLAN.md).
+func _level_music() -> StringName:
+	return &""
+
+
+func _level_ambience() -> StringName:
+	return &""
+
+
 ## DOES THE OLD WAY ACROSS FADE AS SHE NEARS AN OBSTACLE? Mayon's cue, for any level: what used to
 ## get her over (a bridge, a stair) goes out of the painting as she comes up to it, so the obstacle
 ## reads as "the way is gone -- draw one" before a word is said. Off by default; a level opts in and
@@ -689,6 +701,7 @@ func _ready() -> void:
 	_load_dialogue()
 	_spawn_lolo()
 	_wire_dialogue_node()
+	_start_the_place_audio()
 
 	backend_supervisor.set("debug_logs", debug_timing_logs)
 	backend_supervisor.connect("backend_ready", Callable(self, "_on_backend_ready"))
@@ -702,6 +715,27 @@ func _ready() -> void:
 	status_label.text = "Checking backend..."
 	_on_ink_changed(ink_manager.remaining(), ink_manager.capacity, ink_manager.reserved)
 	backend_supervisor.call("ensure_backend")
+
+
+func _start_the_place_audio() -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio == null:
+		return
+	if not _level_music().is_empty():
+		audio.call(&"play_music", _level_music())
+	if not _level_ambience().is_empty():
+		audio.call(&"play_ambience", _level_ambience())
+
+
+## Only the level's own: a scene that has already started its own track keeps it.
+func _exit_tree() -> void:
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio == null:
+		return
+	if not _level_music().is_empty() and audio.call(&"current_music") == _level_music():
+		audio.call(&"stop_music")
+	if not _level_ambience().is_empty() and audio.call(&"current_ambience") == _level_ambience():
+		audio.call(&"stop_ambience")
 
 
 func _unhandled_input(event: InputEvent) -> void:

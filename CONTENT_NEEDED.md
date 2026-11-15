@@ -72,8 +72,8 @@ modules are in `audio/` and rendered on a Mac, inside a sandbox, by `tools/build
 `AudioDirector` (`game/scripts/audio_director.gd`) plays a sound by id, from the ids in
 `game/config/audio.json`. An id with an empty path is still silent, so a call can be written
 before its sound exists. The profile keeps the master, music and SFX volumes, and
-`AudioDirector` applies them to the buses. The Settings screen's sliders for them were taken out
-while nothing could be heard; with music in, they are owed back (`ui/settings_overlay.tscn`).
+`AudioDirector` applies them to the buses. Settings has the three sliders again (2026-11-14):
+Master, Music (which carries the ambience too) and Sound effects.
 `run_audio_probe` holds every file to how Godot plays it.
 
 | What | Status | Where it goes | Notes |

@@ -8,6 +8,7 @@ the WAV in `game/assets/audio/` is only its render.
 | Module | Becomes | Plays as |
 |---|---|---|
 | `music/<id>.txt` | `game/assets/audio/music/<id>.wav` | `audio.json` → `music.<id>`, a loop |
+| `ambience/<id>.txt` | `game/assets/audio/ambience/<id>.wav` | `audio.json` → `ambience.<id>`, a loop under the music |
 | `sfx/<id>.txt` | `game/assets/audio/sfx/<id>.wav` | `audio.json` → `sfx.<id>`, a one-shot |
 
 Each module's first `TRACK` is rendered. The id must already be in `game/config/audio.json`,
@@ -68,6 +69,22 @@ Things the tracker does that a module should expect:
 
 On a Windows PC with Dn-FamiTracker, import the `.txt`, edit it, and export the text back
 over the same file. Then render it here with `build_music.py`. Keep to the subset above.
+
+## How the game plays them
+
+`AudioDirector` (an autoload) plays every sound by id:
+
+- **Music and ambience** each loop on a pair of players. A change of track **crossfades** over
+  0.6 s, and `stop_music` / `stop_ambience` fade out. The fades run while the tree is paused.
+- **A place names its own.** A level overrides LevelBase `_level_music()` and
+  `_level_ambience()` (both `&""`, none, by default). It plays them when it opens and fades them
+  out when it leaves, if they are still its own. The main menu plays `music.menu` itself.
+- **Sound effects** share eight voices. An id made constantly, such as a footstep, gets an
+  entry in `audio.json` → `spacing` (id → least seconds between plays). Inside that spacing it is
+  announced on `sfx_requested` but not played, so it cannot take the voices from the sounds that
+  carry information.
+- **Settings has three sliders:** Master, Music (which carries the ambience too) and Sound
+  effects. The profile keeps them.
 
 ## The rule every sound keeps
 
