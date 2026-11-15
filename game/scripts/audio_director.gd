@@ -161,8 +161,14 @@ func play_sfx(id: StringName, loudness: float = 1.0) -> bool:
 
 ## Start a music track, crossfading from whatever played before. A request for the track already
 ## playing is ignored, so a scene rebuild does not restart the score.
-func play_music(id: StringName, fade: float = LOOP_FADE_S) -> void:
-	_loop_play(_music, id, fade)
+##
+## `keep_position`: the incoming track starts where the outgoing one is, not at its top. It is for
+## two ARRANGEMENTS OF ONE PIECE trading places mid-bar -- Dagat's surface and its deep, the
+## night's three waves -- so a dive or a new wave sounds like the same music changing, not a new
+## song starting. ⚠ They only line up if both are written to the same length TO THE ROW: the same
+## frames, rows and per-row speeds in famitext, so every bar falls at the same second in both.
+func play_music(id: StringName, fade: float = LOOP_FADE_S, keep_position: bool = false) -> void:
+	_loop_play(_music, id, fade, keep_position)
 
 
 ## The id of the track playing, or &"" when none is.
@@ -199,20 +205,26 @@ func ambience_player() -> AudioStreamPlayer:
 
 # --- internals ---------------------------------------------------------------
 
-func _loop_play(loop: _Loop, id: StringName, fade: float) -> void:
+func _loop_play(loop: _Loop, id: StringName, fade: float, keep_position := false) -> void:
 	if loop.players.is_empty() or id == loop.id:
 		return
 	var stream := _stream_for(loop.paths, id)
 	if stream == null:
 		return
 	loop.id = id
-	_fade(loop, loop.players[loop.active], 0.0, fade)
+	var outgoing := loop.players[loop.active]
+	# Read before the fade: a fade to nothing in no time stops the player, and a stopped one
+	# reads 0. Past the incoming file's end means the two were not written alike: start at the top.
+	var at := outgoing.get_playback_position() if keep_position and outgoing.playing else 0.0
+	if at >= stream.get_length():
+		at = 0.0
+	_fade(loop, outgoing, 0.0, fade)
 	loop.active = 1 - loop.active
 	var incoming := loop.players[loop.active]
 	_kill_fade(loop, incoming)
 	incoming.stream = stream
 	incoming.volume_db = linear_to_db(FADE_FLOOR) if fade > 0.0 else 0.0
-	incoming.play()
+	incoming.play(at)
 	_fade(loop, incoming, 1.0, fade)
 
 
