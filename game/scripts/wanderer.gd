@@ -400,7 +400,11 @@ func _advance_stride(delta: float, horizontal_speed: float) -> void:
 		# The kick keeps time with the water covered either way: diving straight down is a stroke.
 		if previous_pose != next_pose:
 			_phase = 0.0
+		var before := _phase
 		_phase = fposmod(_phase + delta * velocity.length() / SWIM_STROKE, 1.0)
+		# A stroke is heard as its cycle comes round, once per stroke drawn.
+		if _phase < before:
+			_sound(&"swim")
 	elif next_pose in [&"swim_idle_side", &"swim_idle_front", &"swim_float"]:
 		if previous_pose != next_pose:
 			_phase = 0.0
