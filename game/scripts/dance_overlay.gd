@@ -317,6 +317,11 @@ func _hit_cue() -> String:
 	_verdicts[index] = verdict
 	_flash = verdict.to_upper()
 	_flash_at = _clock
+	# With the verdict's flash, as loud as it was good. A stroke is only judged against a cue
+	# within the hit window, so this is never a miss: a cue let pass is judged above, unheard.
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"dance_cue", 1.0 if verdict == "perfect" else 0.6)
 	return verdict
 
 

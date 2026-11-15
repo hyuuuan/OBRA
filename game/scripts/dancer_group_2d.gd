@@ -177,6 +177,11 @@ func scatter() -> bool:
 		return false
 	_puzzle_lead_in = 0.0
 	_state = State.FLEEING
+	# As they start to run, not when the last of them is gone (`scattered`). Looked up, not
+	# named (see lockable_2d.gd).
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null:
+		audio.call("play_sfx", &"scatter")
 	return true
 
 

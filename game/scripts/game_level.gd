@@ -548,6 +548,8 @@ func _level_uses_the_tool(item: DrawnItemData) -> bool:
 	var audio := get_node_or_null(^"/root/AudioDirector")
 	if audio != null:
 		audio.call("play_sfx", &"unlock")
+	# The lock gives, and the lid rises.
+	_sound(&"door")
 	# One use, like every tool (Kent: tools "should be one time use only").
 	spend_tool(item.entity_id)
 	status_label.text = "%s -- used, and gone" % item.display_name

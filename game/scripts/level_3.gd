@@ -3137,6 +3137,7 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 func _on_gift_offered() -> void:
 	var at := _cave_mouth if _cave_mouth != Vector2.ZERO else _bakunawa.treasure_point()
 	var found := _uncover_the_treasure(at)
+	_sound(&"gift")
 	if _life != null and _bakunawa != null:
 		_life.sparkle(found, 8, 55.0)
 	if _lure != null and is_instance_valid(_lure):

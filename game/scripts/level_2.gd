@@ -1433,6 +1433,9 @@ func _hold_the_kandila() -> void:
 	var door := _doors.get(DOOR_CHURCH) as PiyestaDoor2D
 	if door != null:
 		door.set_open(true)
+		# Here and at the lit house, where a door is SEEN to open -- not in set_open, which a
+		# checkpoint restore also calls on doors that were open all along.
+		_sound(&"door")
 
 
 # --- The size rule: a refusal, which costs nothing -----------------------------------
@@ -1664,6 +1667,7 @@ func _on_route_solved(obstacle_id: String, route: String) -> bool:
 			var door := _doors.get(DOOR_LIT_HOUSE) as PiyestaDoor2D
 			if door != null:
 				door.set_open(true)
+				_sound(&"door")
 			# TRUE, so the generic "L2_N1.pragmatist.solved" does NOT fire here. That line
 			# is "take it and leave something on the sill", which is about the candle -- and
 			# the candle is inside. It fires when the candle is taken. The commit already had
