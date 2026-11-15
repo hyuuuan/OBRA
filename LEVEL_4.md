@@ -30,7 +30,7 @@ in three waves until dawn.
 
 | | |
 |---|---|
-| Who fights | The apo, **in her own body**, with drawn weapons. Transforming is a tool (the tikbalang's pragmatic counter), not the combat mode. |
+| Who fights | The apo, in her own body with drawn weapons, **or in a drawn body whose ConceptNet abilities fight** (Kent, 2026-11-16, replacing "in her own body" only): Sting and Venom wound and poison, Tusk Ram wounds twice, Squeeze, Grapple, Grip, Tongue Grab and Trunk Grab hold a creature still, and Armor, Shell and Rough Hide take a blow for her. ConceptNet only -- a body ConceptNet gives none of these (the shark's are Swim, Circle and Rough Hide) does not fight. A fight is still answered by the deed, whoever does it. See `CreatureAbility`, `config/ability_effects.json`. |
 | Health | **The lantern is health.** Four stages: full, dim, low, guttering. A hit knocks the flame down a stage and the light circle around her shrinks with it. A hit while guttering sends her back to the last checkpoint. |
 | Death | The game's first. Back to the last checkpoint; **ink and drawings roll back** to what they were there; **collectibles are kept**. The line is hers: "The woods take the ones who stop paying attention." (it was "Lola said…" until her bestiary, 2026-11-01) |
 | Finale | **Survive until dawn** — a clock, not a kill count. Folklore-accurate and forgiving of retries. |

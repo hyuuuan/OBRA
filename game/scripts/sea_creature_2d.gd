@@ -197,8 +197,9 @@ func land(to: Vector2) -> void:
 
 # --- The fight ---------------------------------------------------------------------------------
 
+## A drawn weapon, or a body's own blow (a sting -- CreatureAbility).
 func accepts_tool(tool: String) -> bool:
-	return is_alive() and WEAPONS.has(tool)
+	return is_alive() and (WEAPONS.has(tool) or CreatureAbility.is_strike(tool))
 
 
 func apply_tool_hit(tool: String, _impulse: float, actor: Node2D) -> bool:

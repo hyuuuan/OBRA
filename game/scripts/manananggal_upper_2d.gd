@@ -116,3 +116,9 @@ func _draw() -> void:
 		draw_circle(Vector2(side * 3.0, -16.0), 1.8, EYES)
 	# What it left behind trails from where it parted.
 	draw_line(Vector2(0.0, 12.0), Vector2(sin(_clock * 3.0) * 4.0, 26.0), HAIR, 3.0)
+
+
+## Not by heat: a sun is the light that ends the manananggal (the artist's way); burned until it
+## was driven off, it would answer the fight as the protector's.
+func apply_scorch(_ticks: int, _seconds: float) -> void:
+	pass
