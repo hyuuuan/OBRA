@@ -1223,6 +1223,14 @@ func _boats() -> Array[UtilityObject]:
 	return out
 
 
+## Dagat's music (audio/music/level_3.txt): a Visayan rowing song for the surface -- the level's
+## start, the bangka, the shores, and all a player hears who never dives (Kent: "in case the
+## player just wants to not go to the ocean"). LevelBase plays it when the
+## level opens.
+func _level_music() -> StringName:
+	return &"level_3"
+
+
 ## The boat the player is sitting in, or null.
 func _boat_carrying_player() -> UtilityObject:
 	if player == null or not is_instance_valid(player):
