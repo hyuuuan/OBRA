@@ -139,9 +139,50 @@ func _ends_with_its_own_scene() -> bool:
 ## lane", and "a peaceful [one] when Lola is found"). Every piece carries Lola's motif, the title
 ## theme's opening (audio/music/level_5.txt and its neighbours).
 ##
-## The ascent: her motif worn thin under the ash. LevelBase plays it when the level opens.
+## The ascent: her motif worn thin under the ash. LevelBase plays it when the level opens;
+## _refresh_the_place_audio follows the level from there.
 func _level_music() -> StringName:
 	return &"level_5"
+
+
+## The memory lane: each earlier level's own music, remembered, by the vignette she is in (the
+## prefix of its id in level_05.json journey.vignettes; Terraces' are still "payyo_").
+const MEMORY_MUSIC := {"payyo": &"memory_terraces", "piyesta": &"memory_piyesta",
+	"dagat": &"memory_dagat", "dilim": &"memory_dilim"}
+## Walking from one memory into the next is remembering, not a cut: a long crossfade.
+const MEMORY_FADE_S := 2.0
+## Any other change: AudioDirector's own crossfade.
+const PLACE_FADE_S := 0.6
+## The music asked for, so it changes only when the answer does. Worked out every physics frame
+## from the level's own state, so a checkpoint restore puts back whatever belongs where she lands.
+var _music_for: StringName = &""
+
+
+## ⚠ AudioDirector BY PATH: an autoload's name does not compile in a --script run.
+func _refresh_the_place_audio() -> void:
+	var music := _music_now()
+	if music == _music_for:
+		return
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio == null:
+		return
+	var remembering := _music_for in MEMORY_MUSIC.values() or music in MEMORY_MUSIC.values()
+	_music_for = music
+	audio.call(&"play_music", music, MEMORY_FADE_S if remembering else PLACE_FADE_S)
+
+
+func _music_now() -> StringName:
+	if _phase in ["memories", "farewell"]:
+		return MEMORY_MUSIC.get(_active_cluster.get_slice("_", 0), &"memory_terraces")
+	return _level_music()
+
+
+## LevelBase fades the level's own music as it leaves; the memories' are this level's too.
+func _exit_tree() -> void:
+	super()
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null and audio.call(&"current_music") in MEMORY_MUSIC.values():
+		audio.call(&"stop_music")
 
 
 ## THE HOUSE IS THE ENDING NOW (DIARY.md; Kent, 2026-11-01): "lolo let's go home", and the apo is
@@ -186,6 +227,7 @@ func _build_level_furniture() -> void:
 
 
 func _level_physics(anchor_position: Vector2) -> void:
+	_refresh_the_place_audio()
 	if action_prompts != null:
 		action_prompts.set_swimming(player is Wanderer and (player as Wanderer).is_in_water())
 	var crater := _anchor("crater")
