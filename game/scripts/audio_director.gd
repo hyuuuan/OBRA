@@ -44,6 +44,10 @@ const SFX_VOICES := 8
 ## and scene changes that fell to silence between places. Two arrangements of one piece trade
 ## faster; their callers pass it.
 const LOOP_FADE_S := 1.5
+## A scene change's grace. Stopped while LevelManager is changing scenes, a track is HANDED OVER:
+## it plays on through the wipe and the load, the next place's music crossfades from it, and only if
+## nothing asks for music within this long does it fade out.
+const HANDOVER_HOLD_S := 4.0
 ## A fade's floor. linear_to_db(0) is -inf, which must never reach a player.
 const FADE_FLOOR := 0.001
 
@@ -65,6 +69,10 @@ class _Loop:
 	var paths: Dictionary = {}
 	## player -> the Tween fading it, so a new fade replaces an old one instead of fighting it.
 	var fades: Dictionary = {}
+	## The track handed over across a scene change (see _loop_stop), and the hold's generation, so
+	## an old hold's timer cannot stop a newer track.
+	var held_id: StringName = &""
+	var hold := 0
 
 
 var _sfx_paths: Dictionary = {}
@@ -246,30 +254,65 @@ func ambience_player() -> AudioStreamPlayer:
 func _loop_play(loop: _Loop, id: StringName, fade: float, keep_position := false) -> void:
 	if loop.players.is_empty() or id == loop.id:
 		return
+	if id == loop.held_id and loop.players[loop.active].playing:
+		# The next place asked for the very track the last one handed over: it plays on, unrestarted.
+		loop.held_id = &""
+		loop.hold += 1
+		loop.id = id
+		return
 	var stream := _stream_for(loop.paths, id)
 	if stream == null:
 		return
-	loop.id = id
 	var outgoing := loop.players[loop.active]
 	# Read before the fade: a fade to nothing in no time stops the player, and a stopped one
 	# reads 0. Past the incoming file's end means the two were not written alike: start at the top.
 	var at := outgoing.get_playback_position() if keep_position and outgoing.playing else 0.0
 	if at >= stream.get_length():
 		at = 0.0
-	_fade(loop, outgoing, 0.0, fade)
+	_start(loop, id, stream, fade, fade, at)
+
+
+## The outgoing track fades out over `fade_out` while the incoming comes in over `fade_in` (at once,
+## at full, when that is 0), from `at` seconds.
+func _start(loop: _Loop, id: StringName, stream: AudioStream, fade_in: float, fade_out: float,
+		at: float) -> void:
+	loop.held_id = &""
+	loop.hold += 1
+	loop.id = id
+	_fade(loop, loop.players[loop.active], 0.0, fade_out)
 	loop.active = 1 - loop.active
 	var incoming := loop.players[loop.active]
 	_kill_fade(loop, incoming)
 	incoming.stream = stream
-	incoming.volume_db = linear_to_db(FADE_FLOOR) if fade > 0.0 else 0.0
+	incoming.volume_db = linear_to_db(FADE_FLOOR) if fade_in > 0.0 else 0.0
 	incoming.play(at)
-	_fade(loop, incoming, 1.0, fade)
+	_fade(loop, incoming, 1.0, fade_in)
 
 
 func _loop_stop(loop: _Loop, fade: float) -> void:
+	loop.hold += 1
+	if fade > 0.0 and _changing_scenes() and not loop.id.is_empty():
+		# ⚠ HANDED OVER, NOT STOPPED. The place that asked is leaving, but the next one has not
+		# loaded: stopped now, the music fell to silence across the wipe and the load (the tour
+		# measured -43 dB between the house and a level), then the next place's began cold.
+		loop.held_id = loop.id
+		loop.id = &""
+		var generation := loop.hold
+		get_tree().create_timer(HANDOVER_HOLD_S, true).timeout.connect(func() -> void:
+			if loop.hold == generation:
+				loop.held_id = &""
+				for player in loop.players:
+					_fade(loop, player, 0.0, fade))
+		return
 	loop.id = &""
+	loop.held_id = &""
 	for player in loop.players:
 		_fade(loop, player, 0.0, fade)
+
+
+func _changing_scenes() -> bool:
+	var manager := get_node_or_null(^"/root/LevelManager")
+	return manager != null and bool(manager.call(&"is_transitioning"))
 
 
 ## Take `player` to `level` (linear) over `seconds`, and stop it there if that is silence.

@@ -61,7 +61,7 @@ const CROSS_S := 1.0
 
 var failures := 0
 var checked := 0
-const CHECKS := 40
+const CHECKS := 42
 var director: Node
 
 
@@ -92,6 +92,7 @@ func _run() -> void:
 	await _the_loading_screen_starts_the_title_music_and_the_menu_carries_it()
 	await _the_house_plays_its_music_and_fades_it_when_she_leaves()
 	await _a_new_track_crossfades(music)
+	await _a_scene_change_hands_the_music_over(music)
 	await _an_arrangement_takes_over_where_the_other_is(music)
 	await _the_ambience_is_its_own_channel(music)
 	_a_spaced_sound_is_not_repeated_inside_its_spacing(music)
@@ -286,6 +287,46 @@ func _a_new_track_crossfades(music: Dictionary) -> void:
 		"halfway %s; then old stopped %s, new %.1f dB" % [mid, done, second.volume_db])
 	director.call(&"stop_music", 0.0)
 	_music_paths().erase("_probe_second")
+
+
+## A scene change hands the music over: stopped while LevelManager is changing scenes, a track plays
+## on at full until the next place's crossfades from it; asked for again, the same track plays on
+## unrestarted; and with nothing to take over it fades once its hold is up.
+func _a_scene_change_hands_the_music_over(music: Dictionary) -> void:
+	var manager := root.get_node(^"LevelManager")
+	_music_paths()["_probe_next"] = music.get("menu", "")
+	manager.set(&"_transitioning", true)
+	director.call(&"play_music", &"menu", 0.0)
+	var held := director.call(&"music_player") as AudioStreamPlayer
+	director.call(&"stop_music")
+	await create_timer(0.3).timeout
+	var holding: bool = held.playing and absf(held.volume_db) < 0.1 and director.call(&"current_music") == &""
+	director.call(&"play_music", &"_probe_next")
+	await create_timer(0.3).timeout
+	var crossing: bool = held.playing and held.volume_db < -0.1 and director.call(&"music_player") != held
+	_check(holding and crossing,
+		"a scene change hands the music over: it holds at full, then the next place's crossfades from it",
+		"held at full %s, then crossing %s" % [holding, crossing])
+	director.call(&"stop_music", 0.0)
+	director.call(&"play_music", &"menu", 0.0)
+	var same := director.call(&"music_player") as AudioStreamPlayer
+	same.seek(SOUGHT_S)
+	await _frames(2)
+	director.call(&"stop_music")
+	director.call(&"play_music", &"menu")
+	var carried: bool = director.call(&"music_player") == same and same.playing \
+		and same.get_playback_position() > SOUGHT_S - 0.1 and director.call(&"current_music") == &"menu"
+	director.call(&"stop_music")
+	var handover_s := float(director.get_script().get_script_constant_map()["HANDOVER_HOLD_S"])
+	await create_timer(handover_s * 0.5).timeout
+	var still := same.playing
+	var faded := await _until(func() -> bool: return not same.playing, handover_s + FADE_WAIT_S)
+	manager.set(&"_transitioning", false)
+	_check(carried and still and faded,
+		"handed over, the same track asked for again plays on; unclaimed, it fades once its hold is up",
+		"carried on unrestarted %s, still holding halfway %s, faded after %s" % [carried, still, faded])
+	director.call(&"stop_music", 0.0)
+	_music_paths().erase("_probe_next")
 
 
 ## Two arrangements of one piece trade places mid-bar (keep_position): the incoming track starts
