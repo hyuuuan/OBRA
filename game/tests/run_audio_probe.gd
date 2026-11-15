@@ -3,8 +3,9 @@ extends SceneTree
 ## plays them, no sound effect loops, and every file has something that plays it. And the plumbing
 ## that plays them: a change of track crossfades, the ambience is its own channel, a spaced sound
 ## effect is not repeated inside its spacing, the Music slider moves the Music bus, and a level that
-## has not opted in (LevelBase._level_music) leaves the music as it found it. The house plays its
-## own loop and fades it when she leaves.
+## has not opted in (LevelBase._level_music) leaves the music as it found it. The places that play
+## their own: the boot loading screen starts the title's loop and the menu carries it on, and
+## the house plays its loop and fades it when she leaves.
 ##
 ##   godot --headless --path game --script res://tests/run_audio_probe.gd
 ##
@@ -39,7 +40,7 @@ const PROBE_SPACING_S := 0.4
 
 var failures := 0
 var checked := 0
-const CHECKS := 16
+const CHECKS := 17
 var director: Node
 
 
@@ -67,6 +68,7 @@ func _run() -> void:
 	_no_sound_effect_loops(sfx)
 	_every_voiced_id_has_a_caller(music, ambience, sfx)
 	await _the_menu_plays_its_music()
+	await _the_loading_screen_starts_the_title_music_and_the_menu_carries_it()
 	await _the_house_plays_its_music_and_fades_it_when_she_leaves()
 	await _a_new_track_crossfades(music)
 	await _the_ambience_is_its_own_channel(music)
@@ -180,6 +182,33 @@ func _the_menu_plays_its_music() -> void:
 	var faded := await _until(func() -> bool: return not player.playing, FADE_WAIT_S)
 	_check(playing == &"" and faded, "leaving the menu fades its music out and stops it",
 		"playing '%s', player stopped %s" % [playing, faded])
+
+
+## The title card loading at boot is the title card: its music starts there, and the menu that
+## follows asks for the same track, so it carries on -- the same player, never restarted.
+func _the_loading_screen_starts_the_title_music_and_the_menu_carries_it() -> void:
+	director.call(&"stop_music", 0.0)
+	var screen: Node = (load("res://scripts/loading_screen.gd") as GDScript).new()
+	root.add_child(screen)
+	await _frames(3)
+	var started := director.call(&"current_music") as StringName
+	var player := director.call(&"music_player") as AudioStreamPlayer
+	await create_timer(0.3).timeout
+	var before := player.get_playback_position()
+	screen.free()
+	var menu := (load("res://ui/main_menu.tscn") as PackedScene).instantiate()
+	root.add_child(menu)
+	await _frames(5)
+	var same: bool = director.call(&"music_player") == player and player.playing
+	var after := player.get_playback_position()
+	# ⚠ >=, not >: headless, the playback position moves in mix-sized steps and can read the same
+	# five frames later. A restart is what this guards against, and that reads near zero.
+	_check(started == &"menu" and same and after >= before,
+		"the boot loading screen starts the title's music, and the menu carries it on unrestarted",
+		"started '%s', same player %s, %.2f s -> %.2f s" % [started, same, before, after])
+	menu.queue_free()
+	await _frames(3)
+	director.call(&"stop_music", 0.0)
 
 
 ## The house's own loop while she is home, faded out when she leaves.
