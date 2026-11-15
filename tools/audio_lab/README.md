@@ -56,7 +56,7 @@ Kent's ear wins. So each piece goes round this loop until he says yes.
 | `ref/analyse_beat.py REF.wav START_S` | From a reference recording: tempo, beat grid, drum pattern per sixteenth and per band, and key colour. | no |
 | `ref/bands.py WAV:START:DUR …` | Octave-band balance of several recordings side by side. | no |
 | `ref/stepbands.py WAV DOWNBEAT_S BPM BARS` | Level per sixteenth in three bands. This found the Sinulog's stop on beat two. | no |
-| `composers/` | The scripts that wrote every shipped module, each reproducing its file byte for byte: `compose_house.py` (kundiman), `compose_terraces.py` (gangsa), `compose_piyesta.py` (plaza and dance), `compose_church.py` (hymn), `compose_street.py` (hum). And `compose_style_sketch.py`, the style test Kent approved (swing, jazz changes, a sliding trumpet: the Fearofdark traits), which ships nowhere and is the recipe for the style. Read one before writing the next. | no |
+| `composers/` | The scripts that wrote every shipped module, each reproducing its file byte for byte: `compose_house.py` (kundiman), `compose_terraces.py` (gangsa), `compose_piyesta.py` (plaza and dance), `compose_church.py` (hymn), `compose_street.py` (hum), `compose_dagat.py` (the rowing song, its deep twin and the waves). And `compose_style_sketch.py`, the style test Kent approved (swing, jazz changes, a sliding trumpet: the Fearofdark traits), which ships nowhere and is the recipe for the style. Read one before writing the next. | no |
 
 `.venv/bin/python` is the project's venv, which has numpy and scipy.
 

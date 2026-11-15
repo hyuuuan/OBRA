@@ -1223,6 +1223,80 @@ func _boats() -> Array[UtilityObject]:
 	return out
 
 
+## Dagat's music (audio/music/level_3.txt): a Visayan rowing song for the surface -- the level's
+## start, the bangka, the shores, and all a player hears who never dives (Kent: "in case the
+## player just wants to not go to the ocean") -- over the waves (audio/ambience/level_3.txt).
+## LevelBase plays both when the level opens; _refresh_the_place_audio changes them at the
+## waterline.
+func _level_music() -> StringName:
+	return &"level_3"
+
+
+func _level_ambience() -> StringName:
+	return &"level_3"
+
+
+## Below the surface: the same piece heard from under the water (audio/music/level_3_deep.txt).
+## It is written to the surface's length TO THE ROW, so a dive trades the two mid-bar
+## (AudioDirector.play_music keep_position) and sounds like the world closing over her, not like
+## a new song.
+const DEEP_MUSIC := &"level_3_deep"
+## How long the trade takes: AudioDirector's own crossfade.
+const WATER_FADE_S := 0.6
+## ⚠ THE WATERLINE HAS TWO EDGES. Deeper than DEEP_IN under it the music is the deep's; shallower
+## than SURFACE_OUT it is the surface's again; between the two it stays as it was. A swimmer
+## bobbing at the surface (her breath is spent from AIR_DEPTH, 30) would otherwise flip the music
+## with every stroke.
+const DEEP_IN := 60.0
+const SURFACE_OUT := 20.0
+## Which water the music is set for ("surface" or "deep"), and the music and bed it asked for, so
+## it acts only when the answer changes. Asked every physics frame, like Piyesta's rooms: a
+## restore, the current or a rescue can move her across the waterline without a dive.
+var _water_for := "?"
+var _music_for: StringName = &""
+var _bed_for: StringName = &""
+
+
+## ⚠ AudioDirector BY PATH, never by name: an autoload's name does not compile in a --script run.
+func _refresh_the_place_audio(anchor_position: Vector2) -> void:
+	_water_for = _water_at(anchor_position)
+	var music: StringName = DEEP_MUSIC if _water_for == "deep" else _level_music()
+	var bed: StringName = &"" if _water_for == "deep" else _level_ambience()
+	if music == _music_for and bed == _bed_for:
+		return
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio == null:
+		return
+	if music != _music_for:
+		audio.call(&"play_music", music, WATER_FADE_S, true)
+	if bed != _bed_for:
+		if bed.is_empty():
+			audio.call(&"stop_ambience")
+		else:
+			audio.call(&"play_ambience", bed)
+	_music_for = music
+	_bed_for = bed
+
+
+## In the bangka it is always the surface, whatever the hull's depth reads.
+func _water_at(anchor_position: Vector2) -> String:
+	if _boat_carrying_player() != null or not is_finite(_waterline_y):
+		return "surface"
+	if anchor_position.y > _waterline_y + DEEP_IN:
+		return "deep"
+	if anchor_position.y < _waterline_y + SURFACE_OUT or _water_for == "?":
+		return "surface"
+	return _water_for
+
+
+## LevelBase fades the level's own music as it leaves; the deep's is this level's too.
+func _exit_tree() -> void:
+	super()
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null and audio.call(&"current_music") == DEEP_MUSIC:
+		audio.call(&"stop_music")
+
+
 ## The boat the player is sitting in, or null.
 func _boat_carrying_player() -> UtilityObject:
 	if player == null or not is_instance_valid(player):
@@ -1259,6 +1333,7 @@ func _level_physics(anchor_position: Vector2) -> void:
 	_row(delta)
 	_frame_the_water(anchor_position)
 	_pace_the_advice(delta)
+	_refresh_the_place_audio(anchor_position)
 	var underwater := anchor_position.y > _waterline_y
 	_watch_the_bakunawa(anchor_position, delta)
 	if _anchor_now() != anchor_position:
