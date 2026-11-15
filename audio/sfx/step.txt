@@ -1,0 +1,32 @@
+# FamiTracker text export (written for O.B.R.A.; import with File > Import Text)
+
+TITLE           "O.B.R.A. - step"
+AUTHOR          "O.B.R.A. team"
+COPYRIGHT       "2026"
+
+COMMENT "A footfall: one soft, dark tap of noise. Played at the stride's force, so a"
+COMMENT "walk is quieter than a run."
+
+MACHINE         0
+FRAMERATE       0
+EXPANSION       0
+VIBRATO         1
+SPLIT           32
+
+MACRO 0 0 -1 -1 0 : 4 2 1 0
+
+INST2A03 0 0 -1 -1 -1 -1 "tap"
+
+TRACK   6   1 150 "step"
+COLUMNS : 1 1 1 1 1
+
+ORDER 00 : 00 00 00 00 00
+
+PATTERN 00
+ROW 00 : ... .. . ... : ... .. . ... : ... .. . ... : 4-# 00 F ... : ... .. . ...
+ROW 01 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 02 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 03 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 04 : ... .. . C00 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+ROW 05 : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ... : ... .. . ...
+

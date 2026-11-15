@@ -48,6 +48,7 @@
     "reel": "res://assets/audio/sfx/reel.wav",
     "gift": "res://assets/audio/sfx/gift.wav",
     "painting": "res://assets/audio/sfx/painting.wav",
+    "step": "res://assets/audio/sfx/step.wav",
     "jump": "res://assets/audio/sfx/jump.wav"
   },
   "music": {
@@ -57,6 +58,7 @@
   },
   "ambience": {},
   "spacing": {
+    "step": 0.12,
     "jump": 0.1
   }
 }

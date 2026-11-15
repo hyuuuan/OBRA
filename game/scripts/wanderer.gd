@@ -222,6 +222,8 @@ func _leave_a_mark(delta: float, was_airborne: bool, fall_speed: float) -> void:
 	var force := clampf(absf(velocity.x) / SPEED, 0.2, 1.0)
 	SceneryPuff2D.burst(host, feet - Vector2(_facing * 9.0, 0.0),
 		SceneryPuff2D.Kind.STEP, force * 0.55)
+	# With the dust, a walk softer than a run, and never so soft it is not there at all.
+	_sound(&"step", clampf(force, 0.4, 1.0))
 
 
 func _physics_process(delta: float) -> void:
