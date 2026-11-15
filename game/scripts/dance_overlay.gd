@@ -58,6 +58,10 @@ var _status: Label
 ## Seconds into the current attempt, in the same frame of reference as the cue track --
 ## `judge()` compares against `_beats[index]`, so this is what gets passed to it.
 var _clock := 0.0
+## The music this dance is danced to (an audio.json `music` id), restarted at every attempt so its
+## beat and the cues share one clock: it starts as the clock does, at -LEAD_IN. &"" is none. The
+## level that owns the dance sets it; the music must be written to fall on the track's cues.
+var music_id: StringName = &""
 var _running := false
 ## The stroke being drawn right now, in the stage's own coordinates. Kept so the player can
 ## see what their hand is doing; never looked at afterwards.
@@ -183,6 +187,11 @@ func _begin() -> void:
 	for _beat in _dance.track():
 		_verdicts.append("")
 	_clock = -LEAD_IN
+	if not music_id.is_empty():
+		# From its top, at once, every attempt: a fade or a carried-on loop would put the beat
+		# somewhere the cues are not.
+		AudioDirector.stop_music(0.0)
+		AudioDirector.play_music(music_id, 0.0)
 	_stroke = PackedVector2Array()
 	_drawing = false
 	_flash = ""

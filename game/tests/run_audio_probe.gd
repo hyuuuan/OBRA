@@ -373,27 +373,35 @@ func _terraces_plays_its_music_and_wind_and_fades_both() -> void:
 		"in it '%s' + '%s' (%s), after '%s', faded %s" % [music, wind, files, after, faded])
 
 
-## Piyesta plays its loop; the dance, which keeps its own beat, fades it out, and the music comes
-## back when the dance is over. Driven through the level's own handlers for the Artist route.
+## Piyesta plays its loop; the dance, which keeps its own beat, brings its own
+## music, started with the attempt; and the plaza's comes back when the dance is over. Driven
+## through the level's own handlers for the Artist route.
 func _piyesta_plays_its_music_and_lets_the_dance_keep_its_own_time() -> void:
 	director.call(&"play_music", &"menu", 0.0)
-	var scene := (load("res://level_2.tscn") as PackedScene).instantiate()
+	var scene := await _open("res://level_2.tscn")
+	var opened := director.call(&"current_music") as StringName
+	scene.call(&"_on_route_committed_here", "L2_N1", "artist")
+	var danced := await _until(func() -> bool: return director.call(&"current_music") == &"dance", 10.0)
+	var overlay := scene.get(&"dance_screen") as Node
+	if overlay != null and overlay.has_method(&"close"):
+		overlay.call(&"close")
+	scene.call(&"_on_dance_screen_finished", true, true)
+	var back := await _until(func() -> bool: return director.call(&"current_music") == &"level_2", 5.0)
+	scene.queue_free()
+	await _frames(5)
+	_check(opened == &"level_2" and danced and back,
+		"Piyesta plays its music, the dance its own, and the plaza's returns after",
+		"opened '%s', dance music %s, back after %s" % [opened, danced, back])
+	director.call(&"stop_music", 0.0)
+
+
+func _open(path: String) -> Node:
+	var scene := (load(path) as PackedScene).instantiate()
 	(scene.get_node("BackendSupervisor") as BackendSupervisor).auto_start_backend = false
 	root.add_child(scene)
 	call_group(DialogueBox.GROUP, &"set_auto_dismiss", true)
 	await _frames(20)
-	var opened := director.call(&"current_music") as StringName
-	scene.call(&"_on_route_committed_here", "L2_N1", "artist")
-	var hushed := await _until(func() -> bool: return director.call(&"current_music") == &"", 10.0)
-	scene.call(&"_on_dance_screen_finished", true, true)
-	await _frames(3)
-	var after := director.call(&"current_music") as StringName
-	scene.queue_free()
-	await _frames(5)
-	_check(opened == &"level_2" and hushed and after == &"level_2",
-		"Piyesta plays its music, fades it for the dance, and brings it back after",
-		"opened '%s', hushed for the dance %s, after it '%s'" % [opened, hushed, after])
-	director.call(&"stop_music", 0.0)
+	return scene
 
 
 # --- helpers ---------------------------------------------------------------------------------

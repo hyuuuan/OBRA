@@ -148,6 +148,10 @@ func _level_music() -> StringName:
 	return &"level_2"
 
 
+## The dance minigame's own music, its strong beats on the cues (DanceOverlay.music_id).
+const DANCE_MUSIC := &"dance"
+
+
 func _dialogue_node_obstacle_id() -> String:
 	return _live_node_obstacle
 
@@ -452,6 +456,7 @@ func _build_the_dance_screen() -> void:
 	dance_screen.name = "DanceOverlay"
 	add_child(dance_screen)
 	dance_screen.bind(dance)
+	dance_screen.music_id = DANCE_MUSIC
 	dance_screen.run_finished.connect(_on_dance_screen_finished)
 	dance_screen.attempt_lost.connect(_on_dance_attempt_lost)
 	if director != null:
@@ -474,10 +479,8 @@ func _on_route_committed_here(obstacle_id: String, route: String) -> void:
 		# with a scattered troupe, but a probe or restored developer state must not deadlock.
 		await get_tree().create_timer(DancerGroup2D.PUZZLE_LEAD_IN, false, false, true).timeout
 	if dance_screen != null and is_instance_valid(dance_screen):
-		# ⚠ THE DANCE KEEPS ITS OWN TIME: its cues fall on their own beat, and the level's loop
-		# under them would be a second, different beat. The music fades out for the dance and
-		# comes back when it is over (_on_dance_screen_finished).
-		AudioDirector.stop_music()
+		# ⚠ THE DANCE KEEPS ITS OWN TIME: its cues fall on their own beat, so it brings its own
+		# music, written onto them, and the plaza's steps aside until it is over.
 		dance_screen.present()
 
 
