@@ -115,6 +115,79 @@ class PitchTest(unittest.TestCase):
         self.assertAlmostEqual(pitch(steady(result), result.rate), 440.0, delta=1.5)
 
 
+def pitch_each_tick(result: fr.Render, ticks: range) -> list[float]:
+    """The pitch in each engine tick, by the autocorrelation's first peak past a short lag."""
+    heard = []
+    for tick in ticks:
+        a, b = int(tick * TICK) + 24, int((tick + 1) * TICK) - 24
+        window = result.samples[a:b] - result.samples[a:b].mean()
+        corr = np.correlate(window, window, "full")[len(window) - 1:]
+        lag = int(np.argmax(corr[30:200])) + 30
+        heard.append(result.rate / lag)
+    return heard
+
+
+class SlideTest(unittest.TestCase):
+    """The slides a lead bends with: 3xx, Qxy / Rxy, 1xx / 2xx."""
+
+    def test_a_glide_carries_the_old_pitch_into_the_new_note(self) -> None:
+        # A-4 then, a row later, C-5 under 3xx: the pitch climbs from 440 to 523 over ticks.
+        result = render(module({0: {0: "A-4 00 F 305"}, 1: {0: "C-5 .. . ..."}}))
+        heard = pitch_each_tick(result, range(6, 20))
+        self.assertLess(heard[0], 470.0)                 # the first tick of C-5 is still near A
+        self.assertAlmostEqual(heard[-1], 523.3, delta=10.0)
+        self.assertTrue(all(b >= a - 6.0 for a, b in zip(heard, heard[1:])), heard)
+
+    def test_without_a_glide_the_new_note_is_there_at_once(self) -> None:
+        result = render(module({0: {0: "A-4 00 F ..."}, 1: {0: "C-5 .. . ..."}}))
+        self.assertAlmostEqual(pitch_each_tick(result, range(6, 7))[0], 523.3, delta=10.0)
+
+    def test_a_note_slide_stops_on_its_note(self) -> None:
+        # A-4 with Q47: up seven semitones to E-5 (659 Hz), then it stays there.
+        result = render(module({0: {0: "A-4 00 F Q47"}}))
+        heard = pitch_each_tick(result, range(0, 40))
+        self.assertLess(heard[1], 600.0)
+        self.assertAlmostEqual(heard[-1], 659.3, delta=12.0)
+        self.assertAlmostEqual(heard[-10], 659.3, delta=12.0)
+
+    def test_a_slide_down_goes_down(self) -> None:
+        result = render(module({0: {0: "A-4 00 F R47"}}))
+        heard = pitch_each_tick(result, range(0, 40))
+        self.assertAlmostEqual(heard[-1], 293.7, delta=8.0)   # D-4, seven below
+
+    def test_a_bend_keeps_bending(self) -> None:
+        result = render(module({0: {0: "A-4 00 F 102"}}))
+        heard = pitch_each_tick(result, range(2, 30))
+        self.assertGreater(heard[-1], heard[0] * 1.05)
+
+    def test_a_second_slide_starts_where_the_first_arrived(self) -> None:
+        # Q47 takes A-4 to E-5 and makes E-5 the note; Q42 then goes on to F#-5 (740 Hz). Were the
+        # note left at A-4, the second slide would aim for B-4 (494 Hz) instead.
+        result = render(module({0: {0: "A-4 00 F Q47"}, 8: {0: "... .. . Q42"}}))
+        heard = pitch_each_tick(result, range(85, 95))
+        self.assertAlmostEqual(heard[-1], 740.0, delta=14.0)
+
+    def test_a_vrc7_glide_is_not_struck_again(self) -> None:
+        # Struck again, a VRC7 channel is keyed off and on (its envelope and phase restart). A
+        # glided note only moves its pitch: no key-off is written for it.
+        def key_offs(cell: str) -> int:
+            writes: list[tuple[int, int]] = []
+            original = fr.Opll.force
+
+            def spy(chip, reg, value):
+                writes.append((reg, value))
+                original(chip, reg, value)
+
+            with mock.patch.object(fr.Opll, "force", spy):
+                render(module({0: {5: "A-4 01 F 305"}, 1: {5: cell}}))
+            return sum(1 for reg, value in writes if reg == 0x20 and not value & 0x10)
+
+        # The song plays twice (it loops). Gliding, only the very first note is ever struck;
+        # with the glide turned off at C-5, that C-5 is struck on both passes.
+        self.assertEqual(key_offs("C-5 .. . ..."), 1)
+        self.assertEqual(key_offs("C-5 .. . 300"), 3)
+
+
 class TimingTest(unittest.TestCase):
     def test_a_row_at_speed_6_tempo_150_is_six_ticks(self) -> None:
         result = render(module({0: {0: "A-4 00 F ..."}, 15: {0: "... .. . B00"}}))
@@ -196,7 +269,7 @@ class RefusalTest(unittest.TestCase):
             fr.parse_module(text)
 
     def test_an_unsupported_effect(self) -> None:
-        self.assertRefused(module({0: {0: "A-4 00 F Q12"}}), r"line \d+: effect 'Q12'")
+        self.assertRefused(module({0: {0: "A-4 00 F A12"}}), r"line \d+: effect 'A12'")
 
     def test_dpcm(self) -> None:
         self.assertRefused(module({0: {4: "C-4 00 F ..."}}), "DPCM")
