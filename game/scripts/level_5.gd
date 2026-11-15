@@ -134,6 +134,73 @@ func _ends_with_its_own_scene() -> bool:
 	return true
 
 
+## MAYON HAS MUSIC NOW (Kent, 2026-11-14: music everywhere, Mayon included, which reverses the
+## 1 November "Mayon is silent"; and 2026-11-15: "different type of music when we are in memory
+## lane", and "a peaceful [one] when Lola is found"). Every piece carries Lola's motif, the title
+## theme's opening (audio/music/level_5.txt and its neighbours).
+##
+## The ascent: her motif worn thin under the ash. LevelBase plays it when the level opens;
+## _refresh_the_place_audio follows the level from there.
+func _level_music() -> StringName:
+	return &"level_5"
+
+
+## The memory lane: each earlier level's own music, remembered, by the vignette she is in (the
+## prefix of its id in level_05.json journey.vignettes; Terraces' are still "payyo_").
+const MEMORY_MUSIC := {"payyo": &"memory_terraces", "piyesta": &"memory_piyesta",
+	"dagat": &"memory_dagat", "dilim": &"memory_dilim"}
+## Walking from one memory into the next is remembering, not a cut: a long crossfade.
+const MEMORY_FADE_S := 2.0
+## Any other change: AudioDirector's own crossfade.
+const PLACE_FADE_S := 0.6
+## Lola found, when the summit opens: a kundiman like her house's (audio/music/lola.txt).
+const LOLA_MUSIC := &"lola"
+## From the bloom, through her last page and the house: the motif whole again.
+const ENDING_MUSIC := &"mayon_ending"
+## The music asked for, so it changes only when the answer does. Worked out every physics frame
+## from the level's own state, so a checkpoint restore puts back whatever belongs where she lands.
+var _music_for: StringName = &""
+
+
+## ⚠ AudioDirector BY PATH: an autoload's name does not compile in a --script run.
+func _refresh_the_place_audio() -> void:
+	var music := _music_now()
+	if music == _music_for:
+		return
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio == null:
+		return
+	var remembering := _music_for in MEMORY_MUSIC.values() or music in MEMORY_MUSIC.values()
+	_music_for = music
+	if music.is_empty():
+		# ⚠ LOLO GOES MID-SENTENCE, IN ONE FRAME, AND SO DOES THE MUSIC: no fade.
+		audio.call(&"stop_music", 0.0)
+	else:
+		audio.call(&"play_music", music, MEMORY_FADE_S if remembering else PLACE_FADE_S)
+
+
+func _music_now() -> StringName:
+	if _summit in ["blooming", "done"]:
+		return ENDING_MUSIC
+	if not _summit.is_empty():
+		return LOLA_MUSIC
+	# Between his going and her being found, nothing.
+	if _lolo_moment == "gone":
+		return &""
+	if _phase in ["memories", "farewell"]:
+		return MEMORY_MUSIC.get(_active_cluster.get_slice("_", 0), &"memory_terraces")
+	return _level_music()
+
+
+## LevelBase fades the level's own music as it leaves; the rest of Mayon's is this level's too. The
+## ending's is not: it carries her home (_play_own_ending).
+func _exit_tree() -> void:
+	super()
+	var audio := get_node_or_null(^"/root/AudioDirector")
+	if audio != null and audio.call(&"current_music") in [LOLA_MUSIC] + MEMORY_MUSIC.values():
+		audio.call(&"stop_music")
+
+
 ## THE HOUSE IS THE ENDING NOW (DIARY.md; Kent, 2026-11-01): "lolo let's go home", and the apo is
 ## home -- in the house, where Lolo is in every painting and Lola is waiting (HouseEpilogue). It
 ## replaced the frame's return, a separate painted room with an ordinary brush in it.
@@ -176,6 +243,7 @@ func _build_level_furniture() -> void:
 
 
 func _level_physics(anchor_position: Vector2) -> void:
+	_refresh_the_place_audio()
 	if action_prompts != null:
 		action_prompts.set_swimming(player is Wanderer and (player as Wanderer).is_in_water())
 	var crater := _anchor("crater")
@@ -686,6 +754,7 @@ func _vanish_lolo() -> void:
 		hint_bar.clear()
 	status_label.text = ""
 	_lolo_moment = "gone"
+	_refresh_the_place_audio()      # the music stops in this frame, with him
 	refresh_objective()
 	Telemetry.record_event("lolo_gone", {"steadied_by": _saved_lolo_fragments()})
 

@@ -53,7 +53,7 @@ func _run() -> void:
 	_audit_the_fragments(scene)
 	_audit_the_flower_is_off_the_path(scene)
 	_audit_nothing_the_ash_takes_is_solid(scene)
-	_audit_mayon_is_silent(scene)
+	_audit_mayon_sounds_through_the_director(scene)
 	scene.queue_free()
 	for _frame in range(6):
 		await process_frame
@@ -333,20 +333,28 @@ func _audit_nothing_the_ash_takes_is_solid(scene: Node) -> void:
 		"%d things taken, none stood on" % taken.size() if solid.is_empty() else "solid: " + ", ".join(solid))
 
 
-## Mayon is silent (Kent, 2026-11-01): no player of its own, and its sound ids stay hooks with
-## no file behind them, so nothing plays until real audio is chosen.
-func _audit_mayon_is_silent(scene: Node) -> void:
+## MAYON HAS MUSIC NOW (Kent, 2026-11-14 and 2026-11-15), which reverses the 1 November "Mayon is
+## silent". What stays from that rule is that the scene plays nothing itself: every sound goes
+## through AudioDirector, by id. And every one of its ids now has a file -- the ascent, the four
+## memories, Lola, the ending and the brush -- so none is a hook left silent by mistake.
+const MAYON_MUSIC := ["level_5", "memory_terraces", "memory_piyesta", "memory_dagat", "memory_dilim",
+	"lola", "mayon_ending"]
+const MAYON_SFX := ["mayon_brush"]
+
+
+func _audit_mayon_sounds_through_the_director(scene: Node) -> void:
 	var players := scene.find_children("*", "AudioStreamPlayer", true, false)
 	players.append_array(scene.find_children("*", "AudioStreamPlayer2D", true, false))
 	var audio: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://config/audio.json"))
-	var voiced: Array[String] = []
-	for section in ["sfx", "music"]:
-		var ids: Dictionary = audio.get(section, {})
-		for id: String in ids:
-			if id.begins_with("mayon_") and not String(ids[id]).is_empty():
-				voiced.append(id)
-	_check(players.is_empty() and voiced.is_empty(), "Mayon plays no sound or music",
-		"%d players, voiced ids %s" % [players.size(), voiced])
+	var silent: Array[String] = []
+	for pair: Array in [["music", MAYON_MUSIC], ["sfx", MAYON_SFX]]:
+		var ids: Dictionary = audio.get(pair[0], {})
+		for id: String in pair[1]:
+			if String(ids.get(id, "")).is_empty():
+				silent.append("%s.%s" % [pair[0], id])
+	_check(players.is_empty() and silent.is_empty(),
+		"Mayon plays its music and its brush through AudioDirector, and every one has a file",
+		"%d players of its own, ids without a file %s" % [players.size(), silent])
 
 
 # --- Helpers ----------------------------------------------------------------------------

@@ -23,7 +23,7 @@
     "tiyanak_cry": "res://assets/audio/sfx/tiyanak_cry.wav",
     "lantern_hit": "res://assets/audio/sfx/lantern_hit.wav",
     "dawn": "res://assets/audio/sfx/dawn.wav",
-    "mayon_brush": "",
+    "mayon_brush": "res://assets/audio/sfx/mayon_brush.wav",
     "page_turn": "res://assets/audio/sfx/page_turn.wav",
     "draw_submit": "res://assets/audio/sfx/draw_submit.wav",
     "recognised": "res://assets/audio/sfx/recognised.wav",
@@ -70,7 +70,13 @@
     "dilim_night_1": "res://assets/audio/music/dilim_night_1.wav",
     "dilim_night_2": "res://assets/audio/music/dilim_night_2.wav",
     "dilim_night_3": "res://assets/audio/music/dilim_night_3.wav",
-    "mayon_ending": ""
+    "level_5": "res://assets/audio/music/level_5.wav",
+    "memory_terraces": "res://assets/audio/music/memory_terraces.wav",
+    "memory_piyesta": "res://assets/audio/music/memory_piyesta.wav",
+    "memory_dagat": "res://assets/audio/music/memory_dagat.wav",
+    "memory_dilim": "res://assets/audio/music/memory_dilim.wav",
+    "lola": "res://assets/audio/music/lola.wav",
+    "mayon_ending": "res://assets/audio/music/mayon_ending.wav"
   },
   "ambience": {
     "level_1": "res://assets/audio/ambience/level_1.wav",

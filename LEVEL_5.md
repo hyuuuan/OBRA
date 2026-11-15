@@ -120,7 +120,7 @@ preservation choices. Saved memories still delay that moment. After he goes, the
 reveals the white summit. The brush refusals, free painting, saved places blooming with her
 ink, route-dependent voice, both flower endings, last diary page and return home are retained.
 
-Mayon remains silent. No enemy, health, boss or required replay of an earlier quest is added.
+Mayon has music now (Kent, 2026-11-14: music for every place, Mayon included; and 2026-11-15 ("different type of music when we are in memory lane"; "a peaceful [one] when Lola is found"); see the audio note below). No enemy, health, boss or required replay of an earlier quest is added.
 
 ## Player instructions and completion (5 November 2026)
 
@@ -277,7 +277,7 @@ ACT TWO    WHAT YOU CARRY — the heart
            "the brush was never for that" — his last line is the run's route — and mid-sentence he
            is not there
 CP2        below the summit (silent)
-ACT THREE  THE SUMMIT — quiet: no ash, no tremor, no sound
+ACT THREE  THE SUMMIT — quiet: no ash, no tremor; Lola's music
            white in every direction except what she saved · lola painting, back turned
            the apo speaks; lola does not turn · the brush refuses her, twice
            the third time the apo lowers it herself · she draws the places · they bloom
@@ -437,10 +437,16 @@ Original generated atlas and room sources, exact prompts, and replacement contra
 `LEVEL5_Mayon/authored/README.md`. `build_mayon_performance.py` produces the registered actor
 poses, Lola's full-resolution portrait, and the room. The landscape and restoration builders own
 the scenery. The old
-`build_mayon_lola.py` delegates to it; it no longer recolours the apo. **Mayon is silent** (Kent, 1 November): the synthesized
-eruption, wind, brush and ending cue were removed with `build_mayon_audio.py`, and
-`mayon_brush` / `mayon_ending` stay in `audio.json` as hooks with no file. The audit asserts
-it. See the authored README for the complete provisional list: generated art awaiting
+`build_mayon_lola.py` delegates to it; it no longer recolours the apo. **Mayon has music** (Kent, 2026-11-14: music for every place, Mayon included; and 2026-11-15 ("different type of music when we are in memory lane"; "a peaceful [one] when Lola is found")), which
+reverses the 1 November "Mayon is silent" (the synthesized eruption, wind, brush and ending cue
+removed then stay removed). Every piece is a FamiTracker module carrying Lola's motif, the title
+theme's opening: `music.level_5` (the ascent, the motif worn thin), `memory_terraces`,
+`memory_piyesta`, `memory_dagat` and `memory_dilim` (the memory lane, by the vignette she is in,
+crossfading over 2 s), `lola` (from the summit's opening, a kundiman like her house's) and
+`mayon_ending` (from the bloom). The music stops in the frame Lolo vanishes and nothing plays
+until Lola is found. `mayon_brush` is heard as a memory is saved. `level_5.gd _music_now` works it
+out every frame from the level's own state; `run_level5_audit` asserts the scene has no player of
+its own and every id has a file. Provisional until Kent has listened (`audio/README.md`). See the authored README for the complete provisional list: generated art awaiting
 art-direction review, procedural memory targets, reused restoration scenery, and the absent
 recorded Lola voice.
 
