@@ -43,6 +43,14 @@ const LOOP_FADE_S := 0.6
 ## A fade's floor. linear_to_db(0) is -inf, which must never reach a player.
 const FADE_FLOOR := 0.001
 
+## A one-shot listed in audio.json `duck` lowers the music and the ambience under it for its own
+## length -- the level-complete jingle over the level's loop -- then brings them back. On the Music
+## bus, through an Amplify effect of its own, so it touches neither the player's slider (the bus
+## volume) nor a crossfade in progress (the players' volumes).
+const DUCK_DB := -12.0
+const DUCK_DOWN_S := 0.12
+const DUCK_UP_S := 0.6
+
 
 ## A looping channel -- the music, or the ambience under it -- on a pair of players.
 class _Loop:
@@ -64,6 +72,10 @@ var _sfx_players: Array[AudioStreamPlayer] = []
 var _next_voice: int = 0
 var _music := _Loop.new()
 var _ambience := _Loop.new()
+## The ids that duck the music (audio.json `duck`), and the effect and tween that do it.
+var _sfx_duck: Dictionary = {}
+var _duck: AudioEffectAmplify
+var _duck_tween: Tween
 
 
 func _ready() -> void:
@@ -72,6 +84,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_catalog()
 	_build_players()
+	_build_duck()
 	var profile := get_node_or_null(^"/root/PlayerProfile")
 	if profile != null:
 		profile.settings_changed.connect(_on_setting_changed)
@@ -156,7 +169,28 @@ func play_sfx(id: StringName, loudness: float = 1.0) -> bool:
 	player.stream = stream
 	player.volume_db = linear_to_db(level)
 	player.play()
+	if _sfx_duck.has(key):
+		duck_music(stream.get_length())
 	return true
+
+
+## Lower the music and ambience for `seconds`, then bring them back. A second duck while one runs
+## starts again from where the first had got to.
+func duck_music(seconds: float) -> void:
+	if _duck == null:
+		return
+	if _duck_tween != null and _duck_tween.is_valid():
+		_duck_tween.kill()
+	# ⚠ PAUSE_PROCESS: the level-complete panel pauses the tree as the jingle starts.
+	_duck_tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_duck_tween.tween_property(_duck, "volume_db", DUCK_DB, DUCK_DOWN_S)
+	_duck_tween.tween_interval(maxf(0.0, seconds - DUCK_DOWN_S))
+	_duck_tween.tween_property(_duck, "volume_db", 0.0, DUCK_UP_S)
+
+
+## How far the music is ducked now, in dB (0 when it is not). For probes.
+func music_duck_db() -> float:
+	return _duck.volume_db if _duck != null else 0.0
 
 
 ## Start a music track, crossfading from whatever played before. A request for the track already
@@ -300,6 +334,10 @@ func _load_catalog() -> void:
 	_sfx_paths = _resolved_section(document.get("sfx", {}))
 	_music.paths = _resolved_section(document.get("music", {}))
 	_ambience.paths = _resolved_section(document.get("ambience", {}))
+	var ducking: Variant = document.get("duck", [])
+	if ducking is Array:
+		for id: Variant in ducking:
+			_sfx_duck[String(id)] = true
 	var spacing: Variant = document.get("spacing", {})
 	if spacing is Dictionary:
 		for key: Variant in (spacing as Dictionary).keys():
@@ -321,6 +359,15 @@ func _resolved_section(section: Variant) -> Dictionary:
 			path = ""
 		out[String(key)] = path
 	return out
+
+
+func _build_duck() -> void:
+	var bus := AudioServer.get_bus_index(BUS_MUSIC)
+	if bus < 0:
+		return
+	_duck = AudioEffectAmplify.new()
+	_duck.volume_db = 0.0
+	AudioServer.add_bus_effect(bus, _duck)
 
 
 func _build_players() -> void:

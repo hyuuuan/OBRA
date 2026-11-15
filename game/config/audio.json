@@ -9,7 +9,9 @@
     "sfx do not. A missing file warns once at load, not once per play.",
     "",
     "spacing: id -> the least seconds between two plays of that sound effect, for the ones made",
-    "constantly (a footstep), so they cannot take every voice from the sounds that carry information."
+    "constantly (a footstep), so they cannot take every voice from the sounds that carry information.",
+    "",
+    "duck: the sound effects that lower the music and ambience for their own length (the jingle)."
   ],
   "sfx": {
     "ui_click": "res://assets/audio/sfx/ui_click.wav",
@@ -84,6 +86,9 @@
     "level_3": "res://assets/audio/ambience/level_3.wav",
     "level_4": "res://assets/audio/ambience/level_4.wav"
   },
+  "duck": [
+    "level_complete"
+  ],
   "spacing": {
     "step": 0.12,
     "land": 0.15,
