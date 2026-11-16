@@ -87,7 +87,8 @@ func _focus_camera_for(_speaker: String) -> void:
 
 
 ## How far under the mountain's lowest ground a fall goes before she is put back.
-## Catch her BEFORE Wanderer's world-bottom wrap, or a missed gap becomes free flight.
+## Catch her well before the base fall line under the world, so a missed gap is a short drop back
+## to her checkpoint rather than a long fall through Mayon's sky.
 const FALL_BELOW := 700.0
 ## The gates the climb cannot be finished without: the hidden reserve pays for them.
 const GATES := ["L5_SPAN", "L5_CLIMB"]

@@ -557,8 +557,10 @@ Traps it has sprung, kept so they are not sprung again:
 - **Probe placement:** an enemy set exactly on the ground surface will not walk (its ground-ahead
   ray starts on the surface and misses) -- drop it a few px above. Move her (`apply_morph_state`)
   before setting anything down at her feet. The clearing's east wall is x 22420.
-- **Falls are knockouts in Dilim** (300 px under the forest floor): the wanderer wraps to the sky
-  at the world's bottom, so the base fall line never fires here.
+- **Falls are knockouts in Dilim** (300 px under the forest floor), caught well before the base
+  fall line under the world. ⚠ The wanderer no longer wraps to the sky at the world's bottom: the
+  wrap fired a frame before that fall line, so in Terraces and Pista a fall left her stuck on the
+  lid, a room or a prop high in the sky (`run_fall_rescue_probe`).
 - **Use the design's numbers in probes**, never the script's constants -- a wait derived from the
   constant under test proves nothing.
 

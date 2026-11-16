@@ -282,8 +282,9 @@ What the build does that the design above does not say, and what it does not do 
   kapre's cigar. And the use that chooses a "draw it, then do it" route is used: the first blow at
   the sigbin lands and the first throw at the cigar is thrown (they had only chosen). A cannon shot
   is put at the muzzle before it is in the world -- added first, every shot began inside the canopy.
-- **Falls are knockouts.** The wanderer wraps to the sky at the world's bottom, so Dilim knocks her
-  out 300 px under the forest floor instead.
+- **Falls are knockouts.** Dilim knocks her out 300 px under the forest floor, well before the base
+  fall line under the world. (The wanderer used to wrap to the sky at the world's bottom; it no
+  longer does.)
 - **Exhausted supplies offer a checkpoint retry.** When she cannot afford another drawing and
   has no usable counter left for her current encounter, the existing recovery popup explains
   the situation and offers **Retry Checkpoint**. The final attack gets four seconds to land and
