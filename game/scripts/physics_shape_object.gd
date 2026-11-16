@@ -351,6 +351,27 @@ func _on_resized() -> void:
 	pass
 
 
+## ⚠ HEAVY THINGS SINK. Water lifts a body by a multiple of its own weight, and that multiple was the
+## same for every body, so mass cancelled out of it and an anvil floated exactly as a ladder did.
+## A class config/object_weights.json lists as too heavy to float says how little the water lifts
+## it -- under its weight, so down it goes -- as the `water_lift` meta WaterArea2D reads.
+const WEIGHTS_PATH := "res://config/object_weights.json"
+static var _weights: Dictionary = {}
+
+
+func _weigh_for_the_water() -> void:
+	if _weights.is_empty():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(WEIGHTS_PATH))
+		_weights = parsed if parsed is Dictionary else {"sinks": []}
+	var id := String(entity_metadata.get("id", "")).strip_edges()
+	if id.is_empty() and item_data != null:
+		id = item_data.entity_id
+	if (_weights.get("sinks", []) as Array).has(id):
+		set_meta(&"water_lift", float(_weights.get("sinking_lift", 0.45)))
+	elif has_meta(&"water_lift"):
+		remove_meta(&"water_lift")
+
+
 func _resolve_shape_type() -> String:
 	var configured := String(entity_metadata.get("shape_type", shape_type)).strip_edges()
 	if not configured.is_empty():
@@ -488,6 +509,7 @@ func _configure_physics() -> void:
 			max_horizontal_speed = 300.0
 			max_angular_speed = 10.0
 	physics_material_override = material
+	_weigh_for_the_water()
 	can_sleep = true
 	lock_rotation = false
 
