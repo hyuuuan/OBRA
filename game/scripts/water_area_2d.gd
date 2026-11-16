@@ -67,8 +67,9 @@ func _process(delta: float) -> void:
 ## were standing in it.
 ##
 ## Lift scales with how deep a body is, which is what makes the surface a surface: a
-## body barely in gets barely pushed, one fully under gets pushed hard enough to rise,
-## and something heavy still loses. Drag is what stops all of that oscillating.
+## body barely in gets barely pushed, one fully under gets pushed hard enough to rise.
+## ⚠ The lift is a multiple of the body's own weight, so mass alone never decided it -- an anvil
+## floated like a ladder until a heavy body said so itself (`water_lift`, PhysicsShapeObject). Drag is what stops all of that oscillating.
 func _physics_process(_delta: float) -> void:
 	var surface_y := global_position.y - surface_size.y * 0.5
 	for node in get_overlapping_bodies():
@@ -79,7 +80,10 @@ func _physics_process(_delta: float) -> void:
 		if depth <= 0.0:
 			continue
 		var gravity_pull := float(ProjectSettings.get_setting("physics/2d/default_gravity", 980.0))
-		body.apply_central_force(Vector2(0.0, -gravity_pull * buoyancy * depth * body.mass))
+		# A body too heavy to float says how little it is lifted (PhysicsShapeObject: an anvil, a
+		# blade, a key); everything else is lifted by the pool's own buoyancy.
+		var lift := float(body.get_meta(&"water_lift", buoyancy))
+		body.apply_central_force(Vector2(0.0, -gravity_pull * lift * depth * body.mass))
 		body.apply_central_force(-body.linear_velocity * linear_drag * body.mass)
 		body.apply_torque(-body.angular_velocity * angular_drag * body.mass)
 
