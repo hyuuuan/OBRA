@@ -31,6 +31,12 @@ func _run() -> void:
 		"both requests give up in the end", "submit %.0f s, live guess %.0f s" % [http.timeout, live.timeout])
 	panel.open_panel()
 	await physics_frame
+	# A drawing on the page, as there is when Paint is pressed: an empty page has no Paint to free,
+	# since Paint is only offered for ink (and, since it was held to the gate, a sure guess).
+	var canvas := panel.get("canvas") as Node
+	canvas.call("_start_stroke", Vector2(120.0, 120.0))
+	for i in range(1, 9):
+		canvas.call("_append_point", Vector2(120.0, 120.0).lerp(Vector2(300.0, 260.0), float(i) / 8.0), true)
 	panel.set("_submitting", true)
 	panel.transform_button.disabled = true
 	client.call("_on_request_completed", HTTPRequest.RESULT_TIMEOUT, 0, PackedStringArray(), PackedByteArray())
