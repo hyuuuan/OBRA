@@ -7,4 +7,6 @@ anonymous telemetry and profile.json into playtest-data/<participant-code>.
 The game creates gamesession/ beside this file. Each extracted copy keeps its
 own progress and telemetry there.
 
-Keep the game, backend, model, shared, and .venv folders together.
+Keep the game, backend, model, shared, and .venv folders together. The .venv
+folder is the game's own Python: nothing needs to be installed. It needs an Apple
+Silicon Mac (M1 or later).

@@ -1,7 +1,9 @@
 # macOS playtest: the build and telemetry
 
 The macOS package is `OBRA-macos.zip`. It contains the universal Godot app, the
-local drawing recogniser, the model, and a bundled Python environment.
+local drawing recogniser, the model, and its own Python (3.12, in `.venv`), so it
+runs on a Mac with no Python installed. The recogniser needs an Apple Silicon Mac
+(M1 or later); on an Intel Mac the game opens but drawings are not recognised.
 
 1. Unzip the package.
 2. Double-click `Play OBRA.command`.
