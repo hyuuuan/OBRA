@@ -6,7 +6,18 @@ runs on a Mac with no Python installed. The recogniser needs an Apple Silicon Ma
 (M1 or later); on an Intel Mac the game opens but drawings are not recognised.
 
 1. Unzip the package.
-2. Double-click `Play OBRA.command`.
+2. Double-click `Play OBRA.command`. The first time, macOS blocks it, because the
+   package has no paid Apple developer signature. Approve it once:
+   - **macOS 15 (Sequoia) or later:** click **Done**, open **System Settings >
+     Privacy & Security**, scroll to **Security**, click **Open Anyway** beside
+     `Play OBRA.command`, enter the Mac's password, then click **Open**.
+   - **macOS 14 or earlier:** Control-click `Play OBRA.command`, choose **Open**,
+     then click **Open**.
+
+   After that, a double-click starts it. Start the game with this launcher, not by
+   opening `OBRA.app`. A downloaded zip marks every file as downloaded, and macOS
+   stops the game's own Python from running while that mark is there. The
+   launcher removes the mark from the OBRA folder, and only that folder.
 3. Quit the game from its pause menu when the session is finished.
 4. Double-click `Collect playtest data.command`.
 5. Enter an anonymous participant code. The script copies telemetry and

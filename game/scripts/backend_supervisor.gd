@@ -283,9 +283,7 @@ func _start_backend() -> void:
 
 	var python := _python_command()
 	if python.is_empty():
-		_reason = "Python 3.10 or newer is not installed on this computer, and the drawing " \
-			+ "recogniser needs it. Install it from python.org (on Windows, tick \"Add python.exe " \
-			+ "to PATH\"), then start the game again -- the rest sets itself up."
+		_reason = no_python_reason(_UserData.is_exported_build(), OS.has_feature("macos"))
 		_fail(_reason)
 		return
 	# WHO STARTED IT. The server watches this process and exits when it is gone
@@ -406,6 +404,25 @@ func _python_command() -> PackedStringArray:
 	var windows := OS.has_feature("windows")
 	return choose_python(python_in(_repo_root().path_join(".venv"), windows),
 		python_candidates(windows))
+
+
+## What the player is told when no Python that runs was found.
+##
+## ⚠ A PACKAGE IS NOT MISSING PYTHON: IT CARRIES ITS OWN. A tester on a Mac with no Python was
+## told to install it from python.org while the package's .venv sat beside the game: macOS had
+## killed it because the download was still flagged as quarantined, or was running the app from
+## a hidden temporary copy away from it. Opening the game with Play OBRA.command undoes both.
+## Static, and told what it is running in, so a probe can ask it about every case.
+static func no_python_reason(packaged: bool, mac: bool) -> String:
+	if packaged and mac:
+		return "The game's own Python could not start. Quit, then open the game with " \
+			+ "Play OBRA.command in the OBRA folder."
+	if packaged:
+		return "The game's own Python, in the .venv folder, could not start. Unzip the whole " \
+			+ "package again, keeping its folders together, and start it with Play OBRA.bat."
+	return "Python 3.10 or newer is not installed on this computer, and the drawing " \
+		+ "recogniser needs it. Install it from python.org (on Windows, tick \"Add python.exe " \
+		+ "to PATH\"), then start the game again -- the rest sets itself up."
 
 
 ## The .venv's own interpreter if it runs and is 3.10 or newer, and otherwise the first of

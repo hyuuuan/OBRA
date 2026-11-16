@@ -56,6 +56,7 @@ func _run() -> void:
 			or here.ends_with("python3")), "this checkout resolves the same way", here)
 
 	_audit_a_venv_that_cannot_serve_is_passed_over(root_dir)
+	_audit_a_package_is_never_told_to_install_python()
 
 	for line in results:
 		print(line)
@@ -98,6 +99,20 @@ func _audit_a_venv_that_cannot_serve_is_passed_over(root_dir: String) -> void:
 	chosen = BackendSupervisor.choose_python(root_dir.path_join("none/.venv/bin/python"), others)
 	_check(chosen == PackedStringArray([system]), "no venv: the computer's Python",
 		" ".join(chosen))
+
+
+## ⚠ A PACKAGE CARRIES ITS OWN PYTHON. A tester on a Mac with none installed was sent to
+## python.org when macOS had killed the package's Python over a download flag; Play OBRA.command
+## clears it. A checkout still needs a Python of the computer's own.
+func _audit_a_package_is_never_told_to_install_python() -> void:
+	var told := BackendSupervisor.no_python_reason(true, true)
+	_check(told.contains("Play OBRA.command") and not told.contains("python.org"),
+		"a Mac package is sent to its launcher", told)
+	told = BackendSupervisor.no_python_reason(true, false)
+	_check(told.contains("Play OBRA.bat") and not told.contains("python.org"),
+		"a Windows package is sent to its launcher", told)
+	told = BackendSupervisor.no_python_reason(false, true)
+	_check(told.contains("python.org"), "a checkout is sent to python.org", told)
 
 
 func _stand_in(path: String, body: String) -> String:
