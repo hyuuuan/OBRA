@@ -39,6 +39,14 @@ signal reached(checkpoint_id: String)
 ## a fall past it must never send her back to the start -- and its lantern is lit by the light
 ## she makes, so a lit lantern says she rested there, not that she walked by.
 @export var lights_on_entry := true
+## What must be true for walking in to count. Unset, it always counts. A refused entry writes
+## nothing and leaves the area open, so the same place counts once it is true (`recheck`).
+##
+## ⚠ FIRES ONCE, SO A REFUSAL CANNOT SPEND THE ENTRY. Dagat's island is this level's end, and its
+## landing was refused until the bakunawa was answered -- after the entry had been marked
+## written and the island saved. A swimmer who reached the far sand first could never land
+## there again, and stood at the painting with nothing happening.
+var admits := Callable()
 
 var _written := false
 var _mark: CheckpointLantern2D
@@ -75,8 +83,27 @@ func is_written() -> bool:
 	return _written
 
 
+## Counted now if the player is already standing in it. body_entered never fires again for a
+## body that has not left, so an entry refused and since admitted, or a restore that put the
+## player inside a reopened area, is asked here.
+func recheck() -> void:
+	if _written:
+		return
+	for body in get_overlapping_bodies():
+		if _is_player(body):
+			_on_body_entered(body)
+			return
+
+
+## Open again, to be reached again: for a restore that undoes what reaching it began.
+func reopen() -> void:
+	_written = false
+
+
 func _on_body_entered(body: Node) -> void:
 	if _written or checkpoint_id.is_empty() or not _is_player(body):
+		return
+	if admits.is_valid() and not bool(admits.call()):
 		return
 	_written = true
 	if lights_on_entry:

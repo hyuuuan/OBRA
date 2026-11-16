@@ -121,6 +121,8 @@ var _shadow: Sprite2D
 ## waits on. See _land_on_the_island.
 var _next_painting: NextPaintingClass
 var _painting_taken := false
+## The strip on the far sand that lands her (CP4): asked each frame until she has landed.
+var _island_arrival: CheckpointArea2D
 ## Everything that moves and is not the player -- gulls, jellies, surf, rain, lightning, the
 ## wake, bubbles, glints. See DagatLife2D.
 var _life: LifeClass
@@ -308,7 +310,9 @@ func _build_level_furniture() -> void:
 	var arrival := get_node_or_null(
 		^"EnvironmentBaseplate/GameplayPlane/IslandArrival") as CheckpointArea2D
 	if arrival != null:
+		arrival.admits = _the_crossing_is_answered
 		arrival.reached.connect(_on_island_reached)
+	_island_arrival = arrival
 
 
 func _roster_ids() -> PackedStringArray:
@@ -1354,6 +1358,10 @@ func level_data_shore_edges() -> Vector2:
 
 
 func _level_physics(anchor_position: Vector2) -> void:
+	# Still at the island and not landed: answered since she got here, or put back here by a
+	# restore. Either way she never walks in again, so it is asked.
+	if not _arrived and _island_arrival != null:
+		_island_arrival.recheck()
 	_keep_the_weather()
 	_keep_the_passenger_aboard()
 	var delta := get_physics_process_delta_time()
@@ -3724,8 +3732,22 @@ class _DriftingShadow extends Sprite2D:
 ## horizontal drive at all. Reverting them in open water instead would hand them straight to
 ## the drowning rescue. So the level reverts them AND puts them on the sand in one breath.
 func _on_island_reached(_checkpoint_id: String) -> void:
-	if _arrived or director == null:
+	if _arrived or not _the_crossing_is_answered():
 		return
+	_arrived = true
+	# ⚠ DEFERRED, BECAUSE THIS ARRIVES FROM body_entered. Coming ashore reverts the player,
+	# which builds a new body and disables the old one's shapes -- and Godot refuses to
+	# change collision state while it is flushing queries. Every arrival printed two engine
+	# errors and the revert was landing on a body mid-query.
+	call_deferred("_land_on_the_island")
+
+
+## Whether the island may take her: the bakunawa answered. The island's arrival area asks this
+## before it counts an entry, so a refusal neither saves the island nor spends the entry, and
+## the level asks again each frame she stays in it (`_level_physics`).
+func _the_crossing_is_answered() -> bool:
+	if director == null:
+		return false
 	# ⚠ REACHING THE ISLAND UNSEEN IS SLIPPING PAST IT, WHATEVER CARRIED THE PLAYER THERE.
 	# Slipping past was answered only at 420 px beyond the creature, and a boat cannot get
 	# there: its hull runs aground on the island with the passenger seated at x 4417. So a boat
@@ -3735,14 +3757,7 @@ func _on_island_reached(_checkpoint_id: String) -> void:
 	if director.committed_route("L3_N2") == "pragmatist" and not director.is_solved("L3_N2") \
 			and _bakunawa != null and not _bakunawa.sees(_anchor_now(), _carrying_a_lit_light()):
 		director.solve_with_item("L3_N2", "the dark")
-	if not director.is_solved("L3_N2"):
-		return
-	_arrived = true
-	# ⚠ DEFERRED, BECAUSE THIS ARRIVES FROM body_entered. Coming ashore reverts the player,
-	# which builds a new body and disables the old one's shapes -- and Godot refuses to
-	# change collision state while it is flushing queries. Every arrival printed two engine
-	# errors and the revert was landing on a body mid-query.
-	call_deferred("_land_on_the_island")
+	return director.is_solved("L3_N2")
 
 
 func _land_on_the_island() -> void:
@@ -4031,7 +4046,15 @@ func _restore_level_run_state(state: Dictionary) -> void:
 	# again did nothing: the landing is guarded by it, so the painting never armed and the level
 	# could not end. Wherever a restore puts the apo, arriving is something they do again; put
 	# back at the island itself, they are standing in its volume and land on the next frame.
+	#
+	# ⚠ WHICH THE AREA HAS TO ALLOW. It fires once, and it had already fired, so "land on the next
+	# frame" never happened: reopened here, and asked each frame (_level_physics). The painting is
+	# disarmed until then, or walking into it before landing took it with the level not listening.
 	_arrived = false
+	if _island_arrival != null:
+		_island_arrival.reopen()
+	if _next_painting != null and is_instance_valid(_next_painting) and not _next_painting.is_taken():
+		_next_painting.disarm()
 	_told.clear()
 	for hook: Variant in (state.get("told", []) as Array):
 		_told[String(hook)] = true
