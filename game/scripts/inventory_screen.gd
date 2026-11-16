@@ -1687,8 +1687,10 @@ func _fill_locked_card(class_id: String) -> void:
 	_detail_kind.text = String(palette["kind"])
 	_set_art(null, "Still face down. Draw it to turn it over.")
 	_set_ability("Hint", locked_hint(class_id))
-	# Its skills were the old hint; the scramble and the line replace them, not join them.
-	_set_skills([])
+	# ⚠ AND THE ABILITIES IT HAS BEEN TAUGHT. They went when the scramble came in, and then a
+	# gate's "draw something that can STRIKE or STARTLE" had nothing in the bag to match it
+	# against: the skills are how a player finds the face-down card that answers what is asked.
+	_set_skills(_skills_of(class_id))
 	_set_rows("", _role_of(class_id))
 	_log_locked_hint(class_id)
 

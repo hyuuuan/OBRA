@@ -186,9 +186,15 @@ func _a_face_down_card_hints() -> void:
 		"chosen %s, title \"%s\"" % [str(chosen), title])
 	_check(not hint.is_empty() and hint == InventoryScreen.locked_hint(pick),
 		"and says its one short line", "\"%s\"" % hint)
-	var chips := (screen.get("_skills_flow") as Node).find_children("*", "Label", true, false)
-	var shown_chips := chips.filter(func(chip: Node) -> bool: return (chip as Label).is_visible_in_tree())
-	_check(shown_chips.is_empty(), "and no longer lists its skills", "%d chips" % shown_chips.size())
+	# The ability it was taught above is on the card, so a gate's "draw something that can ..." can
+	# be matched against the face-down cards.
+	var taught_name := String(tags.call("display_name", String((tags.call("tags_for_class", pick) as Array)[0])))
+	var chip_text: Array[String] = []
+	for chip in (screen.get("_skills_flow") as Node).find_children("*", "Label", true, false):
+		if (chip as Label).is_visible_in_tree():
+			chip_text.append((chip as Label).text)
+	_check(" ".join(chip_text).to_upper().contains(taught_name.to_upper()),
+		"and lists the abilities it has been taught", "chips %s, taught %s" % [str(chip_text), taught_name])
 	# Every word the hint puts up -- the big card and its plaques, its skill chips -- and on the
 	# face-down card itself. (Drawn cards elsewhere on the screen are named, as they should be.)
 	var said: Array[String] = []

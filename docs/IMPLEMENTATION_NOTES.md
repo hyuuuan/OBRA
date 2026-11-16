@@ -935,8 +935,9 @@ fitting its page, and being given by some level's script.
   a DOG = ODG"). Clicked, or reached with the arrows, a card not yet drawn shows its name with each
   word's letters shuffled (`InventoryScreen.scrambled_name`: the same shuffle every time, never the
   word itself) and its line from `config/card_hints.json` (seven words at most, naming none of the
-  fifty). It used to hint by the class's taught ability tags instead, because the thesis's T1 and
-  T2 never name a class; the scramble is a stronger hint than any tier, so the look is still logged
+  fifty), with the ability tags it has been taught as chips beside them -- ⚠ dropped once with the
+  scramble, which left a gate's "draw something that can STRIKE or STARTLE" with nothing in the bag
+  to match it against. The scramble is a stronger hint than any tier, so the look is still logged
   as assistance (`locked_card_hint`, `shows: "scrambled_name"`, `assisted: true`), once per card
   per opening of the bag. `run_book_probe` checks all fifty lines and scrambles.
 - **Presence in a level is a question about THIS RUN; ownership is a question for the
