@@ -342,9 +342,12 @@ func _physics_process(delta: float) -> void:
 	_leave_a_mark(delta, airborne, falling)
 	# Keep it inside the level rather than letting it walk off the end of the world.
 	global_position.x = clampf(global_position.x, world_bounds.position.x, world_bounds.end.x)
-	if global_position.y > world_bounds.end.y:
-		global_position = Vector2(global_position.x, world_bounds.position.y)
-		velocity = Vector2.ZERO
+	# ⚠ NO WRAP AT THE BOTTOM. Falling past it used to put her at the TOP of the world, a frame
+	# before the level's own fall line (LevelBase, FALL_LIMIT_MARGIN under it) could take her back
+	# to her checkpoint -- so it never did. Terraces' bottom is a hand under its ground, and from
+	# the top she landed on the lid over the valley or on a room parked in the sky, stuck far
+	# above everything; in Pista she landed on the sky's props or fell and wrapped for ever. Falling
+	# on, she reaches that line, and the level brings her back.
 
 	_advance_stride(delta, velocity.x)
 
