@@ -75,6 +75,11 @@ func arm() -> void:
 	_take_if_standing_in_it.call_deferred()
 
 
+## Not to be taken until armed again: a restore puts the landing that armed it back.
+func disarm() -> void:
+	_armed = false
+
+
 func _take_if_standing_in_it() -> void:
 	if _reach == null or _taken:
 		return
