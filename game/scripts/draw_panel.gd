@@ -62,6 +62,8 @@ var ink_manager: InkManager
 ## in open_panel. Generous: the busiest class in the roster is well under this.
 const PAGE_ALLOWANCE := 8.0
 const INK_LIMIT_STATUS := "Page full. Paint, undo, or clear."
+## What the panel says while Paint is held back for a guess that is not sure yet.
+const UNSURE_STATUS := "Not sure yet. Keep drawing."
 
 const OPEN_DURATION := 0.54
 ## How long a refused drawing takes to fade to the bare page.
@@ -115,6 +117,10 @@ var _live_cooldown: float = 0.0
 var _guess_entity: String = ""
 var _guess_display: String = ""
 var _guess_confidence: float = 0.0
+## The last guess fell short of the gate, so Paint is held back until a guess that clears it. It
+## stays through the strokes that follow -- the guess is forgotten at every stroke, and the button
+## coming back on between strokes only to go off again was its own kind of noise.
+var _guess_unsure := false
 var _guess_margin: float = 0.0
 # Autoloads resolved through the tree so this class_name script compiles even when a
 # tool precompiles it before the autoloads register. Untyped for dynamic dispatch.
@@ -304,6 +310,7 @@ func open_panel() -> void:
 	if not _context_title.is_empty():
 		status.text = ""
 	# Nothing has been drawn yet, so there is nothing to transform.
+	_guess_unsure = false
 	transform_button.disabled = true
 	_refresh_ink_row()
 	UIRouter.refresh_pause(get_tree())
@@ -425,6 +432,8 @@ func _on_live_prediction(
 	guess_label.modulate = Color.WHITE
 	guess_label.add_theme_color_override(&"font_color",
 		UISkin.GOLD_PALE if sure else UISkin.PENDING)
+	_guess_unsure = not sure
+	_refresh_paint()
 	# One word whatever is on the page. "Transform into Ladder" said the player would become
 	# a ladder, which is not what drawing an object does -- and it ran off the button. The
 	# guess line above already names what it sees.
@@ -435,6 +444,9 @@ func _on_live_prediction_failed(message: String) -> void:
 	if not _is_open or _submitting or _refusing or _guessed_revision != canvas.content_revision():
 		return
 	_forget_guess()
+	# No guess to hold it back with: the recogniser itself will say at submission.
+	_guess_unsure = false
+	_refresh_paint()
 	# Deliberately NOT resetting the cooldown: it was set when the request went out, so
 	# leaving it alone is what paces the retry. Clearing it here would turn a backend
 	# that is down into a request every frame.
@@ -617,15 +629,38 @@ func _forget_guess() -> void:
 	transform_button.text = "Paint"
 
 
+## ⚠ PAINT ONLY WHAT IT IS SURE OF. Kent: below and above the 60% gate the button looked the same,
+## so a guess the recogniser would refuse was painted and declined. Held back -- off, in the
+## button's own disabled look, with a line saying why -- while the live guess falls short of the
+## same gate the submission is judged by (SketchClient.passes_gate); back the moment a guess
+## clears it. Only on the ordinary page: a quiet or free page asks the recogniser nothing.
+func _refresh_paint() -> void:
+	var unsure := _guess_unsure and drawing_mode == DrawingMode.NORMAL and not _refusing
+	transform_button.disabled = _submitting or not canvas.has_ink() or unsure
+	transform_button.tooltip_text = UNSURE_STATUS if unsure else ""
+	if unsure:
+		status.text = UNSURE_STATUS
+	elif status.text == UNSURE_STATUS:
+		status.text = ""
+
+
+## Whether Paint is held back for a guess that is not sure yet -- for a probe.
+func paint_held_for_a_guess() -> bool:
+	return _guess_unsure and drawing_mode == DrawingMode.NORMAL and not _refusing
+
+
 func _set_submitting(submitting: bool) -> void:
 	_submitting = submitting
-	transform_button.disabled = submitting
+	_refresh_paint()
 	clear_button.disabled = submitting
 	undo_button.disabled = submitting or not canvas.has_strokes()
 
 
 func _on_transform_pressed() -> void:
 	if _submitting:
+		return
+	# The button is off for it; nothing else may paint a guess the gate would refuse either.
+	if paint_held_for_a_guess():
 		return
 	if _refusing:
 		if not canvas.has_ink():
@@ -774,6 +809,7 @@ func _on_prediction_failed(message: String) -> void:
 func _clear_canvas() -> void:
 	canvas.clear_canvas()
 	_clear_guess()
+	_guess_unsure = false
 	transform_button.disabled = true
 	if ink_manager != null:
 		ink_manager.release_attempt()
@@ -789,8 +825,11 @@ func _on_stroke_cost_changed(cost: float) -> void:
 	# the pending utility reservation with zero before placement/storage commits.
 	if not _is_open:
 		return
-	# There is ink on the canvas now, so there is something to offer the recogniser.
-	transform_button.disabled = cost <= 0.0
+	# There is ink on the canvas now, so there is something to offer the recogniser -- if the last
+	# guess was sure, or there is none yet.
+	if cost <= 0.0:
+		_guess_unsure = false
+	_refresh_paint()
 	undo_button.disabled = _submitting or not canvas.has_strokes()
 	if status.text == INK_LIMIT_STATUS:
 		status.text = ""
