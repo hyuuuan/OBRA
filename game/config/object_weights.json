@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "note": "Which drawn things are too heavy to float. Water lifts a body by a multiple of its own weight (WaterArea2D.buoyancy, 2.4 -- a little under half submerged at rest), and that multiple used to be the same for every body, so an anvil floated exactly as a ladder did. A class listed under `sinks` is lifted by `sinking_lift` times its weight instead: under 1, so it goes to the bottom, slowed by the water's drag. Metal and stone sink; wood, paper, cloth and the drawn shapes float. Read by PhysicsShapeObject, held to by run_sinking_probe.",
+  "sinking_lift": 0.45,
+  "sinks": ["anvil", "cannon", "axe", "sword", "scissors", "key"]
+}
