@@ -185,14 +185,36 @@ def make_zip() -> Path:
     return archive
 
 
+## ⚠ A REBUILD KEEPS THE PLAYTEST DATA. Participants' telemetry is collected into
+## OBRA/playtest-data, inside the folder assemble() deletes and makes again -- and a rebuild on
+## 2026-11-15 did exactly that, taking R03-1 to R07 with it (they survived only in a backup). It is
+## set aside before the build and put back after the zip is written, so it is never in the zip, and
+## put back even when the build fails.
+KEPT = BUILD / ".playtest-data-kept"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-zip", action="store_true")
     args = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
-    assemble()
-    if not args.no_zip:
-        print(f"Wrote {make_zip()}")
+    data = PACKAGE / "playtest-data"
+    if KEPT.exists() and not data.exists():
+        raise SystemExit(f"{KEPT} holds playtest data from an interrupted build; put it back in "
+                         f"{data} first.")
+    if data.exists():
+        if KEPT.exists():
+            raise SystemExit(f"Both {data} and {KEPT} exist; merge them by hand before building.")
+        data.rename(KEPT)
+    try:
+        assemble()
+        if not args.no_zip:
+            print(f"Wrote {make_zip()}")
+    finally:
+        if KEPT.exists():
+            data.parent.mkdir(parents=True, exist_ok=True)
+            KEPT.rename(data)
+            print(f"Kept the playtest data in {data}")
 
 
 if __name__ == "__main__":
