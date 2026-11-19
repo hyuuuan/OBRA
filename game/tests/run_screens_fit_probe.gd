@@ -20,10 +20,16 @@ const SIZES: Array[Vector2i] = [Vector2i(1600, 900), Vector2i(2100, 900), Vector
 const LEVELS := ["res://game_level.tscn", "res://level_2.tscn"]
 ## How far off the middle a screen may sit before it is the wrong way round.
 const OFF_CENTRE := 4.0
+## How much room a settings switch keeps between its label and the switch. A reviewer lost the
+## last letter of "Fullscreen" and "Reduce motion" under the switch when the button was lifted
+## on hover, with the engine's 4 px gap (docs/EXPERT_REVIEW.md, B4).
+const MIN_SWITCH_GAP := 12.0
 const InventoryBagArt = preload("res://scripts/bag_art.gd")
 const ScreenShapeScript = preload("res://scripts/screen_shape.gd")
 
 var failures := 0
+## The switches are measured once: their gap is the same at every screen shape.
+var _switches_judged := false
 
 
 func _initialize() -> void:
@@ -79,6 +85,9 @@ func _home() -> void:
 		if overlay == null:
 			_check(false, "home: %s" % overlay_name, "not on the home screen")
 			continue
+		if overlay_name == "SettingsOverlay" and not _switches_judged:
+			_switches_judged = true
+			_switches_have_room(overlay)
 		await _judge_overlay("home: " + overlay_name, overlay)
 	menu.queue_free()
 	await _frames(6)
@@ -142,6 +151,24 @@ func _fill_the_bag(level: Node) -> void:
 	var profile := root.get_node("PlayerProfile")
 	for id: String in ["flower_1", "L2_HF", "L3_HF"]:
 		profile.call("record_collectible", id)
+
+
+## Every switch on the settings screen leaves room after its label. Measured from the laid-out
+## button rather than read off the theme, so a size flag or a wider switch texture counts too.
+func _switches_have_room(overlay: CanvasLayer) -> void:
+	var switches := overlay.find_children("*", "CheckButton", true, false)
+	_check(not switches.is_empty(), "settings: switches found", "%d" % switches.size())
+	for node: Node in switches:
+		var button := node as CheckButton
+		var style := button.get_theme_stylebox(&"normal")
+		var text_w := button.get_theme_font(&"font").get_string_size(button.text,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, button.get_theme_font_size(&"font_size")).x
+		var switch_w := maxf(button.get_theme_icon(&"checked").get_width(),
+			button.get_theme_icon(&"unchecked").get_width())
+		var gap := button.size.x - style.get_margin(SIDE_LEFT) - style.get_margin(SIDE_RIGHT) \
+			- text_w - switch_w
+		_check(gap >= MIN_SWITCH_GAP, "settings: \"%s\" has room before its switch" % button.text,
+			"%.0f px (needs %.0f)" % [gap, MIN_SWITCH_GAP])
 
 
 func _judge_overlay(what: String, overlay: CanvasLayer) -> void:
