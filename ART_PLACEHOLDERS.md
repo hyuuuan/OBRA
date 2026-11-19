@@ -404,6 +404,12 @@ The darkness itself (`DarknessLayer`) is gameplay too: `LightField` decides what
 The book itself (`game/assets/hud/diary_book.png`) is not a placeholder: it is the delivered page
 turn from `HUD-assets-ideas/Book-Inventory-Animation.gif`, with its tabs keyed out.
 
+## The game's icon (every build)
+
+| | Now | Where | Replace with |
+|---|---|---|---|
+| **The app icon** | The framed painting that opens the wordmark, cut from `obra_logo.png` at column 50 (the B starts at 51), centred on a square and enlarged 12× by whole pixels: 900 px on a 1024 × 1024 transparent canvas. It is the window's, the `.exe`'s and the `.app`'s icon (19 November, after the developers' review found none, `docs/EXPERT_REVIEW.md` B5). Its right side is flat where the frame met the B. At 16 px it reads as a gold blob. | `game/assets/ui/obra_icon.png`; `config/icon` in `game/project.godot`; `application/icon` in both presets of `game/export_presets.cfg` | A square icon drawn for the purpose, 1024 × 1024 with a transparent background, that still reads at 16 and 32 px. Keep the path, or change all three settings. |
+
 ## Where to start
 
 1. **The bulul** — small, the one with the least room for error, and the only prop here
