@@ -202,6 +202,12 @@ func _ranges(theme: Theme) -> void:
 	theme.set_color("font_hover_color", "CheckButton", Palette.GOLD_PALE)
 	theme.set_color("font_color", "CheckBox", Palette.CREAM_TEXT)
 	theme.set_color("font_hover_color", "CheckBox", Palette.GOLD_PALE)
+	# ⚠ ROOM BETWEEN THE LABEL AND ITS SWITCH. At the engine's 4 px a settings switch is exactly
+	# as wide as its words, the gap and the 48 px switch, with nothing to spare -- and UIFeedback
+	# lifts a hovered or focused button to 1.02, which re-rasterises the pixel face. On a reviewer's
+	# screen (2026-11) that pushed the last letter under the opaque switch: "Fullscreen" and
+	# "Reduce motion" both lost their "n" when hovered or toggled (docs/EXPERT_REVIEW.md, B4).
+	theme.set_constant("h_separation", "CheckButton", 16)
 	for type in ["CheckButton", "CheckBox"]:
 		for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 			theme.set_stylebox(state, type, StyleBoxEmpty.new())
