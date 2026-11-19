@@ -114,25 +114,35 @@ All five were logged by R1.
 - `run_minimap_probe` and `run_room_probe` pass on 19 Nov.
 
 ### B4. Settings: the letter "n" disappears when a setting is hovered or toggled (severity 1)
-- **Status: not reproduced.** It was captured at four window sizes, normal, hovered and toggled
-  on, and the "n" always showed.
+- **Status: fixed on 19 Nov for the likely cause.** It never reproduced on a Retina Mac: at four
+  window sizes, normal, hovered and toggled on, the "n" always showed.
 - **Likely cause:**
   - Both switches end in "n": "Fullscreen" and "Reduce motion"
     ([settings_overlay.tscn](../game/ui/settings_overlay.tscn)).
-  - Each button is exactly as wide as its text, a 4 px gap and the 48 px switch, with nothing to
-    spare (Fullscreen: 148 + 4 + 48 = 200).
-  - A screen that draws the pixel font a little wider could push the last letter under the
-    opaque switch.
-- **Fix:** a wider gap, via the CheckButton `h_separation` in
-  [obra_theme.tres](../game/ui/obra_theme.tres).
+  - Each button was exactly as wide as its text, a 4 px gap and the 48 px switch, with nothing
+    to spare (Fullscreen: 148 + 4 + 48 = 200).
+  - UIFeedback lifts a hovered or focused button to 1.02, and a switch keeps focus after it is
+    toggled. Those are the two states the reviewer named.
+  - At that size the pixel font is drawn again, and on a screen that draws it a little wider the
+    last letter could land under the opaque switch.
+- **Fix:** the gap is 16 px, via the CheckButton `h_separation` set in
+  [build_theme.gd](../game/tools/build_theme.gd).
+  [run_screens_fit_probe](../game/tests/run_screens_fit_probe.gd) needs at least 12 px; it fails
+  at the old 4.
+- **Still to confirm:** R1's screen, to be sure this was the cause.
 
 ### B5. The game has no logo as its icon (severity 1)
-- **Status: confirmed, still open.**
-  - [project.godot](../game/project.godot) sets no `config/icon`.
-  - Both presets in [export_presets.cfg](../game/export_presets.cfg) have `application/icon=""`.
-  - So builds show Godot's default icon.
-- **The only logo is the wordmark** ([obra_logo.png](../game/assets/ui/obra_logo.png),
-  141 × 75). An icon needs a square image, for example the round "O" emblem cut out of it.
+- **Status: fixed on 19 Nov.** Before that, [project.godot](../game/project.godot) set no
+  `config/icon` and both presets in [export_presets.cfg](../game/export_presets.cfg) had
+  `application/icon=""`, so builds showed Godot's default icon.
+- **The icon** is the framed painting that opens the wordmark
+  ([obra_logo.png](../game/assets/ui/obra_logo.png)), cut out and enlarged by whole pixels to a
+  1024 × 1024 square ([obra_icon.png](../game/assets/ui/obra_icon.png)). The project and both
+  presets now name it.
+- **Checked:** in a macOS and a Windows export, the `.app`'s `icon.icns` and all six of the
+  `.exe`'s icon sizes show it.
+- **It is a stand-in** until a purpose-drawn square icon exists (`ART_PLACEHOLDERS.md`, "The
+  game's icon").
 
 ---
 
