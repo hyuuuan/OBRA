@@ -224,7 +224,9 @@ func _watch_a_transition(manager: Node) -> Dictionary:
 	var stroke := manager.get_node(^"InkTransitionLayer/InkTransition/Stroke") as ColorRect
 	var cover := manager.get_node(^"InkTransitionLayer/InkTransition") as Control
 	var start_ms := Time.get_ticks_msec()
-	manager.call(&"_transition_to", "res://ui/main_menu.tscn", "")
+	# No whoosh: the same call open_main_menu queues. The whoosh is only sound, so the wipe
+	# watched here is the same either way.
+	manager.call(&"_transition_to", "res://ui/main_menu.tscn", "", false)
 	var last := 0.0
 	while Time.get_ticks_msec() - start_ms < 6000:
 		await process_frame
