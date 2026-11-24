@@ -194,6 +194,15 @@ proper animation to the painting".
 
 ## The final scene in the house
 
+**The mano (24 November 2026).** The cultural panel asked that the ending show what the game asks
+the player to value (Chapter 5, Table 34), so the first thing the apo does at home is greet Lola
+the way a Filipino child greets an elder: *"Mano po, Lola."* She comes over and holds out her
+hand; the apo bows and touches it to the forehead; she gives the blessing that goes with it
+without having to think -- *"Kaawaan ka ng Diyos."* -- and only then looks properly, and takes the
+apo for Lolo (`HouseEpilogue._mano`, `HOUSE.mano` / `HOUSE.blessing`). The two poses are made by
+`tools/build_mano_poses.py` from Mayon's bowed apo and Lola's front pose, and their hands meet only
+at `HouseEpilogue.MANO_GAP` (64 px), which `run_level5_frame_probe` holds.
+
 Lola's house easel starts with an underpainting of Mayon. Her brush poses add colour before
 the camera gives the house back. Her dialogue portrait uses the same bust height and pixel
 scale as Lolo and the apo.
@@ -262,7 +271,7 @@ saved blooms into the white, and lola turns around.
 
 | | |
 |---|---|
-| The ending (Kent, 2026-10-25; the house, 2026-11-01) | **The summit is the ending, and then home.** The frame's room is gone (`DIARY.md`): "Lolo. Let's go home." -- and the house, where Lolo is painted into every painting (alive, ageing across them) and Lola is waiting; she takes the apo for him, is told he is "right here, in all your works", and walks to an empty easel at the far end: "Who are you? Will you watch me paint?" The house stays that way for the save (`HouseEpilogue`). Endings A–D are still computed by `EndingResolver` and logged to telemetry for the thesis; they are never shown, and the stats screen leaves play. |
+| The ending (Kent, 2026-10-25; the house, 2026-11-01) | **The summit is the ending, and then home.** The frame's room is gone (`DIARY.md`): "Lolo. Let's go home." -- and the house, where Lolo is painted into every painting (alive, ageing across them) and Lola is waiting; the apo does the mano and she blesses the apo; then she takes the apo for him, is told he is "right here, in all your works", and walks to an empty easel at the far end: "Who are you? Will you watch me paint?" The house stays that way for the save (`HouseEpilogue`). Endings A–D are still computed by `EndingResolver` and logged to telemetry for the thesis; they are never shown, and the stats screen leaves play. |
 | Confrontation (Kent) | **None at all.** No boss, no combat, no health. The ash is weather; the antagonist is the clock and the ink. |
 | Lola, the room, Lolo fading (Kent) | **Placeholders sculpted in the delivered art's idiom**, like Dilim's creatures, each named in `ART_PLACEHOLDERS.md` so the art team can replace it by name. Lolo's fading is a shader over his existing sheet. |
 | Drawing the places (Kent) | **One drawing blooms them.** After the third refusal the canvas opens once more; whatever she draws, the fragments she saved bloom into the white one by one. No recognition, no ink: the climax cannot fail. |

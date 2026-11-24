@@ -20,6 +20,11 @@ is of the spelling and meaning from published phrasebooks; a speaker overrules i
 | Dilim | Tagalog (`tgl`) | Tabi-tabi po. Excuse me -- I only need to pass. | The apo, at the nuno's mound, on one route only (`L4_NU_002`, older than this list) | Asking leave of the unseen ones before passing. | High |
 | Mayon | Central Bikol (`bcl`) | Dios mabalos, Lolo. | The apo, after the legend (`L5_magayon_7`) | Thank you, Lolo. (also spelled *Diyos mabalos*) | High |
 
+**The house, at the end** is in the family's own Filipino rather than a region's, so its lines
+carry no code, but they are worth the same check: *"Mano po, Lola."* (the apo, asking for the
+elder's hand to the forehead, `L5_house_mano`) and *"Kaawaan ka ng Diyos."* (Lola: God bless
+you, the blessing that answers the mano, `L5_house_blessing`).
+
 Also in the lines, and worth the same check: *magayon*, Bikol for beautiful, and *Daragang
 Magayon*, the beautiful maiden (`L5_magayon_1`); *puso*, *bibingka*, *adobo* and *pancit*
 (`L2_PL_004`); *halipan* and *cogon* (`L1_N3_017e`, `L1_N3_017f`).

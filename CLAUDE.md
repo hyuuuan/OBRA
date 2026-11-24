@@ -91,7 +91,7 @@ When code and docs disagree, trust the code and fix the doc in the same PR.
   - Lola paints with her back turned, and the brush refuses twice.
   - She draws the places instead: one drawing, no recognition, no ink, so the climax cannot fail. The saved fragments bloom, and Lola turns.
   - Five flowers means the perfect ending; fewer means the standard one.
-- **Home.** Her last page is read at Lola's easel, then: "Lolo. Let's go home." -- and the house, where Lolo is painted into every painting (alive, ageing across them) and Lola is waiting; she takes the apo for him, is told he is "right here, in all your works", and walks to an empty easel at the far end: "Who are you? Will you watch me paint?" The house stays that way for the save (`HouseEpilogue`). It replaced the frame's return, a separate painted room (2026-11-01, `DIARY.md`).
+- **Home.** Her last page is read at Lola's easel, then: "Lolo. Let's go home." -- and the house, where Lolo is painted into every painting (alive, ageing across them) and Lola is waiting; the apo does the mano ("Mano po, Lola" -- her hand to the bowed forehead) and she gives the blessing without thinking, "Kaawaan ka ng Diyos"; then she takes the apo for him, is told he is "right here, in all your works", and walks to an empty easel at the far end: "Who are you? Will you watch me paint?" The house stays that way for the save (`HouseEpilogue`). It replaced the frame's return, a separate painted room (2026-11-01, `DIARY.md`).
 
 ### Decisions (made by the team; do not reopen)
 | Topic | Decision |

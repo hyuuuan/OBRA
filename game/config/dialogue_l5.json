@@ -177,6 +177,20 @@
       "text": "Lolo. Let's go home."
     },
     {
+      "id": "L5_house_mano",
+      "at": "HOUSE.mano",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Mano po, Lola."
+    },
+    {
+      "id": "L5_house_blessing",
+      "at": "HOUSE.blessing",
+      "speaker": "lola",
+      "kind": "lore",
+      "text": "Kaawaan ka ng Diyos."
+    },
+    {
       "id": "L5_house_1",
       "at": "HOUSE.home",
       "speaker": "lola",
