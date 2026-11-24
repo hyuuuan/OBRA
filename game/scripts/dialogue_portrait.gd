@@ -75,6 +75,10 @@ extends Control
 const PORTRAITS := {
 	# Match the apo and Lolo's 222px bust so all three use the same 2× scale.
 	"Lola": {"art": preload("res://assets/Level5/people/lola_portrait.png"), "bust": 222.0 / 273.0},
+	# The Ifugao guardian at Ang Bale is repainted from Lola's portrait (build_payyo_guardian.py),
+	# so she is cut at the same row.
+	"Guardian": {"art": preload("res://assets/Level1/people/guardian_portrait.png"),
+		"bust": 222.0 / 273.0},
 	"Lolo": {"art": preload("res://assets/characters/lolo/lolo_portrait_outlined.png"),
 		"bust": 222.0 / 317.0},
 	# The supplied priest sheet's large portrait, kept at source resolution. Cut below

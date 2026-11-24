@@ -19,7 +19,7 @@ const CheckpointManagerClass = preload("res://scripts/checkpoint_manager.gd")
 ## Preloaded, not named: class_name is not registered yet in a --script run.
 const StrawPileClass = preload("res://scripts/straw_pile_2d.gd")
 const WardLockClass = preload("res://scripts/ward_lock_2d.gd")
-const BululClass = preload("res://scripts/bulul_2d.gd")
+const GuardianClass = preload("res://scripts/ifugao_guardian_2d.gd")
 const WandererClass = preload("res://scripts/wanderer.gd")
 const BaleClass = preload("res://scripts/bale_2d.gd")
 const LevelDirectorClass = preload("res://scripts/level_director.gd")
@@ -1865,26 +1865,40 @@ func _walk_node_three(route: String) -> void:
 		_check(guards == 3, "every post carries a solid halipan",
 			"%d rat guard(s) with collision -- this is why the posts cannot be climbed" % guards)
 
-		# THE CULTURAL GUARDRAIL, as an assertion rather than a comment.
+		# THE CULTURAL GUARDRAIL, as an assertion rather than a comment. The Ifugao guardian
+		# replaced the two bulul (cultural panel) and keeps their rule.
 		var figures: Array[Node] = []
 		for child in bale_root.get_children():
-			if child.get_script() == BululClass:
+			if child.get_script() == GuardianClass:
 				figures.append(child)
-		_check(figures.size() == 2, "two bulul", "%d" % figures.size())
+		_check(figures.size() == 1, "one Ifugao guardian at the bale", "%d" % figures.size())
 		var solid: Array[String] = []
 		for figure in figures:
 			if bool(figure.call("has_collision")):
 				solid.append(String(figure.name))
-		_check(solid.is_empty(), "no bulul has collision",
-			"none can be stood on, pushed or chopped" if solid.is_empty()
+		_check(solid.is_empty(), "the guardian has no collision",
+			"she cannot be stood on, pushed or chopped" if solid.is_empty()
 			else "SOLID: %s" % ", ".join(solid))
 		var in_data := false
 		for obstacle_value: Variant in (d.level_data().get("obstacles", []) as Array):
 			for route_value: Variant in ((obstacle_value as Dictionary).get("routes", {}) as Dictionary).values():
-				if String(JSON.stringify(route_value)).to_lower().contains("bulul"):
+				if String(JSON.stringify(route_value)).to_lower().contains("guardian"):
 					in_data = true
-		_check(not in_data, "no route requires a bulul",
-			"they carry no puzzle function anywhere in the level data")
+		_check(not in_data, "no route requires the guardian",
+			"she carries no puzzle function anywhere in the level data")
+		# What she says is about the house, never about the way in: lore, never a tag.
+		var hers := _lines_at("L1_N3.guardian")
+		var told := 0
+		var hinted: Array[String] = []
+		for line_value: Variant in hers:
+			var line := line_value as Dictionary
+			if String(line.get("speaker", "")) == "guardian":
+				told += 1
+			if String(line.get("kind", "")) != "lore" or String(line.get("text", "")).contains("**"):
+				hinted.append(String(line.get("id", "")))
+		_check(told >= 4, "the guardian tells the apo about the house", "%d line(s) of hers" % told)
+		_check(hinted.is_empty(), "nothing the guardian says is a hint",
+			"lore only, no tag" if hinted.is_empty() else "HINTS: %s" % ", ".join(hinted))
 
 	var player := level.get("player") as Node2D
 	# On the terrace BESIDE the house, not on top of it: the posts, deck and thatch are
@@ -2557,3 +2571,14 @@ func _audit_objectives_fit() -> void:
 		if cut.is_empty() else "trimmed: " + ", ".join(cut))
 	level_scene.queue_free()
 	await process_frame
+
+
+## Every line of the dialogue file fired at `hook`, read straight off the file.
+func _lines_at(hook: String) -> Array:
+	var found: Array = []
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(DIALOGUE_PATH))
+	if parsed is Dictionary:
+		for line_value: Variant in ((parsed as Dictionary).get("lines", []) as Array):
+			if String((line_value as Dictionary).get("at", "")) == hook:
+				found.append(line_value)
+	return found

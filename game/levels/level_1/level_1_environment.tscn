@@ -29,7 +29,7 @@
 [ext_resource type="Script" path="res://scripts/straw_room_2d.gd" id="24_strawroom"]
 [ext_resource type="Script" path="res://scripts/bale_interior_2d.gd" id="24_baleroom"]
 [ext_resource type="Script" path="res://scripts/bale_2d.gd" id="25_owbyo"]
-[ext_resource type="Script" path="res://scripts/bulul_2d.gd" id="26_jto6m"]
+[ext_resource type="Script" path="res://scripts/ifugao_guardian_2d.gd" id="26_jto6m"]
 [ext_resource type="Texture2D" path="res://assets/Level1/props/stair_step.png" id="29_oldsteps"]
 [ext_resource type="Texture2D" path="res://assets/Level1/props/stair_riser.png" id="29_oldriser"]
 [ext_resource type="Texture2D" path="res://assets/Level1/props/hut_ladder.png" id="29_oldladder"]
@@ -668,12 +668,8 @@ centered = false
 metadata/fade_at = 4300.0
 metadata/fade_over = 1.2
 
-[node name="Bulul1" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
-position = Vector2(4592, 80)
-script = ExtResource("26_jto6m")
-
-[node name="Bulul2" type="Node2D" parent="GameplayPlane/Bale" unique_id=1716894567]
-position = Vector2(4636, 80)
+[node name="Guardian" type="Node2D" parent="GameplayPlane/Bale" unique_id=525187676]
+position = Vector2(4600, 80)
 script = ExtResource("26_jto6m")
 
 [node name="BaleInterior" type="Node2D" parent="GameplayPlane" unique_id=913205179]

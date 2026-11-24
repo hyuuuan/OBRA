@@ -34,7 +34,7 @@ const SHOTS: Array = [
 		"do": "enter_straw", "keep_player": true},
 	{"name": "baul", "at": Vector2(2756, -960), "size": Vector2(220, 180), "do": "uncover"},
 	{"name": "bale", "at": Vector2(4520, 116), "size": Vector2(540, 420)},
-	{"name": "bulul", "at": Vector2(4494, 172), "size": Vector2(240, 190)},
+	{"name": "guardian", "at": Vector2(4600, 20), "size": Vector2(240, 190)},
 	{"name": "dead_tree", "at": Vector2(3040, 90), "size": Vector2(480, 420), "do": "open_protector"},
 	{"name": "crumbling_ledges", "at": Vector2(3475, 226), "size": Vector2(620, 240)},
 ]

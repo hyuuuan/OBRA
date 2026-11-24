@@ -307,7 +307,8 @@
     "unused": true
   },
   "cultural_constraints": {
-    "bulul": {
+    "bale_guardian": {
+      "note": "The Ifugao guardian at Ang Bale replaced the two bulul (cultural panel, 2026-11-24) and keeps their rule: no collision, no interaction, no puzzle function. She tells the apo about the house, once, to somebody who stays near her.",
       "collision": false,
       "interactable": false,
       "puzzle_function": false,

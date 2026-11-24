@@ -50,8 +50,8 @@ still marked as drawn in code is genuinely still drawn in code.
    tread short and the whole stair became walkable, and once by broken stubs that were drawn
    at five times their intended size, so the player saw a complete flight of steps that could
    not be climbed. If a thing is supposed to be missing, it has to look missing.
-3. **Nothing may imply an affordance it does not have.** The bulul carry no collision and no
-   puzzle function, on purpose. If they are drawn as though they could be climbed or carried,
+3. **Nothing may imply an affordance it does not have.** The guardian at the bale (who replaced
+   the bulul) carries no collision and no puzzle function, on purpose. If they are drawn as though they could be climbed or carried,
    players will try, and the refusal will read as a bug instead of as a boundary.
 
 **If you deliver sprites rather than code**, hand back a PNG per prop at the sizes below (or a
@@ -227,14 +227,19 @@ Both are cut from `hut.png` by `tools/build_payyo_ladder.py` (`--check` verifies
 redelivered hut is re-split by that one command, and the ladder's corner it prints must match
 the `OldLadder` position in `level_1_environment.tscn`.
 
-### The bulul · `game/scripts/bulul_2d.gd` · 2 at (3452, 200) and (3496, 200)
+### The Ifugao guardian · `game/scripts/ifugao_guardian_2d.gd` · 1 at (4600, 80), under Ang Bale
+
+She replaced the two bulul on 24 November 2026: the cultural panel asked for more everyday
+Ifugao life (Chapter 5, Table 34), and a person who keeps the house says more about it than two
+carvings that said nothing.
 
 | | |
 |---|---|
-| **Now** | A seated figure about **30 × 51**, arms on knees, in three flat browns on a 30 × 6 base. |
-| **Collision** | **ZERO. Zero interaction, zero puzzle function.** It cannot be climbed, pushed, picked up, chopped, drawn on, or required by anything. This is enforced in code and asserted three ways in the audit. |
-| **Must read as** | A rice-granary guardian figure, carved and kept by a family. **The most carefully rendered thing in the scene, doing nothing.** That contrast is deliberate and it is the strictest rule in the level: treating a bulul as a collectible or a lever is the exact failure this project has to avoid. |
-| **The only thing they do** | Come within 96 px and Lolo says, once: *"Do not. Those are not decoration, and they are not yours."* A refusal, not a hint. Nothing unlocks. |
+| **Now** | Lola's front pose and portrait **repainted by material** by `tools/build_payyo_guardian.py` (`--check` verifies them): near-black hair with grey in it, a shade deeper skin, an indigo top, red and yellow beads, and a wrap skirt in red and black bands. `game/assets/Level1/people/guardian.png` (128 × 144, feet on the bottom row) and `guardian_portrait.png` (215 × 273, cut at row 222 like Lola's). |
+| **Collision** | **ZERO. Zero interaction, zero puzzle function**, the bulul's rule kept. She cannot be climbed, pushed, picked up, cut, drawn on, or required by anything; `run_level1_audit` asserts it, and that everything she says is lore, never a tag. |
+| **Must read as** | An Ifugao elder woman at her own house, and **not Lola**. She stands under the bale between its posts and must fit under its floor (99 px). Regional dress beyond the woven skirt is deferred (Table 34). |
+| **The only thing she does** | Stay within 96 px for 1.2 s and she tells the apo, once, how a bale is built (`L1_N3.guardian`): a greeting in Tuwali, then the posts, the halipan, the roof the rice is kept under. Nothing unlocks. |
+| **Replace with** | Her own sheet: a standing front pose at the 128 × 144 cell, and a bust for the dialogue box. Keep both paths, or change `IfugaoGuardian2D.ART` and `DialoguePortrait.PORTRAITS["Guardian"]`. |
 
 ---
 
@@ -412,8 +417,8 @@ turn from `HUD-assets-ideas/Book-Inventory-Animation.gif`, with its tabs keyed o
 
 ## Where to start
 
-1. **The bulul** — small, the one with the least room for error, and the only prop here
-   that should stay bespoke rather than be assembled out of tileset parts.
+1. **The Ifugao guardian** — the one with the least room for error: a person, at her own house,
+   who is repainted from Lola and must not be mistaken for her.
 2. **The halipan** — the four rat guards on the bale's posts, still flat trapezoids. They
    carry the whole reason "climb the post" is not an answer.
 3. **The gorge set** — the ruined bridge, the dead tree and the crumbling ledges are all
