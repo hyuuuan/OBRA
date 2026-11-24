@@ -28,6 +28,28 @@
       "text": "She painted this one standing about where you are. She told me the water here never looked the same way twice, and she was going to keep at it until it did."
     },
     {
+      "id": "L3_B0_001b",
+      "at": "L3_B0_SHORE.enter",
+      "speaker": "lolo",
+      "kind": "lore",
+      "lang": "war",
+      "text": "Maupay nga aga, apo."
+    },
+    {
+      "id": "L3_B0_001c",
+      "at": "L3_B0_SHORE.enter",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Maupay...?"
+    },
+    {
+      "id": "L3_B0_001d",
+      "at": "L3_B0_SHORE.enter",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Good morning, in Waray. I learned it on a fishing boat out of Leyte, a long time ago."
+    },
+    {
       "id": "L3_B0_002",
       "at": "L3_B0_SHORE.teach",
       "kind": "hint",

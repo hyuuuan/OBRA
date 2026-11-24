@@ -86,6 +86,13 @@ overlays), `LEVEL_1.md` (the tutorial level and its traps).
 
 ---
 
+## Waray on the shore (2026-11-24)
+
+Lolo's first words on the shore now include a line of Waray, the cultural panel's request for
+each region's own language (Chapter 5, Table 34): *"Maupay nga aga, apo."* -- good morning --
+which he learned "on a fishing boat out of Leyte, a long time ago" (`L3_B0_SHORE.enter`,
+`"lang": "war"`). The list for checking with a speaker is `docs/REGIONAL_LINES.md`.
+
 ## The level in one paragraph
 
 Cross the sea and reach the next painting. **One journey with one fork, not three problems

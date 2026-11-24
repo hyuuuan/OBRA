@@ -525,6 +525,12 @@ code**, not just written down. Level 1's shape:
 4. **Say what the place is not.** `cave_contains_burials: false`.
 5. **Commit to a specific place or stay generic — but decide.** Half-committing is the
    failure mode: it gets the details wrong *and* claims to be somewhere real.
+6. **Say a line in the region's own language** (cultural panel, Chapter 5 Table 34): Tuwali
+   in Payyo, Cebuano in Piyesta, Waray in Dagat, Tagalog in Dilim, Bikol in Mayon. Tag it with
+   `"lang"`, make it a story beat everyone hears rather than a hint one route reaches, gloss it
+   in English in the next line (or mark `"gloss": "inline"`), and add it, exactly as shown, to
+   `docs/REGIONAL_LINES.md`, the list checked with speakers. `run_regional_language_probe`
+   holds all four.
 
 ---
 
