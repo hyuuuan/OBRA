@@ -8,11 +8,13 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/run_level5_frame_probe.gd
 
 ## Every check this probe makes. A script error that skips them must not pass as quiet.
-const CHECKS := 18
+const CHECKS := 19
 const HUB := "res://levels/hub/hub.tscn"
 const MAYON := "res://level_5.tscn"
 ## What is said in the house, and by whom, in order -- Kent's own words, near enough.
 const LINES := [
+	["apo", "Mano po, Lola."],
+	["lola", "Kaawaan ka ng Diyos."],
 	["lola", "Mahal! You look so young!"],
 	["apo", "Lola, I'm your apo. I'm not Lolo."],
 	["lola", "Where is he, then?"],
@@ -128,6 +130,15 @@ func _the_first_time_lola_mistakes_her_for_him(profile: Node) -> void:
 		lines.append([String(entry["speaker"]), String(entry["text"])])
 	_check(done and lines == LINES, "she takes her for him, asks where he is, and is told: in all her works",
 		"said %s" % [lines])
+	# THE MANO (Chapter 5 Table 34): she comes to the apo and holds out her hand, the apo bows
+	# over it, and the two hands meet -- which they do only at MANO_GAP, the distance the two
+	# cells are drawn for.
+	var mano := epilogue.mano
+	var met := not mano.is_empty() \
+		and absf(float(mano["lola_x"]) - float(mano["apo_x"]) - HouseEpilogue.MANO_GAP) < 1.0
+	_check(done and met and bool(mano.get("bowed", false)) and bool(mano.get("hand_out", false)),
+		"the apo does the mano: bows over Lola's hand, held out to the forehead",
+		"%s" % [mano])
 	var easel := epilogue.easel.global_position.x
 	var at_easel := absf(lola.global_position.x - (easel - HouseEpilogue.AT_EASEL)) < 1.0
 	var far := easel < float((_paintings(hub)[0] as Node2D).global_position.x)

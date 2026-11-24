@@ -19,6 +19,8 @@ const POSES := {
 	"front": preload("res://assets/Level5/people/lola_front.png"),
 	"flowers": preload("res://assets/Level5/people/lola_flowers.png"),
 	"remember": preload("res://assets/Level5/people/lola_remember.png"),
+	# Her hand held out for the apo's mano, at the house (tools/build_mano_poses.py).
+	"mano": preload("res://assets/Level5/people/lola_mano.png"),
 }
 const WOOD := Color(0.36, 0.24, 0.15)
 ## Her easel and Mayon on it, drawn at her right hand. Off in the house after the run, where her
@@ -140,6 +142,19 @@ func greet() -> void:
 	_sprite.flip_h = false
 	_pose("front")
 	_turned = true
+
+
+## Her right hand held out, back up, for the apo to take and touch to the forehead: the mano.
+## The hand is on her screen-left side, so the apo stands to her left, MANO_GAP away.
+func hold_out_hand() -> void:
+	_painting = false
+	_sprite.flip_h = false
+	_pose("mano")
+	_turned = true
+
+
+func is_holding_out_hand() -> bool:
+	return _sprite.texture == POSES["mano"]
 
 
 ## Across the room to `x`, at `speed`, with the supplied six-frame walking cycle.

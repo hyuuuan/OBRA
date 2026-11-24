@@ -7,7 +7,10 @@ extends Node
 ## Every painting on the wall has Lolo in it now, alive and ageing across them, from Kent's own
 ## sheets of him (tools/build_house_lolo.py): Lola painted him into every one so he would always
 ## be somewhere, and the apo has brought the places back.
-## Lola is in the room. The first time, she sees the apo and takes her for him:
+## Lola is in the room. The first time, the apo greets her the way a Filipino child greets an
+## elder -- "Mano po, Lola." -- and takes her hand to the bowed forehead; she gives the blessing
+## that goes with it without having to think, "Kaawaan ka ng Diyos." Then she looks, and takes
+## the apo for him:
 ##
 ##     "Mahal! You look so young!" -- "Lola, I'm your apo. I'm not Lolo." -- "Where is he, then?"
 ##     -- "He's right here. In all your works." -- "Oh."
@@ -58,6 +61,17 @@ const BRUSH_CONTACT := Vector2(0.24, 0.64)
 ## drops the floor to 538. HubRoom draws the boards on below the ordinary frame for it.
 const EYE_DROP := 82.0
 const EYE_SECONDS := 0.6
+## THE MANO (cultural panel, Chapter 5 Table 34: the ending shows the respect a child owes an
+## elder). Lola comes this close -- the apo's feet to hers -- for the apo's hand to close over hers
+## at the forehead: the two cells are drawn to meet at this distance (tools/build_mano_poses.py
+## prints it as MANO_GAP; change both together).
+const MANO_GAP := 64.0
+## The apo's cell, on the apo's feet as Mayon's performances are (level_5.gd _set_performance).
+const APO_MANO := preload("res://assets/Level5/people/apo_mano.png")
+## How long the hand stays at the forehead before she blesses the apo.
+const MANO_HOLD := 1.4
+## She comes over at an old woman's pace, not her walk the length of the house.
+const MANO_STEP_SPEED := 90.0
 const WOOD := Color(0.36, 0.24, 0.15)
 
 var lola: Lola2D
@@ -70,6 +84,8 @@ var _box: DialogueBox
 var _script: DialogueScript
 var _hub: Node
 var _following := false
+## Where the two of them stood for the mano, and whether both were posed for it: for a probe.
+var mano: Dictionary = {}
 
 
 ## Whether the run has ended: the house is the one after Mayon.
@@ -147,6 +163,7 @@ func play() -> void:
 	# ⚠ SETTLED BEFORE SHE SPEAKS. Her first line stops the tree, and the hub places its camera in
 	# _process: speaking at once froze the view on the apo, with the apo's portrait over Lola.
 	await get_tree().create_timer(EYE_SECONDS).timeout
+	await _mano(apo)
 	await _say("HOUSE.home")
 	_following = true
 	await lola.walk_to(EASEL_X - AT_EASEL, WALK_SPEED)
@@ -162,6 +179,36 @@ func play() -> void:
 	_hub.call(&"look_back")
 	_drop_the_eye(0.0)
 	finished.emit()
+
+
+## "Mano po, Lola." She comes over and holds out her hand; the apo bows and touches it to the
+## forehead; she blesses the apo, and only then looks properly, and sees him.
+func _mano(apo: Node2D) -> void:
+	await _say("HOUSE.mano")
+	if apo == null:
+		await _say("HOUSE.blessing")
+		return
+	await lola.walk_to(apo.global_position.x + MANO_GAP, MANO_STEP_SPEED)
+	lola.hold_out_hand()
+	var figure := apo.get_node_or_null(^"Figure") as CanvasItem
+	var bow := Sprite2D.new()
+	bow.name = "Mano"
+	bow.texture = APO_MANO
+	bow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bow.position = Vector2(0, -APO_MANO.get_height() * 0.5)
+	bow.z_index = 1
+	apo.add_child(bow)
+	if figure != null:
+		figure.visible = false
+	mano = {"apo_x": apo.global_position.x, "lola_x": lola.global_position.x,
+		"bowed": bow.visible and (figure == null or not figure.visible),
+		"hand_out": lola.is_holding_out_hand()}
+	await get_tree().create_timer(0.6 if Motion.reduced() else MANO_HOLD).timeout
+	await _say("HOUSE.blessing")
+	bow.queue_free()
+	if figure != null:
+		figure.visible = true
+	lola.greet()
 
 
 func _process(_delta: float) -> void:
