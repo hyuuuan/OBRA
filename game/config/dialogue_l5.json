@@ -275,6 +275,77 @@
       "text": "That is why she painted the places instead. You kept us safe all this way, apo. Keep them safe for her. That is how she kept m"
     },
     {
+      "id": "L5_cagsawa_1",
+      "at": "LOLO.cagsawa",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "See that tower, apo? That is Cagsawa. There was a church here once, and a town all around it."
+    },
+    {
+      "id": "L5_cagsawa_2",
+      "at": "LOLO.cagsawa",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "In 1814 the mountain woke and buried them. The bell tower is all that still stands."
+    },
+    {
+      "id": "L5_magayon_1",
+      "at": "LOLO.magayon",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Your lola loved the story of this mountain. Daragang Magayon. Magayon means beautiful, in Bikol."
+    },
+    {
+      "id": "L5_magayon_2",
+      "at": "LOLO.magayon",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "She was a chief's daughter. Two men wanted her: Panganoron, who loved her, and Pagtuga, who only wanted to have her."
+    },
+    {
+      "id": "L5_magayon_3",
+      "at": "LOLO.magayon",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "There was a battle. Pagtuga fell, but she was struck in the fighting, and Panganoron died holding her."
+    },
+    {
+      "id": "L5_magayon_4",
+      "at": "LOLO.magayon",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Her father buried them together. The ground over them rose, and kept rising, until it was this."
+    },
+    {
+      "id": "L5_magayon_5",
+      "at": "LOLO.magayon",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "When the mist sits on the peak, they say it is Panganoron keeping her company. When she rumbles, it is Pagtuga, still angry."
+    },
+    {
+      "id": "L5_magayon_6",
+      "at": "LOLO.magayon",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Funny. That one I have never forgotten."
+    },
+    {
+      "id": "L5_magayon_7",
+      "at": "LOLO.magayon",
+      "speaker": "apo",
+      "kind": "lore",
+      "lang": "bcl",
+      "text": "Dios mabalos, Lolo."
+    },
+    {
+      "id": "L5_magayon_8",
+      "at": "LOLO.magayon",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Thank you, in Bikol. Your lola would have liked to hear you say it."
+    },
+    {
       "id": "L5_forget_1",
       "at": "LOLO.forget.1",
       "speaker": "lolo",

@@ -774,7 +774,7 @@ func _level_run_state() -> Dictionary:
 	return {"layout_version": 5, "phase": _phase, "active_vignette": _active_cluster,
 		"camera_position": [_world_camera().global_position.x, _world_camera().global_position.y], "fragments": fragments, "steady_left": _steady_left,
 		"lolo_thinness": lolo.thinness() if is_instance_valid(lolo) else 1.0,
-		"taken": taken, "forgot": _forgot, "wondered": _wondered, "save_order": _save_order.duplicate(),
+		"taken": taken, "forgot": _forgot, "wondered": _wondered, "told": _told, "save_order": _save_order.duplicate(),
 		"clusters_seen": _clusters_seen.duplicate(), "clusters_left": _clusters_left.duplicate(),
 		"lolo_moment": _lolo_moment, "corridor_seen": _corridor_seen,
 		"flower_credited": _flower_credited, "places_strokes": _places_strokes.duplicate(true)}
@@ -801,6 +801,7 @@ func _restore_level_run_state(state: Dictionary) -> void:
 		drainable.drain_to(1.0 if _going[thing] else 0.0, 0.0)
 	_forgot = int(state.get("forgot", 0))
 	_wondered = int(state.get("wondered", 0))
+	_told = int(state.get("told", 0))
 	_reset_summit()
 	_lolo_moment = String(state.get("lolo_moment", ""))
 	# Resume a failed attempt from its beginning, never half a transient tween.
@@ -859,6 +860,14 @@ const FORGETTING := [[1000.0, "LOLO.forget.1"], [2900.0, "LOLO.forget.2"], [4700
 ## on why everything is disappearing"): once the first thing the ash settled on has gone white
 ## (1800), and again once she has heard him lose a word. The third is said in the corridor.
 const WONDERING := [[2100.0, "APO.why.1"], [3500.0, "APO.why.2"]]
+## And what Lolo still knows about this mountain (cultural panel, Chapter 5 Table 34: Mayon as the
+## climax's setting, said as Mayon). At the foot he names the ruin beside the path -- the Cagsawa
+## bell tower (`Dressing/BellTower`, x 700), all that stands of the church the 1814 eruption
+## buried -- and a little higher he tells the old story the mountain is named for, Daragang
+## Magayon, with a word of Bikol in it. He loses words all the way up; this one he has never lost,
+## which is how forgetting goes: the legend comes just after his first lost word (1000) and
+## before the apo's first question (2100), and he notices.
+const TELLING := [[620.0, "LOLO.cagsawa"], [1300.0, "LOLO.magayon"]]
 
 var _taken: Array[Node2D] = []
 var _going := {}
@@ -867,6 +876,7 @@ var _wind: Node2D
 var _tremor: ScreenTremor
 var _forgot := 0
 var _wondered := 0
+var _told := 0
 
 
 ## What the ash takes is marked in the ground (group ash_takes, taken_at, taken_over); each gets a
@@ -921,6 +931,10 @@ func _tend_act_one(delta: float, her_x: float) -> void:
 		var wondering := String(WONDERING[_wondered][1])
 		_wondered += 1
 		_speak(script_lines.fire(wondering))
+	if _told < TELLING.size() and her_x >= float(TELLING[_told][0]):
+		var telling := String(TELLING[_told][1])
+		_told += 1
+		_speak(script_lines.fire(telling))
 
 
 # --- Act Three: the summit ----------------------------------------------------------------

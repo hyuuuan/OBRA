@@ -37,6 +37,25 @@ framing. Shallow rises and descents stay in the middle, with matching floor at t
 The flower footholds and Lolo's farewell fit inside the last clearing. All twelve can be
 crossed as the apo with no ink. These are scenery and local preservation landmarks, not instances of the earlier levels' quest hosts, combat or progression.
 
+## What Lolo says about the mountain (24 November 2026)
+
+The cultural panel asked that Mayon, the setting of the climax, be said as Mayon (Chapter 5,
+Table 34). So on the ascent Lolo names the place and tells its story (`level_5.gd TELLING`,
+fired by where she is, saved in the run state as `told`):
+
+- **At the Cagsawa tower** (x 620, beside `Dressing/BellTower` at 700), `LOLO.cagsawa`: that
+  is Cagsawa; a church and a town stood here until the mountain woke in 1814 and buried them,
+  and the bell tower is all that still stands.
+- **A little higher** (x 1300), `LOLO.magayon`: the legend of **Daragang Magayon** --
+  *magayon* is Bikol for beautiful -- Panganoron who loved her, Pagtuga who wanted her, the
+  battle, the two buried together and the ground rising over them into this mountain, the mist
+  on the peak as Panganoron keeping her company and the rumbling as Pagtuga's anger. It comes
+  just after his first lost word (`LOLO.forget.1`, x 1000), and he notices: "Funny. That one I
+  have never forgotten." The apo thanks him in Bikol, *"Dios mabalos, Lolo."*
+
+`run_level5_audit` holds that the tower is named within 150 px of the tower itself and that the
+legend is told before the first gate.
+
 ## Remembered life
 
 The nine Payyo, Dagat and Dilim stops have authored scenery groups in each vignette's
