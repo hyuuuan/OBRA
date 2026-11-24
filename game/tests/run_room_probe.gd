@@ -456,7 +456,7 @@ func _audit_marks_stand_clear() -> void:
 		var mark := (node as Node).get_node_or_null(^"Checkpoint") as Node2D
 		if mark == null:
 			continue
-		for group in [&"destructible", &"dead_trees", &"bulul", &"straw_piles"]:
+		for group in [&"destructible", &"dead_trees", &"bale_guardian", &"straw_piles"]:
 			for other in level.get_tree().get_nodes_in_group(group):
 				var prop := other as Node2D
 				if prop == null:

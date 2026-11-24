@@ -705,8 +705,52 @@
     },
     {
       "id": "L1_N3_017",
-      "at": "L1_N3.bulul_approach",
-      "text": "Do not. Those are not decoration, and they are not yours."
+      "at": "L1_N3.guardian",
+      "speaker": "guardian",
+      "kind": "lore",
+      "text": "Maphod an biggatna."
+    },
+    {
+      "id": "L1_N3_017b",
+      "at": "L1_N3.guardian",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Um. Good morning?"
+    },
+    {
+      "id": "L1_N3_017c",
+      "at": "L1_N3.guardian",
+      "speaker": "guardian",
+      "kind": "lore",
+      "text": "Good morning, I said. In Tuwali. I keep this house for her while she is away."
+    },
+    {
+      "id": "L1_N3_017d",
+      "at": "L1_N3.guardian",
+      "speaker": "guardian",
+      "kind": "lore",
+      "text": "It is a bale. Four posts, and every board cut to hold the next. There is not one nail in it."
+    },
+    {
+      "id": "L1_N3_017e",
+      "at": "L1_N3.guardian",
+      "speaker": "guardian",
+      "kind": "lore",
+      "text": "The wide wooden collars on the posts are the halipan. A rat climbs up, meets the collar, and goes home hungry."
+    },
+    {
+      "id": "L1_N3_017f",
+      "at": "L1_N3.guardian",
+      "speaker": "guardian",
+      "kind": "lore",
+      "text": "The roof is cogon grass, steep so the rain runs off. Under it the rice stays dry from one harvest to the next."
+    },
+    {
+      "id": "L1_N3_017g",
+      "at": "L1_N3.guardian",
+      "speaker": "guardian",
+      "kind": "lore",
+      "text": "One room to cook, sleep and keep the rice in. Underneath, the shade is for work, and for the children."
     },
     {
       "id": "L1_N3_018",
@@ -911,11 +955,6 @@
       "id": "L1_FA_008",
       "at": "RETURN.fact.hudhud",
       "text": "Some take days to sing all the way through. UNESCO counts them among the world's treasures too."
-    },
-    {
-      "id": "L1_FA_009",
-      "at": "RETURN.fact.bulul",
-      "text": "Those carved figures by the granaries are bulul, apo. Guardians of the rice — farmers trusted them to keep the harvest plentiful."
     },
     {
       "id": "L1_FA_010",
@@ -1299,19 +1338,6 @@
       "steps": [
         {
           "say": "RETURN.fact.hudhud"
-        }
-      ]
-    },
-    {
-      "id": "L1_fact_bulul",
-      "pool": "fact",
-      "priority": 0,
-      "when": {
-        "visits_at_least": 2
-      },
-      "steps": [
-        {
-          "say": "RETURN.fact.bulul"
         }
       ]
     },

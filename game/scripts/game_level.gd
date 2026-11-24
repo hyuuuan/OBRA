@@ -795,18 +795,25 @@ func _grant_the_canvas() -> void:
 	})
 
 
-## The bulul, and the only thing they do. A refusal, not a hint: nothing unlocks, nothing
-## is recorded as progress, and Lolo says it once.
-func _wire_the_bulul() -> void:
-	for node in get_tree().get_nodes_in_group(&"bulul"):
-		var figure := node as Bulul2D
-		if figure != null:
-			# ONCE, and it said so here while firing every time. There are TWO of them and
-			# each has its own trigger, so walking along the terrace in front of the house
-			# said the same refusal twice with the world stopped for both. The hook carries
-			# the memory; see _speak_on_arrival.
-			figure.approached.connect(func() -> void:
-				_speak_on_arrival("L1_N3.bulul_approach"))
+## The guardian at Ang Bale, and the only thing she does: she tells the apo about the house,
+## once. Not a hint -- nothing unlocks, nothing is recorded as progress -- and she replaced
+## the two bulul, whose refusal this hook used to carry (IfugaoGuardian2D).
+func _wire_the_guardian() -> void:
+	for node in get_tree().get_nodes_in_group(&"bale_guardian"):
+		var guardian := node as IfugaoGuardian2D
+		if guardian != null:
+			# ONCE: the hook carries the memory (_speak_on_arrival), so a checkpoint restore
+			# that builds her again does not tell the apo about the house twice.
+			guardian.approached.connect(func() -> void:
+				_speak_on_arrival("L1_N3.guardian"))
+
+
+## While she talks the camera is on her, as it is on the Padre in Piyesta.
+func _speaker_subject(speaker_id: String) -> Node2D:
+	if speaker_id == "guardian":
+		for node in get_tree().get_nodes_in_group(&"bale_guardian"):
+			return node as Node2D
+	return super._speaker_subject(speaker_id)
 
 
 ## WHAT THIS RUN OF THE LEVEL HAS ALREADY HANDED OVER, and why it is not the profile.
@@ -970,7 +977,7 @@ func _build_level_furniture() -> void:
 			node.connect(&"noticed", _on_room_notice)
 		if node.has_signal(&"notice_left"):
 			node.connect(&"notice_left", _on_room_notice_left)
-	_wire_the_bulul()
+	_wire_the_guardian()
 
 
 ## Ang Bale's padlock judges the STROKES of a drawn key, not its class.

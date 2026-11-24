@@ -51,7 +51,7 @@ the level *host* is not.**
 | `ability_tags.gd`, `level_director.gd`, `level_obstacle_2d.gd`, `checkpoint_manager.gd`, `checkpoint_area_2d.gd`, `dialogue_script.gd`, `hint_bar.gd`, `requirement_strip.gd`, `signpost_2d.gd`, `inventory_screen.gd`, `morph_life.gd`, `acquired_overlay.gd` | **Generic.** Reusable as-is. | Level-1 strings in these files are **comments only**, plus two overridable defaults: `LevelDirector.LEVEL_PATH` and `ConceptGate2D.sign_hook` |
 | `game/scripts/game_level.gd` | **Level 1.** 3046 lines with **41 hardcoded `L1_N*` / `B0_HAGDAN` references in live code** | `grep -n "L1_N[0-9]\|B0_HAGDAN" game/scripts/game_level.gd` |
 | `game_level.tscn` | **Level 1**, despite the generic name. `levels.json` points `level_1` at it. | `game_level.gd:280` calls `director.load_level()` with no argument — the Level 1 default — and `:288` hardcodes `res://config/dialogue_l1.json` into a field named `script_lines_l1` |
-| Props: `bale_2d.gd`, `straw_pile_2d.gd`, `baul_2d.gd`, `floating_tread_2d.gd`, `bulul_2d.gd`, `dead_tree_2d.gd`, … | **Level 1 furniture.** Copy the *pattern*, not the file. | — |
+| Props: `bale_2d.gd`, `straw_pile_2d.gd`, `baul_2d.gd`, `floating_tread_2d.gd`, `ifugao_guardian_2d.gd`, `dead_tree_2d.gd`, … | **Level 1 furniture.** Copy the *pattern*, not the file. | — |
 
 **So the first real task of Level 2 is not a puzzle — it is deciding what `game_level.gd`
 becomes.** Two honest options:
@@ -513,9 +513,10 @@ obstacles; the ladder is the escape hatch.
 Every level is set in a real place with real practices, and the guardrails are **asserted in
 code**, not just written down. Level 1's shape:
 
-1. **Name the sacred thing and give it nothing.** The bulul have zero collision, zero
-   interaction, zero puzzle function — enforced in `bulul_2d.gd` (no collision shape is ever
-   built) and asserted three ways. Every level needs its own version of this line.
+1. **Name the sacred thing and give it nothing.** Payyo's bulul had zero collision, zero
+   interaction, zero puzzle function. The Ifugao guardian who replaced them keeps the rule,
+   enforced in `ifugao_guardian_2d.gd` (no collision shape is ever built) and asserted in
+   `run_level1_audit`. Every level needs its own version of this line.
 2. **Distinguish the material from the meaning.** Cut straw may be scattered; a *tinawon*
    harvest may not. `straw_pile_is_grain: false` is in the level file because the difference
    is the whole point.

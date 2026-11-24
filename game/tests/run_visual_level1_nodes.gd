@@ -5,7 +5,7 @@ extends SceneTree
 ##
 ## Frames land in /tmp/obra_l1n_*.png and have to be LOOKED AT. run_level1_audit already
 ## proves the straw remembers which route searched it, that the chest turns up either way,
-## and that no bulul carries collision. None of that says whether a combed heap looks any
+## and that the guardian at the bale carries no collision. None of that says whether a combed heap looks any
 ## different from an intact one on screen, whether the chest rises out of the straw
 ## somewhere the player can see it, or whether the bale reads as a house standing on posts
 ## rather than as terrain. Four defects in this project passed green suites and were caught
@@ -105,14 +105,14 @@ func _look_at_node_three() -> void:
 		% director.current_obstacle())
 	await _capture("n3_00_arrival")
 
-	# The bulul do exactly one thing, and it is a refusal. Walk into the notice radius.
-	var figure := bale_root.get_node_or_null("Bulul1") as Node2D
+	# The guardian does exactly one thing: she tells the apo about the house. Walk into her reach.
+	var figure := bale_root.get_node_or_null("Guardian") as Node2D
 	if figure != null:
 		await _stand_at(level, figure.global_position + Vector2(-56.0, 0.0))
 		await _wait(0.4)
-		print("[n3_01_bulul] spoken=%s -- Lolo refuses, and nothing unlocks"
+		print("[n3_01_guardian] spoken=%s -- she talks about the house, and nothing unlocks"
 			% figure.call("has_spoken"))
-		await _capture("n3_01_bulul")
+		await _capture("n3_01_guardian")
 
 	# Back beside the house to answer the obstacle.
 	await _stand_at(level, Vector2(4380, 50.0))

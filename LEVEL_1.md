@@ -448,6 +448,21 @@ own verb, recording no attempt, no tag match and no tier change, so per-class st
 never count a thing nobody drew and Chapter 5 can tell "opened it with the key they found"
 from "drew a key that fitted".
 
+#### The Ifugao guardian (2026-11-24)
+
+**She replaced the two bulul.** The cultural panel asked for more of everyday Ifugao life
+(Chapter 5, Table 34), and two carved figures in front of the house said nothing about it. An
+elder woman now stands under Ang Bale (`Bale/Guardian`, x 4600, `IfugaoGuardian2D`), keeping
+the house for Lola while she is away. Stay near her and she says, once (`L1_N3.guardian`), good
+morning in Tuwali -- *"Maphod an biggatna."* -- and then how a bale is built: four posts and no
+nails, the halipan on the posts, the cogon roof the rice is kept dry under, one room, and the
+shade underneath for work and for the children.
+
+She keeps the bulul's rule: no collision, no interaction, no puzzle function, and nothing she
+says is a hint (`run_level1_audit`). Her art is Lola's sheet repainted by material
+(`tools/build_payyo_guardian.py`, ART_PLACEHOLDERS.md), and she is not Lola: dark hair, an
+indigo top, beads, a red-and-black woven skirt. The bulul's return fact went with them.
+
 #### Inside the house
 
 All three routes arrive in the same room — they are three ways through the same wall — and
@@ -700,13 +715,14 @@ wall. Return visits still hear it.
 | `B0_HAGDAN` | 700 – 1240 | the bank below Ang Hagdan, and the wall itself at 1180 |
 | `L1_N1` | 2850 – 3230 | the dialogue node (3010), the dead tree (3040), the ruined bridge (3080) |
 | `L1_N2` | 3640 – 4380 | the three straw piles (3654–4368), on Terrace5 |
-| `L1_N3` | 4430 – 4810 | the bale's floor (4520–4760) and both bululs |
+| `L1_N3` | 4430 – 4810 | the bale's floor (4520–4760) and the Ifugao guardian (4600) |
 
 ⚠ **`L1_N3`'s arrival box is 4430–4610, not centred on the house.** Centred, it began at 4530, and
 the post stops her at 4516: "There is the house… the way up is gone" played only once she had
 climbed onto the deck. Its board stands at 4370, 60 px before it.
 
-**The bulul speak to somebody who stays** (`Bulul2D.LINGER`, 1.2 s). "Do not" used to fire on
+**The guardian speaks to somebody who stays** (`IfugaoGuardian2D.LINGER`, 1.2 s), as the bulul
+did before her. Their "Do not" used to fire on
 anyone walking up to the house, a moment after Lolo's first words about it.
 
 No two overlap now; `L1_N2` and `L1_N3` used to share 20px.
@@ -887,8 +903,9 @@ the number the thesis reports.
   50 ids and display names, on the dialogue file *and* on the live HUD strip.
 - **Every obstacle route resolves ≥2 classes after exclusions.** Exclusions run *before* the
   check; dropping to one is a build error.
-- **The bulul have zero collision, zero interaction, zero puzzle function.** Enforced in
-  `bulul_2d.gd` (no collision shape is ever built) and asserted three ways.
+- **The Ifugao guardian has zero collision, zero interaction, zero puzzle function**, the rule
+  the bulul she replaced kept. Enforced in `ifugao_guardian_2d.gd` (no collision shape is ever
+  built) and asserted in `run_level1_audit`, with everything she says checked to be lore.
 - **Cut straw, never harvested grain.** Scattering a *tinawon* harvest is not neutral.
 - **No burials in the cave.**
 - **Beat 0's gap stays ungated**, the surviving treads connect, and the broken stubs carry

@@ -476,16 +476,17 @@ func _the_house_speaks_on_foot() -> void:
 	await _stand_at(4345.0, 0.0)
 	var opening := _lines_of("L1_N3.enter")
 	var board := _board_reading("L1_N3.enter")
-	var refusal := "L1_N3.bulul_approach"
+	# The guardian at the bale speaks to somebody who stays, never on top of the house's own words.
+	var refusal := "L1_N3.guardian"
 	await _walk_to(4492.0, 4.0)
 	var line_at := _said_entry(opening[0])
 	_check(not line_at.is_empty() and float(line_at["x"]) < 4508.0
 		and absf(float(line_at["x"]) - board.global_position.x) <= Signpost2D.READ_RANGE,
 		"walking up to it, the house is introduced at its board",
 		"at x %d, board %d" % [int(line_at.get("x", -1.0)), int(board.global_position.x)])
-	# Her reach of the nearer figure begins a step before the post stops her, and she has only
-	# just got there: a walk past would have set it off by now.
-	_check(_x() >= 4490.0 and not _heard(refusal), "\"Do not\" is not said to someone walking past",
+	# The guardian's reach begins a step before the post stops her, and she has only just got
+	# there: a walk past would have set it off by now.
+	_check(_x() >= 4490.0 and not _heard(refusal), "the guardian does not speak to someone walking past",
 		"at x %d" % int(_x()))
 	await _walk_to(4600.0, 0.3, false)
 	var waited := 0.0
