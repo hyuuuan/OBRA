@@ -1,0 +1,975 @@
+{
+ "reviewers": [
+  {
+   "id": "R1",
+   "submitted": "2026-11-12 15:15",
+   "materials": "Game design plan (document), System and gameplay flowchart, Video demonstration of the drawing-to-entity mechanic, Playable demo build of the game, Concept art and visual direction samples",
+   "role": "Head Programmer, Founder",
+   "years": "5 years",
+   "played": "Yes",
+   "completed": "2026-11-11",
+   "overall": "The game was documented on a professional way and developed completely. Though there are bugs encountered upon testing but compare it to actal gameplay, it coud be easily overlook suggesting this game ready for publishing whenever the developer wants to.\n\nThough there are some suggestions to furtherly improve the game suchs as create a more humorous or emotional dialogues between characters instead of restricted to poetic approach only. If there is a casual conersation exist on the dialogues, then it waseasily overlook and need more polishing to make it standout"
+  },
+  {
+   "id": "R2",
+   "submitted": "2026-11-12 19:34",
+   "materials": "Video demonstration of the drawing-to-entity mechanic, Playable demo build of the game, Concept art and visual direction samples",
+   "role": "Game Developer, IT Instructor",
+   "years": 5.0,
+   "played": "Yes",
+   "completed": "2026-11-12",
+   "overall": "The design is good but can make it better by making all the art consistent in style and scale."
+  },
+  {
+   "id": "R3",
+   "submitted": "2026-11-13 01:04",
+   "materials": "Game design plan (document), System and gameplay flowchart, Video demonstration of the drawing-to-entity mechanic, Playable demo build of the game, Concept art and visual direction samples",
+   "role": "Game Developer",
+   "years": 4.0,
+   "played": "Yes",
+   "completed": "2026-11-13",
+   "overall": "Overall, the game's design were up to standard and can be pitted against popular games, it is interesting, creative, fun, sufficiently challenging, and immersive. With its ease of player onboarding, the gradual increase of challenges and complexity, the low bar required to play and draw. I have a favorable position for this game as I had fun playing it, was able to immerse myself with the characters and its unique drawing mechanic, and I enjoy discovering different filipino folklores and how can I beat them. \n\nThe single change I would make is to improve on the audio aspect of the game, as it is one of the most important things that makes the game more immersive, fun, and engaging."
+  },
+  {
+   "id": "R4",
+   "submitted": "2026-11-18 00:02",
+   "materials": "Game design plan (document), System and gameplay flowchart, Video demonstration of the drawing-to-entity mechanic, Playable demo build of the game, Concept art and visual direction samples",
+   "role": "Freelancer",
+   "years": "5 years",
+   "played": "Yes",
+   "completed": "2026-11-17",
+   "overall": "N/A the design compliments every details of the game"
+  },
+  {
+   "id": "R5",
+   "submitted": "2026-11-23 06:36",
+   "materials": "Game design plan (document), System and gameplay flowchart, Video demonstration of the drawing-to-entity mechanic, Playable demo build of the game, Concept art and visual direction samples",
+   "role": "Game Reviewer/Journalist/Play Tester/Content Creator, Student",
+   "years": "Started 5 years ago, became serious for 2-3 years.",
+   "played": "Yes",
+   "completed": "2026-11-23",
+   "overall": "Overall, I think there's truly something to look forward to with this project, and I love that the design and setting of this game, is referencing Filipino mythologies and folklores, which shows great representation to our country. I think with further patches and playtesting, this game could be even greater. The first single change that I would implement to this game, is to fix the inaccuracy of the drawing AI, because there were plenty of moments when for example, I was drawing exactly what a sword looks like, and the AI thinks it's a bridge or bread. "
+  }
+ ],
+ "per_principle": {
+  "I-A1": {
+   "text": "The players finds the game fun, with no repetitive or boring tasks",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R1:P",
+    "R5:P"
+   ]
+  },
+  "I-A2": {
+   "text": "The players should not experience being penalized repetitively for the same failure.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "I-A3": {
+   "text": "The players should not lose any hard won possessions.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "I-A4": {
+   "text": "Gameplay is long and enduring and keeps the players' interest.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    2.0
+   ],
+   "mean_sev": 1.5,
+   "by": [
+    "R1:P",
+    "R5:P"
+   ]
+  },
+  "I-A5": {
+   "text": "Any fatigue or boredom was minimized by varying activities and pacing during the game play.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    2.0
+   ],
+   "mean_sev": 1.5,
+   "by": [
+    "R2:P",
+    "R5:P"
+   ]
+  },
+  "I-B1": {
+   "text": "Challenge, strategy and pace are in balance.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "I-B2": {
+   "text": "The game is paced to apply pressure without frustrating the players. The difficulty level varies so the players experience greater challenges as they develop mastery.",
+   "M": 2,
+   "P": 3,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "mean_sev": 1.6666666666666667,
+   "by": [
+    "R1:P",
+    "R2:P",
+    "R5:P"
+   ]
+  },
+  "I-B3": {
+   "text": "Easy to learn, harder to master.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    2.0,
+    2.0
+   ],
+   "mean_sev": 2.0,
+   "by": [
+    "R3:P",
+    "R5:P"
+   ]
+  },
+  "I-B4": {
+   "text": "Challenges are positive game experiences, rather than negative experiences, resulting in wanting to play more, rather than quitting.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "I-B5": {
+   "text": "AI is balanced with the players' play.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "I-B6": {
+   "text": "The AI is tough enough that the players have to try different tactics against it.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    2.0,
+    3.0
+   ],
+   "mean_sev": 2.5,
+   "by": [
+    "R1:P",
+    "R5:P"
+   ]
+  },
+  "I-C1": {
+   "text": "The game world reacts to the player and remembers their passage through it.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "I-C2": {
+   "text": "Changes the player make in the game world are persistent and noticeable if they back-track to where they have been before.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    2.0
+   ],
+   "mean_sev": 2.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "I-D1": {
+   "text": "The game goals are clear. The game provides clear goals, presents overriding goals early as well as short term goals throughout game play.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "I-D2": {
+   "text": "The skills needed to attain goals are taught early enough to play or use later, or right before the new skill is needed.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "I-D3": {
+   "text": "The game gives rewards that immerse the player more deeply in the game by increasing their capabilities, capacity or, for example, expanding their ability to customize.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R1:P",
+    "R2:P"
+   ]
+  },
+  "I-E1": {
+   "text": "The game supports a variety of game styles.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R2:P"
+   ]
+  },
+  "I-E2": {
+   "text": "The game is balanced with multiple ways to win.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R1:P",
+    "R5:P"
+   ]
+  },
+  "I-E3": {
+   "text": "The first ten minutes of play and player actions are painfully obvious and should result in immediate and positive feedback for all types of players.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "I-E4": {
+   "text": "The game had different AI settings so that it was challenging to all levels of players, whether novice or expert players.",
+   "M": 2,
+   "P": 2,
+   "N": 0,
+   "CA": 1,
+   "sev": [
+    1.0,
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R1:P",
+    "R2:CA",
+    "R5:P"
+   ]
+  },
+  "I-F1": {
+   "text": "Players feel in control.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "I-F2": {
+   "text": "The player's have a sense of control and influence onto the game world.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    2.0
+   ],
+   "mean_sev": 2.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "II-A1": {
+   "text": "There is an emotional connection between the player and the game world as well as with their \u201cavatar.\u201d",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R1:P",
+    "R2:P"
+   ]
+  },
+  "II-B1": {
+   "text": "The game offers something different in terms of attracting and retaining the players' interest.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R2:P"
+   ]
+  },
+  "II-C1": {
+   "text": "The game uses humor well.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R1:P",
+    "R5:P"
+   ]
+  },
+  "II-D1": {
+   "text": "The game utilizes visceral, audio and visual content to further the players' immersion in the game.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    3.0,
+    2.0
+   ],
+   "mean_sev": 2.5,
+   "by": [
+    "R1:P",
+    "R3:P"
+   ]
+  },
+  "III-A1": {
+   "text": "Player does not need to read the manual or documentation to play.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R2:P"
+   ]
+  },
+  "III-A2": {
+   "text": "Player does not need to access the tutorial in order to play.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R2:P",
+    "R5:P"
+   ]
+  },
+  "III-B1": {
+   "text": "Game controls are consistent within the game and follow standard conventions.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "III-B2": {
+   "text": "Status score Indicators are seamless, obvious, available and do not interfere with game play.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    2.0
+   ],
+   "mean_sev": 2.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "III-B3": {
+   "text": "Controls are intuitive, and mapped in a natural way; they are customizable and default to industry standard settings.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "III-B4": {
+   "text": "Consistency shortens the learning curve by following the trends set by the gaming industry to meet users' expectations. If no industry standard exists, perform usability/playability research to ascertain the best mapping for the majority of intended players.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "III-C1": {
+   "text": "Game provides feedback and reacts in a consistent, immediate, challenging and exciting way to the players' actions.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "III-C2": {
+   "text": "Provide appropriate audio/visual/visceral feedback (music, sound effects, controller vibration).",
+   "M": 3,
+   "P": 1,
+   "N": 1,
+   "CA": 0,
+   "sev": [
+    3.0,
+    2.0
+   ],
+   "mean_sev": 2.5,
+   "by": [
+    "R1:N",
+    "R3:P"
+   ]
+  },
+  "III-D1": {
+   "text": "The game goals are clear. The game provides clear goals, presents overriding goals early as well as short term goals throughout game play.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "III-D2": {
+   "text": "The skills needed to attain goals are taught early enough to play or use later, or right before the new skill is needed.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "III-D3": {
+   "text": "The game gives rewards that immerse the player more deeply in the game by increasing their capabilities, capacity or, for example, expanding their ability to customize.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R1:P"
+   ]
+  },
+  "III-E1": {
+   "text": "The game does not put an unnecessary burden on the player.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    2.0
+   ],
+   "mean_sev": 2.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "III-E2": {
+   "text": "Player is given controls that are basic enough to learn quickly, yet expandable for advanced options for advanced players.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "III-F1": {
+   "text": "Screen layout is efficient, integrated, and visually pleasing.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R2:P"
+   ]
+  },
+  "III-F2": {
+   "text": "The player experiences the user interface as consistent (in controller, color, typographic, dialogue and user interface design).",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R2:P",
+    "R5:P"
+   ]
+  },
+  "III-F3": {
+   "text": "The players experience the user interface/HUD as a part of the game.",
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0,
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R2:P",
+    "R5:P"
+   ]
+  },
+  "III-F4": {
+   "text": "Art is recognizable to the player and speaks to its function.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R2:P"
+   ]
+  },
+  "III-G1": {
+   "text": "Navigation is consistent, logical and minimalist.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "III-H1": {
+   "text": "Player error is avoided.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "III-H2": {
+   "text": "Player interruption is supported, so that players can easily turn the game on and off and be able to save the games in different states.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    1.0
+   ],
+   "mean_sev": 1.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "III-H3": {
+   "text": "Upon turning on the game, the player has enough information to begin play.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "III-H4": {
+   "text": "Players should be given context sensitive help while playing so that they are not stuck and need to rely on a manual for help.",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    2.0
+   ],
+   "mean_sev": 2.0,
+   "by": [
+    "R5:P"
+   ]
+  },
+  "III-H5": {
+   "text": "All levels of players are able to play and get involved quickly and easily with tutorials, and/or progressive or adjustable difficulty levels.",
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "sev": [],
+   "mean_sev": null,
+   "by": []
+  },
+  "III-I1": {
+   "text": "Game story encourages immersion (If game has story component).",
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "sev": [
+    3.0
+   ],
+   "mean_sev": 3.0,
+   "by": [
+    "R5:P"
+   ]
+  }
+ },
+ "by_heuristic": {
+  "I-A": {
+   "M": 18,
+   "P": 7,
+   "N": 0,
+   "CA": 0,
+   "items": 5
+  },
+  "I-B": {
+   "M": 21,
+   "P": 9,
+   "N": 0,
+   "CA": 0,
+   "items": 6
+  },
+  "I-C": {
+   "M": 9,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "items": 2
+  },
+  "I-D": {
+   "M": 13,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "items": 3
+  },
+  "I-E": {
+   "M": 14,
+   "P": 5,
+   "N": 0,
+   "CA": 1,
+   "items": 4
+  },
+  "I-F": {
+   "M": 9,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "items": 2
+  },
+  "II-A": {
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "items": 1
+  },
+  "II-B": {
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "items": 1
+  },
+  "II-C": {
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "items": 1
+  },
+  "II-D": {
+   "M": 3,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "items": 1
+  },
+  "III-A": {
+   "M": 7,
+   "P": 3,
+   "N": 0,
+   "CA": 0,
+   "items": 2
+  },
+  "III-B": {
+   "M": 18,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "items": 4
+  },
+  "III-C": {
+   "M": 7,
+   "P": 2,
+   "N": 1,
+   "CA": 0,
+   "items": 2
+  },
+  "III-D": {
+   "M": 14,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "items": 3
+  },
+  "III-E": {
+   "M": 8,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "items": 2
+  },
+  "III-F": {
+   "M": 14,
+   "P": 6,
+   "N": 0,
+   "CA": 0,
+   "items": 4
+  },
+  "III-G": {
+   "M": 5,
+   "P": 0,
+   "N": 0,
+   "CA": 0,
+   "items": 1
+  },
+  "III-H": {
+   "M": 23,
+   "P": 2,
+   "N": 0,
+   "CA": 0,
+   "items": 5
+  },
+  "III-I": {
+   "M": 4,
+   "P": 1,
+   "N": 0,
+   "CA": 0,
+   "items": 1
+  }
+ },
+ "by_category": {
+  "I": {
+   "M": 84,
+   "P": 25,
+   "N": 0,
+   "CA": 1,
+   "items": 22
+  },
+  "II": {
+   "M": 13,
+   "P": 7,
+   "N": 0,
+   "CA": 0,
+   "items": 4
+  },
+  "III": {
+   "M": 100,
+   "P": 19,
+   "N": 1,
+   "CA": 0,
+   "items": 24
+  }
+ },
+ "by_reviewer": {
+  "R1": {
+   "M": 38,
+   "P": 11,
+   "N": 1,
+   "CA": 0
+  },
+  "R2": {
+   "M": 37,
+   "P": 12,
+   "N": 0,
+   "CA": 1
+  },
+  "R3": {
+   "M": 47,
+   "P": 3,
+   "N": 0,
+   "CA": 0
+  },
+  "R4": {
+   "M": 50,
+   "P": 0,
+   "N": 0,
+   "CA": 0
+  },
+  "R5": {
+   "M": 25,
+   "P": 25,
+   "N": 0,
+   "CA": 0
+  }
+ },
+ "severity_on_met_items": [
+  [
+   "R1",
+   "III-A1",
+   1.0
+  ],
+  [
+   "R1",
+   "III-A2",
+   1.0
+  ],
+  [
+   "R1",
+   "III-G1",
+   1.0
+  ],
+  [
+   "R1",
+   "III-H4",
+   1.0
+  ],
+  [
+   "R1",
+   "III-I1",
+   1.0
+  ]
+ ],
+ "names": {
+  "I-A": "Enduring Play",
+  "I-B": "Challenge, Strategy and Pace",
+  "I-C": "Consistency in Game World",
+  "I-D": "Goals",
+  "I-E": "Variety of Players and Game Styles",
+  "I-F": "Players' Perception of Control",
+  "II-A": "Emotional Connection",
+  "II-B": "Coolness/Entertainment",
+  "II-C": "Humor",
+  "II-D": "Immersion",
+  "III-A": "Documentation/Tutorial",
+  "III-B": "Status and Score",
+  "III-C": "Game Provides Feedback",
+  "III-D": "Terminology",
+  "III-E": "Burden on Player",
+  "III-F": "Screen Layout",
+  "III-G": "Navigation",
+  "III-H": "Error Prevention",
+  "III-I": "Game Story Immersion"
+ },
+ "totals": {
+  "M": 197,
+  "P": 51,
+  "N": 1,
+  "CA": 1
+ }
+}
