@@ -21,7 +21,7 @@ const JUMP := 94.3
 const FLOOR_BEFORE := 180.0
 
 ## Every check this audit makes. A script error that skips them must not pass as quiet.
-const CHECKS := 15
+const CHECKS := 17
 
 var failures := 0
 var checked := 0
@@ -54,6 +54,7 @@ func _run() -> void:
 	_audit_the_flower_is_off_the_path(scene)
 	_audit_nothing_the_ash_takes_is_solid(scene)
 	_audit_mayon_sounds_through_the_director(scene)
+	_audit_the_mountain_is_named(scene)
 	scene.queue_free()
 	for _frame in range(6):
 		await process_frame
@@ -358,6 +359,45 @@ func _audit_mayon_sounds_through_the_director(scene: Node) -> void:
 
 
 # --- Helpers ----------------------------------------------------------------------------
+
+## MAYON, SAID AS MAYON (cultural panel, Chapter 5 Table 34). Lolo names the ruin at the foot and
+## tells the story the mountain is named for. The name has to be said where the tower is -- a
+## line about a ruin nobody can see is a caption -- and both have to come on the ascent, before
+## the first gate, while Lolo still has the words.
+func _audit_the_mountain_is_named(scene: Node) -> void:
+	var telling: Array = (scene.get_script() as Script).get_script_constant_map().get("TELLING", [])
+	var at := {}
+	for entry_value: Variant in telling:
+		at[String((entry_value as Array)[1])] = float((entry_value as Array)[0])
+	var tower := scene.find_child("BellTower", true, false) as Node2D
+	var lines: Array = _load(DIALOGUE_PATH).get("lines", [])
+	var names_it := false
+	var legend := false
+	var lore_only := true
+	for line_value: Variant in lines:
+		var line: Dictionary = line_value
+		var hook := String(line.get("at", ""))
+		if hook == "LOLO.cagsawa" and String(line.get("text", "")).contains("Cagsawa"):
+			names_it = true
+		if hook == "LOLO.magayon" and String(line.get("text", "")).contains("Daragang Magayon"):
+			legend = true
+		if hook in ["LOLO.cagsawa", "LOLO.magayon"] and String(line.get("kind", "")) != "lore":
+			lore_only = false
+	var span := _obstacle_volume_x(scene, "L5_SPAN")
+	_check(names_it and tower != null and at.has("LOLO.cagsawa")
+		and absf(float(at["LOLO.cagsawa"]) - tower.global_position.x) <= 150.0,
+		"Lolo names the Cagsawa ruin beside it",
+		"said at x %s, tower at x %s" % [at.get("LOLO.cagsawa", "?"),
+			tower.global_position.x if tower != null else "?"])
+	_check(legend and lore_only and at.has("LOLO.magayon") and float(at["LOLO.magayon"]) < span,
+		"and tells the legend of Daragang Magayon on the ascent",
+		"at x %s, first gate at x %d" % [at.get("LOLO.magayon", "?"), int(span)])
+
+
+func _obstacle_volume_x(scene: Node, id: String) -> float:
+	var volume := scene.find_child(id, true, false) as Node2D
+	return volume.global_position.x if volume != null else -INF
+
 
 func _open_level() -> Node:
 	var scene := (load("res://level_5.tscn") as PackedScene).instantiate()
