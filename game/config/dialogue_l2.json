@@ -52,6 +52,51 @@
       "text": "Not that one, apo. Too small for today. Pick something the crowd will see."
     },
     {
+      "id": "L2_PL_001",
+      "at": "L2_PLAZA.food",
+      "speaker": "lolo",
+      "kind": "lore",
+      "lang": "ceb",
+      "text": "Kaon ta, apo!"
+    },
+    {
+      "id": "L2_PL_002",
+      "at": "L2_PLAZA.food",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "Kaon...?"
+    },
+    {
+      "id": "L2_PL_003",
+      "at": "L2_PLAZA.food",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Let's eat. That is how Cebu says it, and on a fiesta every table in town says it to you."
+    },
+    {
+      "id": "L2_PL_004",
+      "at": "L2_PLAZA.food",
+      "speaker": "lolo",
+      "kind": "lore",
+      "text": "Puso, rice cooked inside woven coconut leaves. Bibingka from the clay oven. Adobo in the pot, pancit for a long life, and mangoes."
+    },
+    {
+      "id": "L2_PL_005",
+      "at": "L2_PLAZA.food",
+      "speaker": "lolo",
+      "kind": "lore",
+      "lang": "ceb",
+      "text": "When it is good, you say lami. Lami kaayo — very good."
+    },
+    {
+      "id": "L2_PL_006",
+      "at": "L2_PLAZA.food",
+      "speaker": "apo",
+      "kind": "lore",
+      "lang": "ceb",
+      "text": "Lami kaayo!"
+    },
+    {
       "id": "L2_N1_001",
       "at": "L2_N1.enter",
       "text": "The church first. She never came empty-handed — always a light to leave burning."

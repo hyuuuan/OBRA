@@ -173,6 +173,24 @@ with no collision or interaction. `run_level2_chain_probe` checks the art regist
 the level’s E handler; `run_visual_level2 --church` pushes E through a real viewport
 and captures both doors, the rack and the placed-candle state.
 
+## Fiesta food in the plaza — November 2026
+
+The cultural panel asked for more of everyday Filipino life, food first (Chapter 5, Table 34).
+On a Cebu fiesta every house opens its table, so the plaza has one: `FiestaTable2D` on
+`FiestaTableMark` (x 1500), in front of the bell tower, east of the church door and clear of the
+dancers. On it: **puso** hung in a bunch (rice in woven coconut leaf, Cebu's own), **bibingka**,
+**adobo** in a palayok, **pancit** and a basket of **mangoes** (`tools/build_fiesta_table.py`,
+drawn with `pixelart.Canvas` in the plaza's ramps).
+
+- **Nothing on it is a class.** No lechon and no bread, though both belong on a real fiesta
+  table: `pig` and `bread` are drawable, and the alleys' Feed beat wants a drawing. The first
+  bibingka were domed and read as loaves; they are flat and round now.
+- **Scenery, not a source.** No collision, no interaction, and Lolo's lines by it are lore
+  (`run_level2_audit`, `_audit_fiesta_table`). It is not the scrap assembly table.
+- **What Lolo says** (`L2_PLAZA.food`), once, to somebody who stops by it for 0.8 s, and only
+  after the fork has introduced the plaza: *"Kaon ta, apo!"* -- let's eat, in Cebuano -- what is
+  on the table, and *"Lami kaayo"*, very good, which the apo says back.
+
 ## Her diary — November 2026
 
 Three pages of Lola's diary lie in Piyesta (`DIARY.md`): one on the nave floor on the way to the

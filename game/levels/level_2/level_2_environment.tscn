@@ -143,6 +143,9 @@ position = Vector2(600.0, 560.0)
 [node name="ChurchDoor" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(1250.0, 560.0)
 
+[node name="FiestaTableMark" type="Marker2D" parent="GameplayPlane/Marks"]
+position = Vector2(1500.0, 560.0)
+
 [node name="BuntingLine" type="Marker2D" parent="GameplayPlane/Marks"]
 position = Vector2(720.0, 205.0)
 

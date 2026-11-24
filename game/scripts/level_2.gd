@@ -276,6 +276,7 @@ func _build_level_furniture() -> void:
 	_put_the_kandila_in_the_house()
 	_furnish_the_church()
 	_bring_out_the_dancers()
+	_lay_the_fiesta_table()
 	_build_the_alleys()
 	_drop_her_pages()
 
@@ -534,6 +535,31 @@ func _bring_out_the_dancers() -> void:
 	dancers.noticed.connect(_on_dancers_noticed)
 	dancers.notice_left.connect(_on_dancers_notice_left)
 	dancers.scattered.connect(_on_dancers_scattered)
+
+
+## Fiesta food, on the way to the church (FiestaTable2D). Lolo says what is on it to somebody
+## who stops by it -- once, and not before the plaza has been introduced: the table stands past
+## the fork's volume, but a player who runs for the church at once would otherwise hear about
+## lunch before hearing why they are here.
+var fiesta_table: FiestaTable2D
+
+
+func _lay_the_fiesta_table() -> void:
+	var mark := _mark("FiestaTableMark")
+	if mark == null:
+		push_error("Level2: no FiestaTableMark to lay the fiesta table on")
+		return
+	fiesta_table = FiestaTable2D.new()
+	fiesta_table.name = "FiestaTable"
+	mark.add_child(fiesta_table)
+	fiesta_table.approached.connect(_on_fiesta_table_noticed)
+
+
+func _on_fiesta_table_noticed() -> void:
+	if not script_lines.has_heard("L2_N1.enter"):
+		fiesta_table.forget_telling()
+		return
+	_speak_on_arrival("L2_PLAZA.food")
 
 
 ## The irreversibility, said while the player can still walk away. The design asks for the
