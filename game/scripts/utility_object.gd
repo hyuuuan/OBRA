@@ -21,6 +21,9 @@ const TOGGLE_TOOLS := ["flashlight", "umbrella", "fan", "parachute", "hot_air_ba
 ## ground. Climb is the most required tag in the game; two of its eight members answering it
 ## with nothing is the tag layer lying to the player, which is worse than refusing them.
 const CLIMBABLE_PROPS := ["ladder", "stairs", "tree"]
+## How far to one side a staircase's top step must sit, as a share of its half-width, before
+## it has a foot and a top to walk between (`stair_path`). Below it, it climbs like a ladder.
+const STAIR_LEAN := 0.35
 
 ## How far a tool reaches for things to act on.
 const TOOL_REACH := 96.0
@@ -429,6 +432,56 @@ func _perform_use(actor: Node2D) -> String:
 ## verb that undoes it.
 func can_be_climbed() -> bool:
 	return not is_preview and utility_behavior in CLIMBABLE_PROPS and _standing_still()
+
+
+## ⚠ STAIRS ARE WALKED UP, NOT CLIMBED THROUGH (F16, expert review). They used to take the
+## ladder's climb: W lifted her straight up through the middle of the steps, 40px past the top
+## step into the air, where she let go, fell back within reach and was taken hold of again --
+## so holding W at a staircase left her bobbing in the air above it, and letting go dropped her
+## back inside it. A staircase has a foot and a top step, and the climb now runs between them.
+##
+## Measured from the collision the strokes built, in world space, so a resized or rotated
+## staircase answers for where it actually is. The high side is where the topmost geometry
+## sits. A drawing with no high side (a symmetric heap, or a box) returns {} and keeps the
+## ladder's climb, so the Climb tag still answers with every staircase a player can draw.
+func stair_path() -> Dictionary:
+	if utility_behavior != "stairs" or is_preview:
+		return {}
+	var points := PackedVector2Array()
+	for child in get_children():
+		var collision := child as CollisionShape2D
+		if collision == null or collision.shape == null or collision.disabled:
+			continue
+		var rect := collision.shape.get_rect()
+		for corner in [rect.position, Vector2(rect.end.x, rect.position.y),
+				Vector2(rect.position.x, rect.end.y), rect.end]:
+			points.append(collision.global_transform * corner)
+	if points.size() < 4:
+		return {}
+	var box := Rect2(points[0], Vector2.ZERO)
+	for point in points:
+		box = box.expand(point)
+	if box.size.x < 24.0 or box.size.y < 24.0:
+		return {}
+	# The top step: everything within a step's thickness of the highest point.
+	var band := maxf(8.0, box.size.y * 0.08)
+	var sum := 0.0
+	var count := 0
+	for point in points:
+		if point.y <= box.position.y + band:
+			sum += point.x
+			count += 1
+	var top_x := sum / float(count)
+	var lean := (top_x - box.get_center().x) / (box.size.x * 0.5)
+	if absf(lean) < STAIR_LEAN:
+		return {}
+	var rises_right := lean > 0.0
+	var inset := minf(24.0, box.size.x * 0.15)
+	return {
+		"foot": Vector2(box.position.x if rises_right else box.end.x, box.end.y),
+		"top": Vector2(clampf(top_x, box.position.x + inset, box.end.x - inset), box.position.y),
+		"box": box,
+	}
 
 
 ## Resting where it was put, whether or not the settle timer has got round to freezing it.

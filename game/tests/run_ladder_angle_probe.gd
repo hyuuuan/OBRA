@@ -22,6 +22,9 @@ func _run() -> void:
 	await _climb_at_angle(40.0, 2.0)
 	await _mount_and_leave()
 	await _climb_onto_ledge()
+	await _walk_up_stairs(true)
+	await _walk_up_stairs(false)
+	await _stairs_without_a_high_side()
 	world.free()
 	await process_frame
 	print("OBRA_LADDER_ANGLE_%s" % ("OK" if failures == 0 else "FAILED=%d" % failures))
@@ -157,6 +160,112 @@ func _climb_onto_ledge() -> void:
 	ledge.free()
 	floor_body.free()
 	await process_frame
+
+
+## ⚠ F16 (expert review): holding W at drawn stairs made the player float. The stairs took the
+## ladder's climb, which runs through the object and 40px past its top, so she rose through
+## the steps into the air and bobbed there for as long as W was held. Stairs are walked up:
+## W at the foot carries her to the top step, and she stands there.
+func _walk_up_stairs(rising_right: bool) -> void:
+	var floor_body := _block(Vector2(650.0, 760.0), Vector2(1600.0, 80.0))
+	var stairs := _stairs(Vector2(650.0, 560.0), _stair_strokes(rising_right))
+	await _frames(150)
+	var path := stairs.stair_path()
+	var label := "stairs rising %s" % ("right" if rising_right else "left")
+	_check(not path.is_empty(), label + ": a staircase with a high side has a foot and a top")
+	if path.is_empty():
+		stairs.free(); floor_body.free(); await process_frame
+		return
+	var box: Rect2 = path["box"]
+	var foot: Vector2 = path["foot"]
+	var hero := _hero(foot + Vector2(-30.0 if rising_right else 30.0, -4.0))
+	await _frames(20)
+	Input.action_press("move_up")
+	await _frames(4)
+	_check(hero.is_using_ladder(stairs), label + ": W at the foot takes hold without E")
+	await _frames(116)
+	_check(hero.is_on_floor() and absf(hero.position.y - box.position.y) < 3.0
+		and (hero.position.x > box.get_center().x) == rising_right,
+		label + ": W carries her up the steps to stand on the top step (%s, top %.0f)" % [
+			hero.position, box.position.y])
+	var highest := hero.position.y
+	for _frame in range(90):
+		await physics_frame
+		highest = minf(highest, hero.position.y)
+	_check(highest > box.position.y - 3.0 and hero.is_on_floor(),
+		label + ": holding W on the top step does not lift her (highest %.1f, top %.0f)" % [
+			highest, box.position.y])
+	Input.action_release("move_up")
+	var resting := hero.position.y
+	await _frames(30)
+	_check(absf(hero.position.y - resting) < 3.0,
+		label + ": letting go leaves her standing, with nothing to fall from")
+	Input.action_press("move_down")
+	await _frames(60)
+	Input.action_release("move_down")
+	_check(hero.position.y - resting > 60.0,
+		label + ": S takes her back down the steps (%.0fpx)" % (hero.position.y - resting))
+	hero.free()
+	stairs.free()
+	floor_body.free()
+	await process_frame
+
+
+## The Climb tag still answers with every staircase: one drawn with no side higher than the
+## other has no foot and top, and climbs as a ladder does.
+func _stairs_without_a_high_side() -> void:
+	var strokes: Array = []
+	for x in [0.0, 90.0]:
+		strokes.append({"points": PackedVector2Array([Vector2(x, 0), Vector2(x, 380)]),
+			"width": 7.0, "color": Color.BLACK})
+	for y in [60.0, 140.0, 220.0, 300.0, 360.0]:
+		strokes.append({"points": PackedVector2Array([Vector2(0, y), Vector2(90, y)]),
+			"width": 7.0, "color": Color.BLACK})
+	var stairs := _stairs(Vector2(650.0, 500.0), strokes)
+	stairs.freeze = true
+	await _frames(2)
+	_check(stairs.stair_path().is_empty(), "stairs with no high side have no foot and top")
+	var hero := _hero(stairs.position + Vector2(0.0, 60.0))
+	var start := hero.position
+	Input.action_press("move_up")
+	await _frames(28)
+	Input.action_release("move_up")
+	_check(hero.is_using_ladder(stairs) and start.y - hero.position.y > 40.0,
+		"stairs with no high side still climb as a ladder (rose %.0fpx)" % (start.y - hero.position.y))
+	hero.free()
+	stairs.free()
+	await process_frame
+
+
+## A staircase drawn the way a player draws one: a stepped profile, a back and a base.
+func _stair_strokes(rising_right: bool) -> Array:
+	var steps := PackedVector2Array([Vector2(0, 300)])
+	for k in range(5):
+		steps.append(Vector2(k * 60, 300 - (k + 1) * 60))
+		steps.append(Vector2((k + 1) * 60, 300 - (k + 1) * 60))
+	var back := PackedVector2Array([Vector2(300, 0), Vector2(300, 300), Vector2(0, 300)])
+	if not rising_right:
+		for i in range(steps.size()):
+			steps[i].x = 300.0 - steps[i].x
+		for i in range(back.size()):
+			back[i].x = 300.0 - back[i].x
+	return [{"points": steps, "width": 7.0, "color": Color.BLACK},
+		{"points": back, "width": 7.0, "color": Color.BLACK}]
+
+
+func _stairs(at: Vector2, strokes: Array) -> UtilityObject:
+	var stairs := registry.instantiate_entity("stairs") as UtilityObject
+	world.add_child(stairs)
+	var item := DrawnItemData.new()
+	item.entity_id = "stairs"
+	item.display_name = "Stairs"
+	for stroke in strokes:
+		item.strokes.append(stroke)
+	stairs.apply_item_data(item)
+	stairs.set_preview(true)
+	stairs.position = at
+	stairs.confirm_placement()
+	return stairs
 
 
 func _block(at: Vector2, dimensions: Vector2) -> StaticBody2D:

@@ -274,16 +274,19 @@ func _physics_process(delta: float) -> void:
 		_advance_stride(delta, 0.0)
 		return
 	if _climbing():
-		# On a ladder the whole point is that gravity is not the thing deciding where
-		# you go. Up/down follow its placed angle; sideways still lets you step off.
-		var down := _ladder_down(_ladder)
-		var across := Vector2(down.y, -down.x)
-		velocity = down * Input.get_axis(&"move_up", &"move_down") * CLIMB_SPEED
-		if direction == 0.0:
-			var offset := (global_position - _ladder.global_position).dot(across)
-			velocity -= across * clampf(offset * CLIMB_ALIGNMENT, -CLIMB_SPEED, CLIMB_SPEED)
+		if not _stair_path.is_empty():
+			_climb_stairs(direction)
 		else:
-			velocity.x += direction * SPEED * CLIMB_DRIFT
+			# On a ladder the whole point is that gravity is not the thing deciding where
+			# you go. Up/down follow its placed angle; sideways still lets you step off.
+			var down := _ladder_down(_ladder)
+			var across := Vector2(down.y, -down.x)
+			velocity = down * Input.get_axis(&"move_up", &"move_down") * CLIMB_SPEED
+			if direction == 0.0:
+				var offset := (global_position - _ladder.global_position).dot(across)
+				velocity -= across * clampf(offset * CLIMB_ALIGNMENT, -CLIMB_SPEED, CLIMB_SPEED)
+			else:
+				velocity.x += direction * SPEED * CLIMB_DRIFT
 		_rung_travel += velocity.length() * delta
 		if _rung_travel >= RUNG_STRIDE:
 			_rung_travel = 0.0
@@ -606,6 +609,7 @@ func _riding() -> bool:
 func begin_ladder(ladder: Node2D) -> void:
 	_ladder = ladder
 	_ladder_half_height = _measure_half_height(ladder)
+	_stair_path = _stair_path_of(ladder)
 	# Taking hold is the first rung.
 	_rung_travel = 0.0
 	_sound(&"ladder")
@@ -623,6 +627,7 @@ func end_ladder() -> void:
 	if body != null and is_instance_valid(body):
 		remove_collision_exception_with(body)
 	_ladder = null
+	_stair_path = {}
 
 
 func is_using_ladder(ladder: Node2D) -> bool:
@@ -682,7 +687,9 @@ func _climbing() -> bool:
 	if _ladder == null or not is_instance_valid(_ladder):
 		_ladder = null
 		return false
-	if not _within_ladder(_ladder, _ladder_half_height):
+	var within := _within_ladder(_ladder, _ladder_half_height) if _stair_path.is_empty() \
+		else _on_stairs(_stair_path)
+	if not within:
 		end_ladder()
 		return false
 	return true
@@ -691,8 +698,71 @@ func _climbing() -> bool:
 ## Both the climb offer and the HUD ask this before taking hold. A broad interaction
 ## circle alone can reattach the player past the top and keep lifting them into the sky.
 func can_reach_ladder(ladder: Node2D) -> bool:
-	return ladder != null and is_instance_valid(ladder) \
-		and _within_ladder(ladder, _measure_half_height(ladder))
+	if ladder == null or not is_instance_valid(ladder):
+		return false
+	var stairs := _stair_path_of(ladder)
+	if stairs.is_empty():
+		return _within_ladder(ladder, _measure_half_height(ladder))
+	# ⚠ NOT FROM THE TOP STEP, GOING UP. She is put there when the climb ends, still holding
+	# W, and the climb offer asks every frame: taking hold again would snap her back to the
+	# top each frame and she could never walk off it. Going down (S) from there is a climb.
+	var going_down := Input.get_axis(&"move_up", &"move_down") > 0.5
+	return _on_stairs(stairs) and (going_down or _stair_progress(stairs) < _stair_length(stairs) - 6.0)
+
+
+## Stairs that rise to one side: the foot she walks on at and the top step she walks off
+## at (`UtilityObject.stair_path`). Empty for a ladder, a tree, or stairs with no high side.
+var _stair_path: Dictionary = {}
+
+
+func _stair_path_of(ladder: Node2D) -> Dictionary:
+	if ladder == null or not ladder.has_method("stair_path"):
+		return {}
+	return ladder.call("stair_path")
+
+
+## Up the steps, not up through them. W, or walking toward the high side, takes her along
+## the line from the foot to the top step; S, or walking the other way, takes her down it.
+## At the top she is set on the top step and lets go, which is the whole of F16: the ladder's
+## climb carried her past the top into the air and held her there for as long as W was held.
+func _climb_stairs(direction: float) -> void:
+	var foot: Vector2 = _stair_path["foot"]
+	var top: Vector2 = _stair_path["top"]
+	var length := _stair_length(_stair_path)
+	var along := (top - foot) / length
+	var drive := clampf(-Input.get_axis(&"move_up", &"move_down") + direction * signf(along.x), -1.0, 1.0)
+	var progress := _stair_progress(_stair_path)
+	if progress >= length and drive > 0.0:
+		global_position = top
+		velocity = Vector2.ZERO
+		end_ladder()
+		return
+	if progress <= 0.0 and drive < 0.0:
+		velocity = Vector2.ZERO
+		end_ladder()
+		return
+	velocity = along * drive * CLIMB_SPEED
+	# Ease onto the line between foot and top, as the ladder eases onto its centreline.
+	var off_line := (global_position - foot) - along * progress
+	velocity -= off_line.limit_length(CLIMB_SPEED / CLIMB_ALIGNMENT) * CLIMB_ALIGNMENT
+
+
+func _stair_length(stairs: Dictionary) -> float:
+	return maxf(1.0, ((stairs["top"] as Vector2) - (stairs["foot"] as Vector2)).length())
+
+
+## How far up the steps she is, from 0 at the foot to the length at the top step.
+func _stair_progress(stairs: Dictionary) -> float:
+	var foot: Vector2 = stairs["foot"]
+	var along := ((stairs["top"] as Vector2) - foot) / _stair_length(stairs)
+	return (global_position - foot).dot(along)
+
+
+## On or beside the staircase: its own footprint, with room to walk up to the foot and to
+## stand on the top step, and no more -- the ladder's overshoot above it is what floated her.
+func _on_stairs(stairs: Dictionary) -> bool:
+	var box: Rect2 = stairs["box"]
+	return box.grow_individual(40.0, 8.0, 40.0, 8.0).has_point(global_position)
 
 
 func _within_ladder(ladder: Node2D, half_height: float) -> bool:
