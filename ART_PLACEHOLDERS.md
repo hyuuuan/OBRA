@@ -253,6 +253,19 @@ would rather use it than borrow the rice and mud tiles they use today.
 
 ---
 
+## Piyesta — the fiesta table
+
+### The fiesta table · `game/scripts/fiesta_table_2d.gd` · 1 on `FiestaTableMark` (1500, 560)
+
+| | |
+|---|---|
+| **Now** | `game/assets/Level2/plaza/fiesta_table.png`, 208 × 124, drawn by `tools/build_fiesta_table.py` (`--check` verifies it) with `pixelart.Canvas` at PX 2 in the plaza's own ramps: a cloth-covered table with a red-and-gold border, banana leaves, a palayok of adobo, two bibingka, a plate of pancit, a basket of mangoes and a pole of hanging puso. Feet on the bottom row. |
+| **Collision** | **None**, and no interaction: scenery (`run_level2_audit`). |
+| **Must read as** | A fiesta table in a Cebu plaza, laden. **Nothing on it may read as one of the fifty classes**: no roast pig, no loaf, no fish. Flat round cakes, not domed ones. |
+| **Replace with** | One PNG at the same size or a clean multiple, feet on the bottom row; keep the path or change `FiestaTable2D.ART`. |
+
+---
+
 ## Dagat — what is painted, and the three things that are not
 
 **Updated 21 September.** Level 3's art arrived as 79 files and is in: three parallax bands

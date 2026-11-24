@@ -20,6 +20,7 @@ const AbilityTagsScript = preload("res://scripts/ability_tags.gd")
 const DialogueScriptClass = preload("res://scripts/dialogue_script.gd")
 const UtilityObjectClass = preload("res://scripts/utility_object.gd")
 const StoneThrowClass = preload("res://scripts/stone_throw_2d.gd")
+const FiestaTableClass = preload("res://scripts/fiesta_table_2d.gd")
 
 const TAGS_PATH := "res://config/tags.json"
 const LEVEL_PATH := "res://config/level_02.json"
@@ -79,6 +80,7 @@ func _run() -> void:
 	_audit_every_route_has_a_button(level, dialogue)
 	_audit_conditions_match_effects(level, dialogue)
 	_audit_is_playable()
+	_audit_fiesta_table(dialogue)
 	await _audit_objectives_fit(level)
 
 	for line in results:
@@ -478,6 +480,30 @@ func _audit_conditions_match_effects(level: Dictionary, dialogue: Dictionary) ->
 ## the hub will happily offer. The level can be started, played and finished, so the
 ## assertion turns over rather than being deleted -- the failure it guards against has just
 ## changed sides. An empty path from here on is a level that was un-shipped by accident.
+## FIESTA FOOD IS SCENERY (cultural panel, Chapter 5 Table 34). The plaza's table is there to be
+## looked at and talked about: no collision, so nothing stands on it or is stopped by it, and
+## what Lolo says by it is lore, never a hint -- the alleys' "feed" beat wants a drawing, and a
+## table that answered it would be a route nobody designed.
+func _audit_fiesta_table(dialogue: Dictionary) -> void:
+	var table := FiestaTableClass.new() as Node2D
+	root.add_child(table)
+	_check(not bool(table.call("has_collision")), "the fiesta table has no collision",
+		"scenery: nothing stands on it, and nothing on it can be taken")
+	table.queue_free()
+	var said := 0
+	var hinted: Array[String] = []
+	for line_value: Variant in dialogue.get("lines", []):
+		var line: Dictionary = line_value
+		if String(line.get("at", "")) != "L2_PLAZA.food":
+			continue
+		said += 1
+		if String(line.get("kind", "")) != "lore" or String(line.get("text", "")).contains("**"):
+			hinted.append(String(line.get("id", "")))
+	_check(said >= 3, "Lolo says what is on the fiesta table", "%d line(s)" % said)
+	_check(hinted.is_empty(), "and none of it is a hint",
+		"lore only" if hinted.is_empty() else "HINTS: %s" % ", ".join(hinted))
+
+
 func _audit_is_playable() -> void:
 	var text := FileAccess.get_file_as_string(LEVELS_PATH)
 	var parsed: Variant = JSON.parse_string(text)
