@@ -13,6 +13,13 @@ decisions Kent made on 2026-10-15/16 when the doc's open questions were put to h
 
 ---
 
+## Tagalog at the edge of the woods (2026-11-24)
+
+Every level has a line in its region's language (Chapter 5, Table 34; `docs/REGIONAL_LINES.md`).
+Dilim already had *"Tabi-tabi po"* at the nuno's mound, but that is a hint one route reaches, so
+the apo, alone once Lolo has stayed at the water, now also says *"Kaya ko 'to."* -- I can do
+this (`INTRO.alone`, `"lang": "tgl"`).
+
 ## The level in one paragraph
 
 Cross a dark forest on Mt. Makiling to the far side. Levels 1–3 solved problems by drawing;

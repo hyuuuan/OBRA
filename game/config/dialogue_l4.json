@@ -64,6 +64,21 @@
       "text": "And the lamp is burning low already. I will have to fill it at the first clearing I come to."
     },
     {
+      "id": "L4_IN_006",
+      "at": "INTRO.alone",
+      "speaker": "apo",
+      "kind": "lore",
+      "lang": "tgl",
+      "text": "Kaya ko 'to."
+    },
+    {
+      "id": "L4_IN_007",
+      "at": "INTRO.alone",
+      "speaker": "apo",
+      "kind": "lore",
+      "text": "I can do this."
+    },
+    {
       "id": "L4_RS_001",
       "at": "RESPAWN",
       "speaker": "apo",
@@ -100,6 +115,8 @@
     },
     {
       "id": "L4_NU_002",
+      "gloss": "inline",
+      "lang": "tgl",
       "at": "L4_NUNO.asked",
       "speaker": "apo",
       "kind": "hint",
