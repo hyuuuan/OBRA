@@ -1,8 +1,9 @@
 # OBRA — paper status, for choosing where to publish
 
-*As of 2026-10-31 (repository `hyuuuan/OBRA`, `main` after PR #152). Written so it can be
-handed to an assistant helping the authors pick conferences. Every number below is in the
-repository and reproducible from it.*
+*As of 2026-10-31 (repository `hyuuuan/OBRA`, `main` after PR #152); the user study's rows
+updated 2026-11-24 from `docs/CHAPTER5_BRIEF.md`. Written so it can be handed to an assistant
+helping the authors pick conferences. Every number below is in the repository and
+reproducible from it.*
 
 ## In one paragraph
 
@@ -25,7 +26,7 @@ P. Gatchalian and Lady Kaina V. Gutierrez, advised by Christine F. Peña, MMath.
 | Recognition model | Trained, evaluated, shipped. |
 | Knowledge grounding | Done and **verified**: every attribution checked against ConceptNet 5.7.0. |
 | Offline experiments | Four complete (below). |
-| **User study** | **Not yet run.** It is planned (≥30 players; SUS, UEQ-S, IEQ-SF, GEQ, Godspeed Animacy, QUESI Familiarity; in-game telemetry). **No human-participant data exists yet.** |
+| **User study** | **Run.** 16 Nov 2026: 33 players in the laboratory, after a pilot of 10 (6–12 Nov). Telemetry, a post-session questionnaire (34 respondents), an expert review (PLAY, five developers) and a cultural panel (seven teachers). Results are in `docs/CHAPTER5_BRIEF.md`. |
 | Thesis manuscript | Written (proposal stage). A revision appeal to the panel is drafted. |
 
 ## What is new (candidate contributions)
@@ -56,10 +57,28 @@ P. Gatchalian and Lady Kaina V. Gutierrez, advised by Christine F. Peña, MMath.
    game preprocesses", TU-Berlin scores 0.212, because averaging down 1111-pixel pen lines
    erases them. A stroke-preserving reduction gives 0.677. Both are reported.
 6. **Cultural design.** A Filipino setting and folklore carried by a culturally neutral
-   recognition pipeline. A Cultural Content Questionnaire is planned with
-   anthropology, sociology and history students.
+   recognition pipeline. A Cultural Content Questionnaire was answered by a panel of seven
+   teachers (below).
 
 ## Results available now
+
+**The user study** (`docs/CHAPTER5_BRIEF.md`, section 1; main study N = 33, pilot reported
+separately):
+
+| Evaluation | Headline |
+|---|---|
+| Live recognition | 770 drawings; 67.9% accepted, 30.6% declined at the floor, 1.4% by the level's bar |
+| Response time | Median 333 ms (target ≤ 250, **not met**); 95th percentile 438 ms (target ≤ 500, **met**). Recognition itself took 84 ms; the delay comes after the response |
+| Frame rate | Held during the request (766 of 770 windows ≥ 55 fps); about 11 frames were lost just after each accepted drawing |
+| Completion | Payyo 100%, Piyesta 91%, Dagat 79%, Dilim 28%, Mayon 33%. Every non-completion is a session that ended. All 10 untimed pilot players finished the game |
+| Usability (SUS, n = 34) | 67.7 (95% CI 63.2–72.2): at the benchmark of 68, not above it |
+| UX (UEQ-S) | Pragmatic 1.57 (1.19–1.94), hedonic 1.82 (1.54–2.10). Both positive (> 0.8) |
+| Immersion (IEQ-SF) | 3.46 of 5 |
+| GEQ (0–4) | Positive affect 3.46, competence 3.12, sensory and imaginative immersion 3.43 |
+| Believability (Godspeed Animacy) | 3.89 of 5 |
+| Ability-expectation (QUESI Familiarity) | 4.10 of 5 |
+| Expert review (PLAY, 5 reviewers) | 79% of 250 ratings Met, 1 Not met (audio feedback); 25 distinct problems |
+| Cultural panel (7 teachers) | 4 "use as is", 3 "use after minor changes", none worse |
 
 **Recognition** (`model/metrics.json`):
 - Held-out Quick, Draw! test accuracy is **0.866**: 200,000 drawings, 50 classes, capped at
@@ -99,21 +118,12 @@ every accepted drawing logs the time from Paint to the entity's first frame.
 
 ## What is not done, and what cannot be claimed yet
 
-- **No user study.** There are no usability, immersion or player-experience scores, no
-  real-play latency or frame-rate figures, and no live-play recognition data. Any claim about
-  players' experience waits on the playtest. **The playtest's instrumentation is built:**
-  - latency, both to the recogniser's answer and to the entity's appearance;
-  - frame rate during each submission, and frame rate and memory at 1 Hz;
-  - CPU of both processes at 1 Hz;
-  - every drawing's outcome against the obstacle's tag;
-  - per-class recall for drawings made after a hint names a class.
-
-  `tools/aggregate_telemetry.py` turns the logs into these figures.
 - **The simulated players are synthetic**: style and noise transforms of real drawings, not
   people.
 - **Live-play per-class recall covers only a subset:** drawings made after the third hint names
   a class. Obstacles ask for tags, so that is the only point at which the intended class is
-  known. Every other drawing is measured by whether it met the tag.
+  known. Every other drawing is measured by whether it met the tag. In the main study only 10
+  submissions carried an intended class, so no live per-class figure is reported.
 - **GPU utilisation is not measured**; the engine doesn't expose it.
 - **The shipped model predates full training seeding** (only its split was seeded), and its
   framework versions were not recorded. A retrain fixes both.
@@ -133,11 +143,12 @@ animation**, and **serious or cultural games** (Philippine heritage).
   - the gate-by-skill simulation;
   - the TU-Berlin preprocessing pitfall;
   - the negative result on correction learning.
-- **Needs the playtest:** a full paper on player experience, usability or cultural reception.
+- **Now possible with the playtest:** a full paper on player experience, usability or
+  cultural reception.
 - **Practical constraints:**
   - undergraduate authors in Cebu, so regional (Asia-Pacific or Philippine) conferences, and
     student or demo tracks with lower travel costs, may matter;
-  - the thesis timeline: the playtest is planned but not yet scheduled.
+  - the thesis timeline: the playtest ran on 16 Nov 2026, and Chapter 5 is being written.
 
 **Useful keywords:** sketch recognition; drawing-based game mechanics; CNN; selective
 classification / abstention; confidence thresholds; ConceptNet; commonsense knowledge;
@@ -149,6 +160,7 @@ Philippines; game AI; human-in-the-loop learning (negative result).
 | Document | What it covers |
 |---|---|
 | `docs/MANUSCRIPT_REVISIONS.md` | What to change in the thesis manuscript |
+| `docs/CHAPTER5_BRIEF.md` | The user study's results and the Chapter 5 text; `tools/chapter5/` reproduces them |
 | `docs/CONCEPTNET_VERIFICATION.md` | The ConceptNet checks |
 | `docs/CORRECTION_EXPERIMENT.md`, `docs/PLAYER_SIMULATION.md` | The two learning-from-corrections studies |
 | `model/metrics*.json` | All recognition figures |

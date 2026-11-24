@@ -5,6 +5,11 @@ the printed ones (the appendices carry none, so they are given as PDF pages). Ea
 instead, and the evidence. The evidence lives in the repository, so every number can be
 checked.
 
+> **Note added 20 Nov 2026.** This file covers Chapters 1–4 and the appendices **from before the
+> playtest**. The changes that follow from the evaluation are in `docs/CHAPTER5_BRIEF.md` (Parts C1,
+> D1 and E). Where the two touch the same passage, the brief is newer. The participant count is now 33
+> main study + 10 pilot, and the cultural panel is seven teachers, not DASH students.
+
 **Priority:**
 - **Must**: the manuscript is now wrong about the system.
 - **Should**: it is incomplete, or promises something it never delivers.
