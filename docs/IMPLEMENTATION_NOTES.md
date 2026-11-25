@@ -1037,7 +1037,7 @@ fitting its page, and being given by some level's script.
   the door was firing, and its other two assertions would have passed with no door in the
   game at all. Use a member variable or a named method for anything a signal has to set.
 - ⚠ **A test run never touches the player's save or telemetry.** Any run started with
-  `--script` gets its own `user://test_runs/` (`game/scripts/user_data.gd`), emptied when the
+  `--script` gets its own `user://test_runs/<pid>/` (`game/scripts/user_data.gd`), emptied when the
   run starts, and `PlayerProfile.profile_path` / `Telemetry.telemetry_dir` point into it.
   Before that, suites read and wrote the real `user://profile.json` -- two deleted it -- and
   the telemetry folder held 3,839 bot sessions. Never spell `"user://profile.json"` in a
